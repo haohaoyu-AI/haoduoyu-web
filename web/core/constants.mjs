@@ -10,7 +10,6 @@ const nav = [
   { id: "review", label: "内容复盘", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
-  { id: "ai-diagnosis", label: "AI诊断", icon: "chart" },
   { id: "ai-reports", label: "AI 日报", icon: "calendar" },
   { id: "settings", label: "设置", icon: "settings" }
 ];

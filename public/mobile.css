@@ -45,7 +45,7 @@
   .shell.menu-open::after { content:""; position:fixed; inset:0; z-index:25; background:rgba(20,22,20,.2); }
   .mobile-bar:has(.mobile-settings-menu:not([hidden])) .mobile-settings-trigger { position:relative; z-index:36; }
   .mobile-nav.workbench-navigation {
-    position:fixed; z-index:20; inset:auto 0 0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
+    position:fixed; z-index:20; inset:auto 0 0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
     width:100%; max-width:100%; box-sizing:border-box; gap:0; margin:0;
     min-height:var(--mobile-nav-height); padding:var(--space-4,4px)
       max(var(--space-4,4px),env(safe-area-inset-right)) calc(var(--space-4,4px) + env(safe-area-inset-bottom))
@@ -228,47 +228,10 @@
   #content-review.review-list-fullscreen .review-articles-panel { min-height:calc(100dvh - 24px); }
 }
 
-/* The article collection starts closed on both phones and computers. */
-.shell:has(#content-review [data-review-articles-expanded="true"]) {
-  backdrop-filter:none; -webkit-backdrop-filter:none;
-}
-#content-review .review-articles-heading { display:none; }
-#content-review .review-articles-toggle {
-  display:flex; align-items:center; gap:8px; flex:1; min-width:0; min-height:44px;
-  padding:0; border:0; background:transparent; color:var(--color-text); text-align:left; cursor:pointer;
-}
-#content-review .review-articles-toggle > span:first-child { font-size:18px; font-weight:600; white-space:nowrap; }
-#content-review .review-article-count { color:var(--color-text-secondary); font-size:12px; white-space:nowrap; }
-#content-review .review-article-toggle-label { margin-left:auto; font-size:12px; white-space:nowrap; color:var(--color-primary); }
-#content-review .review-articles-panel .review-panel-head { flex-wrap:nowrap; }
-#content-review .review-articles-panel[data-review-articles-expanded="false"] .review-panel-head { margin-bottom:0; }
-#content-review .review-articles-panel[data-review-articles-expanded="false"] .review-article-library,
-#content-review .review-articles-panel[data-review-articles-expanded="false"] [data-review-action="toggle-fullscreen"],
+/* Article detail stays open. The list and fullscreen control stay on screen. */
+#content-review .review-articles-heading { display:block; }
+#content-review .review-articles-toggle,
 #content-review .review-collapse-dock { display:none; }
-#content-review .review-articles-panel[data-review-articles-expanded="true"] .review-article-library { display:block; }
-#content-review .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
-  display:flex; justify-content:center; position:fixed; z-index:21; right:24px; bottom:24px; padding:8px; width:220px;
-  background:var(--color-glass-solid); border:1px solid var(--color-divider); border-radius:12px;
-  box-shadow:0 4px 18px #00000014;
-}
-#content-review .review-collapse-dock .btn { min-height:44px; width:100%; max-width:420px; }
-html:has(#content-review [data-review-articles-expanded="true"]) { scroll-padding-bottom:108px; }
-.content:has(#content-review [data-review-articles-expanded="true"]) { padding-bottom:108px; }
-#content-review.review-list-fullscreen { padding-bottom:108px; }
-@media (max-width:767px) {
-  #content-review .review-articles-toggle > span:first-child { font-size:16px; }
-  #content-review .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
-    left:0; right:0; width:auto; bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom)); padding:8px 16px;
-    border:0; border-top:1px solid var(--color-divider); border-radius:0; box-shadow:none;
-  }
-  html:has(#content-review [data-review-articles-expanded="true"]) {
-    scroll-padding-bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom) + 84px);
-  }
-  .content:has(#content-review [data-review-articles-expanded="true"]) {
-    padding-bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom) + 84px);
-  }
-  #content-review.review-list-fullscreen { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
-  #content-review.review-list-fullscreen .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
-    bottom:0; padding-bottom:calc(8px + env(safe-area-inset-bottom));
-  }
-}
+#content-review .review-article-library { display:block; }
+#content-review .review-articles-panel .review-panel-head { flex-wrap:wrap; gap:8px; }
+#content-review .review-articles-panel [data-review-action="toggle-fullscreen"] { min-height:44px; }

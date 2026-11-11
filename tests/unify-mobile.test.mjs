@@ -66,7 +66,7 @@ function browser({width=390,search='?page=todos',shell=true}={}) {
 
 test('phone bottom navigation includes AI reports separately from the settings menu',()=>{
   const app=browser(),html=app.run('mobileNavigation()');
-  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','review','ai-reports','ai-diagnosis']);
+  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','review','ai-reports']);
   assert.doesNotMatch(html,/<details|data-nav="settings"|data-nav="articles"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-nav="settings"/);
   assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="ai-reports"/);
@@ -74,8 +74,8 @@ test('phone bottom navigation includes AI reports separately from the settings m
   app.run('state.me.publicBusiness=true');assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-action="logout"/);
   assert.match(app.run('sidebarNavigation()'),/data-nav="review"/);
   const fresh=browser({shell:false});fresh.run('renderShell()');
-  assert.match(fresh.nodes.get('#app').innerHTML,/class="icon-button mobile-settings-trigger"[^>]*aria-label="设置菜单"/);
-  assert.match(fresh.nodes.get('#app').innerHTML,/aria-controls="mobile-settings-menu"/);
+  assert.match(fresh.nodes.get('#app').innerHTML,/class="icon-button mobile-settings-trigger"[^>]*data-nav="settings"[^>]*aria-label="设置"/);
+  assert.doesNotMatch(fresh.nodes.get('#app').innerHTML,/mobile-settings-menu|aria-label="设置菜单"/);
 });
 
 test('767px article entry is replaced with overview while 768px and desktop keep their article route and filters',()=>{

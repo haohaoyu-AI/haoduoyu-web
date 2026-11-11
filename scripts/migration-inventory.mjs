@@ -18,7 +18,8 @@ const v14RestoredTables = Object.freeze([...v13RestoredTables, 'ai_reports']);
 const reviewRestoredTables = Object.freeze([...v14RestoredTables,'review_articles','review_snapshots','review_reports','review_playbooks','review_benchmark_accounts','review_benchmark_articles','review_notes','review_account_health']);
 const v16RestoredTables = Object.freeze([...reviewRestoredTables,'openai_review_config','openai_review_runs']);
 const v17RestoredTables = Object.freeze([...v16RestoredTables,'review_prompt_versions']);
-export const restoredTables = Object.freeze([...v17RestoredTables,'daily_scores']);
+const scoreRestoredTables = Object.freeze([...v17RestoredTables,'daily_scores']);
+export const restoredTables = Object.freeze([...scoreRestoredTables,'review_article_diagnoses']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
 const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables],
   ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
@@ -32,7 +33,8 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_daily_scores') ? restoredTables :
+    const restored = schema.some(row => row.name === 'matrix_review_article_diagnoses') ? restoredTables :
+      schema.some(row => row.name === 'matrix_daily_scores') ? scoreRestoredTables :
       schema.some(row => row.name === 'matrix_review_prompt_versions') ? v17RestoredTables :
       schema.some(row => row.name === 'matrix_openai_review_runs') ? v16RestoredTables :
       schema.some(row => row.name === 'matrix_review_notes') ? reviewRestoredTables :

@@ -25,7 +25,7 @@ const cell = (html,id,label) => row(html,id).match(new RegExp(`<td data-label="$
 
 test('default list retains publication, title, reads and verdict; text stays escaped and scoped', () => {
   const html = render();
-  assert.match(html,/data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示/);
+  assert.match(html,/data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示/);
   const headers = [...table(html).matchAll(/<th scope="col">([^<]+)<\/th>/g)].map(match => match[1]);
   assert.deepEqual(headers,['发布时间','标题','阅读','判定']);
   assert.match(cell(html,'sample','阅读'),/^0<span[^>]*>发布后 23 小时/);

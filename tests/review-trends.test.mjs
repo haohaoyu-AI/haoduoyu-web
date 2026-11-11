@@ -113,11 +113,12 @@ test('navigation, empty data, daily table, validation, account isolation and HTM
   const source=data([row('<script>')],[snap('<script>',100)]);
   source.loadedAt='2026-11-10T03:59:00Z';
   const html=renderContentReviewContent(source,model);
-  for(const text of ['数据趋势','发文数','阅读中位数','爆款率','点击率中位数','阅读走势','点击率走势','统计口径与数据时间','逐日数据','2026-11-10 11:59','今天尚未结束','未判定'])assert.ok(html.includes(text),text);
+  for(const text of ['发文数','阅读中位数','CTR 中位数','统计口径与数据时间','近30天'])assert.ok(html.includes(text),text);
   assert.match(html,/data-review-secondary="cockpit"[^>]+aria-selected="true"/);
   assert.match(html,/class="review-overview-metrics"/);
   assert.doesNotMatch(html,/data-review-secondary="trends"/);
-  assert.match(html,/class="review-trend-dot/);assert.doesNotMatch(html,/<script>/);
+  assert.doesNotMatch(html,/数据趋势|阅读走势|点击率走势|逐日数据|review-trend-dot/);
+  assert.doesNotMatch(html,/<script>/);
   assert.doesNotMatch(html,/ style="/,'the strict style policy forbids inline styles');
   const empty=renderContentReviewContent(data(),model);assert.match(empty,/data-review-secondary="cockpit"/);assert.match(empty,/暂无内容复盘数据/);
   assert.match(renderReviewTrends(data(),model),/没有可绘制的有效数据/);

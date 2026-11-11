@@ -74,7 +74,8 @@ test('content review no longer contains a duplicate API entry',()=>{
   const vm={account:'V字',filters:{},secondary:'articles'},data=normalizeReviewData({articles:[{id:'article',account:'V字',title:'示例'}]});
   const html=renderContentReviewContent(data,vm);
   assert.doesNotMatch(html,/id="openai-review-panel"/);
-  assert.match(html,/data-review-articles-expanded="false"/);
+  assert.match(html,/data-review-articles-expanded="true"/);
+  assert.doesNotMatch(html,/展开 ↓|收起文章列表/);
   assert.doesNotMatch(renderContentReviewContent(data,{...vm,account:'其他'}),/id="openai-review-panel"/);
 });
 
@@ -186,10 +187,11 @@ test('AI module and date deep links survive router normalization and browser nav
   globalThis.history={replaceState(_state,_title,url){globalThis.location=new URL(url);}};
   globalThis.window={matchMedia:()=>({matches:false})};globalThis.localStorage=memory();
   try {
-    readRoute();updateRoute();assert.equal(state.page,'ai-diagnosis');assert.equal(state.diagnosisTab,'reports');assert.equal(state.aiDailyDate,'2026-11-08');
-    assert.equal(location.searchParams.get('diagnosis_tab'),'reports');assert.equal(location.searchParams.get('date'),'2026-11-08');
-    assert.equal(location.searchParams.get('openai_run'),'run-1');
-    state.aiDailyDate='2026-10-01';updateRoute();assert.equal(location.searchParams.get('diagnosis_tab'),'reports');
+    readRoute();updateRoute();assert.equal(state.page,'ai-reports');assert.equal(state.aiDailyTab,'reminders');
+    assert.equal(location.searchParams.get('page'),'ai-reports');assert.equal(location.searchParams.has('diagnosis_tab'),false);
+    assert.equal(location.searchParams.get('ai_tab'),'reminders');assert.equal(location.searchParams.has('openai_run'),false);
+    state.aiDailyDate='2026-10-01';updateRoute();assert.equal(location.searchParams.get('diagnosis_tab'),null);
+    assert.equal(location.searchParams.get('page'),'ai-reports');assert.equal(location.searchParams.get('date'),'2026-10-01');
     state.page='review';updateRoute();assert.equal(location.searchParams.has('ai_tab'),false);
   } finally { Object.assign(globalThis,previous); }
 });
@@ -198,7 +200,8 @@ test('OpenAI operations bypass offline transport and do not alter global public-
   const files=await Promise.all(['web/openai-review-controller.mjs','web/openai-settings-controller.mjs'].map(path=>readFile(path,'utf8')));
   for(const source of files) {assert.match(source,/apiNetwork/);assert.match(source,/suppressAuthRedirect: true/);assert.doesNotMatch(source,/outbox|offlineRequest/);}
   const controller=await readFile('web/controller.mjs','utf8');
-  assert.match(controller,/state\.me\?\.publicBusiness \? \{todo: settingsTabs.todo, openai: settingsTabs.openai\}/);
+  assert.match(controller,/state\.me\?\.publicBusiness \? \{todo: settingsTabs.todo\}/);
+  assert.doesNotMatch(controller,/openai: settingsTabs.openai/);
 });
 
 test('unregistered UUID remains blocked across repeated404 until explicit server cancellation receipt',async()=>{
@@ -415,17 +418,12 @@ test('observation is single-flight, early404 is harmless, disposal prevents late
   assert.equal(storage.getItem(key),completed.id);
 });
 
-test('AI diagnosis navigation is available on mobile and desktop and old API diary is removed',async()=>{
+test('old AI diagnosis navigation is gone and the API diary stays removed',async()=>{
   const {sidebarNavigation,mobileNavigation}=await import('../web/ui/workbench.mjs');
   const {renderAiReports}=await import('../web/pages/ai-reports.mjs');
-  const {renderAiDiagnosis}=await import('../web/ai-diagnosis-controller.mjs');
-  state.page='ai-diagnosis';
-  for(const html of [sidebarNavigation(),mobileNavigation()]) assert.match(html,/data-nav="ai-diagnosis"[^>]*aria-current="page"/);
+  state.page='review';
+  for(const html of [sidebarNavigation(),mobileNavigation()]) assert.doesNotMatch(html,/data-nav="ai-diagnosis"/);
   assert.doesNotMatch(renderAiReports(),/data-ai-daily-tab="openai"|openai-diary-list/);
-  const html=renderAiDiagnosis();
-  assert.match(html,/data-diagnosis-tab="help">求助API/);
-  assert.match(html,/data-diagnosis-tab="reports">诊断报告/);
-  assert.match(html,/id="ai-report-calendar"/);
 });
 
 test('diagnosis routes preserve calendar date and record through Back/Forward and legacy trigger redirect',()=>{
@@ -436,12 +434,8 @@ test('diagnosis routes preserve calendar date and record through Back/Forward an
   globalThis.history={replaceState(_,__,url){entries[index]=String(url);globalThis.location=new URL(url);},
     pushState(_,__,url){entries.splice(++index);entries[index]=String(url);globalThis.location=new URL(url);}};
   try {
-    readRoute();updateRoute();assert.equal(state.page,'ai-diagnosis');assert.equal(state.diagnosisTab,'help');assert.equal(location.hash,'');
-    state.diagnosisTab='reports';state.aiDailyDate='2026-11-08';state.openAiRun='run-1';updateRoute(true);
-    state.diagnosisTab='help';updateRoute(true);
-    globalThis.location=new URL(entries[--index]);readRoute();assert.equal(state.diagnosisTab,'reports');
-    assert.equal(state.aiDailyDate,'2026-11-08');assert.equal(state.openAiRun,'run-1');
-    globalThis.location=new URL(entries[++index]);readRoute();assert.equal(state.diagnosisTab,'help');
+    readRoute();updateRoute();assert.equal(state.page,'review');assert.equal(location.hash,'');
+    assert.equal(location.searchParams.has('diagnosis_tab'),false);
   } finally {Object.assign(globalThis,previous);}
 });
 

@@ -46,7 +46,7 @@ export function renderBenchmarkLibrary(data = {}, account = '') {
         String(a.item.id).localeCompare(String(b.item.id));
     });
   if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
-  const headers = ['对标账号','样本标题','样本阅读','仿写账号','仿写标题','仿写数据'];
+  const headers = ['对标账号','样本标题','样本阅读','仿写标题','仿写数据'];
   const body = samples.flatMap(({item,used}) => used.map((article,index) => {
     const owner = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl(item.url);
@@ -56,7 +56,6 @@ export function renderBenchmarkLibrary(data = {}, account = '') {
       e(owner.name || '未命名账号'),
       target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
       e(reads || '—'),
-      e(article.account || account),
       articleLink(article,account),
       e(metricText(latestSnapshot(data.snapshots, article.id)))
     ];

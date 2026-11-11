@@ -1,5 +1,3 @@
-import {openAiSettingsPage, loadOpenAiSettings} from './openai-settings-controller.mjs';
-import {renderAiDiagnosis, loadAiDiagnosis} from './ai-diagnosis-controller.mjs';
 import {stopOpenAiReviewTimers} from './openai-review-controller.mjs';
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
@@ -28,7 +26,7 @@ import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
-  renderMediaTabs, mobileSettingsMenu, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
+  renderMediaTabs, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings, renderTodoSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
@@ -37,11 +35,15 @@ import {loadAiReports} from "./ai-reports-controller.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 function mainContent() {
+  const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo} :
+    Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace" && key !== "openai"));
+  const settingsHint = state.page !== "settings" ? "" : state.me?.publicBusiness ?
+    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : state.me ?
+    '<p class="hint"><button class="btn text" type="button" data-action="logout">退出登录</button></p>' : "";
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? {todo: settingsTabs.todo, openai: settingsTabs.openai} :
-      Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace"))), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness && state.settingsTab !== "openai" ?
-    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" ' +
+    settingsChoices), state.settingsTab,
+    "设置分类", "tab", "page-tabs") : ""}${settingsHint}` +
+    `${state.page === "settings" ? '<section class="card panel" ' +
       'aria-label="本地待处理"><h2>本地待处理</h2><p ' +
       'class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
@@ -61,7 +63,8 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.page === "settings" && (state.settingsTab === "workspace" || state.me?.publicBusiness && !["todo", "openai"].includes(state.settingsTab)))
+  if (state.page === "settings" && (state.settingsTab === "workspace" || state.settingsTab === "openai" ||
+    state.me?.publicBusiness && state.settingsTab !== "todo"))
     state.settingsTab = "todo";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -80,8 +83,8 @@ class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
 aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div>\
 </aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span>\
-<button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" \
-aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header>\
+<a class="icon-button mobile-settings-trigger" href="?page=settings&amp;tab=todo" data-nav="settings" \
+aria-label="设置">${icon("settings", 20)}</a></header>\
 <main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
@@ -133,10 +136,8 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
-  if (page === "ai-diagnosis") return renderAiDiagnosis();
   if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
-  if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -148,7 +149,7 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports" || page === "ai-diagnosis" || page === "settings" && state.settingsTab === "openai") return;
+  else if (page === "reminders" || page === "ai-reports") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -196,9 +197,6 @@ async function renderPage() {
       case "reminders":
         await loadWorkReminders();
         break;
-      case "ai-diagnosis":
-        await loadAiDiagnosis();
-        break;
       case "ai-reports":
         await loadAiReports({resetDate:true});
         break;
@@ -207,7 +205,6 @@ async function renderPage() {
         break;
       case "settings":
         if (state.settingsTab === "workspace") break;
-        else if (state.settingsTab === "openai") { await loadOpenAiSettings(); }
         else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });

@@ -32,7 +32,8 @@ test('imitated library keeps Shanghai order, real links and only copied rows', (
   assert.match(html,/review_article=own-older-2[^"]*">我方二/);
   assert.match(row('older'),/data-label="仿写数据">阅读 20 · 点赞 3/);
   assert.match(row('missing'),/data-label="样本阅读">—/);
-  assert.match(row('missing'),/data-label="仿写账号">A/);
+  assert.doesNotMatch(html,/仿写账号/);
+  assert.match(row('missing'),/data-label="仿写标题"/);
   assert.doesNotMatch(html,/OTHER_ACCOUNT|OTHER_REFERENCE|CROSS_ACCOUNT|OTHER_OWN|href="javascript:/);
 });
 

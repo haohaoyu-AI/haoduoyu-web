@@ -1,14 +1,16 @@
 import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
-import {renderReviewTrends} from './review-trends.mjs';
+import {renderCockpitMethod} from './review-trends.mjs';
+import {renderArticleDiagnosis} from './review-diagnosis.mjs';
+import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
 import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs';
-import {reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
+import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
@@ -137,7 +139,7 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'rules') return playbook(data,vm);
   if (selected === 'prompts') return promptPage(data,vm);
   if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
-  return overview(data,vm) + renderReviewTrends(data,vm);
+  return overview(data,vm);
 }
 function archives(data,vm,rows,override) {
   const selected = activeSection(vm);
@@ -149,33 +151,48 @@ function archives(data,vm,rows,override) {
         `role="tabpanel" aria-labelledby="review-secondary-${selected}">${body}</div></section>`;
 }
 
+function metricChange(label, current, previous, prefix = '') {
+  const delta = metricDelta(current, previous);
+  const head = prefix ? `${label} ${prefix}` : label;
+  if (delta === null) return `<small class="review-stat-change">${e(head)} —</small>`;
+  if (delta === 0) return `<small class="review-stat-change">${e(head)} 持平</small>`;
+  const tone = delta > 0 ? ' up' : ' down';
+  return `<small class="review-stat-change${tone}">${e(head)} ${delta > 0 ? '+' : ''}${delta}%</small>`;
+}
+function statCard(label, body, change) {
+  return `<article class="review-stat"><span>${label}</span>${body}${change}</article>`;
+}
+function cockpitMethod(data, vm, current) {
+  if (!current.window) return '';
+  try { return renderCockpitMethod(data, vm, current.window); }
+  catch { return '<details class="review-trend-method"><summary>统计口径与数据时间</summary><p>口径暂时无法计算。</p></details>'; }
+}
 function overview(data,vm) {
-  const range = ['this','last'].includes(vm.filters?.metricsRange) ? vm.filters.metricsRange : 'this';
+  const range = ['this','last','30d'].includes(vm.filters?.metricsRange) ? vm.filters.metricsRange : 'this';
   const current = reviewOverviewMetrics(data,{account:vm.account,range,now:vm.now || new Date().toISOString()});
   const noSample = range !== 'last' && current.observedCount === 0;
   const value = formatted => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
+  const earlier = current.previous || {};
+  const change = (left,right,prefix = '') => current.comparisonLabel ? metricChange(current.comparisonLabel,left,right,prefix) : '';
+  const cards = [
+    statCard('发文数',`<strong>${e(current.count)}<small>篇</small></strong>`,change(current.count,earlier.count)),
+    statCard('爆 / 中 / 扑',`<strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong>`,
+      change(current.hits,earlier.hits,'爆')),
+    statCard('阅读中位数',value(reviewNumber(current.readsMedian)),change(current.readsMedian,earlier.readsMedian)),
+    statCard('CTR 中位数',value(reviewNumber(current.ctrMedian,'ctr')),change(current.ctrMedian,earlier.ctrMedian)),
+    statCard('平均阅读时长',value(reviewDuration(current.avgReadSeconds)),change(current.avgReadSeconds,earlier.avgReadSeconds)),
+    statCard('平均阅读完成率',value(reviewNumber(current.completion,'completion_rate')),change(current.completion,earlier.completion)),
+  ].join('');
   return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
-    `data-review-filter="metricsRange">${options([['this','本周'],['last','上周']],range)}</select></label><button class="btn text review-inline-refresh" ` +
-      `type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article ` +
-        `class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / ` +
-          `扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ` +
-            `${e(reviewNumber(current.flops))}</strong></article><article ` +
-            `class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current.readsMedian))}</article><article class="review-stat"><span>CTR ` +
-              `中位数</span>${value(reviewNumber(current.ctrMedian,'ctr'))}</article><article ` +
-                `class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current.avgReadSeconds))}</article><article ` +
-                  `class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current.completion,'completion_rate'))}</article></div></section>`;
+    `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
+    `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
+    `<div class="review-stats">${cards}</div></section>${cockpitMethod(data,vm,current)}`;
 }
 function articleListPanel(rows,vm,data) {
-  const expanded = Boolean(vm.articlesExpanded);
-  const toggle = `<button type="button" class="review-articles-toggle" data-review-action="toggle-articles"
-aria-expanded="${expanded}" aria-controls="review-article-library"><span>文章列表</span>
-<span class="review-article-count">${rows.length} 篇</span><span class="review-article-toggle-label">${expanded ? '收起 ↑' : '展开 ↓'}</span></button>`;
-  const dock = `<div class="review-collapse-dock"><button class="btn" type="button" data-review-action="toggle-articles"
-aria-expanded="${expanded}" aria-controls="review-article-library">收起文章列表 ↑</button></div>`;
-  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="${expanded}">
-<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>${toggle}
-<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>
-<div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div>${dock}</section>`;
+  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
+<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>
+<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div>
+<div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div></section>`;
 }
 function articleLibrary(rows,vm,data = {}) {
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === 
@@ -273,8 +290,7 @@ function renderRuleBook(book,scope) {
   const firstSection=lines.findIndex(line => /^##\s/.test(line));
   const titleLines=firstSection < 0 ? lines : lines.slice(0,firstSection);
   const title=titleLines.map(line => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
-  const content=(firstSection < 0 ? lines : lines.slice(0,firstSection))
-    .filter(line => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join('\n').trim();
+  const content=rulesIntroMarkdown(ownLayer ? book.content_md || '' : '');
   const intro=content ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content)}</div>` : '';
   const groups=v13RuleGroups.map(([id,label]) => {
     const group=rules.filter(rule => rule.section === id);
@@ -290,25 +306,8 @@ function renderRuleBook(book,scope) {
     <span class="review-note">共 ${ruleCountLabel(rules)}</span></div>
     ${intro}${groups}${other}</section>`;
 }
-const promptKindLabels = {longform_write:'写文章',image:'配图',weitoutiao_write:'微头条',transfer_chat:'转写'};
 function promptPage(data,vm) {
-  const order = ['longform_write','image','weitoutiao_write','transfer_chat'];
-  const prompts = currentPrompts(data.prompts,vm.account).slice().sort((a,b) => {
-    const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
-    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.scope).localeCompare(String(b.scope),'zh') || 
-      String(a.prompt_key).localeCompare(String(b.prompt_key),'zh');
-  });
-  if (!prompts.length) return empty('暂无生效提示词','当前账号还没有可复制的完整提示词。');
-  return `<div class="review-prompt-page">${prompts.map(prompt => `<article class="review-prompt-card">
-    <div class="review-v13-rule-meta"><h2>${e(promptKindLabels[prompt.prompt_key] || prompt.title || prompt.prompt_key)}</h2>
-    <span class="review-note">${e([prompt.title, 'v'+prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '))}</span></div>
-    <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || '未记录')} · 上海时间</p>
-    <div class="review-prompt-copy-actions">
-      <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
-      <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
-    </div>
-    <pre class="review-prompt-source">${e(prompt.content_md || '')}</pre>
-  </article>`).join('')}</div>`;
+  return renderPromptPage(data,vm);
 }
 function playbook(data,vm) {
   const books = currentPlaybooks(data.playbooks,vm.account);
@@ -345,7 +344,7 @@ function drawer(data,rows,vm) {
         `class="review-note">${e(reviewDateTime(row.published_at) || '发布时间未提供')} · 上海时间</span><h2 id="review-detail-title">${e(row.title || 
           '未命名文章')}</h2><div ` +
           `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderTrafficCard(data.snapshots,
-            row.id)}${renderImitation(row,data,vm.account)}</aside></div>`;
+            row.id)}${renderArticleDiagnosis(row,vm)}${renderImitation(row,data,vm.account)}</aside></div>`;
 }
 
 export function renderContentReview() { return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" ' +

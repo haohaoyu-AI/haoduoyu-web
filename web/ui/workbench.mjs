@@ -33,8 +33,7 @@ export function mobileNavigation() {
   const items = [['todos','待办'],['notes','碎碎念']];
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id,label]) =>
     navigationLink({...nav.find(item => item.id === id),label},true))
-    .join('')}${mediaNavigation(true)}${navigationLink(nav.find(item => item.id === 'ai-reports'),true)}${
-      navigationLink(nav.find(item => item.id === 'ai-diagnosis'),true)}</nav>`;
+    .join('')}${mediaNavigation(true)}${navigationLink(nav.find(item => item.id === 'ai-reports'),true)}</nav>`;
 }
 export function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
