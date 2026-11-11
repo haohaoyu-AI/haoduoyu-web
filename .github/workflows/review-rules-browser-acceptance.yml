@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: faa86f862f032f8a896d813ea4ac2f7d3eb13b96
+          ref: d715770a7753ea70931b330ce297fd566af6f0dd
           fetch-depth: 1
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -22,8 +22,8 @@ jobs:
           node-version: '24'
       - name: Verify exact candidate without production access
         run: |
-          test "$(git rev-parse HEAD)" = faa86f862f032f8a896d813ea4ac2f7d3eb13b96
-          test "$(git rev-parse HEAD^{tree})" = e0cc5c64960373bd9f80f9b545e7a77ba477c9a4
+          test "$(git rev-parse HEAD)" = d715770a7753ea70931b330ce297fd566af6f0dd
+          test "$(git rev-parse HEAD^{tree})" = 4281cb471b94c392f823ac595b8f88c805a279a1
           node --check scripts/preview-review-rules.mjs
       - name: Install isolated browser dependencies
         run: |
