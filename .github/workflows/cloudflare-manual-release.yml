@@ -9,6 +9,7 @@ on:
         default: 5044ed66af80f9593879453d23c88c3851a06f12
         options:
           # Exact source and Worker bytes verified before registration.
+          - 58ac4a201e5a3a0e9107d077c3642997b09ece07
           - d715770a7753ea70931b330ce297fd566af6f0dd
           - bc8449887e6b88f11b05ccbed13613f2f34e9b57
           - e993885c752e97532214ef14a2fcf32b324bc08c
