@@ -24,10 +24,13 @@ export async function labelsFor(store,owner,rows,version=0) {
     const batch=rows.slice(offset,offset+50);
     const labels=await store.all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+') ORDER BY label',owner,...batch.map(row=>row.id));
     for(const row of labels) { if(!result.has(row.entry_id))result.set(row.entry_id,[]); result.get(row.entry_id).push(row.label); }
-    const overrides=await store.all('SELECT entry_id,labels_json FROM matrix_note_entry_label_overrides WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+')',owner,...batch.map(row=>row.id));
-    for(const row of overrides) {
-      let values;try { values=JSON.parse(row.labels_json); if(!Array.isArray(values)||values.length>200||new Set(values).size!==values.length||values.some(value=>noteLabel(value)!==value))throw Error(); } catch { throw fail(503,'NOTES_DATA','标签数据无法核对'); }
-      result.set(row.entry_id,values.slice().sort());
+    // Overrides/sets tables arrive in later migrations; protocol 0/1 only needs matrix_note_entry_labels.
+    if(version>=2) {
+      const overrides=await store.all('SELECT entry_id,labels_json FROM matrix_note_entry_label_overrides WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+')',owner,...batch.map(row=>row.id));
+      for(const row of overrides) {
+        let values;try { values=JSON.parse(row.labels_json); if(!Array.isArray(values)||values.length>200||new Set(values).size!==values.length||values.some(value=>noteLabel(value)!==value))throw Error(); } catch { throw fail(503,'NOTES_DATA','标签数据无法核对'); }
+        result.set(row.entry_id,values.slice().sort());
+      }
     }
     if(version===3) {
       const sets=await store.all('SELECT entry_id,labels_json FROM matrix_note_entry_label_sets WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+')',owner,...batch.map(row=>row.id));
