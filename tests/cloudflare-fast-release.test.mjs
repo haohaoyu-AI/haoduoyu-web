@@ -16,7 +16,7 @@ test('fast release skips optional test commands by default without continue-on-e
   assert.match(input,/type: boolean/);
   assert.match(input,/default: false/);
   const tests=blocks.filter(block=>block.includes('node --test '));
-  assert.equal(tests.length,10);
+  assert.equal(tests.length,11);
   for(const block of tests) assert.match(block,/\n        if: inputs\.run_regression_tests(?:\n| && \()/);
   assert.doesNotMatch(yaml,/continue-on-error/);
 });
