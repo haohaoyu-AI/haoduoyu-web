@@ -15,8 +15,10 @@ const stable = value => Array.isArray(value) ? value.map(stable) : value && type
   Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])])) : value;
 const hash = value => createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 const storage = () => { const values = new Map(); return {getItem: key => values.get(key), setItem: (key, value) => values.set(key, value)}; };
-function snapshot(source, date = null) {
-  const data = Object.fromEntries(['todos', 'life_notes', 'work_notes', 'work_reminders', 'memo_groups', 'memos'].map(key => [key, []]));
+function snapshot(source, {date = null, version = 1} = {}) {
+  const collections = ['todos', 'life_notes', 'work_notes', 'work_reminders', 'memo_groups', 'memos',
+    ...(version === 2 ? ['unscheduled_todos', 'note_labels'] : [])];
+  const data = Object.fromEntries(collections.map(key => [key, []]));
   for (const [kind, records] of [['groups', source.groups], ['notes', source.notes]]) for (const row of records.values()) {
     const value = {entity_id: (kind === 'groups' ? 'memo-group:' : 'memo-note:') + row.id,
       entity_type: kind === 'groups' ? 'memo_group' : 'memo_note', source: kind === 'groups' ? 'memo_group' : 'memo_note',
@@ -27,7 +29,7 @@ function snapshot(source, date = null) {
     data[kind === 'groups' ? 'memo_groups' : 'memos'].push({...value, content_hash: hash(value)});
   }
   for (const rows of Object.values(data)) rows.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
-  return projectWorkbenchSnapshot(data, {scope_id: scope, generated_at: stamp, date}, snapshotBudget());
+  return projectWorkbenchSnapshot(data, {scope_id: scope, generated_at: stamp, date, version}, snapshotBudget());
 }
 function setup(t) {
   const db = createMemoryDB(), clock = {value: Date.parse(stamp)}, calls = [];
@@ -36,7 +38,12 @@ function setup(t) {
     if (!source.online) throw Object.assign(new Error('offline'), {code: 'NETWORK_UNAVAILABLE'});
     calls.push({path, method: options.method || 'GET', body: options.body && structuredClone(options.body)});
     if (path === '/auth/me') return {id: owner, username: 'synthetic-memo-user', csrfToken: 'never-persist-this'};
-    if (path.startsWith('/workbench-snapshot')) return snapshot(source, path.includes('?') ? '2026-10-26' : null);
+    if (path.startsWith('/workbench-snapshot')) {
+      const url = new URL(path, 'https://example.invalid');
+      const version = url.searchParams.get('version') === '2' ? 2 : 1;
+      const date = path.includes('/index') ? null : (url.searchParams.get('date') || '2026-10-26');
+      return snapshot(source, {date, version});
+    }
     if (path.startsWith('/memos/operations/')) return source.receipts.get(path.split('/').at(-1)) || {found: false};
     if (path === '/memos') return {groups: [...source.groups.values()],
       notes: [...source.notes.values()].map(({body, ...row}) => row), can_edit: true};

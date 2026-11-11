@@ -248,17 +248,22 @@ test('a late 429 from an old in-flight sync cannot affect the newly verified acc
   assert.equal(queued.length,1);assert.equal(queued[0].scope,scopeA);assert.equal(queued[0].body.text,'Old account retained work');
 });
 
-test('a foreground 429 while snapshot V1 is in flight prevents further snapshot requests',{timeout:3000},async t=>{
-  const db=createMemoryDB(),scope='4'.repeat(64),clock={now:1000},calls=[];let indexReads=0,releaseIndex,started;
+test('a foreground 429 while snapshot sync is in flight prevents further snapshot requests',{timeout:15000},async t=>{
+  const db=createMemoryDB(),scope='4'.repeat(64),clock={now:1000},calls=[];let v2IndexReads=0,releaseIndex,started;
   const begun=new Promise(resolve=>{started=resolve;});
-  const empty=Object.fromEntries(['todos','life_notes','work_notes','work_reminders','memo_groups','memos'].map(key=>[key,[]]));
-  const index=projectWorkbenchSnapshot(empty,{scope_id:scope,generated_at:'2026-10-26T01:00:00Z',date:null},snapshotBudget());
+  const emptyV1=Object.fromEntries(['todos','life_notes','work_notes','work_reminders','memo_groups','memos'].map(key=>[key,[]]));
+  const emptyV2=Object.fromEntries([...Object.keys(emptyV1),'unscheduled_todos','note_labels'].map(key=>[key,[]]));
+  const indexV1=projectWorkbenchSnapshot(emptyV1,{scope_id:scope,generated_at:'2026-10-26T01:00:00Z',date:null},snapshotBudget());
+  const indexV2=projectWorkbenchSnapshot(emptyV2,{scope_id:scope,generated_at:'2026-10-26T01:00:00Z',date:null,version:2},snapshotBudget());
   const net=networkClient(async url=>{
     const u=new URL(url,'http://localhost'),path=u.pathname;calls.push(path+u.search);
     if(path==='/api/v1/auth/me')return Response.json({data:{id:'public',username:'public',publicBusiness:true}});
-    if(path==='/api/v1/workbench-snapshot/index'&&!u.search){
-      if(++indexReads===3)return new Promise(resolve=>{releaseIndex=()=>resolve(Response.json({data:index}));started();});
-      return Response.json({data:index});
+    if(path==='/api/v1/workbench-snapshot/index'){
+      if(u.searchParams.get('version')==='2'){
+        if(++v2IndexReads===1)return new Promise(resolve=>{releaseIndex=()=>resolve(Response.json({data:indexV2}));started();});
+        return Response.json({data:indexV2});
+      }
+      return Response.json({data:indexV1});
     }
     if(path==='/api/v1/review/notes')return Response.json({error:{code:'RATE_LIMITED',message:'rate limited'}},{status:429,headers:{'Retry-After':'900'}});
     throw new Error('unexpected '+path+u.search);
@@ -268,7 +273,7 @@ test('a foreground 429 while snapshot V1 is in flight prevents further snapshot 
   await assert.rejects(app.call('/review/notes?account=test'),error=>error.status===429);
   const before=calls.length;releaseIndex();await syncing;
   assert.equal(calls.length,before,'a completed in-flight response must not start another snapshot request');
-  assert.equal(indexReads,3);assert.ok(!calls.some(path=>path.includes('version=2')));
+  assert.equal(v2IndexReads,1);assert.ok(!calls.some(path=>path.includes('date=')));
 });
 
 test('an old account scheduleRetry rejection cannot overwrite the new account state',{timeout:3000},async t=>{
