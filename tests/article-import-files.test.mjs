@@ -140,7 +140,8 @@ test('invalid decoded files still consume the bounded entry input budget',async 
 
 test('configuration changes and unreadable sources never expose OS errors, paths or content',async t=>{
   const app=await fixture(t);await writeFile(app.config,'{"synthetic":true}');
-  const changed=await readImportConfig({path:app.config},{afterRead:async()=>writeFile(app.config,'{"different":true}')});
+  // Size must change: same-byte replacements can share mtime granularity and miss CHANGED.
+  const changed=await readImportConfig({path:app.config},{afterRead:async()=>writeFile(app.config,'{"different":true,"x":1}')});
   assert.deepEqual(codes(changed),['CONFIG_CHANGED']);assert.equal(changed.text,null);sanitized(changed,[app.config]);
   const hidden=join(app.entry,'title.txt');await chmod(hidden,0);
   try {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 
@@ -51,8 +52,10 @@ test('legacy article verification projection permits only the exact unknown pair
 test('article document projection restores only the pinned lifecycle delta and rejects drift inside additions',()=>{
   const baseline='fc38d66704c86de8f255751795125bfa71fc7bc7';
   const old=file=>execFileSync('git',['show',baseline+':'+file],{cwd:new URL('../',import.meta.url),encoding:'utf8'});
-  const spec=JSON.parse(readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8'));
-  const docs=readFileSync(new URL('../public/api-docs.html',import.meta.url),'utf8');
+  const spec=JSON.parse(projectQuietSync('public/openapi.json',
+    readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8')));
+  const docs=projectQuietSync('public/api-docs.html',
+    readFileSync(new URL('../public/api-docs.html',import.meta.url),'utf8'));
   assert.deepEqual(articlePipelineSpec(spec),JSON.parse(old('public/openapi.json')));
   assert.equal(articlePipelineDocs(docs),old('public/api-docs.html'));
   const changed=structuredClone(spec);changed.components.schemas.ArticleCreate.properties.status.description+='unexpected';

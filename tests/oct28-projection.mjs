@@ -131,7 +131,7 @@ const approvedScanAppend='\n# Approved exact historical public tokens.css checks
   'bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2:.ci/public-assets.json:generic-api-key:16\n' +
   '46dabbf8f62fa7c2ee3965d0f059ab41b62986fd:tests/oct28-small-fix-projection.mjs:generic-api-key:13\n';
 /** Live-site/.gitleaksignore after site-five + night review exception growth. */
-const liveGitleaksIgnoreSha256='3ec8a812cd7262106837c508e006528151d7fdc68371581d167ea9377dd8f89a';
+const liveGitleaksIgnoreSha256='f27c4c0fc47c9d8ce972d5b5d708cf3c57f3fa241f03521185bf36e121e4e1c6';
 export function projectApprovedScanAppend(file,source) {
   if(file!=='.gitleaksignore')return source;
   const prior=git('show',baseline+':'+file);

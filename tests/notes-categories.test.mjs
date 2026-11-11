@@ -38,7 +38,7 @@ test('0007 only adds work storage and preserves all eighteen existing tables and
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_daily_work_notes').first()).n,0);
   assert.deepEqual((await app.call('/daily-notes?date='+DAY)).data,old.data);
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url)));
-  assert.equal(journal.entries.length,24);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
+  assert.equal(journal.entries.length,25);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
   assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   assert.equal(journal.entries[9].tag,'0009_unscheduled_todos');assert.equal(journal.entries[10].tag,'0010_note_labels');
   const previous=JSON.parse(await readFile(new URL('../drizzle/meta/0006_snapshot.json',import.meta.url)));

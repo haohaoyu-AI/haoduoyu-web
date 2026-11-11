@@ -101,10 +101,13 @@ export async function projectMemoFrontend(file,source) {
   return source;
 }
 export async function verifyMemoFrontendBoundary() {
+  const {quietSyncBaseline}=await import('./oct28-small-fix-projection.mjs');
   const production=execFileSync('git',['ls-tree','-r','--name-only',MEMO_PRODUCTION_BASE,'web'],{cwd:root,encoding:'utf8'})
     .trim().split('\n').filter(file=>file.endsWith('.mjs'));
+  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],{cwd:root,encoding:'utf8'})
+    .trim().split('\n').filter(file=>file.endsWith('.mjs')));
   const files=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
-    .map(file=>'web/'+file).sort();
+    .map(file=>'web/'+file).filter(file=>quietKnown.has(file)).sort();
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');

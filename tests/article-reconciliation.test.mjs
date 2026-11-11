@@ -76,7 +76,9 @@ test('new UI and API projections reject changed additions and preserve the compl
   const {reconciliationDocumentSpec}=await import('./article-pipeline-projection.mjs');
   const file='web/pages/article-reconciliation.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
   assert.equal(projectReconciliation(file,source),'');assert.throws(()=>projectReconciliation(file,source+'\nconst unauthorized=1;'));
-  const spec=JSON.parse(await readFile(new URL('../public/openapi.json',import.meta.url),'utf8'));
+  const {projectQuietSync}=await import('./oct28-small-fix-projection.mjs');
+  const spec=JSON.parse(projectQuietSync('public/openapi.json',
+    await readFile(new URL('../public/openapi.json',import.meta.url),'utf8')));
   assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(execFileSync('git',['show','f405b4c:public/openapi.json'],{encoding:'utf8'})));
   spec.paths['/api/v1/article-reconciliation'].get.summary='unauthorized';assert.throws(()=>reconciliationDocumentSpec(spec));
 });

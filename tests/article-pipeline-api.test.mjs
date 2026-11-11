@@ -26,8 +26,11 @@ async function setup(t) {
   assert.deepEqual(journal.entries.map(entry=>entry.tag),[
     '0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',
     '0005_article_pipeline','0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates',
-    '0009_unscheduled_todos','0010_note_labels',
-  ],'The journal preserves every reviewed migration and appends only the two reviewed additions');
+    '0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets',
+    '0013_note_label_archives','0014_ai_reports','0015_content_review','0016_review_attribution',
+    '0017_review_resources','0018_review_legacy_extensions','0019_todo_notes_archives','0020_openai_review',
+    '0021_review_prompt_versions','0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses',
+  ],'The journal preserves every reviewed migration in order');
   assert.equal(journal.entries[5].tag,'0005_article_pipeline');
   assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   const app=await fixture(t),session=await app.login();

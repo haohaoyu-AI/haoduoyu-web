@@ -92,7 +92,9 @@ test('old all, unknown and draft filters always issue one published account-scop
     const previous=calls.length;await renderArticles(runtime.renderVersion);
     assert.equal(calls.length,previous+1);assert.equal(state.filters.status,'published');
     const query=calls.at(-1).searchParams;
-    for(const [key,value]of Object.entries({status:'published',account_id:'account-a',q:'Published',platform:'zhihu',
+    // Simplified media pages no longer send free-text `q`; other filters still round-trip.
+    assert.equal(query.get('q'),null);
+    for(const [key,value]of Object.entries({status:'published',account_id:'account-a',platform:'zhihu',
       mode:'manual',sort:'reads',order:'desc',page:'2',page_size:'3'}))assert.equal(query.get(key),value,key);
     assert.equal(state.articleMeta.total,8);assert.equal(state.articleMeta.page,2);assert.equal(state.articleMeta.has_more,true);
     assert.deepEqual(state.articles.map(row=>row.id),['synthetic-043','synthetic-033','synthetic-023']);
@@ -102,19 +104,18 @@ test('old all, unknown and draft filters always issue one published account-scop
 });
 
 test('legacy routes, saved views and filter drafts canonicalize status to published without losing unrelated selections',t=>{
-  setup(t);const location={href:'http://localhost/?page=articles',search:'?page=articles'},historyCalls=[];
+  setup(t);
+  const location={href:'http://localhost/?page=articles',search:'?page=articles'},historyCalls=[];
   const locate=value=>{location.href=String(value);location.search=new URL(value).search;};
   globals(t,{location,history:{replaceState(_data,_title,url){historyCalls.push(String(url));locate(url);},
     pushState(_data,_title,url){historyCalls.push(String(url));locate(url);}},
   FormData:class {constructor(form){this.values=new URLSearchParams(form.values);}get(key){return this.values.get(key);}
     getAll(key){return this.values.getAll(key);}}});
+  // Review-first nav dropped articles/dashboard; unknown page ids fall back to review.
+  locate('http://localhost/?page=articles&status=draft_saved&account=account-a');
+  readRoute();assert.equal(state.page,'review');assert.equal(state.filters.status,'published');
+  updateRoute();assert.equal(new URL(location.href).searchParams.get('page'),'review');
   for(const status of ['all','unknown','draft_saved','failed','published']) {
-    locate('http://localhost/?'+new URLSearchParams({page:'articles',status,account:'account-a',q:'literal%_text',sort:'reads',
-      order:'asc',list_page:'2',page_size:'10',columns:'status,reads'}));
-    readRoute();assert.equal(state.filters.status,'published');assert.equal(state.account,'account-a');
-    updateRoute();const query=new URL(location.href).searchParams;
-    assert.equal(query.has('status'),false);assert.equal(query.get('q'),'literal%_text');assert.equal(query.get('account'),'account-a');
-    assert.equal(query.get('list_page'),'2');assert.equal(query.get('columns'),'status,reads');
     const view=freeze({version:2,filters:{...defaultFilters(),status,writer:'human'},columns:['status','reads']}),snapshot=structuredClone(view);
     assert.equal(viewDraft(view).filters.status,'published');assert.equal(viewDraft(view).filters.writer,'human');assert.deepEqual(view,snapshot);
     state.filters={...defaultFilters(),status};
@@ -123,7 +124,7 @@ test('legacy routes, saved views and filter drafts canonicalize status to publis
     assert.deepEqual([...draft.columns],['status']);
     assert.equal(normalizeArticlePipelineFilters({...defaultFilters(),status}).status,'published');
   }
-  assert.equal(historyCalls.length,5);
+  assert.equal(historyCalls.length,1);
 });
 
 test('list and advanced filters omit lifecycle dropdowns while the status field and concrete draft editor remain available',async t=>{

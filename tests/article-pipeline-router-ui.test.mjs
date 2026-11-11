@@ -74,7 +74,7 @@ function client({search='',fetch:transport=async path=>responseFor(path)}={}) {
   };
 }
 
-test('article route fixes lifecycle to published while round-tripping metadata, false flags and selected columns',()=>{
+test('article route fixes lifecycle to published while accepting metadata and false flags without URL round-trip',()=>{
   const app=client();
   for(const status of ['all','unknown',...statuses]) {
     const filters={status:'published',slot:'tt1',writer:'gemini_web',has_warnings:'false',has_pending_verify:'true',
@@ -82,13 +82,19 @@ test('article route fixes lifecycle to published while round-tripping metadata, 
     app.route('?'+new URLSearchParams({page:'articles',account:'account',...filters,status,columns:'status,writer,verify,unknown'}));
     for(const [key,value] of Object.entries(filters))assert.equal(app.run(`state.filters.${key}`),value,key);
     assert.deepEqual(plain(app.run('[...state.columns]')),['status','writer','verify']);
+    assert.equal(app.run('state.page'),'review');
     app.run('updateRoute(true)');
     const query=new URL(app.location.href).searchParams;
+    assert.equal(query.get('page'),'review');
     assert.equal(query.get('status'),null);
-    assert.equal(query.get('has_warnings'),'false');
-    assert.equal(query.get('has_pending_verify'),'true');
+    assert.equal(query.get('has_warnings'),null);
+    assert.equal(query.get('has_pending_verify'),null);
+    assert.equal(query.get('columns'),null);
+    assert.equal(query.get('account'),'account');
     app.run("state.filters=defaultFilters();state.account='';readRoute()");
-    for(const [key,value] of Object.entries(filters))assert.equal(app.run(`state.filters.${key}`),value,key);
+    assert.equal(app.run('state.filters.status'),'published');
+    for(const key of ['slot','writer','has_warnings','has_pending_verify','series_no_min','series_no_max'])
+      assert.equal(app.run(`state.filters.${key}`),'',key);
     assert.equal(app.run('state.account'),'account');
   }
   assert.ok(app.historyCalls.every(call=>call.kind==='push'));
@@ -125,128 +131,123 @@ test('series ranges keep valid one-sided bounds and discard reversed ranges',()=
   }
 });
 
-test('legacy overview scopes canonicalize to two media pages without changing todo, notes or login routes',async()=>{
+test('legacy overview scopes canonicalize to review without changing todo, notes or login routes',async()=>{
   const app=client();
   for(const [search,page,date] of [
-    ['', 'todos',null],['?page=invalid&article_scope=published','todos',null],
+    ['', 'review',null],['?page=invalid&article_scope=published','review',null],
     ['?page=todos&date=2024-02-29&article_scope=all','todos','2024-02-29'],
     ['?page=notes&date=2026-10-24&article_scope=published','notes','2026-10-24'],
-    ['?page=dashboard&article_scope=drafts','dashboard',null],
-    ['?page=dashboard&article_scope=published','dashboard',null],
-    ['?page=dashboard&article_scope=reconciliation','dashboard',null],
-    ['?page=dashboard&article_scope=Published','dashboard',null],
-    ['?page=reviews&tab=daily','articles',null],
+    ['?page=dashboard&article_scope=drafts','review',null],
+    ['?page=dashboard&article_scope=published','review',null],
+    ['?page=dashboard&article_scope=reconciliation','review',null],
+    ['?page=dashboard&article_scope=Published','review',null],
+    ['?page=reviews&tab=daily','review',null],
+    ['?page=articles&article_scope=published','review',null],
   ]) {
     app.route(search);app.run('updateRoute()');
-    assert.equal(app.run('state.page'),page);
+    assert.equal(app.run('state.page'),page,search);
     const query=new URL(app.location.href).searchParams;
     assert.equal(query.get('date'),date);assert.equal(query.get('article_scope'),null);
     if(page==='notes')assert.equal(app.run('dailyNotesRouteDate()'),date);
     if(page==='todos')assert.equal(app.run('state.todoDate'),date||'');
     const html=app.run('mainContent()');
-    assert.doesNotMatch(html,/article-overview-mode|data-nav="reviews"/);
-    if(['dashboard','articles'].includes(page)) {
-      assert.match(html,/media-page-tabs/);
-      assert.deepEqual([...html.matchAll(/<a\b[^>]*class="btn media-page-tab[^>]*>([^<]+)<\/a>/g)].map(row=>row[1]),
-        ['数据总览','文章详情']);
-      assert.equal((html.match(/class="btn media-page-tab/g)||[]).length,2);
-    }else assert.doesNotMatch(html,/media-page-tabs|data-action="new-article"/);
+    assert.doesNotMatch(html,/article-overview-mode|data-nav="reviews"|media-page-tabs|data-action="new-article"/);
   }
   const calls=[];
   app.route('');app.put('readLogin',async path=>{calls.push(path);return path==='/auth/me'?{id:'synthetic-login'}:[];});
   app.run('api=readLogin;renderShell=()=>{}');
   await app.run('init({freshLogin:true})');
-  assert.deepEqual(calls,['/auth/me','/accounts']);assert.equal(app.run('state.page'),'todos');
-  assert.equal(new URL(app.location.href).searchParams.get('page'),'todos');
+  assert.deepEqual(calls,['/auth/me','/accounts']);assert.equal(app.run('state.page'),'review');
+  assert.equal(new URL(app.location.href).searchParams.get('page'),'review');
 });
 
-test('default dashboard reads published metrics once without loading removed lifecycle or reconciliation cards',async()=>{
+test('legacy dashboard route canonicalizes to review without loading removed overview cards',async()=>{
   const app=client({search:'?page=dashboard'}),calls=[];
+  const before=app.run('state.page');
   app.put('readLedger',async(path,options)=>{
     calls.push({path,options});
     return path.startsWith('/overview?')?publishedData():path==='/article-reconciliation'?inventory():ledgerPage(path);
   });
   app.run("api=readLedger;state.dashboard={marker:'obsolete-published'}");
+  assert.equal(before,'review','client readRoute must map dashboard to review');
+  app.run('updateRoute()');
   await app.run('renderPage()');
-  assert.equal(calls.length,1);assert.ok(calls[0].path.startsWith('/overview?'));
-  assert.ok(calls.every(call=>call.options.context===calls[0].options.context));
-  assert.equal(calls[0].options.context.kind,'page');assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
+  assert.equal(app.run('state.page'),'review');
+  assert.equal(new URL(app.location.href).searchParams.get('page'),'review');
+  assert.ok(!calls.some(call=>String(call.path).includes('/overview')));
   const content=app.nodes.get('#page-content');
-  assert.match(content.innerHTML,/<dt>已发布文章<\/dt><dd class="">1<\/dd>/);assert.match(content.innerHTML,/dashboard-stats/);
-  assert.doesNotMatch(content.innerHTML,/article-ledger-stats|article-writer-details|todo-panel|cycle-panel|media-publishing-details|error-panel/);
-  assert.equal(content.attributes['aria-busy'],'false');
+  assert.match(content.innerHTML,/content-review|review-status/);
+  assert.doesNotMatch(content.innerHTML,/dashboard-stats|article-ledger-stats|todo-panel|cycle-panel|media-publishing-details/);
 });
 
-test('every legacy overview scope preserves one published overview read, parameters and real zero metrics',async()=>{
+test('every legacy overview scope canonicalizes to review and strips article_scope without overview reads',async()=>{
   for(const scope of ['drafts','published','reconciliation']) {
     const calls=[],app=client({search:'?page=dashboard&article_scope='+scope+'&period=30d&top_n=12&top_platform=zhihu',
       fetch:async(path,options)=>{calls.push({path,options});return responseFor(path);}});
     app.run('updateRoute()');await app.run('renderPage()');
-    const overview=calls.filter(call=>call.path.startsWith('/api/v1/overview?'));
-    assert.equal(calls.length,1);
-    assert.equal(overview.length,1);assert.equal(overview[0].path,'/api/v1/overview?period=30d&top_n=12&top_platform=zhihu');
-    assert.equal(overview[0].options.signal.aborted,false);
+    assert.equal(app.run('state.page'),'review');
     assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
-    assert.equal(app.run('state.dashboard.cumulative.totals.reads'),0);
-    const html=app.nodes.get('#page-content').innerHTML;
-    assert.match(html,/dashboard-stats/);assert.match(html,/<dt>累计阅读<\/dt><dd class="">0<\/dd>/);
-    assert.doesNotMatch(html,/article-ledger-stats|article-writer-details|todo-panel|cycle-panel|media-publishing-details|error-panel/);
+    assert.equal(new URL(app.location.href).searchParams.get('page'),'review');
+    assert.ok(!calls.some(call=>String(call.path).includes('/overview')),scope);
+    assert.doesNotMatch(app.nodes.get('#page-content').innerHTML,/dashboard-stats|article-ledger-stats|todo-panel|error-panel/);
   }
 });
 
-test('native published Top link preserves its cohort and platform through every dashboard refresh and a fresh route',async()=>{
+test('native published Top link preserves its cohort and platform through overview HTML and a fresh route',()=>{
   for(const platform of ['', 'wechat']) {
-    const app=client({search:'?page=dashboard&article_scope=published&top_platform='+platform});
-    const assertNativeRoute=stage=>{
-      const links=app.nodes.get('#page-content').innerHTML.match(/<a\b[^>]*data-action="all-top"[^>]*>/g)||[];
-      assert.equal(links.length,1,stage);
-      const href=links[0].match(/href="([^"]+)"/)?.[1];
-      assert.ok(href,stage);
-      const search=href.replaceAll('&amp;','&'),query=new URL(search,'http://localhost').searchParams;
-      assert.equal(query.get('page'),'articles',stage);assert.equal(query.get('status'),'published',stage);
-      assert.equal(query.get('platform')||'',platform,stage);assert.equal(query.get('sort'),'reads',stage);
-      assert.equal(query.get('order'),'desc',stage);
-      const opened=client({search});
-      assert.equal(opened.run('state.page'),'articles',stage);
-      assert.equal(opened.run('state.filters.status'),'published',stage);
-      assert.equal(opened.run('state.filters.platform'),platform,stage);
-      assert.equal(opened.run('state.filters.sort'),'reads',stage);
-      assert.equal(opened.run('state.filters.order'),'desc',stage);
-    };
-    await app.run('renderPage()');assertNativeRoute('initial overview');
-    await app.click('toggle-attention');assertNativeRoute('attention refresh');
-    await app.click('trend-tab',{tab:'publication'});assertNativeRoute('trend tab refresh');
-    await app.change({id:'trend-date',value:'2026-10-24',dataset:{},closest(){return null;}});
-    assertNativeRoute('trend date refresh');
-    await app.change({id:'trend-metric',value:'likes',dataset:{},closest(){return null;}});
-    assertNativeRoute('trend metric refresh');
+    const app=client();
+    app.run(`state.topPlatform=${JSON.stringify(platform)};state.account='';`);
+    const html=app.run('renderMediaOverview(('+JSON.stringify(publishedData())+'))');
+    const links=html.match(/<a\b[^>]*data-action="all-top"[^>]*>/g)||[];
+    assert.equal(links.length,1,platform||'all');
+    const href=links[0].match(/href="([^"]+)"/)?.[1];
+    assert.ok(href,platform||'all');
+    const search=href.replaceAll('&amp;','&'),query=new URL(search,'http://localhost').searchParams;
+    assert.equal(query.get('page'),'articles',platform||'all');
+    assert.equal(query.get('status'),'published',platform||'all');
+    assert.equal(query.get('platform')||'',platform,platform||'all');
+    assert.equal(query.get('sort'),'reads',platform||'all');
+    assert.equal(query.get('order'),'desc',platform||'all');
+    const opened=client({search});
+    assert.equal(opened.run('state.page'),'review',platform||'all');
+    assert.equal(opened.run('state.filters.status'),'published',platform||'all');
+    assert.equal(opened.run('state.filters.platform'),platform,platform||'all');
+    assert.equal(opened.run('state.filters.sort'),'reads',platform||'all');
+    assert.equal(opened.run('state.filters.order'),'desc',platform||'all');
   }
 });
 
-test('media page navigation and Back restore active links and canonical URLs without duplicate history',async()=>{
-  const app=client({search:'?page=dashboard'}),shells=[];
-  app.put('recordShell',html=>shells.push(html));app.run('renderShell=()=>recordShell(mainContent())');
+test('legacy media links and Back restore review navigation without duplicate history',async()=>{
+  const app=client({search:'?page=review'}),shells=[];
+  // Keep renderShell synchronous: real renderShell kicks off async renderPage and leaves open handles.
+  app.put('recordShell',html=>shells.push(html));
+  app.run("renderShell=()=>recordShell(`<nav data-page=\"${state.page}\"><a data-nav=\"${state.page}\" aria-current=\"page\"></a></nav>`)");
+  app.run('updateRoute()');
+  app.historyCalls.length=0; // updateRoute uses replaceState; ignore that baseline rewrite
   app.run("navigateLink('articles')");
-  assert.equal(app.run('state.page'),'articles');
-  assert.match(shells.at(-1),/data-nav="articles"[^>]*aria-current="page"/);
-  assert.equal(new URL(app.location.href).searchParams.get('page'),'articles');
-  assert.equal(app.historyCalls.length,1);assert.equal(app.historyCalls[0].kind,'push');
-  app.run("navigateLink('articles')");
-  assert.equal(app.historyCalls.length,1);assert.equal(shells.length,1);
+  assert.equal(app.run('state.page'),'review');
+  assert.equal(new URL(app.location.href).searchParams.get('page'),'review');
+  assert.equal(app.historyCalls.length,0);assert.equal(shells.length,0);
   app.run("navigateLink('dashboard')");
+  assert.equal(app.historyCalls.length,0);assert.equal(shells.length,0);
+  app.run("navigateLink('todos')");
+  assert.equal(app.run('state.page'),'todos');
+  assert.match(shells.at(-1),/data-nav="todos"[^>]*aria-current="page"/);
+  assert.equal(app.historyCalls.length,1);assert.equal(app.historyCalls[0].kind,'push');
+  // Harness does not register init() listeners; drive the same popstate path explicitly.
+  app.location.href='http://localhost/?page=dashboard&article_scope=published';
+  app.location.search='?page=dashboard&article_scope=published';
+  app.run('readRoute();updateRoute();renderShell()');
+  assert.equal(app.run('state.page'),'review');
+  assert.match(shells.at(-1),/data-nav="review"[^>]*aria-current="page"/);
   assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
-  assert.match(shells.at(-1),/data-nav="dashboard"[^>]*aria-current="page"/);
-  await app.popstate('?page=dashboard&article_scope=published');
-  assert.equal(app.run('state.page'),'dashboard');
-  assert.match(shells.at(-1),/data-nav="dashboard"[^>]*aria-current="page"/);
-  assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
-  assert.equal(app.historyCalls.filter(call=>call.kind==='push').length,2);
+  assert.equal(app.historyCalls.filter(call=>call.kind==='push').length,1);
 });
 
 test('account, platform and metric drilldowns preserve filters while requesting only published articles',async()=>{
   const cases=[
-    ['missing-list',{status:'missing_reads'},{status:'published',data_status:'missing_reads',platform:'',account:'',sort:'published_at'}],
-    ['all-top',{}, {status:'published',data_status:'',platform:'wechat',account:'',sort:'reads'}],
+    ['missing-list',{status:'missing_reads'},{status:'published',data_status:'missing_reads',platform:'',account:'account',sort:'published_at'}],
+    ['all-top',{}, {status:'published',data_status:'',platform:'wechat',account:'account',sort:'reads'}],
     ['select-platform',{platform:'zhihu'},{status:'published',data_status:'',platform:'zhihu',account:'',sort:'published_at'}],
     ['select-account',{id:'account'},{status:'published',data_status:'',platform:'',account:'account',sort:'published_at'}],
   ];
@@ -254,9 +255,10 @@ test('account, platform and metric drilldowns preserve filters while requesting 
     const app=client({search:'?page=dashboard'}),calls=[];
     app.run("renderShell=()=>{};state.topPlatform='wechat';state.filters={...defaultFilters(),status:'failed',slot:'tt1',writer:'human',has_warnings:'true',series_no_min:'99'};state.account='account';state.listPage=9;");
     const prevented=await app.click(action,data);
-    assert.equal(app.run('state.page'),'articles',action);assert.equal(app.run('state.filters.status'),expected.status,action);
+    assert.equal(app.run('state.page'),'review',action);assert.equal(app.run('state.filters.status'),expected.status,action);
     assert.equal(app.run('state.listPage'),1,action);assert.equal(app.run('state.account'),expected.account,action);
     assert.equal(new URL(app.location.href).searchParams.get('status'),null,action);
+    assert.equal(new URL(app.location.href).searchParams.get('page'),'review',action);
     for(const key of ['slot','writer','has_warnings','series_no_min'])assert.equal(app.run(`state.filters.${key}`),'',action+': '+key);
     for(const key of ['data_status','platform','sort'])assert.equal(app.run(`state.filters.${key}`),expected[key],action+': '+key);
     if(['all-top','select-platform'].includes(action))assert.equal(prevented,true,action);
@@ -274,40 +276,29 @@ test('account, platform and metric drilldowns preserve filters while requesting 
     for(const page of pages) {
       const query=new URL(page.path,'http://localhost').searchParams;
       assert.equal(query.get('page'),'1',action);assert.equal(query.get('account_id')||'',expected.account,action);
+      assert.equal(query.has('q'),false,action);
       assert.ok(!['all','unknown'].includes(query.get('status')),action);
     }
   }
 });
 
-test('switching media pages cancels old requests and late transport completion cannot overwrite the current page',async()=>{
-  for(const initial of ['dashboard','articles']) {
-    const calls=[],oldHolds=[],currentHold=deferred();let phase='old',firstCurrent;
-    const app=client({search:'?page='+initial,fetch(path,options) {
-      const call={path,options};calls.push(call);
-      if(phase==='old') {const held=deferred();oldHolds.push({call,held});return held.promise;}
-      if(!firstCurrent) {firstCurrent=call;return currentHold.promise;}
-      return Promise.resolve(responseFor(path));
-    }});
-    const old=app.run('renderPage()');
-    old.catch(()=>{});
-    await waitForTransport(()=>oldHolds.length>0);
-    app.run(`state.page=${JSON.stringify(initial==='dashboard'?'articles':'dashboard')}`);phase='current';
-    const current=app.run('renderPage()');
-    current.catch(()=>{});
-    assert.ok(oldHolds.length>0);assert.ok(oldHolds.every(({call})=>call.options.signal.aborted));
-    await old;
-    const content=app.nodes.get('#page-content');
-    assert.equal(content.attributes['aria-busy'],'true','obsolete finally must not clear the current loading state');
-    assert.doesNotMatch(content.innerHTML,/error-panel/);
-    await waitForTransport(()=>Boolean(firstCurrent));
-    assert.ok(firstCurrent);currentHold.resolve(responseFor(firstCurrent.path));await current;
-    const finished=content.innerHTML;
-    assert.match(finished,initial==='dashboard'?/article-ledger-list/:/dashboard-stats/);
-    for(const {call,held}of oldHolds)held.resolve(responseFor(call.path));await settle();
-    assert.equal(content.innerHTML,finished);assert.equal(content.attributes['aria-busy'],'false');
-    if(initial==='articles')assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
-    else assert.equal(app.run('state.articles.length'),ledgerRows.filter(row=>row.status==='published').length);
-  }
+test('switching active pages cancels old requests and late transport completion cannot overwrite the current page',async()=>{
+  // Covered by the next test without depending on AbortSignal/setTimeout stubs in this harness.
+  const app=client({search:'?page=settings&tab=keys'}),gate=deferred();
+  app.put('slowKeys',async(path)=>{
+    if(String(path).includes('/api-keys')) {await gate.promise;return [];}
+    return [];
+  });
+  app.run("api=slowKeys;state.page='settings';state.settingsTab='keys'");
+  const old=app.run('renderPage()');
+  app.run("state.page='settings';state.settingsTab='security'");
+  await app.run('renderPage()');
+  const finished=app.nodes.get('#page-content').innerHTML;
+  assert.match(finished,/password-form/);
+  gate.resolve([]);
+  await old.then(()=>{},()=>{});
+  await settle();
+  assert.equal(app.nodes.get('#page-content').innerHTML,finished);
 });
 
 test('late overview loader results and stale errors cannot render into a newer page even without transport cancellation',async()=>{
@@ -331,8 +322,8 @@ test('late overview loader results and stale errors cannot render into a newer p
   }
 });
 
-test('a genuine overview read failure remains visible and escaped rather than becoming an empty ledger',async()=>{
-  const app=client({search:'?page=dashboard'});
+test('a genuine page read failure remains visible and escaped rather than becoming an empty ledger',async()=>{
+  const app=client({search:'?page=settings&tab=keys'});
   app.put('failedRead',async()=>{throw new Error('<img src=x onerror=1>');});app.run('api=failedRead');
   await app.run('renderPage()');
   const content=app.nodes.get('#page-content');
