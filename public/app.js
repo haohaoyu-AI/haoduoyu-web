@@ -8912,16 +8912,11 @@ function todoCaption(day6) {
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
-function floatingTodoControl() {
-  return `<div class="todo-floating-control"><button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
-${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}</div>`;
-}
 function todoHeading(day6) {
   const selected = state.todoPanel || "today";
   return `<span id="todo-caption" hidden>${todoCaption(day6)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["templates", "常用"]].map(([panel2, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
-  aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
-<div id="todo-floating-toolbar" ${state.todoPanel === "templates" ? "hidden" : ""}>${floatingTodoControl()}</div>`;
+  aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>`;
 }
 function renderTodoHistory(day6) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -8934,8 +8929,6 @@ function paintTodoPanels(root2) {
     const node2 = $("#" + id2, root2);
     if (node2) node2.hidden = id2 === "todo-main" ? ["templates", "future"].includes(panel2) : panel2 !== value;
   }
-  const floatingToolbar = $("#todo-floating-toolbar", root2);
-  if (floatingToolbar) floatingToolbar.hidden = panel2 === "templates";
   root2?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
     button2.setAttribute("aria-current", button2.dataset.panel === panel2 ? "page" : "false");
   });
@@ -9000,7 +8993,7 @@ ${renderTodoHistory(day6)}<div id="todo-main" ${["templates", "future"].includes
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day6)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day6)}</p>
 <ul id="todo-items" class="daily-todo-items">${day6.items.map((item) => todoRow(item, day6)).join("")}${pendingTodo(day6)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day6) : ""}</div>
-${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
+${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
