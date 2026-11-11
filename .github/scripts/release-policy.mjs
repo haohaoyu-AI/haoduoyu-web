@@ -72,7 +72,15 @@ export const reviewRulesPromptsRelease=Object.freeze({
   baseline:'1a68c912-b532-4719-b4ec-e06afbe7e46a',
   bytes:2919290,sha256:'a2649c03a40db81773545f2d131ace8bf58ac80b2681b033f331836cb889e436',
   label:'production-combined-review-rules-claude-drafts-20261111'});
-const acceptedRelease=commit=>commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
+// Exact approved site-upgrade source. Apply and verify 0022 and 0023 on production D1 before dispatch.
+export const siteFiveUpgradesRelease=Object.freeze({
+  commit:'58ac4a201e5a3a0e9107d077c3642997b09ece07',
+  tree:'b9aec25fd79d9bc195f1c2eaee02134976a54fe4',
+  baseline:'a9efcff1-4876-40ff-b4c3-b23cf5846543',
+  bytes:2946480,sha256:'31e52a9001f33e0d13fa78eddac4202cb6cab4c46e71e4a9f6a6ce8c9730106d',
+  label:'production-site-five-upgrades-20261111'});
+const acceptedRelease=commit=>commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
+  commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
   commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
   commit===claudeTrendsRelease.commit?claudeTrendsRelease:
   commit===claudeRobotsRelease.commit?claudeRobotsRelease:
