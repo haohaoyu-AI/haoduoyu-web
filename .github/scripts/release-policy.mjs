@@ -57,7 +57,16 @@ export const claudeTrendsRelease=Object.freeze({
   baseline:'c0b4f9c0-810f-45dd-ab1b-17ca3a54f750',
   bytes:2852117,sha256:'e2d26a1967a346c9a6d78f088945467359fee3dddede6f48027a307470de2651',
   label:'production-claude-review-trends-20261111'});
-const acceptedRelease=commit=>commit===claudeTrendsRelease.commit?claudeTrendsRelease:
+// Additive rules/prompts source preserves the live Claude trends and robots.
+// Apply and verify the separately reviewed 0021 D1 migration before dispatch.
+export const reviewRulesPromptsRelease=Object.freeze({
+  commit:'faa86f862f032f8a896d813ea4ac2f7d3eb13b96',
+  tree:'e0cc5c64960373bd9f80f9b545e7a77ba477c9a4',
+  baseline:'b0d087c9-0713-45b0-bbed-2cde9e100c16',
+  bytes:2914201,sha256:'41027cf065db8247b42d30d42438ade5aab4a695673328aedcee382f94c3be98',
+  label:'production-review-rules-prompts-20261111'});
+const acceptedRelease=commit=>commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
+  commit===claudeTrendsRelease.commit?claudeTrendsRelease:
   commit===claudeRobotsRelease.commit?claudeRobotsRelease:
   commit===dataTrendsRelease.commit?dataTrendsRelease:
   commit===openaiReviewRelease.commit?openaiReviewRelease:
