@@ -6,7 +6,8 @@ import {fixture} from './harness.mjs';
 import {digest,csrfFor} from '../src/security.mjs';
 import {beijingDay} from '../src/lib/time.mjs';
 
-const date='2026-10-24';
+const date=beijingDay(Date.now());
+const previous=new Date(Date.parse(date+'T00:00:00Z')-86400000).toISOString().slice(0,10);
 const put=(text='合成记录',version=0,category='life',day=date)=>({category,date:day,text,version,save_id:randomUUID()});
 const marker=version=>({version,save_id:randomUUID()});
 async function setup(t) {
@@ -53,7 +54,7 @@ test('timestamped entries remain distinct by UUID, day and category while old da
   assert.equal(life.data.entries.length,2);assert.equal(work.data.entries.length,1);
   assert.deepEqual(new Set(life.data.entries.map(row=>row.id)),new Set(ids.slice(0,2)));
   assert.equal(life.data.can_edit,false);assert.ok(life.data.entries.every(row=>row.can_edit===false));
-  assert.equal((await app.entry('?category=life&date=2026-10-23')).data.entries.length,0);
+  assert.equal((await app.entry('?category=life&date='+previous)).data.entries.length,0);
   const legacy=await worker.fetch(new Request(app.origin+'/api/v1/daily-notes?date='+date),app.env);
   assert.equal(legacy.status,200);assert.equal((await legacy.json()).data.text,'');
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_daily_notes').first()).n,0);
@@ -167,7 +168,7 @@ test('input identity and immutable dates reject fabricated timestamps, malformed
   const first=await app.entry('/'+id,{method:'PUT',auth:true,body:put('CRLF\r\nnormalized\rtext')});
   assert.equal(first.data.text,'CRLF\nnormalized\ntext');
   assert.equal((await app.entry('/'+id,{method:'PUT',auth:true,body:put('move',1,'work')})).status,400);
-  assert.equal((await app.entry('/'+id,{method:'PUT',auth:true,body:put('move',1,'life','2026-10-23')})).status,400);
+  assert.equal((await app.entry('/'+id,{method:'PUT',auth:true,body:put('move',1,'life',previous)})).status,400);
   assert.equal((await app.entry('/'+id+'?category=life',{method:'PUT',auth:true,body:put('query',1)})).status,400);
   assert.equal((await app.entry('/'+id+'?date='+date)).status,400);
   assert.equal((await app.entry('/operations/'+randomUUID()+'?category=life',{auth:true})).status,400);
