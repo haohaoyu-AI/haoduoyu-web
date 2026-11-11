@@ -20,9 +20,12 @@ function client(fetch) {
   });
   const document = {querySelector: s => nodes.get(s) || null, querySelectorAll: () => [],
     addEventListener() {}, body: {style: {}}, activeElement: null};
+  const location = {href: 'http://localhost/', search: ''};
   const context = vm.createContext({fetch, Response, Headers, AbortController, AbortSignal, DOMException,
     URL, URLSearchParams, Intl, setTimeout, clearTimeout, document,
-    window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
+    window: {addEventListener() {}, scrollTo() {}}, location,
+    history: {replaceState(_state, _title, url) {location.href = String(url); location.search = new URL(url, 'http://localhost').search;},
+      pushState(_state, _title, url) {location.href = String(url); location.search = new URL(url, 'http://localhost').search;}},
     localStorage: {getItem() {}, setItem() {}}, requestAnimationFrame() {}});
   new vm.Script(source).runInContext(context);
   const run = script => vm.runInContext(script, context);
@@ -137,40 +140,51 @@ test('one cancelled GET consumer does not cancel a second consumer of the shared
 });
 test('a fast page change aborts the previous page GET without replacing the new page or showing an error', async () => {
   const d = delayed(), c = client(d.fetch);
+  // Review-first: legacy dashboard remaps onto review and loads the review catalog.
   c.run("state.page='dashboard'");const old = c.run('renderPage()');
   await waitForTransport(() => d.calls.length > 0);
   c.run("state.page='settings';state.settingsTab='security'");await c.run('renderPage()');
   const aborted = d.calls[0].options.signal?.aborted === true;
-  d.finish({});await old;
+  d.finish({items: [], has_more: false});await old;
   assert.equal(aborted, true, 'baseline leaves the old page fetch running');
-  assert.equal(d.calls.length,1,'overview performs one read without loading a lifecycle catalog');
-  assert.match(d.calls[0].path,/^\/api\/v1\/overview\?/);
-  assert.equal(d.calls.every(call=>call.options.signal?.aborted),true,'overview read shares page cancellation');
+  assert.ok(d.calls.length >= 1, 'review loads its catalog reads');
+  assert.ok(d.calls.every(call => /^\/api\/v1\/review\//.test(call.path)), 'review-first page reads use /review paths');
+  assert.equal(d.calls.every(call=>call.options.signal?.aborted),true,'review catalog reads share page cancellation');
   assert.match(c.nodes.get('#page-content').innerHTML, /password-form/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /error-panel/);
 });
 test('refresh starts a new GET; late old results cannot fill the new render', async () => {
-  let finish, signal, reads = 0, todoReads = 0;
+  let finish, signal, articleReads = 0, todoReads = 0, wave = 0;
+  const payload = {items: [], has_more: false};
   const c = client((path, options) => {
     if (path.startsWith('/api/v1/todos?')) {
       todoReads++;
       const date = new URL(path, 'http://localhost').searchParams.get('date');
       return Promise.resolve(ok({date, today: date, items: []}));
     }
-    assert.match(path, /^\/api\/v1\/overview\?/);
-    if (++reads > 1) return Promise.resolve(ok({marker: 'fresh'}));
-    signal = options.signal;return new Promise((resolve, reject) => {
-      finish = () => resolve(ok({marker: 'obsolete'}));
-      signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
-    });
+    assert.match(path, /^\/api\/v1\/review\//);
+    if (path.includes('/review/articles?')) {
+      articleReads++;
+      wave++;
+      if (wave > 1) return Promise.resolve(ok(payload));
+      signal = options.signal;return new Promise((resolve, reject) => {
+        finish = () => resolve(ok(payload));
+        signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
+      });
+    }
+    if (wave <= 1) {
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
+      });
+    }
+    return Promise.resolve(ok(payload));
   });
-  c.run("state.page='dashboard';renderDashboardSummary=data=>data.marker");
-  const old = c.run('renderPage()');await waitForTransport(() => reads > 0);
+  c.run("state.page='review'");
+  const old = c.run('renderPage()');await waitForTransport(() => articleReads > 0);
   await c.run('renderPage()');finish();await old;
-  assert.equal(reads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
-  assert.match(c.nodes.get('#page-content').innerHTML,/^fresh/);
-  assert.doesNotMatch(c.nodes.get('#page-content').innerHTML,/obsolete|error-panel/);
-  assert.equal(c.run('state.dashboard.marker'), 'fresh');
+  assert.equal(articleReads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
+  assert.match(c.nodes.get('#page-content').innerHTML,/content-review|review-status/);
+  assert.doesNotMatch(c.nodes.get('#page-content').innerHTML,/error-panel/);
 });
 test('non-abort failures still reject and POST mutations are neither merged nor page-cancelled', async () => {
   let writes = 0, finish;

@@ -32,8 +32,9 @@ test('me requires exact authenticated id; key names escape, unmatched actors sta
  c.run(`state.me={username:'same'}`);assert.doesNotMatch(c.run('renderAudit(rows)'),/我 ·/);
 });
 test('response article labels escape titles and IDs; unknown entities omit UUID while retaining action',()=>{
+ // Audit rows show escaped entity_label text only; they no longer deep-link via article-detail.
  const c=client();c.run(`state.articles=[{id:'a"<',title:'<img onerror=1>'}];rows=[{action:'POST /articles',actor:'x',entity_id:'a"<',entity_label:'<img onerror=1>',created_at:'bad'},{action:'<unknown>',actor:'y',entity_id:'00000000-1111-2222-3333-444444444444',created_at:null}]`);
- const html=c.run('renderAudit(rows)');assert.match(html,/data-action="article-detail"/);assert.match(html,/data-id="a&quot;&lt;"/);assert.match(html,/&lt;img onerror=1&gt;/);assert.match(html,/&lt;unknown&gt;/);assert.doesNotMatch(html,/<img|00000000-1111|<unknown>/);assert.match(html,/日期未知/);assert.equal((html.match(/<li>/g)||[]).length,2);
+ const html=c.run('renderAudit(rows)');assert.doesNotMatch(html,/data-action="article-detail"|data-id=/);assert.match(html,/class="article-title">&lt;img onerror=1&gt;/);assert.match(html,/&lt;unknown&gt;/);assert.doesNotMatch(html,/<img|00000000-1111|<unknown>/);assert.match(html,/日期未知/);assert.equal((html.match(/<li>/g)||[]).length,2);
  assert.match(c.run('renderAudit([])'),/暂无操作记录/);
 });
 test('legacy and actual action aliases retain labels, including arbitrary article ids',()=>{
@@ -52,7 +53,7 @@ test('invalid timestamps do not establish a common Beijing day for merging',()=>
 
 test('audit uses escaped response labels without article-page cache and keeps old unknown rows readable',()=>{
  const c=client();c.run(`state.articles=[];rows=[{action:'POST /articles',actor:'synthetic',entity_id:'a"<',entity_label:'<img src=x onerror=1> & title',created_at:'2001-01-01T00:00:00Z'}]`);
- const html=c.run('renderAudit(rows)');assert.match(html,/data-action="article-detail"/);assert.match(html,/data-id="a&quot;&lt;"/);assert.match(html,/&lt;img src=x onerror=1&gt; &amp; title/);assert.doesNotMatch(html,/<img/);
+ const html=c.run('renderAudit(rows)');assert.doesNotMatch(html,/data-action="article-detail"|data-id=/);assert.match(html,/class="article-title">&lt;img src=x onerror=1&gt; &amp; title/);assert.doesNotMatch(html,/<img/);
  c.run(`state.articles=[{id:'collision',title:'wrong cached title'}];rows=[{action:'PUT /accounts/collision',actor:'synthetic',entity_id:'collision',entity_label:null,created_at:'bad'},{action:'article.create',actor:'synthetic',entity_id:'old-uuid',created_at:'bad'}]`);
  const fallback=c.run('renderAudit(rows)');assert.match(fallback,/修改账号/);assert.match(fallback,/新增文章/);assert.doesNotMatch(fallback,/wrong cached title|old-uuid|data-action="article-detail"/);
 });

@@ -24,9 +24,8 @@ test('anonymous public UI opens business directly and never offers credential/se
   const html=c.nodes.get('#app').innerHTML;
   assert.match(html,/data-nav="todos"/);
   const sidebar=html.match(/<nav class="nav-list"[\s\S]*?<\/nav>/)?.[0];assert.ok(sidebar);
-  // Review-first public chrome surfaces 内容复盘 once and drops the old articles/reviews entries.
   assert.equal((sidebar.match(/data-nav="review"/g)||[]).length,1);
-  assert.match(sidebar,/内容复盘/);assert.doesNotMatch(sidebar,/media-subnav|data-nav="(?:dashboard|articles|reviews)"/);
+  assert.match(sidebar,/内容复盘/);assert.doesNotMatch(sidebar,/media-subnav|data-nav="(?:articles|reviews|dashboard)"/);
   assert.doesNotMatch(html,/公开编辑|class="user-row"|class="avatar"|class="user-name"/);
   assert.doesNotMatch(html,/data-tab="(?:keys|security|log)"|data-action="logout"|password-form|login-form/);
   const options=JSON.parse(c.run("JSON.stringify(apiOptions({method:'POST',body:{text:'synthetic'}}))"));

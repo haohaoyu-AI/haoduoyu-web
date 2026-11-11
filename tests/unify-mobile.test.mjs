@@ -79,14 +79,15 @@ test('phone bottom navigation includes AI reports separately from the settings m
 });
 
 test('767px article entry is replaced with overview while 768px and desktop keep their article route and filters',()=>{
+  // Review-first remaps articles→review at every viewport; account stays on the review URL.
   for(const width of [390,767,768,1199,1440]) {
     const app=browser({width,search:'?page=articles&account=a&q=literal&list_page=3'});
     app.run('readRoute();updateRoute()');
-    assert.equal(app.run('state.page'),width<768?'dashboard':'articles');
-    assert.equal(new URL(app.location.href).searchParams.get('page'),width<768?'dashboard':'articles');
+    assert.equal(app.run('state.page'),'review');
+    assert.equal(new URL(app.location.href).searchParams.get('page'),'review');
     assert.equal(app.run('Object.hasOwn(state.filters, "q")'),false);assert.equal(app.run('state.listPage'),3);
     assert.equal(app.changes.push,0);assert.equal(app.changes.replace,1);
-    assert.equal(app.run('state.account'),width<768?'':'a');
+    assert.equal(app.run('state.account'),'a');
   }
 });
 
@@ -94,24 +95,24 @@ test('initial history, back and forward canonicalize an article entry without ad
   const app=browser();
   app.history.pushState({},'','http://localhost/?page=articles');
   app.run('readRoute();updateRoute()');assert.equal(app.entries.length,2);
-  assert.equal(new URL(app.entries[1]).searchParams.get('page'),'dashboard');
+  assert.equal(new URL(app.entries[1]).searchParams.get('page'),'review');
   app.back();app.run('readRoute();updateRoute()');assert.equal(app.run('state.page'),'todos');
-  app.forward();app.run('readRoute();updateRoute()');assert.equal(app.run('state.page'),'dashboard');
+  app.forward();app.run('readRoute();updateRoute()');assert.equal(app.run('state.page'),'review');
   assert.equal(app.entries.length,2);assert.equal(app.changes.push,1);
 });
 
 test('phone navigation and resize replace articles once, preserve an open editor, and never restore articles when widened',()=>{
   const app=browser({search:'?page=notes'});
   app.run('readRoute();let shellCalls=0;renderShell=()=>shellCalls++;navigate("articles")');
-  assert.equal(app.run('state.page'),'dashboard');assert.equal(app.changes.push,0);assert.equal(app.changes.replace,1);
-  app.run('navigateLink("articles")');assert.equal(app.run('shellCalls'),1);assert.equal(app.changes.replace,1);
-  app.window.innerWidth=1440;app.run('navigate("articles")');assert.equal(app.run('state.page'),'articles');assert.equal(app.changes.push,1);
+  assert.equal(app.run('state.page'),'review');assert.equal(app.changes.push,1);assert.equal(app.changes.replace,0);
+  app.run('navigateLink("articles")');assert.equal(app.run('shellCalls'),1);assert.equal(app.changes.push,1);
+  app.window.innerWidth=1440;app.run('navigate("articles")');assert.equal(app.run('state.page'),'review');assert.equal(app.changes.push,2);
   app.overlay.innerHTML='<textarea>unsaved synthetic draft</textarea>';
   const version=app.run('runtime.modalRequestVersion');app.window.innerWidth=767;
-  assert.equal(app.run('handleResponsiveLayout()'),true);assert.equal(app.run('state.page'),'dashboard');
+  assert.equal(app.run('handleResponsiveLayout()'),false);assert.equal(app.run('state.page'),'review');
   assert.match(app.overlay.innerHTML,/unsaved synthetic draft/);assert.equal(app.run('runtime.modalRequestVersion'),version);
   const replaced=app.changes.replace;assert.equal(app.run('handleResponsiveLayout()'),false);assert.equal(app.changes.replace,replaced);
-  app.window.innerWidth=1440;assert.equal(app.run('handleResponsiveLayout()'),false);assert.equal(app.run('state.page'),'dashboard');
+  app.window.innerWidth=1440;assert.equal(app.run('handleResponsiveLayout()'),false);assert.equal(app.run('state.page'),'review');
 });
 
 test('settings menu manages focus, outside closing, and the settings active marker',()=>{
@@ -132,8 +133,8 @@ test('unified notes navigation keeps a labelled category selector and accessible
   const app=browser({search:'?page=notes&notes_category=work'});app.run('readRoute()');
   const html=app.run('renderDailyNotes()');
   assert.match(html,/data-category="work"/);
-  assert.match(html,/<label>标签 <select id="notes-compose-label"/);
-  assert.match(html,/<option value="生活">生活<\/option><option value="工作">工作<\/option>/);
+  // Label filters live in history; compose no longer has notes-compose-label.
+  assert.match(html,/<label>标签 <select id="notes-history-label"/);
   assert.match(html,/id="notes-new-label"/);
   const mobile=app.run('mobileNavigation()'), sidebar=app.run('sidebarNavigation()');
   assert.equal((mobile.match(/data-nav="notes"/g)||[]).length,1);
