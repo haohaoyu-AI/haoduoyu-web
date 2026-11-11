@@ -5,27 +5,29 @@ import {paintNoteEntries, renderDailyNotes} from '../web/pages/daily-notes.mjs';
 import {dailyNotesToday} from '../web/core/daily-notes-state.mjs';
 
 const date = dailyNotesToday();
-function node(tag = '') {
+function node(tag = 'div') {
   const queries = new Map(), classes = new Set();
-  const value = {tagName: String(tag || '').toUpperCase(), dataset: {}, children: [], value: '', textContent: '',
-    innerHTML: '', selectionStart: 0, selectionEnd: 0, selectionDirection: 'none', scrollTop: 0, attributes: {},
+  const value = {tagName: String(tag).toUpperCase(), dataset: {}, children: [], value: '', textContent: '', innerHTML: '',
+    selectionStart: 0, selectionEnd: 0, selectionDirection: 'none', scrollTop: 0, className: '', id: '',
     classList: {toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); }},
     querySelector(selector) { if (!queries.has(selector)) queries.set(selector, node()); return queries.get(selector); },
     querySelectorAll(selector) {
-      const tagName = /^[a-z]+$/i.test(selector) ? selector.toUpperCase() : '';
       const out = [];
-      const walk = el => { for (const child of el.children) {
-        if (!tagName || child.tagName === tagName) out.push(child);
-        walk(child);
-      }};
+      const match = el => {
+        if (selector.startsWith('.')) return String(el.className || '').split(/\s+/).includes(selector.slice(1));
+        if (selector.startsWith('#')) return el.id === selector.slice(1);
+        return el.tagName === selector.toUpperCase();
+      };
+      const walk = el => { for (const child of el.children) { if (match(child)) out.push(child); walk(child); } };
       walk(value); return out;
     },
-    setAttribute(name, text) { this.attributes[name] = String(text); },
-    removeAttribute(name) { delete this[name]; delete this.attributes[name]; },
+    removeAttribute(name) { delete this[name]; },
+    setAttribute(name, next) { this[name] = next; },
     setSelectionRange(start, end, direction) { this.selectionStart = start; this.selectionEnd = end; this.selectionDirection = direction; },
     insertBefore(child, before) {
+      if (!child || typeof child !== 'object' || !('children' in child) && child.nodeType === 3) return child;
       child.remove(); const index = before ? this.children.indexOf(before) : -1;
-      this.children.splice(index < 0 ? this.children.length : index, 0, child); child.parentNode = this;
+      this.children.splice(index < 0 ? this.children.length : index, 0, child); child.parentNode = this; return child;
     },
     append(...children) { for (const child of children) this.insertBefore(child); },
     prepend(...children) { for (const child of [...children].reverse()) this.insertBefore(child, this.children[0] || null); },
@@ -37,20 +39,21 @@ function node(tag = '') {
   };
   Object.defineProperty(value, 'firstElementChild', {get: () => value.children[0] || null});
   Object.defineProperty(value, 'nextElementSibling', {get: () => value.parentNode?.children[value.parentNode.children.indexOf(value) + 1] || null});
+  Object.defineProperty(value, 'hidden', {get() { return Boolean(this._hidden); }, set(next) { this._hidden = Boolean(next); }});
   return value;
 }
 function entryCard(root, id) {
   return [...root.querySelector('#notes-entry-list').children, ...root.querySelector('#notes-unpublished').children]
-    .find(node => node.dataset.noteEntry === id);
+    .find(child => child.dataset.noteEntry === id);
 }
 function view(t, items = [], legacyExtra = {}) {
   const previous = globalThis.document, document = {
     createElement: tag => node(tag),
-    createTextNode: text => { const value = node('#text'); value.textContent = String(text); return value; },
+    createTextNode: text => ({nodeType: 3, textContent: String(text), data: String(text)}),
     activeElement: null,
   };
   globalThis.document = document; t.after(() => { globalThis.document = previous; });
-  const root = node('section'); root.dataset.category = 'life';
+  const root = node(); root.dataset.category = 'life';
   const current = {date, category: 'life', loaded: true, loading: false, canEdit: true, ids: items.map(item => item.id), error: ''};
   const legacy = {date, loaded: true, loading: false, canEdit: true, serverText: '旧线上原文', draft: '旧线上原文', version: 3,
     deleted: false, dirty: false, phase: 'saved', error: '', pending: null, updatedAt: null, ...legacyExtra};
@@ -66,7 +69,7 @@ function entry(extra = {}) {
 test('a durable queued entry with no server version remains visible and displays local text without claiming server save', t => {
   const item = entry(), v = view(t, [item]); v.paint();
   const card = entryCard(v.root, item.id);
-  assert.equal(card.dataset.noteEntry, item.id);
+  assert.ok(card); assert.equal(card.dataset.noteEntry, item.id);
   assert.equal(card.querySelector('.note-entry-reader').textContent, item.durableText);
   assert.equal(card.querySelector('.note-entry-status').textContent, '已存本机，待同步');
   assert.equal(card.querySelector('[data-note-entry-action="edit"]').hidden, false);
@@ -76,7 +79,7 @@ test('a snapshot-only trusted local document displays its cached text without in
   const item = entry({localBacked: true, localQueued: false, localVersion: 4, phase: 'cached',
     durableText: '完整快照中的缓存文字', draft: '完整快照中的缓存文字'}), v = view(t, [item]); v.paint();
   const card = entryCard(v.root, item.id);
-  assert.equal(card.querySelector('.note-entry-reader').textContent, item.durableText);
+  assert.ok(card); assert.equal(card.querySelector('.note-entry-reader').textContent, item.durableText);
   assert.equal(card.querySelector('.note-entry-status').textContent, '本机缓存');
   assert.equal(item.version, 0); assert.equal(item.serverText, ''); assert.equal(item.contentHash, undefined);
 });

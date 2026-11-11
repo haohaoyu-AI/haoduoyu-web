@@ -327,7 +327,8 @@ function syncActions(context) {
   const run = () => runSync(context);
   function sync({rerun = false} = {}) {
     if (context.syncFlight) {
-      if (rerun) context.syncAgain = true;
+      // Overlapping sync() must survive in-flight failures, not only timer reruns.
+      context.syncAgain = true;
       return context.syncFlight;
     }
     context.syncFlight = run().finally(() => {

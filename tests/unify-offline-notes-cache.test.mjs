@@ -74,7 +74,8 @@ test('a complete snapshot exposes unopened life/work dates without impersonating
     assert.equal(document.change_seq, undefined); assert.equal(documentState(document).server, null);
     assert.equal(documentState(document).operation, null);
   }
-  const empty = await f.cache.read(path('2026-10-24')); assert.deepEqual(empty.data.entries, []);
+  const emptyDay = new Date(Date.parse(otherDate + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const empty = await f.cache.read(path(emptyDay)); assert.deepEqual(empty.data.entries, []);
 });
 test('a snapshot alone grants reading but no editing capability, and incomplete unknown dates remain unavailable', async () => {
   const f = setup(), row = apiRow({date: otherDate}); await putEntity(f, snapshotRow(row));
