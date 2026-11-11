@@ -191,3 +191,17 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 最终远端扫描结果以本变更的CI为准，不将原始1项描述成从未命中。
 
 本地原全历史参数下，追加这一指纹后575个提交扫描为0项；将新增指纹的提交ID改一位作阴性控制，仍报告原1项，证明并未豁免整条路径。远端CI仍需独立通过。
+
+## 2026-11-11 注册与审稿规则发布：单条历史公开 OpenAPI 摘要
+
+用户明确批准后，仅追加不可变历史指纹
+`faa86f862f032f8a896d813ea4ac2f7d3eb13b96:.ci/public-assets.json:generic-api-key:10`。
+从该精确提交读取 `public/openapi.json` 原始 Git blob
+`6b3a4effd5551a41fccf5f7757799f702881dcde`，重新计算其 869672 个 UTF-8 字节的 SHA256，
+与该提交 `.ci/public-assets.json` 第 10 行的资源 pin 精确匹配。这是公开文档内容摘要，不是凭据。
+复算实现先通过标准 abc 测试向量校验。当前发布 head 的文档内容不同，不能以当前内容替代历史对象证明。
+
+原失败 CI 保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42941952010>。
+只追加上述提交、文件、规则、行的一条精确指纹，原指纹字节保留；不改变产品源码、
+`.gitleaks.toml`、默认规则、固定版本校验、全历史扫描参数或未来提交的覆盖。
+最终远端扫描与构建测试以修复后的实际 PR head CI 为准，不将原始告警描述为从未命中。
