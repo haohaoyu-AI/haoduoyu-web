@@ -190,14 +190,17 @@ textarea.input { min-height:96px; resize:vertical; padding:var(--s2); }
 .daily-todo-form .btn { min-height:var(--size-control); }
 .daily-todo-items { list-style:none; padding:0; margin:0; }
 .daily-todos-primary .daily-todo-items { margin-top:var(--s3); }
-.daily-todo-row { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); border-bottom:1px solid var(--line); }
+.daily-todo-row { display:flex; flex-wrap:nowrap; align-items:center; gap:var(--s2); border-bottom:1px solid var(--line); }
 .daily-todo-row:last-child { border-bottom:0; }
-.daily-todo-row label { display:flex; flex:1 1 12rem; align-items:flex-start; gap:var(--s3); min-height:48px; padding:var(--s3) 0; cursor:pointer; min-width:0; }
-.todo-note-hit,.todo-note-input { flex:1 1 10rem; min-width:7.5rem; min-height:48px; margin:6px 0; padding:8px 12px; border:0; border-radius:10px; background:transparent; color:var(--ink-2); text-align:left; cursor:pointer; white-space:pre-wrap; overflow-wrap:anywhere; }
-textarea.todo-note-input { cursor:text; resize:vertical; min-height:4.8em; line-height:1.45; overflow:auto; border:1px solid var(--line-2); background:var(--surface); }
-.todo-note-error { flex:1 0 100%; margin:0 0 8px; color:var(--color-danger); font-size:13px; }
-.todo-note-hit.is-empty { color:var(--ink-3, var(--ink-2)); }
-.todo-note-hit:hover,.todo-note-hit:focus-visible { background:var(--accent-weak); }
+.daily-todo-check { display:flex; flex:0 0 auto; align-items:center; min-height:48px; padding:var(--s3) 0; cursor:pointer; }
+.daily-todo-main { display:flex; flex:1 1 auto; align-items:baseline; min-width:0; gap:.55em; }
+.todo-note-hit { flex:1 1 1.25rem; min-width:1.25rem; min-height:1.35em; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--ink-3); text-align:left; cursor:text; }
+.todo-note-hit:hover,.todo-note-hit:focus,.todo-note-hit:focus-visible { background:transparent; outline:none; box-shadow:none; }
+.todo-note-hit.is-empty:hover::before,.todo-note-hit.is-empty:focus-visible::before { content:""; display:inline-block; width:1px; height:.95em; background:var(--ink-3); opacity:.4; vertical-align:-.12em; }
+.todo-note-text { font-size:.82em; font-style:italic; line-height:1.35; color:var(--ink-3); white-space:pre-wrap; overflow-wrap:anywhere; }
+input.todo-note-input { flex:1 1 auto; width:1.5rem; min-width:1.5rem; height:1.35em; min-height:0; margin:0; padding:0; border:0; border-radius:0; outline:none; box-shadow:none; background:transparent; appearance:none; resize:none; font:inherit; font-size:.82em; font-style:italic; line-height:1.35; color:var(--ink-3); caret-color:var(--ink-2); }
+input.todo-note-input:focus,input.todo-note-input:focus-visible { outline:none; border:0; box-shadow:none; background:transparent; }
+.todo-note-error { color:var(--color-danger); font-size:12px; font-style:normal; }
 .daily-todo-row input[type=checkbox] { appearance:none; position:relative; width:20px; height:20px; margin-top:var(--space-2); border:1.5px solid var(--line-2); border-radius:var(--radius-circle); background:var(--surface); }
 .daily-todo-row input[type=checkbox]:checked { background:var(--accent); border-color:var(--accent); }
 .daily-todo-row input[type=checkbox]:checked::after { content:""; position:absolute; left:6px; top:3px; width:5px; height:9px; border-right:2px solid var(--surface); border-bottom:2px solid var(--surface); transform:rotate(45deg); }
@@ -589,7 +592,6 @@ progress::-moz-progress-bar { background:var(--ink-2); }
 .ai-report-markdown > * + * { margin-top:.65rem; }
 .ai-report-markdown :is(ul,ol) { padding-left:1.5rem; }
 .ai-report-markdown pre { max-width:100%; overflow-x:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
-.todo-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .notes-retained-tools { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); margin:var(--s2) 0; }
 .notes-retained-status:empty { display:none; }
 .notes-retained-status { margin:var(--s2) 0; color:var(--ink); }

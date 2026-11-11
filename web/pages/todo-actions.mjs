@@ -45,6 +45,12 @@ function watchTodoNotes() {
   document.addEventListener("focusout", event => {
     if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
   });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Enter" && event.target?.matches?.("[data-todo-note-input]")) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
 }
 function openTodoNote(options) {
   watchTodoNotes();

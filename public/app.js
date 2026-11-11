@@ -8295,6 +8295,12 @@ function watchTodoNotes() {
   document.addEventListener("focusout", (event) => {
     if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.target?.matches?.("[data-todo-note-input]")) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
 }
 function openTodoNote(options4) {
   watchTodoNotes();
@@ -8780,21 +8786,24 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoNoteField(item, day6, pending) {
+  const error = day6.noteError && day6.noteEdit?.id === item.id ? `<span class="todo-note-error" role="alert">${e(day6.noteError)}</span>` : "";
   if (day6.noteEdit?.id === item.id) {
-    const error = day6.noteError ? `<p class="todo-note-error" role="alert">${e(day6.noteError)}</p>` : "";
-    return `<textarea class="todo-note-input input" data-todo-note-input data-id="${e(item.id)}" data-date="${e(day6.date)}" maxlength="4000" rows="2" aria-label="备注或未完成原因"${pending ? " disabled" : ""}>${e(day6.noteEdit.text ?? "")}</textarea>${error}`;
+    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(day6.date)}" value="${e(day6.noteEdit.text ?? "")}"${pending ? " disabled" : ""}>${error}`;
   }
-  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>`;
+  const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
+  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" aria-label="${item.note ? "编辑备注" : "添加备注"}"${pending ? " disabled" : ""}>${text}</button>`;
 }
 function todoRow(item, day6) {
   const pending = todoBusy(day6, item.id);
   const completed = day6.updates.has(item.id) ? day6.updates.get(item.id) : item.completed;
   const removal = day6.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
+  const check = `todo-check-${e(item.id)}`;
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day6.date)}">
-<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}" ${completed ? "checked" : ""}
-aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${todoNoteField(item, day6, pending)}
+<label class="daily-todo-check" for="${check}"><input id="${check}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}"
+${completed ? "checked" : ""} aria-disabled="${pending}"></label>
+<div class="daily-todo-main"><label class="daily-todo-text" for="${check}">${e(item.text)}</label>
+${todoNoteField(item, day6, pending)}</div>
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day6.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }

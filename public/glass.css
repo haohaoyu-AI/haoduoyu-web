@@ -203,9 +203,8 @@ button.badge { min-height:var(--size-control); }
 .todo-list-options .input { background:var(--color-white-a-55); }
 .daily-todos-primary .daily-todo-items { margin-top:var(--space-8); }
 .daily-todo-row { gap:var(--space-12); border-color:var(--color-todo-divider); }
-.daily-todo-row label { min-height:62px; padding:var(--space-18) 0; gap:var(--space-14); }
-.todo-note-hit { border-radius:var(--radius-14); color:var(--ink-2); }
-.todo-note-hit:hover,.todo-note-hit:focus-visible { background:var(--color-white-a-6); }
+.daily-todo-check { min-height:62px; padding:var(--space-18) 0; }
+.todo-note-hit,.todo-note-hit:hover,.todo-note-hit:focus-visible { border-radius:0; background:transparent; box-shadow:none; color:var(--ink-3); }
 .daily-todo-row input[type=checkbox] { width:22px; height:22px; border-color:var(--color-checkbox-border); background:var(--color-white-a-86); }
 .daily-todo-row input[type=checkbox]:checked { background:var(--accent); border-color:var(--accent); }
 .daily-todo-row input[type=checkbox]:checked::after { left:7px; top:4px; border-color:var(--color-white); }
@@ -329,7 +328,7 @@ button.badge { min-height:var(--size-control); }
   .daily-todo-toolbar { gap:var(--space-8); margin-bottom:var(--space-18); }
   .daily-todo-form { gap:var(--space-8); }
   .daily-todo-form>.btn { padding-inline:var(--space-14); }
-  .daily-todo-row label { padding:var(--space-17) 0; min-height:60px; gap:var(--space-12); }
+  .daily-todo-check { padding:var(--space-17) 0; min-height:60px; }
   .daily-todo-text { font-size:var(--font-size-15); line-height:var(--line-height-todo); }
   .daily-notes .notes-toolbar { gap:var(--space-12); }
   .notes-date-controls { gap:var(--space-6); }
