@@ -123,7 +123,8 @@ async function updateNote(store,actor,id,input) {
     !Number.isSafeInteger(input.version)||input.version<1||input.version>=Number.MAX_SAFE_INTEGER)
     throw fail(400,'VALIDATION_ERROR','备注或版本无效');
   const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
-  if(!current||current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  if(!current)return updateFutureNote(store,actor,id,input);
+  if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
   if(current.version===input.version+1&&current.note===input.note)
     return {replayed:true,response:json(await linkedItem(store,actor.id,current))};
   if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
@@ -131,6 +132,25 @@ async function updateNote(store,actor,id,input) {
   store.queue('UPDATE matrix_todos SET note=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.note,stamp,actor.id,id,input.version);
   store.expectChange();
   return {actor,response:json(await linkedItem(store,actor.id,{...current,note:input.note,version:current.version+1,updated_at:stamp}))};
+}
+
+async function updateFutureNote(store,actor,id,input) {
+  const futureFields='id,text,completed,version,created_at,updated_at,deleted_at,note';
+  const current=await store.get('SELECT '+futureFields+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',actor.id,id);
+  if(!current||current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  const saved={...current,completed:current.completed===1||current.completed===true};
+  if(current.version===input.version+1&&current.note===input.note)return {replayed:true,response:json(futureItem(saved))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now();
+  store.queue('UPDATE matrix_unscheduled_todos SET note=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.note,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json(futureItem({...saved,note:input.note,version:current.version+1,updated_at:stamp}))};
+}
+
+function futureItem(row) {
+  const value={...row};
+  if(!value.note)delete value.note;
+  return value;
 }
 
 async function setDeleted(store,actor,id,input,deleted) {

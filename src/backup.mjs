@@ -229,7 +229,7 @@ const v16Columns={...v15Columns,...reviewColumns};
 const promptColumns={review_prompt_versions:['user_id','id','prompt_key','scope','version','status','title','content_md','changelog_md','created_at','updated_at']};
 const v17Columns={...v16Columns,...promptColumns};
 const scoreColumns={daily_scores:['user_id','date','score','version','created_at','updated_at']};
-const columns={...v17Columns,...scoreColumns};
+const columns={...v17Columns,...scoreColumns,unscheduled_todos:[...v10Columns.unscheduled_todos,'note']};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
   'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns),...Object.keys(scoreColumns)]);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
@@ -477,6 +477,9 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
     tables.todos=tables.todos.map(row=>({...row,note:''}));
     tables.todo_templates=tables.todo_templates.map(row=>({...row,archived_at:null}));
   }
+  tables.unscheduled_todos=tables.unscheduled_todos.map(row=>row.note===undefined?{...row,note:''}:row);
+  if(tables.unscheduled_todos.some(row=>typeof row.note!=='string'||!row.note.isWellFormed()||row.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(row.note)))
+    throw fail(400,'INVALID_BACKUP','未来待办备注无效');
   if(tables.todos.some(row=>typeof row.note!=='string'||!row.note.isWellFormed()||row.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(row.note)) ||
     tables.todo_templates.some(row=>row.archived_at!==null&&(typeof row.archived_at!=='string'||!Number.isFinite(Date.parse(row.archived_at))||new Date(row.archived_at).toISOString()!==row.archived_at)))
     throw fail(400,'INVALID_BACKUP','待办备注或归档日期无效');

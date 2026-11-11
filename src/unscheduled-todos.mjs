@@ -3,9 +3,13 @@ import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay} from './lib/time.mjs';
 
-const fields='id,text,completed,version,created_at,updated_at,deleted_at';
+const baseFields='id,text,completed,version,created_at,updated_at,deleted_at';
+async function selectedFields(store) {
+  const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)');
+  return info.some(column=>column.name==='note')?baseFields+',note':baseFields;
+}
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>({...row,completed:row.completed===1||row.completed===true});
+const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;return value;};
 function idOf(value) {
   if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
     throw fail(400,'VALIDATION_ERROR','待办标识需要使用 UUID');
@@ -38,7 +42,7 @@ function inputFor(body,operation) {
   return body;
 }
 async function find(store,userId,id) {
-  return store.get('SELECT '+fields+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',userId,id);
+  return store.get('SELECT '+await selectedFields(store)+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',userId,id);
 }
 async function write(store,actor,operation,id,input) {
   if(operation==='create') {
@@ -108,7 +112,7 @@ export async function handleUnscheduledTodos(db,request,route,origin,initialRevi
       if(!row)throw fail(404,'NOT_FOUND','待办不存在');
       return json(item(row));
     }
-    const rows=await store.all('SELECT '+fields+' FROM matrix_unscheduled_todos WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at,id',actor.id);
+    const rows=await store.all('SELECT '+await selectedFields(store)+' FROM matrix_unscheduled_todos WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at,id',actor.id);
     return json({items:rows.map(item)});
   },initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireUser(first);

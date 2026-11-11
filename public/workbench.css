@@ -734,7 +734,7 @@ body.floating-workbench {
 #todo-form-bottom + #todo-form { margin-top:var(--space-16); }
 @media (max-width:700px) {
   #todo-future .daily-todo-row { flex-wrap:wrap; padding-bottom:var(--space-12); }
-  #todo-future .daily-todo-row > label { flex-basis:calc(100% - 48px); }
+  #todo-future .daily-todo-main { flex:1 1 calc(100% - 88px); min-width:0; }
   #todo-future .todo-future-schedule { order:2; width:100%; }
   #todo-future .todo-future-schedule input[type=date] { flex:1; min-width:0; width:auto; }
 }

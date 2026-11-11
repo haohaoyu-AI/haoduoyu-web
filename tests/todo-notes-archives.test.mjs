@@ -62,3 +62,26 @@ test('notes and archived templates preserve history, protect versions, and appea
   assert.equal(restored.status,200); assert.equal(restored.data.archived_at,null);
   assert.equal((await req('/todo-templates')).data.items[0].id,template.id);
 });
+
+test('future todos save notes through the same endpoint and backups', async t => {
+  const app=await fixture(t); const session=await app.login();
+  const req=(path,method='GET',body)=>app.request('/api/v1'+path,{method,session,...(body?{body}:{})});
+  const created=await req('/unscheduled-todos','POST',{id:randomUUID(),text:'下周要做的事'});
+  assert.equal(created.status,201); assert.equal(created.data.version,1);
+  const saved=await req(`/todos/${created.data.id}/note`,'PATCH',{version:1,note:'先记一笔，回头补'});
+  assert.equal(saved.status,200); assert.equal(saved.data.note,'先记一笔，回头补'); assert.equal(saved.data.version,2);
+  assert.equal((await req(`/todos/${created.data.id}/note`,'PATCH',{version:1,note:'先记一笔，回头补'})).data.version,2);
+  assert.equal((await req(`/todos/${created.data.id}/note`,'PATCH',{version:1,note:'覆盖'})).status,409);
+  assert.equal((await req('/unscheduled-todos')).data.items[0].note,'先记一笔，回头补');
+  const cleared=await req(`/todos/${created.data.id}/note`,'PATCH',{version:2,note:''});
+  assert.equal(cleared.status,200); assert.equal(cleared.data.note,undefined);
+  assert.equal((await req('/unscheduled-todos')).data.items[0].note,undefined);
+  const again=await req(`/todos/${created.data.id}/note`,'PATCH',{version:cleared.data.version,note:'先记一笔，回头补'});
+  assert.equal(again.status,200);
+  const backup=await exportBackup(app.db);
+  assert.equal(backup.data.tables.unscheduled_todos.find(row=>row.id===created.data.id).note,'先记一笔，回头补');
+  const target=await fixture(t,{bootstrap:false});
+  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
+  const restored=await target.db.prepare('SELECT note FROM matrix_unscheduled_todos WHERE id=?').bind(created.data.id).first();
+  assert.equal(restored.note,'先记一笔，回头补');
+});

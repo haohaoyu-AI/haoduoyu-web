@@ -100,6 +100,7 @@ export function stripEmptyReviewTables(data) {
     delete data.tables.daily_scores;
   }
   for(const row of data.tables.todos||[]) {assert.equal(row.note,'');delete row.note;}
+  for(const row of data.tables.unscheduled_todos||[]) {assert.equal(row.note??'','');delete row.note;}
   for(const row of data.tables.todo_templates||[]) {assert.equal(row.archived_at,null);delete row.archived_at;}
   return data;
 }

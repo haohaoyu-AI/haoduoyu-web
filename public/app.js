@@ -5134,6 +5134,20 @@ function toast(message, error = false) {
   setTimeout(() => node2.remove(), error ? 8e3 : 4500);
 }
 
+// web/pages/todo-note-field.mjs
+init_dom();
+function todoNoteField(item, { pending = false, editing: editing3 = null, error = "", date = "", future = false } = {}) {
+  const active5 = editing3?.id === item.id;
+  const alert = error && active5 ? `<span class="todo-note-error" role="alert">${e(error)}</span>` : "";
+  const marker = future ? ` data-future="1"` : "";
+  if (active5) {
+    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date)}"${marker} value="${e(editing3.text ?? "")}"${pending ? " disabled" : ""}>${alert}`;
+  }
+  const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
+  const label3 = item.note ? "编辑备注" : "添加备注";
+  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(date)}"${marker} aria-label="${label3}"${pending ? " disabled" : ""}>${text}</button>`;
+}
+
 // web/pages/unscheduled-todos.mjs
 init_api();
 init_dom();
@@ -5141,7 +5155,22 @@ init_state();
 init_todos_state();
 init_format();
 init_runtime();
-var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {}, uncertain: {} };
+var cache = {
+  owner: "",
+  items: [],
+  draft: "",
+  loaded: false,
+  loading: false,
+  error: "",
+  notice: "",
+  pending: false,
+  request: null,
+  dates: {},
+  uncertain: {},
+  noteEdit: null,
+  noteError: ""
+};
+var paintingFuture = false;
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
 function current() {
   const key2 = owner();
@@ -5156,7 +5185,9 @@ function current() {
     pending: false,
     request: null,
     dates: {},
-    uncertain: {}
+    uncertain: {},
+    noteEdit: null,
+    noteError: ""
   });
   return cache;
 }
@@ -5171,7 +5202,26 @@ function renderUnscheduledTodos() {
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
+function futureTodoView() {
+  return current();
+}
+function futureRepainting() {
+  return paintingFuture;
+}
+function futureRow(item) {
+  const v = current(), busy = v.pending || v.uncertain[item.id], off = busy ? "disabled" : "", check = `future-check-${item.id}`;
+  const note = todoNoteField(item, { pending: busy, editing: v.noteEdit, error: v.noteError, future: true });
+  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}"><label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(item.text)}</label>${note}</div><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(item.id)}" value="${e(v.dates[item.id] || "")}" aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(item.id)}" ${v.pending ? "disabled" : ""}>${v.uncertain[item.id] ? "核实移动结果" : "移至该日期"}</button></div><button class="icon-button" type="button" data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
+}
 function paintUnscheduledTodos() {
+  paintingFuture = true;
+  try {
+    paintFutureList();
+  } finally {
+    paintingFuture = false;
+  }
+}
+function paintFutureList() {
   const v = current(), root2 = $("#todo-future");
   if (!root2) return;
   root2.hidden = !visible();
@@ -5180,10 +5230,9 @@ function paintUnscheduledTodos() {
   if (button2) button2.disabled = v.pending;
   if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error) error.textContent = v.error;
-  if (list2) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map((x) => `<li class="daily-todo-row${x.completed ? " is-complete" : ""}">
-<label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed ? "checked" : ""} ${v.pending || v.uncertain[x.id] ? "disabled" : ""}>
-<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" value="${e(v.dates[x.id] || "")}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending || v.uncertain[x.id] ? "disabled" : ""}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending ? "disabled" : ""}>${v.uncertain[x.id] ? "核实移动结果" : "移至该日期"}</button></div><button class="icon-button" type="button"
- data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending || v.uncertain[x.id] ? "disabled" : ""}>×</button></li>`).join("");
+  const live2 = document.activeElement;
+  const keep = live2?.matches?.('[data-todo-note-input][data-future="1"]') && live2.isConnected && v.noteEdit?.id === live2.dataset.id;
+  if (list2 && !keep) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map(futureRow).join("");
 }
 async function loadUnscheduledTodos() {
   if (!visible()) return;
@@ -8289,6 +8338,11 @@ function watchTodoNotes() {
   document.addEventListener("input", (event) => {
     const input = event.target;
     if (!input?.matches?.("[data-todo-note-input]")) return;
+    if (input.dataset.future === "1") {
+      const view = futureTodoView();
+      if (view.noteEdit?.id === input.dataset.id) view.noteEdit.text = input.value;
+      return;
+    }
     const day6 = todoDay(input.dataset.date);
     if (day6.noteEdit?.id === input.dataset.id) day6.noteEdit.text = input.value;
   });
@@ -8302,8 +8356,20 @@ function watchTodoNotes() {
     }
   });
 }
+function openFutureNote(options4) {
+  const view = futureTodoView(), id2 = options4.id || options4.target?.dataset.id;
+  const item = view.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
+  if (!item || view.pending || view.uncertain[id2]) return;
+  view.noteEdit = { id: item.id, text: item.note || "" };
+  view.noteError = "";
+  paintUnscheduledTodos();
+  const input = document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
+  input?.focus();
+  input?.setSelectionRange?.(input.value.length, input.value.length);
+}
 function openTodoNote(options4) {
   watchTodoNotes();
+  if (options4.target?.dataset.future === "1") return openFutureNote(options4);
   const context = todoActionContext({ ...options4, date: options4.date || options4.target?.dataset.date, owner: options4.owner || options4.target?.dataset.owner });
   if (!context || todoBusy(context.day, context.item.id)) return;
   const { item, day: day6 } = context;
@@ -8315,7 +8381,37 @@ function openTodoNote(options4) {
   const end = input?.value.length || 0;
   input?.setSelectionRange?.(end, end);
 }
+async function commitFutureNote(input) {
+  if (futureRepainting()) return;
+  const view = futureTodoView(), item = view.items.find((row) => row.id === input.dataset.id);
+  if (!item || view.noteEdit?.id !== item.id || view.noteEdit.committing) return;
+  const text = input.value;
+  if (text === (item.note || "")) {
+    view.noteEdit = null;
+    view.noteError = "";
+    paintUnscheduledTodos();
+    return;
+  }
+  view.noteEdit.committing = true;
+  view.noteEdit.text = text;
+  try {
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note: text, version: item.version } });
+    Object.assign(item, saved);
+    if (!saved.note) delete item.note;
+    if (view.noteEdit?.id === item.id) view.noteEdit = null;
+    view.noteError = "";
+  } catch (error) {
+    if (isRequestAbort(error)) return;
+    if (view.noteEdit?.id === item.id) {
+      view.noteEdit.committing = false;
+      view.noteError = error.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error.message || "保存失败，请重试";
+    }
+  }
+  paintUnscheduledTodos();
+  if (view.noteEdit?.id === item.id) document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+}
 async function commitTodoNote(input) {
+  if (input?.dataset?.future === "1") return commitFutureNote(input);
   if (todoRepainting()) return;
   const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
   if (!context) return;
@@ -8785,13 +8881,8 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoNoteField(item, day6, pending) {
-  const error = day6.noteError && day6.noteEdit?.id === item.id ? `<span class="todo-note-error" role="alert">${e(day6.noteError)}</span>` : "";
-  if (day6.noteEdit?.id === item.id) {
-    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(day6.date)}" value="${e(day6.noteEdit.text ?? "")}"${pending ? " disabled" : ""}>${error}`;
-  }
-  const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
-  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" aria-label="${item.note ? "编辑备注" : "添加备注"}"${pending ? " disabled" : ""}>${text}</button>`;
+function todoNoteField2(item, day6, pending) {
+  return todoNoteField(item, { date: day6.date, pending, editing: day6.noteEdit, error: day6.noteError });
 }
 function todoRow(item, day6) {
   const pending = todoBusy(day6, item.id);
@@ -8803,7 +8894,7 @@ function todoRow(item, day6) {
 <label class="daily-todo-check" for="${check}"><input id="${check}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check}">${e(item.text)}</label>
-${todoNoteField(item, day6, pending)}</div>
+${todoNoteField2(item, day6, pending)}</div>
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day6.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -8956,7 +9047,8 @@ function paintTodoDom() {
   }
   const form = $("#todo-form", root2), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root2);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
-  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]") ? document.activeElement : null;
+  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]:not([data-future])") ? document.activeElement : null;
+  const keepNote = liveNote?.isConnected && day6.noteEdit?.id === liveNote.dataset.id;
   const parts2 = {
     "todo-caption": todoCaption(day6),
     "todo-status": todoStatus(day6),
@@ -8966,7 +9058,7 @@ function paintTodoDom() {
     "todo-history-empty": todoHistoryEmpty(day6)
   };
   for (const [id2, html] of Object.entries(parts2)) {
-    if (id2 === "todo-items" && liveNote?.isConnected) continue;
+    if (id2 === "todo-items" && keepNote) continue;
     const node2 = $("#" + id2, root2);
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }

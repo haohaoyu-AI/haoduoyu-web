@@ -1,4 +1,5 @@
 import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
+import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
 import { api } from "../core/api.mjs";
 import { createTodoMonthLoader, todoMonthScopeTransition, todoMonthSeed } from "../core/todo-month.mjs";
 import { getOfflineRuntime, onOfflineRuntime } from "../offline/runtime.mjs";
@@ -181,15 +182,7 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoNoteField(item, day, pending) {
-  const error = day.noteError && day.noteEdit?.id === item.id ? `<span class="todo-note-error" role="alert">${e(day.noteError)}</span>` : "";
-  if (day.noteEdit?.id === item.id) {
-    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" ` +
-      `spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(day.date)}" value="${e(day.noteEdit.text ?? "")}"` +
-      `${pending ? " disabled" : ""}>${error}`;
-  }
-  const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
-  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" ` +
-    `data-date="${e(day.date)}" aria-label="${item.note ? "编辑备注" : "添加备注"}"${pending ? " disabled" : ""}>${text}</button>`;
+  return renderTodoNote(item, { date: day.date, pending, editing: day.noteEdit, error: day.noteError });
 }
 function todoRow(item, day) {
   const pending = todoBusy(day, item.id);
@@ -340,12 +333,13 @@ function paintTodoDom() {
   }
   const form = $("#todo-form", root), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
-  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]") ? document.activeElement : null;
+  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]:not([data-future])") ? document.activeElement : null;
+  const keepNote = liveNote?.isConnected && day.noteEdit?.id === liveNote.dataset.id;
   const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day),
     "todo-history-empty": todoHistoryEmpty(day) };
   for (const [id, html] of Object.entries(parts)) {
-    if (id === "todo-items" && liveNote?.isConnected) continue;
+    if (id === "todo-items" && keepNote) continue;
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }

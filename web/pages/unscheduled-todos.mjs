@@ -5,13 +5,16 @@ import {validTodoDate,mergeTodo,todosState,todoOwner} from '../core/todos-state.
 import {bjtDate} from '../core/format.mjs';
 import {getOfflineRuntime} from '../offline/runtime.mjs';
 import {toast} from '../ui/toast.mjs';
+import {todoNoteField} from './todo-note-field.mjs';
 
-const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},uncertain:{}};
+const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
+  uncertain:{},noteEdit:null,noteError:''};
+let paintingFuture=false;
 const owner=()=>JSON.stringify([runtime.sessionEpoch,state.me?.id??null,getOfflineRuntime()?.state.scope??null]);
 function current() {
   const key=owner();
   if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-    uncertain:{}});
+    uncertain:{},noteEdit:null,noteError:''});
   return cache;
 }
 const visible=()=>Boolean(state.me)&&state.page==='todos'&&state.todoPanel==='future';
@@ -25,7 +28,26 @@ export function renderUnscheduledTodos() {
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
+export function futureTodoView() { return current(); }
+export function futureRepainting() { return paintingFuture; }
+function futureRow(item) {
+  const v=current(),busy=v.pending||v.uncertain[item.id],off=busy?'disabled':'',check=`future-check-${item.id}`;
+  const note=todoNoteField(item,{pending:busy,editing:v.noteEdit,error:v.noteError,future:true});
+  return `<li class="daily-todo-row${item.completed?' is-complete':''}">` +
+    `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(item.id)}" ` +
+    `${item.completed?'checked':''} ${off}></label>` +
+    `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(item.text)}</label>${note}</div>` +
+    `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(item.id)}" value="${e(v.dates[item.id] || '')}" ` +
+    `aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(item.id)}" ` +
+    `${v.pending?'disabled':''}>${v.uncertain[item.id]?'核实移动结果':'移至该日期'}</button></div><button class="icon-button" type="button" ` +
+    `data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
+}
 export function paintUnscheduledTodos() {
+  paintingFuture=true;
+  try { paintFutureList(); }
+  finally { paintingFuture=false; }
+}
+function paintFutureList() {
   const v=current(),root=$('#todo-future');if(!root)return;
   root.hidden=!visible();
   const input=$('#todo-future-text',root),button=$('#todo-future-form button',root),status=$('#todo-future-status',root),
@@ -34,13 +56,9 @@ export function paintUnscheduledTodos() {
   if(button)button.disabled=v.pending;
   if(status)status.textContent=v.notice || (v.loading&&!v.loaded?'':v.loaded&&v.items.length===0?'还没有未来待办。':'');
   if(error)error.textContent=v.error;
-  if(list)list.innerHTML=v.items.filter(x=>!x.deleted_at&&!x.deleted).map(x=>`<li class="daily-todo-row${x.completed?' is-complete':''}">
-<label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed?'checked':''} ${v.pending||v.uncertain[x.id]?'disabled':''}>
-<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" ` +
-  `value="${e(v.dates[x.id] || '')}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending||v.uncertain[x.id]?'disabled':''}><button class="btn small" type="button" ` +
-    `data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending?'disabled':''}>${v.uncertain[x.id]?'核实移动结果':'移至该日期'}</button></div><button ` +
-      `class="icon-button" type="button"
- data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending||v.uncertain[x.id]?'disabled':''}>×</button></li>`).join('');
+  const live=document.activeElement;
+  const keep=live?.matches?.('[data-todo-note-input][data-future="1"]')&&live.isConnected&&v.noteEdit?.id===live.dataset.id;
+  if(list&&!keep)list.innerHTML=v.items.filter(x=>!x.deleted_at&&!x.deleted).map(futureRow).join('');
 }
 export async function loadUnscheduledTodos() {
   if(!visible())return;

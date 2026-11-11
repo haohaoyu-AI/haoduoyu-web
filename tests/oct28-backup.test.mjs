@@ -35,7 +35,7 @@ test('v10 backup restores future todos, tombstones, labels and old v9 backup wit
     bind('INSERT INTO matrix_note_labels VALUES(?,?,?)',owner,'合成标签',at),
     bind('INSERT INTO matrix_note_labels VALUES(?,?,?)',owner,'空标签',at),
     bind('INSERT INTO matrix_note_entry_labels VALUES(?,?,?)',owner,note,'合成标签'),
-    bind('INSERT INTO matrix_unscheduled_todos VALUES(?,?,?,0,2,?,?,?)',owner,todo,'未来事项',at,at,at),
+    bind('INSERT INTO matrix_unscheduled_todos(user_id,id,text,completed,version,created_at,updated_at,deleted_at) VALUES(?,?,?,0,2,?,?,?)',owner,todo,'未来事项',at,at,at),
   ]);
   const full=await exportBackup(db);assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');
   assert.equal(full.data.tables.note_labels.length,2);assert.equal(full.data.tables.unscheduled_todos[0].deleted_at,at);

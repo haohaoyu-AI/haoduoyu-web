@@ -7,6 +7,7 @@ import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDa
 import { popover } from "../ui/popover.mjs";
 import { closeModal } from "../ui/modal.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
+import { futureRepainting, futureTodoView, paintUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { loadTodos, paintTodos, setTodoNotice, todoRepainting } from "./todos.mjs";
 function todoBusy(day, id) {
   return day.updates.has(id) || day.removals.has(id) || day.templateWrites.has(id);
@@ -39,6 +40,11 @@ function watchTodoNotes() {
   document.addEventListener("input", event => {
     const input = event.target;
     if (!input?.matches?.("[data-todo-note-input]")) return;
+    if (input.dataset.future === "1") {
+      const view = futureTodoView();
+      if (view.noteEdit?.id === input.dataset.id) view.noteEdit.text = input.value;
+      return;
+    }
     const day = todoDay(input.dataset.date);
     if (day.noteEdit?.id === input.dataset.id) day.noteEdit.text = input.value;
   });
@@ -52,8 +58,20 @@ function watchTodoNotes() {
     }
   });
 }
+function openFutureNote(options) {
+  const view=futureTodoView(),id=options.id || options.target?.dataset.id;
+  const item=view.items.find(row=>row.id===id&&!row.deleted_at&&!row.deleted);
+  if(!item||view.pending||view.uncertain[id])return;
+  view.noteEdit={id:item.id,text:item.note || ""};
+  view.noteError="";
+  paintUnscheduledTodos();
+  const input=document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
+  input?.focus();
+  input?.setSelectionRange?.(input.value.length,input.value.length);
+}
 function openTodoNote(options) {
   watchTodoNotes();
+  if(options.target?.dataset.future==="1")return openFutureNote(options);
   const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
   if(!context||todoBusy(context.day,context.item.id))return;
   const {item,day}=context;
@@ -65,7 +83,31 @@ function openTodoNote(options) {
   const end=input?.value.length || 0;
   input?.setSelectionRange?.(end, end);
 }
+async function commitFutureNote(input) {
+  if(futureRepainting())return;
+  const view=futureTodoView(),item=view.items.find(row=>row.id===input.dataset.id);
+  if(!item||view.noteEdit?.id!==item.id||view.noteEdit.committing)return;
+  const text=input.value;
+  if(text===(item.note || "")){view.noteEdit=null;view.noteError="";paintUnscheduledTodos();return;}
+  view.noteEdit.committing=true; view.noteEdit.text=text;
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
+    Object.assign(item,saved);
+    if(!saved.note)delete item.note;
+    if(view.noteEdit?.id===item.id)view.noteEdit=null;
+    view.noteError="";
+  } catch(error) {
+    if(isRequestAbort(error))return;
+    if(view.noteEdit?.id===item.id){
+      view.noteEdit.committing=false;
+      view.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+    }
+  }
+  paintUnscheduledTodos();
+  if(view.noteEdit?.id===item.id)document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+}
 async function commitTodoNote(input) {
+  if(input?.dataset?.future==="1")return commitFutureNote(input);
   if (todoRepainting()) return;
   const context=todoActionContext({id:input.dataset.id,date:input.dataset.date});
   if(!context)return;

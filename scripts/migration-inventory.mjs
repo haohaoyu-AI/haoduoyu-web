@@ -91,7 +91,7 @@ export async function verifyRestoredInventory(db, backup, sourceInventory) {
       if (!original.length) fail();
       const fields=Object.keys(original[0]);
       const rows=(await db.prepare('SELECT * FROM matrix_'+name).all()).results;
-      const defaults=name==='todos'?{note:''}:name==='todo_templates'?{archived_at:null}:{};
+      const defaults=name==='todos'||name==='unscheduled_todos'?{note:''}:name==='todo_templates'?{archived_at:null}:{};
       for(const row of rows)for(const field of Object.keys(row).filter(field=>!fields.includes(field))) {
         if(!Object.hasOwn(defaults,field)||row[field]!==defaults[field])fail();
       }
