@@ -1,3 +1,4 @@
+import {stripEmptyReviewTables} from './todo-backup-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -14,7 +15,7 @@ test('v7 backup preserves daily todos and rejects incomplete or nonempty restore
   assert.equal(created.status,201,created.text);
   assert.equal((await source.request('/api/v1/todos/'+created.data.id,{method:'PATCH',session,body:{completed:true,version:1}})).status,200);
   const backup=await exportBackup(source.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v9');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v17');
   assert.equal(backup.data.tables.todos.length,1);
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
@@ -30,10 +31,13 @@ test('v7 backup preserves daily todos and rejects incomplete or nonempty restore
 test('v1 backup still restores into an empty upgraded database without inventing todos or templates',async t=>{
   const source=await fixture(t),v4=await exportBackup(source.db),data=structuredClone(v4.data);
   for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
+  for(const name of ['unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
+  }
   for(const name of ['note_entries','work_reminders','account_profiles']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
   }
-  data.format='haoduoyu-matrix-d1-v1';delete data.tables.daily_work_notes;delete data.tables.todos;delete data.tables.todo_templates;delete data.tables.todo_template_links;
+  stripEmptyReviewTables(data);data.format='haoduoyu-matrix-d1-v1';delete data.tables.ai_reports;delete data.tables.daily_work_notes;delete data.tables.todos;delete data.tables.todo_templates;delete data.tables.todo_template_links;
   delete data.source_revision;
   delete data.tables.todo_preferences;
   delete data.tables.daily_notes;

@@ -1,6 +1,7 @@
+import {inputUnscheduledTodo,toggleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
+import { applyArticleFilters, handleResponsiveLayout, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
   renderMediaOverview } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
@@ -14,7 +15,7 @@ import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
 import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
 import { registerTodoGestures } from "./ui/todo-gestures.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
-import { setMenu, syncMenu } from "./ui/menu.mjs";
+import { closeMobileMenuOutside, setMenu, syncMenu, trapMobileMenuFocus } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
@@ -23,6 +24,7 @@ import { handleFormSubmit } from "./forms.mjs";
 import {setDailyNotesRouteCategory} from "./core/daily-notes-state.mjs";
 import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
+  closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
@@ -62,6 +64,14 @@ function handleChange(event) {
     changeTodoCompletedMode(el.value);
     return;
   }
+  if (el.dataset?.futureTodoId) {
+    toggleUnscheduledTodo(el);
+    return;
+  }
+  if (el.dataset?.futureDateId) {
+    inputUnscheduledTodo(el);
+    return;
+  }
   if (el.dataset?.todoId) {
     toggleTodo(el);
     return;
@@ -79,7 +89,7 @@ function handleChange(event) {
   } else if (el.name === "columns" && el.closest("#filter-panel")) {
     $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el.form));
     $('#filter-panel input[value="' + el.value + '"]')?.focus();
-  } else if (el.id === "global-account") {
+  } else if (el.id === "global-account" || el.id === "overview-account") {
     state.account = el.value;
     state.listPage = 1;
     updateRoute();
@@ -97,7 +107,7 @@ function handleChange(event) {
     state.trendMetric = el.value;
     state.trendOpen = true;
     replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
+  } else if (el.closest("#article-filters") && el.name) {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");
   } else if (el.id === "review-account") {
@@ -113,28 +123,9 @@ function handleToggle(event) {
 }
 function handleInput(event) {
   const el = event.target;
+  inputUnscheduledTodo(el);
   inputTodo(el);
   inputTodoTemplate(el);
-  if (el.name === "q" && el.closest("#article-filters")) {
-    state.filters.q = el.value;
-    state.listPage = 1;
-    updateRoute();
-    clearTimeout(runtime.searchTimer);
-    const query = el.value, version = runtime.renderVersion;
-    runtime.searchTimer = setTimeout(async () => {
-      runtime.searchTimer = null;
-      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version) return;
-      const start = el.selectionStart;
-      await renderPage();
-      if (runtime.renderVersion === version + 1 && !$("#overlay").firstChild) {
-        const next = $("#article-filters input[name=q]");
-        if (next) {
-          next.focus();
-          next.setSelectionRange(start, start);
-        }
-      }
-    }, 350);
-  }
 }
 function handleFilterSubmit(event) {
   if (event.target.id === "filter-panel") {
@@ -143,6 +134,7 @@ function handleFilterSubmit(event) {
   }
 }
 function handleKeydown(event) {
+  if (trapMobileMenuFocus(event)) return;
   if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
@@ -193,6 +185,7 @@ function handleKeydown(event) {
   }
 }
 function handleResize() {
+  handleResponsiveLayout();
   closePopover();
   if ($(".shell")?.classList.contains("menu-open")) setMenu(false);
   else syncMenu();

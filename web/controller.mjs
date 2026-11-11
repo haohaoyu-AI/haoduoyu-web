@@ -1,38 +1,47 @@
+import {openAiSettingsPage, loadOpenAiSettings} from './openai-settings-controller.mjs';
+import {renderAiDiagnosis, loadAiDiagnosis} from './ai-diagnosis-controller.mjs';
+import {stopOpenAiReviewTimers} from './openai-review-controller.mjs';
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
+import { retryUntil } from "./core/retry-after.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
 import { $, $$, e, icon } from "./core/dom.mjs";
 import { num, rowsForAccount } from "./core/format.mjs";
-import { readRoute, updateRoute } from "./core/router.mjs";
+import { readRoute, updateRoute, mobilePage } from "./core/router.mjs";
 import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
-import { articleDraft, renderArticles } from "./pages/articles.mjs";
+import { articleDraft } from "./pages/articles.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
-import { renderLogin } from "./pages/login.mjs";
-import { renderReviews } from "./pages/reviews.mjs";
-import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
+import { renderLogin, renderInitializationError } from "./pages/login.mjs";
+import { renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
+import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
 import { renderDailyNotes } from "./pages/daily-notes.mjs";
 import { loadDailyNotes, paintDailyNotesPage } from "./daily-notes-controller.mjs";
 import { renderMemos } from "./pages/memos.mjs";
 import { loadMemos, paintMemosPage } from "./memos-controller.mjs";
-import { pageHeader, skeleton } from "./ui/components.mjs";
+import { skeleton } from "./ui/components.mjs";
 import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
-import { toast } from "./ui/toast.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
-  renderMediaTabs} from "./ui/workbench.mjs";
-import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
+  renderMediaTabs, mobileSettingsMenu, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
+import {renderWorkbenchSettings, renderTodoSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
+import {renderAiReports} from "./pages/ai-reports.mjs";
+import {loadAiReports} from "./ai-reports-controller.mjs";
+import {renderContentReview} from "./pages/content-review.mjs";
+import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 function mainContent() {
-  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+  return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
+    state.me?.publicBusiness ? {todo: settingsTabs.todo, openai: settingsTabs.openai} :
+      Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace"))), state.settingsTab,
+    "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness && state.settingsTab !== "openai" ?
+    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -49,8 +58,9 @@ function reuseShell() {
   return true;
 }
 function renderShell() {
-  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
-    state.settingsTab = "workspace";
+  redirectMobileArticlePage();
+  if (state.page === "settings" && (state.settingsTab === "workspace" || state.me?.publicBusiness && !["todo", "openai"].includes(state.settingsTab)))
+    state.settingsTab = "todo";
   stopPageEntry();
   closePopover({ restoreFocus: false });
   if (reuseShell()) {
@@ -59,22 +69,40 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" \
 class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
-href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
+href="?page=review&amp;account=${e(encodeURIComponent(state.account || "V字"))}" class="brand" data-nav="review">\
+<span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
   "close")}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div \
 class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
 aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div>\
-</aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
-aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" \
+</aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span>\
+<button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" \
+aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header>\
+<main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   setupSidebarResize();
+  setupMobileViewport();
   renderPage();
 }
+function redirectMobileArticlePage() {
+  const page = mobilePage(state.page);
+  if (page === state.page) return false;
+  state.page = page; updateRoute();
+  return true;
+}
+function handleResponsiveLayout() {
+  syncMobileViewport();
+  syncMenu();
+  const redirected = redirectMobileArticlePage();
+  if (redirected && state.me) renderShell();
+  return redirected;
+}
 function navigateLink(page) {
-  const same = page === state.page && (page !== "memos" || !state.memoView) &&
+  const target = mobilePage(page);
+  const same = target === state.page && (target !== "memos" || !state.memoView) &&
     (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
@@ -83,7 +111,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
-  if (page === "reviews") page = "articles";
+  page = mobilePage(page);
   if (page === "memos" && tab === "trash") { page = "settings"; tab = "workspace"; }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
@@ -91,32 +119,40 @@ function navigate(page, tab) {
   state.page = page;
   if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
-  if (page === "settings") state.settingsTab = legacy || tab || "workspace";
-  if (page === "dashboard") state.account = "";
+  if (page === "settings") state.settingsTab = (legacy || tab) === "workspace" ? "todo" : legacy || (Object.hasOwn(settingsTabs, tab) ? tab : "todo");
   updateRoute(true);
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
+  if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
+  if (page === "ai-diagnosis") return renderAiDiagnosis();
+  if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
+  if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
   return skeleton();
 }
 function setPageBody(html, page) {
-  if (page === "todos") paintTodos();
+  if (page === "review") {
+    if (html) replacePageContent(html, true);
+    else paintContentReviewPage();
+  }
+  else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders") return;
+  else if (page === "reminders" || page === "ai-reports" || page === "ai-diagnosis" || page === "settings" && state.settingsTab === "openai") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
   const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
   if (state.topPlatform) query.set("platform", state.topPlatform);
+  if (state.account) query.set("account", state.account);
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version, context) {
@@ -131,6 +167,8 @@ function renderMediaOverview(data) {
   return publishedArticleLinks(renderDashboardSummary(data));
 }
 async function renderPage() {
+  stopOpenAiReviewTimers();
+  if (redirectMobileArticlePage()) { renderShell(); return; }
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const version = ++runtime.renderVersion, page = state.page;
@@ -156,22 +194,19 @@ async function renderPage() {
       case "reminders":
         await loadWorkReminders();
         break;
-      case "dashboard":
-        html = await loadArticleOverview(version, context);
+      case "ai-diagnosis":
+        await loadAiDiagnosis();
         break;
-      case "articles":
-        html = await renderArticles(version, context);
+      case "ai-reports":
+        await loadAiReports({resetDate:true});
         break;
-      case "reviews":
-        html = await renderReviews(version, context);
+      case "review":
+        await loadContentReview(context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") { await loadMemos(); break; }
-        else if (state.settingsTab === "accounts") {
-          data = await api("/account-profiles", {context});
-          if (version !== runtime.renderVersion) return;
-          state.accountProfiles = data; html = renderAccounts();
-        }
+        if (state.settingsTab === "workspace") break;
+        else if (state.settingsTab === "openai") { await loadOpenAiSettings(); }
+        else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);
@@ -185,8 +220,7 @@ async function renderPage() {
     if (version === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
-        state.accounts).length : null;
+        const count = null;
         counter.hidden = count == null;
         counter.textContent = count == null ? "" : num(count);
       }
@@ -200,7 +234,6 @@ data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   }
 }
 async function reloadFilteredPage(focus = "[data-action=article-filter]") {
-  clearTimeout(runtime.searchTimer);
   state.listPage = 1;
   updateRoute();
   const version = runtime.renderVersion + 1;
@@ -229,6 +262,10 @@ async function init({ freshLogin = false } = {}) {
     const me = await api("/auth/me");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.me = me;
+    if (me.publicBusiness && new URLSearchParams(location.search).get("page") === "login") {
+      renderLogin();
+      return;
+    }
     const accounts = await api("/accounts");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu", "wechat",
@@ -242,15 +279,21 @@ async function init({ freshLogin = false } = {}) {
     renderShell();
   } catch (err) {
     if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
-    if (err.status !== 401) {
-      renderLogin();
-      toast(err.message, true);
-    } else renderLogin();
+    if (err.status === 401 && !err.offlineScopeFailure) renderLogin();
+    else {
+      const retryAt = err.status === 429 ? retryUntil(Date.now(), err.retryAfterMs) : 0;
+      let retrying = false;
+      renderInitializationError(err.message, () => {
+        if (retrying || Date.now() < retryAt) return;
+        retrying = true; void init();
+      }, {status: err.status});
+    }
   }
 }
 export {
   applyArticleFilters,
   init,
+  handleResponsiveLayout,
   navigate,
   navigateLink,
   publishedArticleLinks,

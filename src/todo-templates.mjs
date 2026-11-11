@@ -3,9 +3,13 @@ import {authenticateBusiness as authenticate,requireBusinessUser as requireAdmin
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay,shiftDay} from './lib/time.mjs';
 
-const fields='id,text,version,created_at,updated_at';
+const fields='id,text,version,created_at,updated_at,archived_at';
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>({...row,habit_status:row.completed_days>=21?'habit':'todo'});
+const item=row=>{
+  const value={...row,habit_status:row.completed_days>=21?'habit':'todo'};
+  if(value.archived_at===null)delete value.archived_at;
+  return value;
+};
 
 export function templateWindow(at=Date.now()) {
   const today=beijingDay(at);
@@ -19,7 +23,7 @@ export function templateId(value) {
 }
 
 export async function requireActiveTemplate(store,userId,id) {
-  if(!await store.get('SELECT id FROM matrix_todo_templates WHERE user_id=? AND id=? AND deleted_at IS NULL',userId,id))
+  if(!await store.get('SELECT id FROM matrix_todo_templates WHERE user_id=? AND id=? AND deleted_at IS NULL AND archived_at IS NULL',userId,id))
     throw fail(404,'NOT_FOUND','模板不存在');
 }
 
@@ -49,9 +53,11 @@ export async function describeTemplate(store,userId,value) {
 async function readTemplates(db,request,initialRevision) {
   return consistentRead(db,async store=>{
     const actor=await authenticate(store,request);requireAdmin(actor);
-    if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','模板查询不接受查询参数');
+    const query=new URL(request.url).searchParams;
+    if([...query.keys()].some(key=>key!=='archived')||query.getAll('archived').length>1||query.has('archived')&&query.get('archived')!=='1')
+      throw fail(400,'VALIDATION_ERROR','模板查询参数无效');
     const window=templateWindow();
-    const rows=await store.all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,count(DISTINCT CASE WHEN d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=? THEN d.date END) AS completed_days FROM matrix_todo_templates AS t LEFT JOIN matrix_todo_template_links AS l ON l.user_id=t.user_id AND l.template_id=t.id LEFT JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE t.user_id=? AND t.deleted_at IS NULL GROUP BY t.user_id,t.id ORDER BY t.created_at,t.rowid',window.window_start,window.today,actor.id);
+    const rows=await store.all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,t.archived_at,count(DISTINCT CASE WHEN d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=? THEN d.date END) AS completed_days FROM matrix_todo_templates AS t LEFT JOIN matrix_todo_template_links AS l ON l.user_id=t.user_id AND l.template_id=t.id LEFT JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE t.user_id=? AND t.deleted_at IS NULL AND '+(query.has('archived')?'t.archived_at IS NOT NULL':'t.archived_at IS NULL')+' GROUP BY t.user_id,t.id ORDER BY t.created_at,t.rowid',window.window_start,window.today,actor.id);
     return json({...window,items:rows.map(item)});
   },initialRevision);
 }
@@ -64,9 +70,23 @@ async function createTemplate(store,actor,input) {
     const {deleted_at,...value}=current;
     return {replayed:true,response:json(await describeTemplate(store,actor.id,value))};
   }
-  const stamp=now(),value={...input,version:1,created_at:stamp,updated_at:stamp};
+  const stamp=now(),value={...input,version:1,created_at:stamp,updated_at:stamp,archived_at:null};
   store.queue('INSERT INTO matrix_todo_templates(user_id,id,text,version,created_at,updated_at) VALUES(?,?,?,1,?,?)',actor.id,input.id,input.text,stamp,stamp);
   return {actor,response:json(item({...value,completed_days:0}),201)};
+}
+
+async function setArchived(store,actor,id,input,archived) {
+  if(Object.keys(input).join(',')!=='version'||!Number.isSafeInteger(input.version)||input.version<1||input.version>=Number.MAX_SAFE_INTEGER)
+    throw fail(400,'VALIDATION_ERROR','模板版本无效');
+  const current=await store.get('SELECT '+fields+' FROM matrix_todo_templates WHERE user_id=? AND id=? AND deleted_at IS NULL',actor.id,id);
+  if(!current)throw fail(404,'NOT_FOUND','模板不存在');
+  if((current.archived_at!==null)===archived&&(current.version===input.version||current.version===input.version+1))
+    return {replayed:true,response:json({...await describeTemplate(store,actor.id,current),archived_at:current.archived_at})};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','模板已更新，请刷新后重试');
+  const stamp=now(),value={...current,archived_at:archived?stamp:null,updated_at:stamp,version:current.version+1};
+  store.queue('UPDATE matrix_todo_templates SET archived_at=?,updated_at=?,version=version+1 WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',value.archived_at,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json({...await describeTemplate(store,actor.id,value),archived_at:value.archived_at})};
 }
 
 async function changeTemplate(store,actor,id,input,method) {
@@ -89,14 +109,14 @@ export async function handleTodoTemplates(db,request,route,origin,initialRevisio
   const method=request.method;
   if(method==='GET'&&route==='/todo-templates') return readTemplates(db,request,initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireAdmin(first);
-  const match=/^\/todo-templates\/([^/]+)$/.exec(route);
-  if(!(method==='POST'&&route==='/todo-templates')&&!(['PATCH','DELETE'].includes(method)&&match))
+  const match=/^\/todo-templates\/([^/]+)$/.exec(route),archive=/^\/todo-templates\/([^/]+)\/(archive|restore)$/.exec(route);
+  if(!(method==='POST'&&route==='/todo-templates')&&!(['PATCH','DELETE'].includes(method)&&match)&&!(method==='POST'&&archive))
     throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
   if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','模板写入不接受查询参数');
-  const input=validate(await bodyFor(request),method),id=match?templateId(match[1]):null;
+  const body=await bodyFor(request),input=archive?body:validate(body,method),id=match||archive?templateId((match||archive)[1]):null;
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
-    return method==='POST'?createTemplate(store,actor,input):changeTemplate(store,actor,id,input,method);
+    return archive?setArchived(store,actor,id,input,archive[2]==='archive'):method==='POST'?createTemplate(store,actor,input):changeTemplate(store,actor,id,input,method);
   })).response;
 }

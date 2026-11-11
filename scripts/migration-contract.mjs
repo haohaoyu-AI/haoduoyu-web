@@ -3,7 +3,84 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
+export const labelMigrationTag='0011_note_entry_multi_labels';
+export const labelMigrationSha256='dd7ebad5ee3a0fe47000796af30908d8d3b6bb88ace153c5bdb474f2509c0a5a';
+export function validateLabelMigrationSource(tag,sql) {
+  assert.equal(tag,labelMigrationTag,'Only the reviewed label migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),labelMigrationSha256,'Label migration source differs from its reviewed hash');
+  return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+}
+export const labelSetsMigrationTag='0012_note_entry_label_sets';
+export const labelSetsMigrationSha256='57a95c6e93487e3b700fac667c14234e0df7bf99525b489dc447a063cafc5867';
+export function validateLabelSetsMigrationSource(tag,sql) {
+  assert.equal(tag,labelSetsMigrationTag,'Only the reviewed label sets migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),labelSetsMigrationSha256,'Label sets migration source differs from its reviewed hash');
+  return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+}
+export const labelArchivesMigrationTag='0013_note_label_archives';
+export const labelArchivesMigrationSha256='24aedf46fb76ac8443c3bac88cf4a836361b4080ddf6d49f53bca2a8ae52d8ad';
+export function validateLabelArchivesMigrationSource(tag,sql) {
+  assert.equal(tag,labelArchivesMigrationTag,'Only the reviewed label archives migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),labelArchivesMigrationSha256,'Label archives migration source differs from its reviewed hash');
+  return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+}
+export const aiReportsMigrationTag='0014_ai_reports';
+export function validateAiReportsMigrationSource(tag,sql) {
+  assert.equal(tag,aiReportsMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'c0701ad17ae2331e4361160236d4cd4720b6346f4ea09ba4403556f5cff5c898');
+  return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+}
 export const articleMigrationTag='0005_article_pipeline';
+export const reviewMigrationTag='0015_content_review';
+export const reviewAttributionMigrationTag='0016_review_attribution';
+export const reviewResourcesMigrationTag='0017_review_resources';
+export const reviewLegacyExtensionsMigrationTag='0018_review_legacy_extensions';
+export function validateReviewResourcesMigrationSource(tag,sql) {
+  assert.equal(tag,reviewResourcesMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'54ba48ec7ddd6746c2f76899c15d273ad9ebcbc142d48936e4383ae522414077','Review resources differ from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,8);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE ')).length,4);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE matrix_review_|(?:UNIQUE )?INDEX review_)/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement.replace(/ON (?:UPDATE|DELETE) (?:NO ACTION|CASCADE)/gi,'')),'New review schema cannot rewrite business rows');
+  }
+  return statements;
+}
+export function validateReviewLegacyExtensionsMigrationSource(tag,sql) {
+  assert.equal(tag,reviewLegacyExtensionsMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'4be164c77d20d6c5a7b73b8cf20c5440fcb989d364dff20edd97c801e4a6717e','Review legacy extensions differ from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,2);
+  assert.match(statements[0],/^ALTER TABLE `matrix_review_articles` ADD `reference_article_id` text;$/);
+  assert.match(statements[1],/^ALTER TABLE `matrix_review_playbooks` ADD `status` text CONSTRAINT /);
+  for(const statement of statements)assert.ok(!/\b(?:NOT NULL|DEFAULT|INSERT|UPDATE|DELETE|DROP|CREATE|RENAME)\b/i.test(statement));
+  return statements;
+}
+export function validateReviewAttributionMigrationSource(tag,sql) {
+  assert.equal(tag,reviewAttributionMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'b86ea49a67d9890af0bab00428f415e5d1943c5adf894256047fd40dedfb9de3','Review attribution differs from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,4);
+  for(const [idx,statement] of statements.entries()) {
+    const [table,column,type]=[['articles','playbook_version_used','integer'],['articles','applied_rule_ids_json','text'],['snapshots','age_hours','integer'],['snapshots','source','text']][idx];
+    assert.ok(statement.startsWith('ALTER TABLE `matrix_review_'+table+'` ADD `'+column+'` '+type+' CONSTRAINT '));
+    assert.ok(!/\b(?:NOT NULL|DEFAULT|INSERT|UPDATE|DELETE|DROP|CREATE|RENAME)\b/i.test(statement));
+  }
+  return statements;
+}
+export function validateReviewMigrationSource(tag,sql) {
+  assert.equal(tag,reviewMigrationTag,'Only the reviewed content review migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'112d05af48a2984fac58ac322da334f04f7861842fd4e3bc2c9ef904059cb910','Content review schema differs from its reviewed source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,10);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE')).length,4);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX) `matrix_review_/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement.replace(/ON (?:UPDATE|DELETE) (?:no action|cascade)/gi,'')),'New review schema cannot rewrite business rows');
+  }
+  return statements;
+}
 export const articleMigrationSha256='b45a31900d6b7153a423b8c7fa870b0a98da3e5b074b6d6f62ac044f7782a2ba';
 const statementHashes=[
   '77a05205027ae6c5c74706b8d5093319c010b578f70f323e90da0b11420200e3',
@@ -104,7 +181,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates'],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -113,8 +190,11 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=split(sql);
+      const statements=entry.tag===reviewPromptVersionsMigrationTag?validateReviewPromptVersionsMigrationSource(entry.tag,sql):entry.tag===openaiReviewMigrationTag?validateOpenaiReviewMigrationSource(entry.tag,sql):entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
+      if(entry.tag==='0019_todo_notes_archives') assert.deepEqual(statements,["ALTER TABLE `matrix_todos` ADD `note` text NOT NULL DEFAULT '';",'ALTER TABLE `matrix_todo_templates` ADD `archived_at` text;']);
       for(const statement of statements) {
+        if(entry.tag==='0019_todo_notes_archives')continue;
+        if(entry.tag===reviewPromptVersionsMigrationTag||entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag||entry.tag===reviewAttributionMigrationTag||entry.tag===reviewResourcesMigrationTag||entry.tag===reviewLegacyExtensionsMigrationTag)continue;
         if(entry.idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',
           'ALTER TABLE `matrix_todo_template_links` ADD `created_with_todo` integer DEFAULT 1 NOT NULL;'].includes(statement))continue;
         assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX)\s+`matrix_/,'Unreviewed legacy migration statement');
@@ -125,4 +205,34 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
         db.prepare('INSERT INTO __fixture_migrations(name) VALUES(?)').bind(entry.tag)]);
     }
   }
+}
+
+export const openaiReviewMigrationTag='0020_openai_review';
+export const openaiReviewMigrationSha256='079b2c417c72849b45e9e74522ec6005e61518a30974a1439c02e42dbede7d65';
+export function validateOpenaiReviewMigrationSource(tag,sql) {
+  assert.equal(tag,openaiReviewMigrationTag);
+  assert.equal(hash(sql),openaiReviewMigrationSha256,'OpenAI review migration differs from reviewed additive source');
+  const statements=split(sql);
+  assert.equal(statements.length,4);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE')).length,2);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX) `matrix_openai_review_/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement));
+  }
+  return statements;
+}
+
+export const reviewPromptVersionsMigrationTag='0021_review_prompt_versions';
+export const reviewPromptVersionsMigrationSha256='4ca25d204c9f1cb28d0799cffee31e248ab29a1ecde4ddd4f7c2580fc276ac0c';
+export function validateReviewPromptVersionsMigrationSource(tag,sql) {
+  assert.equal(tag,reviewPromptVersionsMigrationTag);
+  assert.equal(hash(sql),reviewPromptVersionsMigrationSha256,'Prompt version migration differs from reviewed additive source');
+  const statements=split(sql);
+  assert.equal(statements.length,4);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE')).length,1);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE matrix_review_prompt_versions|(?:UNIQUE )?INDEX review_prompt_)/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement));
+  }
+  return statements;
 }

@@ -21,63 +21,86 @@ function normalizeArticlePipelineFilters(filters) {
   }
   return filters;
 }
+function isMobileLayout() {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia("(max-width: 767px)").matches;
+  return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
+}
+function mobilePage(page) {
+  return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
+}
 function updateRoute(push = false) {
+  const page = mobilePage(state.page), redirected = page !== state.page;
+  if (redirected) state.page = page;
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
+  if (state.page === "ai-diagnosis" && u.hash === "#openai-review-panel") u.hash = "";
   if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
   else u.searchParams.delete("notes_category");
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
   else u.searchParams.delete("memo_view");
-  u.searchParams.set("period", state.overviewPeriod);
+  u.searchParams.delete("period");
   u.searchParams.delete("article_scope");
+  u.searchParams.delete("q");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
+  else if (["ai-reports", "ai-diagnosis"].includes(state.page) && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
   else u.searchParams.delete("date");
+  if (state.page === "ai-diagnosis") {
+    u.searchParams.set("diagnosis_tab", state.diagnosisTab || "help");
+    u.searchParams.delete("ai_tab");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun); else u.searchParams.delete("openai_run");
+  } else if (state.page === "ai-reports") {
+    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
+    else u.searchParams.delete("openai_run");
+  } else { u.searchParams.delete("ai_tab"); u.searchParams.delete("openai_run"); }
+  if (state.page !== "ai-diagnosis") u.searchParams.delete("diagnosis_tab");
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
-  else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
-  if (state.account && state.page !== "dashboard") u.searchParams.set("account", state.account);
+  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
   else u.searchParams.delete("account");
-  for (const [key, value] of Object.entries(state.filters)) {
-    if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
+  for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
+    u.searchParams.delete(key);
+  if (state.page !== "review") {
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+      u.searchParams.delete(key);
   }
-  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], [
-    "top_platform", state.topPlatform, ""]]) {
-    if (value !== def) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
-  }
-  if ([...state.columns].join(",") !== defaultColumns.join(",")) u.searchParams.set("columns", [...state.columns].join(","));
-  else u.searchParams.delete("columns");
-  history[push ? "pushState" : "replaceState"]({}, "", u);
+  history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
 }
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  const fallback = "todos";
-  state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  if (state.page === "reviews") state.page = "articles";
+  const fallback = "review";
+  state.page = raw === "reminders" ? "ai-reports" : Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  state.page = mobilePage(state.page);
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
   }
+  const legacyDiary = raw === "ai-reports" && params.get("ai_tab") === "openai";
+  const legacyHelp = raw === "review" && location.hash === "#openai-review-panel";
+  if (legacyDiary || legacyHelp) state.page = "ai-diagnosis";
+  state.diagnosisTab = legacyDiary || params.get("diagnosis_tab") === "reports" ? "reports" : "help";
+  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
   if (state.memoView === "trash") { state.page = "settings"; state.memoView = ""; }
   state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
+  state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.
-  get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
+  get("tab") : "workspace");
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = "published";
-  const account = params.get("account") || "";
-  state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
+  state.account = params.get("account")?.trim() || "V字";
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
@@ -95,6 +118,8 @@ function readRoute() {
   state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
 }
 export {
+  isMobileLayout,
+  mobilePage,
   normalizeArticlePipelineFilters,
   readRoute,
   updateRoute

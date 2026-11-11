@@ -42,8 +42,8 @@ export async function readBusinessSnapshot(db,{date,ownerId,accountIds}, {maxRow
         if(page.length<200)return rows;
       }
     }
-    const todos=await all('SELECT id,date,text,completed,version,created_at,updated_at FROM matrix_todos WHERE user_id=? AND date=? AND deleted_at IS NULL',[ownerId,date]);
-    const templates=await all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,(SELECT count(DISTINCT d.date) FROM matrix_todo_template_links l JOIN matrix_todos d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE l.user_id=t.user_id AND l.template_id=t.id AND d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=?) AS completed_days FROM matrix_todo_templates t WHERE t.user_id=? AND t.deleted_at IS NULL',[windowStart,date,ownerId],'t.id');
+    const todos=(await all('SELECT id,date,text,completed,version,created_at,updated_at,note FROM matrix_todos WHERE user_id=? AND date=? AND deleted_at IS NULL',[ownerId,date])).map(row=>{if(!row.note)delete row.note;return row;});
+    const templates=await all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,(SELECT count(DISTINCT d.date) FROM matrix_todo_template_links l JOIN matrix_todos d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE l.user_id=t.user_id AND l.template_id=t.id AND d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=?) AS completed_days FROM matrix_todo_templates t WHERE t.user_id=? AND t.deleted_at IS NULL AND t.archived_at IS NULL',[windowStart,date,ownerId],'t.id');
     const scope=JSON.stringify(accountIds),where=' IN (SELECT value FROM json_each(?))';
     const accounts=await all('SELECT id,platform,name,active,created_at FROM matrix_accounts WHERE id'+where,[scope]);
     if(accounts.length!==accountIds.length)throw fail(503,'NOTION_CONFIG','快照账号范围尚未核实');

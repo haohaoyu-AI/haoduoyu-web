@@ -23,10 +23,12 @@ test('account form accepts a public profile and auto platform while saved profil
   const form=app.run('modalHTML');
   assert.match(form,/type="url"[^>]*name="profile_url"/);
   assert.match(form,/<option value="" selected>根据主页自动识别<\/option>/);
-  assert.match(form,/name="name"[^>]*required/);
+  assert.doesNotMatch(form,/name="name"/);
+  assert.match(form,/name="profile_url"[^>]*required/);
+  assert.match(form,/data-action="test-profile"/);
   app.run("state.accounts=[{id:'a',name:'<账号>',platform:'zhihu',active:true}];state.accountProfiles=[{account_id:'a',profile_url:'https://www.zhihu.com/people/synthetic'}]");
   const html=app.run('renderAccounts()');
-  assert.match(html,/&lt;账号&gt;/);assert.match(html,/打开公开主页/);assert.match(html,/rel="noopener noreferrer"/);
+  assert.match(html,/&lt;账号&gt;/);assert.match(html,/打开主页核验/);assert.match(html,/rel="noopener noreferrer"/);
   app.run("state.accountProfiles[0].profile_url='javascript:alert(1)'");
   assert.doesNotMatch(app.run('renderAccounts()'),/href="javascript:/);
   app.run("state.accountProfiles[0].profile_url='https://evil.invalid/people/synthetic'");
@@ -43,21 +45,34 @@ test('profile submission infers platform on the server, retries with a stable id
   await app.run('submitAccountForm({form,data,values:new URLSearchParams()})');
   const calls=JSON.parse(app.run('JSON.stringify(calls.filter(call=>call.options))'));
   assert.equal(calls[0].options.body.profile_url,'https://www.zhihu.com/people/synthetic');
-  assert.equal(calls[0].options.body.platform,'');
+  assert.equal(Object.hasOwn(calls[0].options.body,'platform'),false);
+  assert.equal(Object.hasOwn(calls[0].options.body,'name'),false);
   assert.equal(calls[0].options.headers['Idempotency-Key'],calls[1].options.headers['Idempotency-Key']);
   assert.match(app.run('toasts[0]'),/已有账号/);
   assert.equal(app.run('state.accountProfiles[0].account_id'),'a');
 });
 
-test('manual account submission keeps the legacy payload and a late saved response cannot overwrite another session',async()=>{
+test('late account save cannot overwrite another session',async()=>{
   const app=client();
   app.run(`let calls=[];closeModal=()=>{};renderShell=()=>{};toast=()=>{};
     api=async(path,options)=>{calls.push({path,options});return options?{id:'new'}:[];};
-    let form={dataset:{id:''}},data={platform:'other',name:'合成手填账号',profile_url:''};`);
+    let form={dataset:{id:''}},data={profile_url:'https://www.zhihu.com/people/synthetic'};`);
   await app.run('submitAccountForm({form,data,values:new URLSearchParams()})');
-  assert.deepEqual(JSON.parse(app.run('JSON.stringify(calls[0].options.body)')),{platform:'other',name:'合成手填账号'});
+  assert.deepEqual(JSON.parse(app.run('JSON.stringify(calls[0].options.body)')),{profile_url:'https://www.zhihu.com/people/synthetic'});
   app.run(`let finish;calls=[];api=(path,options)=>{calls.push({path,options});return new Promise(resolve=>finish=resolve);};
-    let pending=submitAccountForm({form,data,values:new URLSearchParams()});runtime.sessionEpoch++;state.accounts=[{id:'new-session'}];finish({id:'old-session'});`);
-  await app.run('pending');
+    let accountSavePending=submitAccountForm({form,data,values:new URLSearchParams()});runtime.sessionEpoch++;state.accounts=[{id:'new-session'}];finish({id:'old-session'});`);
+  await app.run('accountSavePending');
   assert.equal(app.run('calls.length'),1);assert.equal(app.run('state.accounts[0].id'),'new-session');
+});
+
+test('profile format test does not claim access and rejects unapproved URLs',()=>{
+  const app=client();
+  app.run(`let input={value:'https://www.zhihu.com/people/synthetic/answers'},result={innerHTML:'',textContent:''};
+    document.querySelector=selector=>selector==='#field-profile-url'?input:selector==='#profile-test-result'?result:selector==='#account-form'?{dataset:{id:''}}:null;
+    testProfile();`);
+  assert.match(app.run('result.innerHTML'),/格式有效/);
+  assert.match(app.run('result.innerHTML'),/访问情况无法自动核验/);
+  assert.match(app.run('result.innerHTML'),/https:\/\/www.zhihu.com\/people\/synthetic/);
+  app.run("input.value='https://evil.invalid/people/a';testProfile()");
+  assert.match(app.run('result.textContent'),/格式未通过/);
 });

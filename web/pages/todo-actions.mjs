@@ -5,6 +5,7 @@ import { state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
+import { openModal, closeModal } from "../ui/modal.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
 import { loadTodos, paintTodos, setTodoNotice } from "./todos.mjs";
 function todoBusy(day, id) {
@@ -29,8 +30,34 @@ function openTodoMenu({ target, id, date, anchor }) {
   const attributes = `data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(owner)}" role="menuitem"`;
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
-  popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  popover(trigger, `<button data-action="todo-note" ${attributes}>${item.note ? '编辑备注' : '添加备注'}</button>
+<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
+}
+function openTodoNote(options) {
+  const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
+  if(!context||todoBusy(context.day,context.item.id))return;
+  const {item,day,owner}=context;
+  openModal('待办备注', `<form id="todo-note-form" data-id="${e(item.id)}" data-date="${e(day.date)}"
+data-owner="${e(owner)}" data-version="${item.version}"><label for="todo-note-input">备注或未完成原因</label>
+<textarea id="todo-note-input" class="input" name="note" maxlength="4000" rows="5">${e(item.note || '')}</textarea>
+<p class="form-message" role="alert"></p><button class="btn primary" type="submit">保存</button></form>`);
+}
+async function submitTodoNote({form,data}) {
+  const context=todoActionContext({id:form.dataset.id,date:form.dataset.date,owner:form.dataset.owner});
+  if(!context)return;
+  const button=form.querySelector('button[type=submit]'),message=form.querySelector('.form-message');
+  if(button.disabled)return;
+  button.disabled=true; message.textContent='';
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(context.item.id)}/note`, {
+      method:'PATCH',body:{note:String(data.note ?? ''),version:Number(form.dataset.version)}
+    });
+    if(!todoSessionActive(context.owner))return;
+    mergeTodo(context.day,saved); context.day.revision++; closeModal(); paintTodos();
+    await loadTodos();
+  } catch(error) { message.textContent=error.status===404 ? '这项待办可能仍在同步，请稍后重试；备注内容已保留。' : error.message || '保存失败，请重试'; }
+  finally { button.disabled=false; }
 }
 function renderTodoUndo(day) {
   return [...day.removals.entries()].map(([id, ticket]) => {
@@ -167,4 +194,4 @@ async function changeTodoTemplate(options, remove = false) {
     }
   }
 }
-export { canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, renderTodoUndo, restoreTodo, todoBusy };
+export { canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote, renderTodoUndo, restoreTodo, todoBusy };

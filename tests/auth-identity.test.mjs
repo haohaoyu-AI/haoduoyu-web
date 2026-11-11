@@ -14,10 +14,10 @@ function auditHtml(identity, rows) {
     window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
     history: {replaceState() {}}, URL, URLSearchParams, Intl,
     localStorage: {getItem() {}}, requestAnimationFrame() {}, setTimeout, clearTimeout,
-    identity, rows,
+    __auditFixtureIdentity: identity, __auditFixtureRows: rows,
   });
   new vm.Script(source).runInContext(context);
-  return vm.runInContext('state.me=identity;renderAudit(rows)', context);
+  return vm.runInContext('state.me=__auditFixtureIdentity;renderAudit(__auditFixtureRows)', context);
 }
 
 test('authenticated identity adds its exact user id and renders only that audit actor as me', async t => {
@@ -56,9 +56,9 @@ test('identity authorization errors retain their old HTTP and JSON contract', as
   assert.equal(Object.hasOwn(denied.json, 'data'), false);
 });
 
-test('OpenAPI 1.1.0 adds current identity without requiring id in the legacy login schema', async () => {
+test('OpenAPI retains current identity without requiring id in the legacy login schema', async () => {
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
-  assert.equal(spec.info.version, '1.1.0');
+  assert.equal(spec.info.version, '1.2.0');
   const identity = spec.components.schemas;
   assert.deepEqual(identity.AdminIdentity.required, ['username', 'csrfToken']);
   assert.equal(Object.hasOwn(identity.AdminIdentity.properties, 'id'), false);

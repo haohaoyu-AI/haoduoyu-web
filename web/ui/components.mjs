@@ -2,7 +2,6 @@ import { kindLabels, metrics, modeLabels, nav } from "../core/constants.mjs";
 import { e, icon } from "../core/dom.mjs";
 import { accountLabel, bjtDate, displayTime, metricData, num, rowsForAccount, time } from "../core/format.mjs";
 import { state } from "../core/state.mjs";
-import {dailyNotesRouteCategory} from "../core/daily-notes-state.mjs";
 const platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
    toutiao: "头", zhihu: "知", wechat: "微" }[p] || "文")}</span>`;
 function detailInfo(reason, label, id) {
@@ -17,7 +16,8 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) ||
+      state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}\
 <button class="icon-button" data-action="refresh" \
 title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
@@ -40,11 +40,12 @@ function accountFilter() {
   state.account)}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "ai-diagnosis") return '<div class="heading-left"><h1>AI诊断</h1></div>';
+  if (state.page === "ai-reports") return '<div class="heading-left"><h1>AI 日报</h1></div>';
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' +
     (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + '</h1></div>';
-  if (state.page === "notes") return '<div class="heading-left"><h1>' +
-    (dailyNotesRouteCategory() === "work" ? "工作碎碎念" : "生活碎碎念") + '</h1></div>';
+  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
   state.accounts).length : null;

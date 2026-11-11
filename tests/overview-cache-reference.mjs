@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {mkdtemp, readFile, rm, symlink} from 'node:fs/promises';
+import {cp, mkdtemp, readFile, rm, symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -21,7 +21,10 @@ export async function referenceWorker(t, baseline = CACHE_BASELINE) {
   assert.equal(createHash('sha256').update(historicalBuild).digest('hex'),
     '1583379d30b51c472dc17b83e8cb441f0dd69dfc31fef3348b5ecd0eb0e0c155',
     'historical build must match the fixed, reviewed pre-module build');
-  await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'dir');
+  // Windows may not permit directory symlinks. Copy the same installed,
+  // lockfile-verified dependencies instead, leaving system permissions intact.
+  if (process.platform === 'win32') await cp(join(root, 'node_modules'), join(directory, 'node_modules'), {recursive:true});
+  else await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'dir');
   execFileSync(process.execPath, ['scripts/build.mjs'], {cwd: directory, maxBuffer: 1024 * 1024});
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
 }

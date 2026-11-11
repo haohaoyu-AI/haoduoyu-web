@@ -24,12 +24,15 @@ export function normalizeAccountProfile(value, expectedPlatform) {
     profile_url = `https://www.zhihu.com/${match[1]}/${match[2]}`;
     platform_identity = `zhihu:${match[1]}:${match[2]}`;
   } else if (['toutiao.com', 'www.toutiao.com', 'm.toutiao.com'].includes(host)) {
-    const token = /^\/c\/user\/token\/([A-Za-z0-9_-]{8,512})\/?$/.exec(url.pathname);
+    // Some public Toutiao profile tokens end in Base64 padding. Decode only
+    // that padding, so encoded and literal '=' map to the same identity.
+    const token = /^\/c\/user\/token\/([A-Za-z0-9_-]{8,512})((?:=|%3[dD]){0,2})\/?$/.exec(url.pathname);
     const numeric = /^\/(?:user(?:\/profile)?|c\/user)\/(\d{1,30})\/?$/.exec(url.pathname);
     if (!token && !numeric) unsupported();
     platform = 'toutiao';
-    profile_url = token ? `https://www.toutiao.com/c/user/token/${token[1]}/` : `https://www.toutiao.com/user/${numeric[1]}/`;
-    platform_identity = token ? `toutiao:token:${token[1]}` : `toutiao:user:${numeric[1]}`;
+    const tokenIdentity = token ? token[1] + token[2].replace(/%3d/gi, '=') : null;
+    profile_url = token ? `https://www.toutiao.com/c/user/token/${tokenIdentity}/` : `https://www.toutiao.com/user/${numeric[1]}/`;
+    platform_identity = token ? `toutiao:token:${tokenIdentity}` : `toutiao:user:${numeric[1]}`;
   } else if (host === 'mp.weixin.qq.com') {
     const actions = url.searchParams.getAll('action'), identities = url.searchParams.getAll('__biz');
     if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions.length !== 1 || actions[0] !== 'home' ||
