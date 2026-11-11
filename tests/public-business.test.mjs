@@ -26,6 +26,19 @@ async function publicApp(t) {
 const article=()=>({account_id:'toutiao-haoduoyu',title:'合成公开文章',url:'https://example.invalid/'+randomUUID(),
   published_at:'2026-10-23T00:00:00.000Z',notes:'合成业务备注'});
 
+test('public account creation accepts a padded Toutiao homepage and safely reuses its identity',async t=>{
+  const app=await publicApp(t),read=app.publicRequest;
+  const base='https://www.toutiao.com/c/user/token/SYNTHETIC_public-123';
+  const created=await read('/accounts',{method:'POST',body:{name:'合成公开账号',profile_url:base+'=/'}});
+  assert.equal(created.status,201,created.text);
+  const duplicate=await read('/accounts',{method:'POST',body:{name:'不重复创建',profile_url:base+'%3d/'}});
+  assert.equal(duplicate.status,200,duplicate.text);
+  assert.equal(duplicate.data.id,created.data.id);assert.equal(duplicate.data.profile_reused,true);
+  assert.equal((await read('/accounts')).data.filter(item=>item.id===created.data.id).length,1);
+  assert.equal((await read('/accounts',{method:'POST',headers:{Origin:'https://foreign.invalid'},
+    body:{name:'拒绝跨站',profile_url:base+'=/'}})).status,403);
+});
+
 test('public mode is explicit, owner-bound, credential-free and reversible',async t=>{
   const app=await publicApp(t),read=app.publicRequest;
   const me=await read('/auth/me');
@@ -60,12 +73,34 @@ test('anonymous todo CRUD, templates and preferences use only the selected owner
   assert.equal((await read('/todo-preferences',{method:'PATCH',body:{completed_mode:'hide',version:0}})).status,200);
   const result=await read('/todos?date='+date);
   assert.equal(result.data.completed_mode,'hide');assert.equal(result.data.items.length,1);
+  assert.equal((await read('/todos/'+id+'/note',{method:'PATCH',body:{note:'未完成原因',version:result.data.items[0].version}})).status,200);
+  assert.equal((await read('/todos?date='+date)).data.items[0].note,'未完成原因');
   assert.ok(!result.text.includes(other));assert.ok(!result.text.includes('OTHER-USER-PRIVATE-CANARY'));
   assert.equal((await app.db.prepare('SELECT text FROM matrix_todos WHERE user_id=? AND id=?').bind(other,id).first()).text,
     'OTHER-USER-PRIVATE-CANARY');
   assert.equal((await read('/todos?date='+date,{settings:{...app.env,PUBLIC_BUSINESS_MODE:'0'}})).status,401);
   const restored=await app.request('/api/v1/todos?date='+date,{session:app.session});
   assert.equal(restored.status,200);assert.equal(restored.data.items[0].text,'公开待办');
+});
+
+test('public template archive and restore retain owner isolation and write protections',async t=>{
+  const app=await publicApp(t),read=app.publicRequest,id=randomUUID(),other=randomUUID(),otherTemplate=randomUUID();
+  await app.db.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) SELECT ?,?,password_hash,created_at FROM matrix_users LIMIT 1')
+    .bind(other,'synthetic-other-'+other).run();
+  await app.db.prepare('INSERT INTO matrix_todo_templates(user_id,id,text,version,created_at,updated_at) VALUES(?,?,?,1,?,?)')
+    .bind(other,otherTemplate,'private template','2026-10-24','2026-10-24').run();
+  assert.equal((await read('/todo-templates/'+otherTemplate+'/archive',{method:'POST',body:{version:1}})).status,404);
+  assert.equal((await app.db.prepare('SELECT archived_at FROM matrix_todo_templates WHERE user_id=? AND id=?').bind(other,otherTemplate).first()).archived_at,null);
+  assert.equal((await read('/todo-templates',{method:'POST',body:{id,text:'Archive test'}})).status,201);
+  for(const headers of [{Origin:'https://foreign.invalid'},{'X-Public-Business':null}])
+    assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',headers,body:{version:1}})).status,403);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:1}})).status,200);
+  assert.equal((await read('/todo-templates')).data.items.some(row=>row.id===id),false);
+  assert.equal((await read('/todo-templates?archived=1')).data.items.some(row=>row.id===id),true);
+  assert.equal((await read('/todo-templates/'+id+'/restore',{method:'POST',body:{version:2}})).status,200);
+  assert.equal((await read('/todo-templates')).data.items.some(row=>row.id===id),true);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:1}})).status,409);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:3},settings:{...app.env,PUBLIC_BUSINESS_MODE:'0'}})).status,401);
 });
 
 test('public business edits are account-scoped, new public accounts stay visible, and attribution is redacted',async t=>{

@@ -298,3 +298,9 @@ fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixt
 
 # Public SHA-256 of public/openapi.json on recover/review-rules-prompts-20261111, independently recomputed.
 faa86f862f032f8a896d813ea4ac2f7d3eb13b96:.ci/public-assets.json:generic-api-key:10
+
+# Public content SHA-256 pins introduced by the live-source restore, independently recomputed.
+c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:5
+c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:10
+c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:16
+c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:tests/oct28-small-fix-projection.mjs:generic-api-key:13

@@ -1,0 +1,274 @@
+/* One phone layout for browsers and the WebView shell. Load after the shared styles. */
+.mobile-settings-menu { display:none; }
+
+@media (max-width:767px) {
+  :root {
+    --page-inset:0px;
+    --mobile-nav-height:76px;
+  }
+  html { scroll-padding-bottom:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + var(--space-24,24px)); }
+  body { min-width:0; overflow-x:clip; background-attachment:scroll; }
+  .shell {
+    display:block; width:100%; min-width:0; min-height:100dvh; margin:0; border:0; border-radius:0;
+    backdrop-filter:none; -webkit-backdrop-filter:none;
+  }
+  .shell .sidebar,.sidebar-resizer { display:none; }
+  .workspace { min-width:0; width:100%; }
+  .content {
+    width:100%; min-width:0; box-sizing:border-box;
+    padding:var(--space-24,24px) var(--space-16,16px)
+      calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + var(--space-24,24px));
+  }
+  .mobile-bar {
+    display:flex; align-items:center; justify-content:space-between; gap:var(--space-12,12px);
+    height:auto; min-height:64px; padding:calc(var(--space-8,8px) + env(safe-area-inset-top))
+      max(var(--space-16,16px),env(safe-area-inset-right)) var(--space-8,8px)
+      max(var(--space-16,16px),env(safe-area-inset-left));
+  }
+  .mobile-settings-trigger { flex:none; }
+  .mobile-settings-trigger.active { color:var(--accent); background:var(--accent-weak); }
+  .mobile-settings-menu {
+    position:fixed; z-index:35; top:calc(var(--mobile-viewport-top,0px) + env(safe-area-inset-top) + 64px);
+    right:max(var(--space-12,12px),env(safe-area-inset-right)); min-width:180px; max-width:calc(100vw - 24px);
+    max-height:calc(var(--mobile-viewport-height,100dvh) - 96px); overflow:auto;
+    padding:var(--space-8,8px); border:1px solid var(--glass-edge,var(--line));
+    border-radius:var(--radius-20,20px); background:var(--glass-solid,var(--surface)); box-shadow:var(--glass-shadow);
+  }
+  .shell.menu-open .mobile-settings-menu:not([hidden]) { display:grid; gap:var(--space-4,4px); }
+  .mobile-settings-menu[hidden] { display:none!important; }
+  .mobile-settings-menu .nav-item,.mobile-settings-menu .btn {
+    width:auto; height:auto; min-width:44px; min-height:44px; margin:0; padding:var(--space-12,12px);
+    gap:var(--space-12,12px); justify-content:flex-start; overflow:visible; font-size:var(--font-size-16,16px);
+    color:var(--ink); white-space:normal;
+  }
+  .mobile-settings-menu .nav-label { display:inline; }
+  .shell.menu-open::after { content:""; position:fixed; inset:0; z-index:25; background:rgba(20,22,20,.2); }
+  .mobile-bar:has(.mobile-settings-menu:not([hidden])) .mobile-settings-trigger { position:relative; z-index:36; }
+  .mobile-nav.workbench-navigation {
+    position:fixed; z-index:20; inset:auto 0 0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
+    width:100%; max-width:100%; box-sizing:border-box; gap:0; margin:0;
+    min-height:var(--mobile-nav-height); padding:var(--space-4,4px)
+      max(var(--space-4,4px),env(safe-area-inset-right)) calc(var(--space-4,4px) + env(safe-area-inset-bottom))
+      max(var(--space-4,4px),env(safe-area-inset-left)); border-radius:var(--radius-20,20px) var(--radius-20,20px) 0 0;
+  }
+  .mobile-nav .mobile-nav-item {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:0; min-height:56px;
+    width:auto; padding:var(--space-4,4px); gap:var(--space-4,4px); font-size:var(--font-size-12,12px);
+    color:var(--ink-2); white-space:normal; text-align:center;
+  }
+  .mobile-nav .mobile-nav-item.active { color:var(--accent); background:var(--accent-weak); }
+  .mobile-nav .nav-label { max-width:100%; overflow-wrap:anywhere; }
+  .media-page-tabs { display:none; }
+  .notes-categories { display:flex; width:100%; box-sizing:border-box; margin-bottom:var(--space-16,16px); }
+  .notes-categories button { flex:1; min-width:0; min-height:44px; font-size:var(--font-size-16,16px); }
+  .page-head { flex-wrap:wrap; gap:var(--space-12,12px); }
+  .page-head .head-actions { flex-wrap:wrap; max-width:100%; margin-left:auto; }
+  .page-head h1 { min-width:0; overflow-wrap:anywhere; }
+  .dashboard-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-12,12px); }
+  .dashboard-grid { grid-template-columns:minmax(0,1fr); }
+  .dashboard-table,.table-scroll,.card,.panel { max-width:100%; min-width:0; box-sizing:border-box; }
+  .table-scroll { overflow-x:auto; }
+  .chart { width:100%; max-width:100%; height:auto; }
+  .notes-toolbar,.notes-date-controls,.reminder-toolbar,.daily-todo-toolbar { flex-wrap:wrap; }
+  .notes-date-controls .input,.reminder-toolbar .input { max-width:100%; min-width:0; }
+  button,summary,.btn,.icon-button,a[data-nav] { min-width:44px; min-height:44px; }
+  .icon-button.inline-info {
+    width:44px; min-width:44px; height:44px; min-height:44px; margin-block:-10px; margin-inline:-7px;
+  }
+  .icon-button.inline-info::before { inset:0; }
+  .todo-calendar-grid { gap:0; }
+  .todo-calendar-day { min-width:44px; min-height:44px; }
+  button,.btn,.article-link { max-width:100%; }
+  /* Form fields stay at 16px so iOS does not zoom. The note editor is not a field. */
+  :is(input,textarea,select,[contenteditable="true"]):not(.todo-note-input) { font-size:var(--font-size-16,16px)!important; }
+  input:not([type=checkbox]):not([type=radio]),select { min-height:44px; }
+  input,textarea,select { max-width:100%; box-sizing:border-box; }
+  :is(input,textarea,select,[contenteditable="true"]) {
+    scroll-margin-block:var(--space-24,24px);
+    scroll-margin-bottom:calc(var(--mobile-nav-height) + var(--mobile-viewport-keyboard,0px) + var(--space-24,24px));
+  }
+  pre { max-width:100%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .modal-backdrop,.drawer-backdrop {
+    top:var(--mobile-viewport-top,0px); bottom:auto; height:var(--mobile-viewport-height,100dvh);
+    align-items:flex-end; justify-content:center; box-sizing:border-box; padding:0;
+  }
+  .modal,.modal.drawer {
+    display:flex; flex-direction:column; width:100%; height:auto; min-width:0;
+    max-width:100%; max-height:calc(var(--mobile-viewport-height,100dvh) - max(12px,env(safe-area-inset-top)));
+    overflow:hidden; border-radius:var(--radius-24,24px) var(--radius-24,24px) 0 0;
+  }
+  .modal-head { flex:none; gap:var(--space-12,12px); padding:var(--space-16,16px); }
+  .modal-head>div { min-width:0; overflow-wrap:anywhere; }
+  .modal-body {
+    min-height:0; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    padding:var(--space-16,16px) max(var(--space-16,16px),env(safe-area-inset-right))
+      calc(var(--space-24,24px) + env(safe-area-inset-bottom)) max(var(--space-16,16px),env(safe-area-inset-left));
+  }
+  .modal .form-grid { grid-template-columns:minmax(0,1fr); }
+  .modal .form-field { min-width:0; }
+  .modal .form-actions { flex-wrap:wrap; }
+  .popover { max-width:calc(100vw - 24px); max-height:calc(var(--mobile-viewport-height,100dvh) - 24px); }
+  #memos .memo-layout { display:block; min-height:55dvh; }
+  #memos .memo-resizer { display:none; }
+  #memos .memo-library { border-right:0; border-radius:var(--radius-20,20px); min-height:55dvh; }
+  #memos #memo-group-list { max-height:none; }
+  #memos[data-pane="groups"] .memo-library,#memos[data-pane="notes"] .memo-library { display:block; }
+  #memos[data-pane="groups"] .memo-editor,#memos[data-pane="notes"] .memo-editor { display:none; }
+  #memos[data-pane="editor"] .memo-library { display:none; }
+  #memos[data-pane="editor"] .memo-editor { display:block; min-width:0; padding:var(--space-16,16px); }
+  #memos .memo-mobile-back { display:flex; gap:var(--space-4,4px); }
+  #memos .memo-mobile-back:has(button[hidden]) { display:none; }
+  #toasts { right:var(--space-12,12px); bottom:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom)); }
+  html[data-mobile-keyboard="true"] .mobile-nav { display:none; }
+  html[data-mobile-keyboard="true"] #toasts { bottom:calc(var(--mobile-viewport-keyboard,0px) + var(--space-12,12px)); }
+}
+
+@media (max-width:374px) {
+  #todo-calendar { width:calc(100vw - 12px); max-width:none; margin-inline:calc((100% - (100vw - 12px)) / 2); }
+}
+
+@media (min-width:768px) and (max-width:1199px) {
+  .shell:not([data-sidebar-expanded="true"]) .sidebar { padding-inline:var(--space-12,12px); }
+  .shell:not([data-sidebar-expanded="true"]) .sidebar .brand-title { position:absolute; clip-path:inset(50%); }
+  .shell:not([data-sidebar-expanded="true"]) .sidebar .nav-label { display:none; }
+  .shell:not([data-sidebar-expanded="true"]) .sidebar .nav-item {
+    width:56px; min-height:50px; padding:var(--space-12,12px); justify-content:center; gap:0; color:transparent; font-size:0;
+  }
+  .shell:not([data-sidebar-expanded="true"]) .sidebar .notes-nav>summary { width:56px; justify-content:center; }
+  .shell:not([data-sidebar-expanded="true"]) .sidebar :is(.user-name,.avatar) { display:none; }
+  .modal:not(.drawer) { max-width:calc(100vw - 32px); max-height:calc(100dvh - 32px); }
+  .drawer { width:min(560px,calc(100vw - 48px)); }
+}
+
+/* Phone calendar is a date picker, not a horizontally clipped task board.
+   Task text stays in the selected day's existing list below it. */
+@media (max-width:767px) {
+  #todo-floating-toolbar { display:none; }
+  #todo-history .daily-todo-calendar { width:100%; margin-inline:0; gap:12px; }
+  #todo-history .todo-calendar-sidebar {
+    grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:6px 8px; padding:12px;
+  }
+  #todo-history .todo-calendar-sidebar label:nth-of-type(1) { grid-column:1; grid-row:1; margin:0; }
+  #todo-history .todo-calendar-sidebar label:nth-of-type(3) { grid-column:2; grid-row:1; margin:0; }
+  #todo-history .todo-calendar-sidebar .input { padding-inline:8px; }
+  #todo-calendar-month-input { grid-column:1; grid-row:2; }
+  #todo-calendar-status { grid-column:2; grid-row:2; }
+  #todo-history label[for="todo-calendar-week"], #todo-calendar-week { display:none; }
+  #todo-history .todo-calendar-head { flex-direction:column; align-items:stretch; gap:8px; margin-bottom:12px; }
+  #todo-history .todo-calendar-navigation { display:grid; grid-template-columns:44px minmax(0,1fr) 44px auto; gap:4px; }
+  #todo-history #todo-calendar-month { min-width:0; font-size:16px; }
+  #todo-history .todo-calendar-navigation .btn { padding-inline:12px; }
+  #todo-history .todo-calendar-views { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  #todo-history .todo-calendar-stats { grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin-bottom:12px; }
+  #todo-history .todo-calendar-stats span { padding:8px 2px; text-align:center; gap:4px; }
+  #todo-history .todo-calendar-stats small { font-size:10px; }
+  #todo-history .todo-calendar-stats strong { font-size:16px; }
+  #todo-history .todo-calendar-scroll { overflow:visible; }
+  #todo-history .todo-calendar-grid { min-width:0; width:100%; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+  #todo-history .todo-calendar-weekday { font-size:12px; padding:4px 0; }
+  #todo-history .todo-calendar-day {
+    min-width:0; min-height:58px; padding:6px 0; gap:0; border-radius:10px; text-align:center;
+  }
+  #todo-history .todo-calendar-day-head { flex-direction:column; justify-content:center; gap:4px; }
+  #todo-history .todo-calendar-day-head strong { font-size:16px; line-height:20px; }
+  #todo-history .todo-calendar-day-head small { font-size:10px; line-height:14px; white-space:nowrap; min-height:14px; }
+  #todo-history .todo-calendar-task, #todo-history .todo-calendar-more { display:none; }
+  #todo-history .todo-calendar-day.is-today strong { text-decoration:underline; text-underline-offset:3px; }
+  #todo-history .todo-calendar-day.is-selected { background:var(--accent); color:var(--color-white); }
+  #todo-history .todo-calendar-day.is-selected small { color:var(--color-white); }
+  #todo-history .todo-calendar-day:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  #todo-history .todo-calendar-main::after {
+    content:"点选日期，在下方查看当天待办 · 下划线为今天";
+    display:block; margin-top:12px; color:var(--ink-2); font-size:12px; line-height:1.6;
+  }
+}
+
+/* Phone review keeps the full article content in compact cards, even when
+   several metrics are selected. Desktop tables retain their existing layout. */
+@media (max-width:767px) {
+  #content-review .review-articles-panel { padding:12px; }
+  #content-review .review-articles-panel .review-panel-head { margin-bottom:12px; gap:8px; }
+  #content-review .review-articles-panel .review-article-library > .review-filters {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-bottom:12px;
+  }
+  #content-review .review-articles-panel .review-article-library > .review-filters > label { min-width:0; gap:4px; }
+  #content-review .review-articles-panel .review-article-library > .review-filters .input { min-width:0; padding-inline:10px 28px; }
+  #content-review .review-articles-panel .review-columns-picker { min-width:0; justify-self:start; }
+  #content-review .review-articles-panel .review-columns-picker > summary { min-height:44px; padding-inline:10px; white-space:nowrap; }
+  #content-review .review-articles-panel .review-columns-menu { left:0; right:auto; max-width:calc(100vw - 64px); }
+  #content-review .review-articles-panel .review-columns-menu > label { min-height:44px; }
+  #content-review .review-articles-panel .review-article-library > .review-filters > .review-note {
+    width:auto; margin:0; padding:0; align-self:center; justify-self:end;
+  }
+  #content-review .review-articles-panel .review-table-wrap { overflow:visible; border:0; background:transparent; }
+  #content-review .review-articles-panel .review-articles-table { display:block; width:100%; min-width:0; }
+  #content-review .review-articles-panel .review-articles-table thead { display:none; }
+  #content-review .review-articles-panel .review-articles-table tbody { display:grid; gap:8px; }
+  #content-review .review-articles-panel .review-articles-table tbody tr {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 12px; height:auto; margin:0; padding:12px;
+    background:var(--color-white-a-74); border:1px solid var(--color-divider); border-radius:12px;
+  }
+  #content-review .review-articles-panel .review-articles-table td {
+    display:block; grid-column:auto; min-width:0; padding:0; border:0; font-size:13px; line-height:1.5; overflow-wrap:anywhere;
+  }
+  #content-review .review-articles-panel .review-articles-table td::before {
+    content:attr(data-label); display:inline; margin:0 6px 0 0; color:var(--color-text-secondary); font-size:11px;
+  }
+  #content-review .review-articles-panel .review-articles-table td[data-label="发布时间"] {
+    grid-column:1 / -1; color:var(--color-text-secondary); font-size:12px; white-space:normal;
+  }
+  #content-review .review-articles-panel .review-articles-table td[data-label="标题"] { grid-column:1 / -1; margin:0; }
+  #content-review .review-articles-panel .review-articles-table td[data-label="发布时间"]::before,
+  #content-review .review-articles-panel .review-articles-table td[data-label="标题"]::before { content:none; }
+  #content-review .review-articles-panel .review-articles-table td[data-label="判定"]:empty { display:none; }
+  #content-review .review-articles-panel .review-articles-table .review-title-button { width:100%; min-height:44px; font-size:15px; line-height:22px; }
+  #content-review .review-articles-panel .review-articles-table .review-reference { margin-top:4px; font-size:12px; }
+  #content-review .review-articles-panel .review-articles-table .review-observation-age { white-space:normal; font-size:11px; }
+  #content-review.review-list-fullscreen { padding:12px; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+  #content-review.review-list-fullscreen .review-articles-panel { min-height:calc(100dvh - 24px); }
+}
+
+/* The article collection starts closed on both phones and computers. */
+.shell:has(#content-review [data-review-articles-expanded="true"]) {
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+#content-review .review-articles-heading { display:none; }
+#content-review .review-articles-toggle {
+  display:flex; align-items:center; gap:8px; flex:1; min-width:0; min-height:44px;
+  padding:0; border:0; background:transparent; color:var(--color-text); text-align:left; cursor:pointer;
+}
+#content-review .review-articles-toggle > span:first-child { font-size:18px; font-weight:600; white-space:nowrap; }
+#content-review .review-article-count { color:var(--color-text-secondary); font-size:12px; white-space:nowrap; }
+#content-review .review-article-toggle-label { margin-left:auto; font-size:12px; white-space:nowrap; color:var(--color-primary); }
+#content-review .review-articles-panel .review-panel-head { flex-wrap:nowrap; }
+#content-review .review-articles-panel[data-review-articles-expanded="false"] .review-panel-head { margin-bottom:0; }
+#content-review .review-articles-panel[data-review-articles-expanded="false"] .review-article-library,
+#content-review .review-articles-panel[data-review-articles-expanded="false"] [data-review-action="toggle-fullscreen"],
+#content-review .review-collapse-dock { display:none; }
+#content-review .review-articles-panel[data-review-articles-expanded="true"] .review-article-library { display:block; }
+#content-review .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
+  display:flex; justify-content:center; position:fixed; z-index:21; right:24px; bottom:24px; padding:8px; width:220px;
+  background:var(--color-glass-solid); border:1px solid var(--color-divider); border-radius:12px;
+  box-shadow:0 4px 18px #00000014;
+}
+#content-review .review-collapse-dock .btn { min-height:44px; width:100%; max-width:420px; }
+html:has(#content-review [data-review-articles-expanded="true"]) { scroll-padding-bottom:108px; }
+.content:has(#content-review [data-review-articles-expanded="true"]) { padding-bottom:108px; }
+#content-review.review-list-fullscreen { padding-bottom:108px; }
+@media (max-width:767px) {
+  #content-review .review-articles-toggle > span:first-child { font-size:16px; }
+  #content-review .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
+    left:0; right:0; width:auto; bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom)); padding:8px 16px;
+    border:0; border-top:1px solid var(--color-divider); border-radius:0; box-shadow:none;
+  }
+  html:has(#content-review [data-review-articles-expanded="true"]) {
+    scroll-padding-bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom) + 84px);
+  }
+  .content:has(#content-review [data-review-articles-expanded="true"]) {
+    padding-bottom:calc(var(--mobile-nav-height,76px) + env(safe-area-inset-bottom) + 84px);
+  }
+  #content-review.review-list-fullscreen { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  #content-review.review-list-fullscreen .review-articles-panel[data-review-articles-expanded="true"] .review-collapse-dock {
+    bottom:0; padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  }
+}

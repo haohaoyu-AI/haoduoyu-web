@@ -1,0 +1,48 @@
+{
+  "source_commit": "cc98a9786576d17b2eb33f8a1f94d78e36ae7b4b",
+  "changes": [],
+  "files": {
+    "web/offline/cache.mjs": {
+      "sha256": "77d6d9fb9cbe1055f9ce954b52b9c0864cd499d4f98e098f6d07632b25627dfc"
+    },
+    "web/offline/conflict.mjs": {
+      "sha256": "d25fdd814d10ce9fd2151db7250e7985325af035f68fb73e077f30c34fca2f27"
+    },
+    "web/offline/db.mjs": {
+      "sha256": "cf3c9271a67a3ec30886ac3fde92cd4a9a6516f7067b967939f34e755e4582fb"
+    },
+    "web/offline/document.mjs": {
+      "sha256": "413dd7566a95ad32e94a684efb747b5f04010abf58152f7071b589de0ac39e7b"
+    },
+    "web/offline/drafts.mjs": {
+      "sha256": "1a7847491cbc40ad15e558bd8cf34f48742eeca634178e429882c93722ba92a1"
+    },
+    "web/offline/memos.mjs": {
+      "sha256": "117e6b67e09d58c3682560182bbd43e3afa9f63c506897098ee889d2e158887d"
+    },
+    "web/offline/note-mutations.mjs": {
+      "sha256": "3bd95c01df78698826e0ad3ca473a0092a327003d148f491be877d465e19b074"
+    },
+    "web/offline/notes.mjs": {
+      "sha256": "4038b9b7c3db8755e596a280ccb4f1ea764c3975624ded3bcddf4412ad841d7e"
+    },
+    "web/offline/outbox.mjs": {
+      "sha256": "56bf60dd6546223b3f093fe0ba904dd623161d11f8a5ff69fa40232fd864086a"
+    },
+    "web/offline/read-only.mjs": {
+      "sha256": "6ead87681dcbf56fdab8202d4d40507995494be2fbed29cb53616b38d66e0d36"
+    },
+    "web/offline/runtime.mjs": {
+      "sha256": "32db04ddb4d97c7c46d2821732dfb236201a0ba965f752bb88b7050ca41ba50c"
+    },
+    "web/offline/sw-client.mjs": {
+      "sha256": "7193e2662b6211c1bbbd4da4c4cd7ca6d45b9c5e4c024a1e0b04415d7bcc2bee"
+    },
+    "web/offline/sync.mjs": {
+      "sha256": "4d0cf977110351b8adb25f56b5ad89a7e24ec3f1ddd7cef0cc797e572fd57183"
+    },
+    "web/offline/ui.mjs": {
+      "sha256": "6680ec4e00f080d20eb792932cfba080c031f431f585049b6bd032b9050f91ca"
+    }
+  }
+}

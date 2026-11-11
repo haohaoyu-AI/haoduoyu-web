@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
-import {errorCalls} from '../scripts/audit-error-contracts.mjs';
+import {readFile,writeFile,mkdir,mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {dirname,join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {errorCalls,errorFiles} from '../scripts/audit-error-contracts.mjs';
+import {projectOct28} from './oct28-projection.mjs';
 import {fixture} from './harness.mjs';
 import {overviewWindow, buildOverview} from '../src/overview.mjs';
 import {paginate} from '../src/analytics.mjs';
@@ -33,7 +37,18 @@ const cases = [
 const tuple = error => ({status: error.status, code: error.code, message: error.message});
 
 test('all reviewed error call sites and HTTP error projections retain their baseline contracts', async t => {
-  const calls = await errorCalls();
+  // The old contract is about the immutable b242 source, not its October
+  // successor. Undo only the independently pinned October bytes before running
+  // the original audit; a separate exact catalogue verifies October's calls.
+  const historical = await mkdtemp(join(tmpdir(),'haoduoyu-error-contract-'));
+  t.after(()=>rm(historical,{recursive:true,force:true}));
+  for(const file of errorFiles) {
+    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    const target=join(historical,file);
+    await mkdir(dirname(target),{recursive:true});
+    await writeFile(target,projectOct28(file,source));
+  }
+  const calls = await errorCalls(pathToFileURL(historical+'/'));
   const app = await fixture(t);
   const session = await app.login();
   const http = [];

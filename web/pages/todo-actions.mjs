@@ -5,8 +5,10 @@ import { state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
+import { closeModal } from "../ui/modal.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
-import { loadTodos, paintTodos, setTodoNotice } from "./todos.mjs";
+import { futureRepainting, futureTodoView, paintUnscheduledTodos } from "./unscheduled-todos.mjs";
+import { loadTodos, paintTodos, setTodoNotice, todoRepainting } from "./todos.mjs";
 function todoBusy(day, id) {
   return day.updates.has(id) || day.removals.has(id) || day.templateWrites.has(id);
 }
@@ -31,6 +33,165 @@ function openTodoMenu({ target, id, date, anchor }) {
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
+}
+function readNote(node) {
+  const raw = node?.isContentEditable ? node.textContent : node?.value;
+  return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4000);
+}
+function placeNoteCaret(node) {
+  if (!node) return;
+  node.focus();
+  const selection = window.getSelection?.();
+  if (!selection || !node.isContentEditable) {
+    const end = node.value?.length || 0;
+    node.setSelectionRange?.(end, end);
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+function rememberNote(node) {
+  const text = readNote(node);
+  const shown = node.isContentEditable ? node.textContent : node.value;
+  if (shown !== text) {
+    if (node.isContentEditable) node.textContent = text;
+    else node.value = text;
+    placeNoteCaret(node);
+  }
+  if (node.dataset.future === "1") {
+    const view = futureTodoView();
+    if (view.noteEdit?.id === node.dataset.id) view.noteEdit.text = text;
+    return;
+  }
+  const day = todoDay(node.dataset.date);
+  if (day.noteEdit?.id === node.dataset.id) day.noteEdit.text = text;
+}
+function watchTodoNotes() {
+  if (watchTodoNotes.ready || typeof document === "undefined") return;
+  watchTodoNotes.ready = true;
+  document.addEventListener("beforeinput", event => {
+    const node = event.target;
+    if (!node?.matches?.("[data-todo-note-input]")) return;
+    if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
+      event.preventDefault();
+      node.blur();
+    }
+  });
+  document.addEventListener("paste", event => {
+    const node = event.target?.closest?.("[data-todo-note-input]");
+    if (!node) return;
+    event.preventDefault();
+    const text = (event.clipboardData?.getData("text/plain") || "").replace(/\r?\n/g, "");
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  document.addEventListener("input", event => {
+    if (event.target?.matches?.("[data-todo-note-input]")) rememberNote(event.target);
+  });
+  document.addEventListener("focusout", event => {
+    if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Enter" && event.target?.matches?.("[data-todo-note-input]")) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
+}
+function openFutureNote(options) {
+  const view=futureTodoView(),id=options.id || options.target?.dataset.id;
+  const item=view.items.find(row=>row.id===id&&!row.deleted_at&&!row.deleted);
+  if(!item||view.pending||view.uncertain[id])return;
+  view.noteEdit={id:item.id,text:item.note || ""};
+  view.noteError="";
+  paintUnscheduledTodos();
+  placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
+}
+function openTodoNote(options) {
+  watchTodoNotes();
+  if(options.target?.dataset.future==="1")return openFutureNote(options);
+  const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
+  if(!context||todoBusy(context.day,context.item.id))return;
+  const {item,day}=context;
+  day.noteEdit={id:item.id,text:item.note || ""};
+  day.noteError="";
+  paintTodos();
+  placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
+}
+async function commitFutureNote(input) {
+  if(futureRepainting())return;
+  const view=futureTodoView(),item=view.items.find(row=>row.id===input.dataset.id);
+  if(!item||view.noteEdit?.id!==item.id||view.noteEdit.committing)return;
+  const text=readNote(input);
+  if(text===(item.note || "")){view.noteEdit=null;view.noteError="";paintUnscheduledTodos();return;}
+  view.noteEdit.committing=true; view.noteEdit.text=text;
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
+    Object.assign(item,saved);
+    if(!saved.note)delete item.note;
+    if(view.noteEdit?.id===item.id)view.noteEdit=null;
+    view.noteError="";
+  } catch(error) {
+    if(isRequestAbort(error))return;
+    if(view.noteEdit?.id===item.id){
+      view.noteEdit.committing=false;
+      view.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+    }
+  }
+  paintUnscheduledTodos();
+  if(view.noteEdit?.id===item.id)document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+}
+async function commitTodoNote(input) {
+  if(input?.dataset?.future==="1")return commitFutureNote(input);
+  if (todoRepainting()) return;
+  const context=todoActionContext({id:input.dataset.id,date:input.dataset.date});
+  if(!context)return;
+  const {day,item,owner}=context;
+  if(day.noteEdit?.id!==item.id||day.noteEdit.committing)return;
+  const text=readNote(input);
+  if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
+  day.noteEdit.committing=true; day.noteEdit.text=text;
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
+    if(!todoSessionActive(owner))return;
+    mergeTodo(day,saved);
+    if(day.noteEdit?.id===item.id)day.noteEdit=null;
+    day.noteError="";
+  } catch(error) {
+    if(!todoSessionActive(owner))return;
+    if(day.noteEdit?.id===item.id){
+      day.noteEdit.committing=false;
+      day.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+    }
+  }
+  if(todoSessionActive(owner)){
+    paintTodos();
+    if(day.noteEdit?.id===item.id)document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+  }
+}
+async function submitTodoNote({form,data}) {
+  const context=todoActionContext({id:form.dataset.id,date:form.dataset.date,owner:form.dataset.owner});
+  if(!context)return;
+  const button=form.querySelector('button[type=submit]'),message=form.querySelector('.form-message');
+  if(button.disabled)return;
+  button.disabled=true; message.textContent='';
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(context.item.id)}/note`, {
+      method:'PATCH',body:{note:String(data.note ?? ''),version:Number(form.dataset.version)}
+    });
+    if(!todoSessionActive(context.owner))return;
+    mergeTodo(context.day,saved); context.day.revision++; closeModal(); paintTodos();
+    await loadTodos();
+  } catch(error) { message.textContent=error.status===404 ? '这项待办可能仍在同步，请稍后重试；备注内容已保留。' : error.message || '保存失败，请重试'; }
+  finally { button.disabled=false; }
 }
 function renderTodoUndo(day) {
   return [...day.removals.entries()].map(([id, ticket]) => {
@@ -167,4 +328,4 @@ async function changeTodoTemplate(options, remove = false) {
     }
   }
 }
-export { canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, renderTodoUndo, restoreTodo, todoBusy };
+export { canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote, renderTodoUndo, restoreTodo, todoBusy };

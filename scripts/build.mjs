@@ -1,3 +1,5 @@
+import {reviewPromptVersionsMigrationTag,validateReviewPromptVersionsMigrationSource} from './migration-contract.mjs';
+import {openaiReviewMigrationTag,validateOpenaiReviewMigrationSource} from './migration-contract.mjs';
 import { readFile,writeFile,mkdir,rm,cp } from 'node:fs/promises';
 import { resolve,dirname,relative } from 'node:path';
 import { fileURLToPath,pathToFileURL } from 'node:url';
@@ -6,7 +8,9 @@ import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { frontendBundle } from './frontend-build.mjs';
 import { cloudflareConfig } from './cloudflare-config.mjs';
-import {articleMigrationTag,validateMigrationSource} from './migration-contract.mjs';
+import {articleMigrationTag,validateMigrationSource,labelMigrationTag,validateLabelMigrationSource,labelSetsMigrationTag,validateLabelSetsMigrationSource,labelArchivesMigrationTag,validateLabelArchivesMigrationSource,aiReportsMigrationTag,validateAiReportsMigrationSource} from './migration-contract.mjs';
+import {buildServiceWorkerAssets} from './service-worker-build.mjs';
+import {reviewMigrationTag,validateReviewMigrationSource,reviewAttributionMigrationTag,validateReviewAttributionMigrationSource,reviewResourcesMigrationTag,validateReviewResourcesMigrationSource,reviewLegacyExtensionsMigrationTag,validateReviewLegacyExtensionsMigrationSource} from './migration-contract.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
@@ -17,12 +21,19 @@ const target=args[0]?.slice('--target='.length)||'platform';
 const runtime=JSON.parse(await readFile(resolve(root,'runtime.json'),'utf8'));
 const standalone=target==='cloudflare'?cloudflareConfig(runtime,process.env):null;
 await writeFile(resolve(publicRoot,'app.js'),await frontendBundle(root));
-const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8'};
+const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8',webmanifest:'application/manifest+json; charset=utf-8'};
 const assets={};
-for(const name of ['index.html','app.js','style.css','memos.css','glass.css','workbench.css','openapi.json','favicon.svg','robots.txt','llms.txt']) {
+for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','glass.css','workbench.css','review.css','mobile.css','sw-update.css','offline.css','manifest.webmanifest','openapi.json','favicon.svg','robots.txt','llms.txt']) {
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};
+const shell=buildServiceWorkerAssets({indexHtml:assets['index.html'].content,
+  swSource:await readFile(resolve(publicRoot,'sw.js'),'utf8'),
+  assets:Object.fromEntries(Object.entries(assets).filter(([name])=>name.endsWith('.css')||
+    ['app.js','favicon.svg','manifest.webmanifest'].includes(name)).map(([name,asset])=>['/'+name,asset.content]))});
+assets['index.html'].content=shell.indexHtml;assets['sw.js']={type:types.js,content:shell.swSource};
+await writeFile(resolve(publicRoot,'index.html'),shell.indexHtml);
+await writeFile(resolve(publicRoot,'sw.js'),shell.swSource);
 for(const asset of Object.values(assets)) {
   const bytes=Buffer.from(asset.content,'utf8');
   asset.etag='\"'+createHash('sha256').update(bytes).digest('hex')+'\"';
@@ -38,11 +49,32 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.equal(journal.entries.length,9,'Initial schema, additive workbench modules and reviewed article graph migration');
+assert.deepEqual(journal.entries.map(entry=>entry.tag),['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag,'0022_daily_scores','0023_unscheduled_todo_notes'],'Only reviewed migrations are allowed');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
   const sql=await readFile(resolve(root,'drizzle',entry.tag+'.sql'),'utf8');
+  if(entry.tag==='0019_todo_notes_archives') {
+    assert.deepEqual(sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean), [
+      "ALTER TABLE `matrix_todos` ADD `note` text NOT NULL DEFAULT '';",
+      'ALTER TABLE `matrix_todo_templates` ADD `archived_at` text;'
+    ]);
+    continue;
+  }
+  if(entry.tag==='0023_unscheduled_todo_notes') {
+    assert.equal(sql.trim(),"ALTER TABLE `matrix_unscheduled_todos` ADD `note` text NOT NULL DEFAULT '';");
+    continue;
+  }
+  if(entry.tag===reviewPromptVersionsMigrationTag) { validateReviewPromptVersionsMigrationSource(entry.tag,sql); tables++; continue; }
+  if(entry.tag===openaiReviewMigrationTag) { validateOpenaiReviewMigrationSource(entry.tag,sql); tables+=2; continue; }
+  if(entry.tag===reviewResourcesMigrationTag) { validateReviewResourcesMigrationSource(entry.tag,sql); tables+=4; continue; }
+  if(entry.tag===reviewLegacyExtensionsMigrationTag) { validateReviewLegacyExtensionsMigrationSource(entry.tag,sql); continue; }
+  if(entry.tag===reviewAttributionMigrationTag) { validateReviewAttributionMigrationSource(entry.tag,sql); continue; }
+  if(entry.tag===reviewMigrationTag) { validateReviewMigrationSource(entry.tag,sql); tables+=4; continue; }
+  if(entry.tag===aiReportsMigrationTag) { validateAiReportsMigrationSource(entry.tag,sql); tables++; continue; }
+  if(entry.tag===labelMigrationTag) { validateLabelMigrationSource(entry.tag,sql); tables++; continue; }
+  if(entry.tag===labelSetsMigrationTag) { validateLabelSetsMigrationSource(entry.tag,sql); tables++; continue; }
+  if(entry.tag===labelArchivesMigrationTag) { validateLabelArchivesMigrationSource(entry.tag,sql); tables++; continue; }
   if(idx===5) {
     validateMigrationSource(entry.tag,sql);
     assert.equal(entry.tag,articleMigrationTag);
@@ -57,7 +89,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     if(statement.startsWith('CREATE TABLE')) tables++;
   }
 }
-assert.equal(tables,22);
+assert.equal(tables,41);
 assert.equal(relative(root,dist),'dist','Build output must remain inside this project');
 const output=target==='platform'?dist:resolve(dist,'cloudflare');
 const entry=target==='platform'?resolve(output,'server/index.js'):resolve(output,'index.js');
@@ -76,5 +108,5 @@ if(target==='platform') {
 }
 const worker=await import(pathToFileURL(entry).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log(target==='platform'?'Built independent Sites Worker: DB only, nine reviewed migrations, 22 matrix tables, no legacy tables or R2 binding.':
-  'Built standalone Cloudflare Worker and nine reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');
+console.log(target==='platform'?'Built independent Sites Worker: DB only, twenty-four reviewed migrations, 41 matrix tables, no legacy tables or R2 binding.':
+  'Built standalone Cloudflare Worker and twenty-one reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');

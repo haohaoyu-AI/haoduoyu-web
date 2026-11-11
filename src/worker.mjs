@@ -11,6 +11,7 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
 import {publicBusinessAccess,publicArticle,requirePublicAccount,publicBusinessResult} from './public-business.mjs';
@@ -19,6 +20,7 @@ import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes} from './daily-notes.mjs';
+import {handleDailyScores} from './daily-scores.mjs';
 import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
@@ -27,9 +29,12 @@ import {handleSnapshot} from './snapshot.mjs';
 import {handleNoteEntries} from './note-entries.mjs';
 import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
+import {handleAiReports} from './ai-reports.mjs';
+import {handleContentReview} from './content-review.mjs';
+import {handleOpenaiReview} from './openai-review.mjs';
 
 const prefix='/api/v1';
-const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json']);
+const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json','/sw.js']);
 const writing=new Set(['POST','PUT','PATCH','DELETE']);
 const articleWriting=(method,route)=>(method==='POST'||method==='PATCH')&&route==='/articles'||method==='PUT'&&/^\/articles\/[^/]+$/.test(route);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
@@ -264,8 +269,16 @@ async function handle(request,env,trace) {
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/daily-notes'||route.startsWith('/daily-notes/'))
       return handleDailyNotes(db,request,route,env,origin,state.revision);
+    if(route==='/daily-scores'||route.startsWith('/daily-scores/'))
+      return handleDailyScores(db,request,route,env,origin,state.revision);
     if(route==='/note-entries'||route.startsWith('/note-entries/'))
       return handleNoteEntries(db,request,route,env,origin,state.revision);
+    if(route==='/ai-reports'||route.startsWith('/ai-reports/'))
+      return handleAiReports(db,request,route,env,origin,state.revision);
+    if(route==='/openai-review'||route.startsWith('/openai-review/'))
+      return handleOpenaiReview(db,request,route,env,origin,state.revision);
+    if(route==='/review'||route.startsWith('/review/'))
+      return handleContentReview(db,request,route,env,origin,state.revision,trace);
     if(route==='/work-reminders'||route.startsWith('/work-reminders/'))
       return handleWorkReminders(db,request,route,env,origin,state.revision);
     if(route==='/memos'||route.startsWith('/memos/'))
@@ -281,6 +294,7 @@ async function handle(request,env,trace) {
       request=access.request;
       if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});
       if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+      if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
       if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
       if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
@@ -289,6 +303,7 @@ async function handle(request,env,trace) {
     }
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+    if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
     if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
     if(method==='GET') {
@@ -304,10 +319,12 @@ async function handle(request,env,trace) {
   const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
   if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
   const headers={'Content-Type':asset.type};
+  if(path==='/sw.js')headers['Service-Worker-Allowed']='/';
   if(revalidatedStatic.has(path)) {
     headers['Cache-Control']='no-cache';headers.ETag=asset.etag;
     if(matchesIfNoneMatch(request.headers.get('If-None-Match'),asset.etag))
-      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag}});
+      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag,
+        ...(path==='/sw.js'?{'Service-Worker-Allowed':'/'}:{})}});
     headers['Content-Length']=String(asset.length);
   }
   const content=name==='api-docs'&&env.PUBLIC_BUSINESS_MODE==='1'?publicBusinessDocs(asset.content):asset.content;

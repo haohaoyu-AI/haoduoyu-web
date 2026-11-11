@@ -40,12 +40,12 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     received(remote); phase = pending ? "unknown" : "idle";
     retryReady = !!pending && same(remote.verify_items, pending.before);
     message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" :
-      "记录状态尚未确认，请重新核对；不会重发保存。" : "已重新读取最新记录。";
+      "记录状态尚未确认，请重新核对；不会重发保存。" : "";
     return retryReady;
   }
   async function send() {
     if (!isCurrent()) return;
-    phase = "saving"; message = "正在保存…"; retryReady = false; notify();
+    phase = "saving"; message = ""; retryReady = false; notify();
     let response;
     try { response = await put(current.id, copy(pending.body), pending.key); } catch (error) {
       if (error.status >= 400 && error.status < 500 && error.status !== 409) {
@@ -55,7 +55,7 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     }
     if (!validArticle(response, current.id) || response.version <= pending.body.version ||
       !same(response.verify_items, pending.body.verify_items)) { await reconcile(); return; }
-    received({ ...current, ...response }); pending = null; phase = "saved"; message = "已保存。";
+    received({ ...current, ...response }); pending = null; phase = "saved"; message = "";
     try {
       const remote = await load(current.id);
       if (validArticle(remote, current.id) && remote.version >= current.version) {

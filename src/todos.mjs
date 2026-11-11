@@ -5,9 +5,13 @@ import {beijingDay} from './lib/time.mjs';
 import {templateId,requireActiveTemplate,describeTemplate,templateWindow} from './todo-templates.mjs';
 import {todoPreferences} from './todo-preferences.mjs';
 
-const fields='id,date,text,completed,version,created_at,updated_at,deleted_at';
+const fields='id,date,text,completed,version,created_at,updated_at,deleted_at,note';
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>({...row,completed:row.completed===1||row.completed===true});
+const item=row=>{
+  const value={...row,completed:row.completed===1||row.completed===true};
+  if(!value.note)delete value.note;
+  return value;
+};
 
 export const todoToday=(at=Date.now())=>beijingDay(at);
 
@@ -61,8 +65,8 @@ function targetedInput(input,template=false) {
 }
 
 async function linkedItem(store,userId,value) {
-  const link=await store.get('SELECT t.id AS template_id,t.version AS template_version,t.deleted_at FROM matrix_todo_template_links AS l JOIN matrix_todo_templates AS t ON t.user_id=l.user_id AND t.id=l.template_id WHERE l.user_id=? AND l.todo_id=?',userId,value.id);
-  return {...item(value),...(link?{template_id:link.template_id,template_version:link.template_version,template_active:link.deleted_at===null}:{})};
+  const link=await store.get('SELECT t.id AS template_id,t.version AS template_version,t.deleted_at,t.archived_at FROM matrix_todo_template_links AS l JOIN matrix_todo_templates AS t ON t.user_id=l.user_id AND t.id=l.template_id WHERE l.user_id=? AND l.todo_id=?',userId,value.id);
+  return {...item(value),...(link?{template_id:link.template_id,template_version:link.template_version,template_active:link.deleted_at===null&&link.archived_at===null}:{})};
 }
 
 async function readTodos(db,request,initialRevision) {
@@ -73,8 +77,8 @@ async function readTodos(db,request,initialRevision) {
       throw fail(400,'VALIDATION_ERROR','待办查询只接受一个 date 参数');
     const today=todoToday(),date=query.has('date')?validDate(query.get('date')):today;
     const rows=await store.all('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND date=? AND deleted_at IS NULL ORDER BY created_at,rowid',actor.id,date);
-    const links=await store.all('SELECT l.todo_id,l.template_id,p.version AS template_version,p.deleted_at FROM matrix_todo_template_links AS l JOIN matrix_todos AS t ON t.user_id=l.user_id AND t.id=l.todo_id JOIN matrix_todo_templates AS p ON p.user_id=l.user_id AND p.id=l.template_id WHERE l.user_id=? AND t.date=? AND t.deleted_at IS NULL',actor.id,date);
-    const templates=new Map(links.map(link=>[link.todo_id,{template_id:link.template_id,template_version:link.template_version,template_active:link.deleted_at===null}]));
+    const links=await store.all('SELECT l.todo_id,l.template_id,p.version AS template_version,p.deleted_at,p.archived_at FROM matrix_todo_template_links AS l JOIN matrix_todos AS t ON t.user_id=l.user_id AND t.id=l.todo_id JOIN matrix_todo_templates AS p ON p.user_id=l.user_id AND p.id=l.template_id WHERE l.user_id=? AND t.date=? AND t.deleted_at IS NULL',actor.id,date);
+    const templates=new Map(links.map(link=>[link.todo_id,{template_id:link.template_id,template_version:link.template_version,template_active:link.deleted_at===null&&link.archived_at===null}]));
     const preferences=await todoPreferences(store,actor.id);
     return json({date,today,completed_mode:preferences.completed_mode,preferences_version:preferences.version,
       items:rows.map(row=>({...item(row),...templates.get(row.id)}))});
@@ -92,14 +96,14 @@ async function createTodo(store,actor,input) {
     return {replayed:true,response:json(await linkedItem(store,actor.id,existing))};
   }
   if(input.template_id) await requireActiveTemplate(store,actor.id,input.template_id);
-  const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
+  const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null,note:''};
   store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,0,1,?,?)',actor.id,input.id,input.date,input.text,stamp,stamp);
   if(input.template_id) store.queue('INSERT INTO matrix_todo_template_links(user_id,todo_id,template_id) VALUES(?,?,?)',actor.id,input.id,input.template_id);
   if(input.template_id) {
     const template=await store.get('SELECT version FROM matrix_todo_templates WHERE user_id=? AND id=?',actor.id,input.template_id);
     value.template_version=template.version;value.template_active=true;
   }
-  return {actor,response:json(value,201)};
+  return {actor,response:json(item(value),201)};
 }
 
 async function updateTodo(store,actor,id,input) {
@@ -111,6 +115,42 @@ async function updateTodo(store,actor,id,input) {
   store.queue('UPDATE matrix_todos SET completed=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=?',Number(input.completed),value.updated_at,actor.id,id,input.version);
   store.expectChange();
   return {actor,response:json(await linkedItem(store,actor.id,value))};
+}
+
+async function updateNote(store,actor,id,input) {
+  exactFields(input,['note','version']);
+  if(typeof input.note!=='string'||!input.note.isWellFormed()||input.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(input.note)||
+    !Number.isSafeInteger(input.version)||input.version<1||input.version>=Number.MAX_SAFE_INTEGER)
+    throw fail(400,'VALIDATION_ERROR','备注或版本无效');
+  const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
+  if(!current)return updateFutureNote(store,actor,id,input);
+  if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  if(current.version===input.version+1&&current.note===input.note)
+    return {replayed:true,response:json(await linkedItem(store,actor.id,current))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now();
+  store.queue('UPDATE matrix_todos SET note=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.note,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json(await linkedItem(store,actor.id,{...current,note:input.note,version:current.version+1,updated_at:stamp}))};
+}
+
+async function updateFutureNote(store,actor,id,input) {
+  const futureFields='id,text,completed,version,created_at,updated_at,deleted_at,note';
+  const current=await store.get('SELECT '+futureFields+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',actor.id,id);
+  if(!current||current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  const saved={...current,completed:current.completed===1||current.completed===true};
+  if(current.version===input.version+1&&current.note===input.note)return {replayed:true,response:json(futureItem(saved))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now();
+  store.queue('UPDATE matrix_unscheduled_todos SET note=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.note,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json(futureItem({...saved,note:input.note,version:current.version+1,updated_at:stamp}))};
+}
+
+function futureItem(row) {
+  const value={...row};
+  if(!value.note)delete value.note;
+  return value;
 }
 
 async function setDeleted(store,actor,id,input,deleted) {
@@ -129,8 +169,9 @@ async function addTemplate(store,actor,id,input) {
   const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=? AND date=? AND deleted_at IS NULL',actor.id,id,input.date);
   if(!current) throw fail(404,'NOT_FOUND','待办不存在');
   const link=await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,id);
-  const template=await store.get('SELECT id,text,version,created_at,updated_at,deleted_at FROM matrix_todo_templates WHERE user_id=? AND id=?',actor.id,input.template_id);
+  const template=await store.get('SELECT id,text,version,created_at,updated_at,deleted_at,archived_at FROM matrix_todo_templates WHERE user_id=? AND id=?',actor.id,input.template_id);
   if(link) {
+    if(template?.archived_at!==null&&template?.archived_at!==undefined) throw fail(409,'TEMPLATE_ARCHIVED','模板已归档，请先恢复');
     if(link.template_id!==input.template_id) throw fail(409,'IDEMPOTENCY_CONFLICT','待办已经关联其他模板');
     const {deleted_at,...value}=template;
     const matchesTodo=current.version===input.version;
@@ -160,18 +201,19 @@ export async function handleTodos(db,request,route,origin,initialRevision) {
   const method=request.method;
   if(method==='GET'&&route==='/todos') return readTodos(db,request,initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireAdmin(first);
-  const match=/^\/todos\/([^/]+)$/.exec(route),restore=/^\/todos\/([^/]+)\/restore$/.exec(route),template=/^\/todos\/([^/]+)\/template$/.exec(route);
-  const operation=method==='POST'&&route==='/todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&template?'template':null;
+  const match=/^\/todos\/([^/]+)$/.exec(route),restore=/^\/todos\/([^/]+)\/restore$/.exec(route),template=/^\/todos\/([^/]+)\/template$/.exec(route),note=/^\/todos\/([^/]+)\/note$/.exec(route);
+  const operation=method==='POST'&&route==='/todos'?'create':method==='PATCH'&&match?'completed':method==='PATCH'&&note?'note':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&template?'template':null;
   if(!operation) throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
   if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','待办写入不接受查询参数');
   const body=await bodyFor(request);
-  const id=operation==='create'?null:validId((match||restore||template)[1]);
-  const input=operation==='create'?createInput(body):operation==='completed'?updateInput(body):targetedInput(body,operation==='template');
+  const id=operation==='create'?null:validId((match||restore||template||note)[1]);
+  const input=operation==='create'?createInput(body):operation==='completed'?updateInput(body):operation==='note'?body:targetedInput(body,operation==='template');
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
     if(operation==='create') return createTodo(store,actor,input);
     if(operation==='completed') return updateTodo(store,actor,id,input);
+    if(operation==='note') return updateNote(store,actor,id,input);
     if(operation==='template') return addTemplate(store,actor,id,input);
     return setDeleted(store,actor,id,input,operation==='delete');
   })).response;
