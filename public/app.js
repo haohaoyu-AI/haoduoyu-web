@@ -4591,7 +4591,7 @@ function syncActions(context) {
   const run2 = () => runSync(context);
   function sync({ rerun = false } = {}) {
     if (context.syncFlight) {
-      if (rerun) context.syncAgain = true;
+      context.syncAgain = true;
       return context.syncFlight;
     }
     context.syncFlight = run2().finally(() => {

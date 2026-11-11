@@ -21,7 +21,7 @@ export const smallFixHashes=Object.freeze({
 /** Live-site restore + site-five + night-review product, inverted to smallFixProduct. */
 export const quietSyncBaseline=smallFixProduct;
 export const quietSyncHashes=Object.freeze({
-  ".ci/public-assets.json":"6aa754bb5969a8346a30b31d2a6e6e8b97732150be4f2c7a21917a46bbfbc50d",
+  ".ci/public-assets.json":"b39fb3211dbc10d4e829cab8d6e06c40753b5e9d8e678ffbedb380ec40b6a759",
   ".github/scripts/cloudflare-publish.mjs":"a65a15fa31c89048c8b5c6eb455f0ea70b32d9adcdda048d3640cb5c088002ec",
   ".github/scripts/release-policy.mjs":"fac0f436d710f9f7a81bb3e117ce7b193fd6ee6e9e1362a43dd4a235574f3011",
   ".github/workflows/ci.yml":"fb8c9112ad6af67c86eed891466bd6a38af109371100d91d708c97bb7a8bf1c7",
@@ -29,9 +29,9 @@ export const quietSyncHashes=Object.freeze({
   "db/schema.ts":"fccabaae5519e1e00b40cc5718458c071caa614afef3a150e4a64130564ea474",
   "drizzle/meta/_journal.json":"6d716073b710fd3e9b0e7e4b809704fe90d4d9bceea7a6e61e0cac4d17a00084",
   "public/api-docs.html":"9ad53bf4c42769bb4f9e9b80357091385ff6e4e9141480e15347fd38e0c88291",
-  "public/app.js":"3b8b0ebca5037fcf84a09f232b75daf6c7b0c7df3cba7020ac2cc5b2cc6b3db9",
+  "public/app.js":"2749b23d2abe0d87033682beb691ed68334d77ae3268aa554f60ffcce6b9afe5",
   "public/glass.css":"571e37644b7e1e55b039f1d4da2e00173a10b1c91ba00c96148bb2872ae1efba",
-  "public/index.html":"6af31c38c952f29748a80ece80d4bb9c7323e301a57a42995d5941246807fced",
+  "public/index.html":"e780cfe089a3bbdd13bdfa98ab530dbccbf37b54d362b2336ecb5c92c7c8d2e2",
   "public/llms.txt":"e10e7c8d776502752a5df888181948ad40935627e38fdf6469caee32212306be",
   "public/memos.css":"2b655731e5de30606deb9b3183d579b5f01d76f736ca625bdb04453e258ed897",
   "public/mobile.css":"ce1da77686ff4e114139a258c1d2c80bc6f2a844544cea828eccc135d08424a0",
@@ -39,7 +39,7 @@ export const quietSyncHashes=Object.freeze({
   "public/openapi.json":"4848e4f828347735e99a735608c84436efaad79ac7aaa8080d5f7a214adbf3a5",
   "public/robots.txt":"8d387d977fcbea0725809ab62db2afb774ea755fcf35acbae2b63ef6ea680007",
   "public/style.css":"5e74ba0d858b355eee1329d3271fa3c66cbaaaa5bb378f553f3a69a7b374d6ba",
-  "public/sw.js":"6eeb6a3fdf57372a94a03401e340b8c8b7290c5fa00a1f1f67fcca9174dcf7d5",
+  "public/sw.js":"2372d9c798bbe5ef2e107f3da37d3e806c799939d67e796bce5c3e1c4524bbe3",
   "public/tokens.css":"9613bcbaba412086d86e006f8178dcc23682f35bcaf515d9e43f7bc78b75af02",
   "public/workbench.css":"5ce77aca77eb7edd1cac6e4b2b52fd1db3c09323f3c3dcf38804aece949f4279",
   "scripts/build.mjs":"0279068fe4a0a0fcd3910d0ab362896b633dd9ae59762d7d78463858592d18af",
@@ -81,7 +81,7 @@ export const quietSyncHashes=Object.freeze({
   "web/offline/notes.mjs":"8eb418a85bd3e8bd1d2ab5caf3b614fd4c3c586ecd3b9e8340cdc6099449cffd",
   "web/offline/outbox.mjs":"bfb4c95adfbccd68a446e01b0beec7462863834c4e3d8c1cc0c7fbbf31f0d5ab",
   "web/offline/read-only.mjs":"a50637a28f884d37e48f2d31ff9d493aacda079c99a255f4291ad888a4ea4e6e",
-  "web/offline/runtime.mjs":"00ec0750420e426f3b49ea199bd57ff151f3434591badd57e811ec89733f4ca6",
+  "web/offline/runtime.mjs":"4f5459499b5460d6a45aa8970c829d220143f377bc2aa1af4e67e1fdf680c221",
   "web/offline/sw-client.mjs":"b8284c7775cb7fb008c5055b940fcd5d37874f7bcc6d0b54fb9aaeb812bc91d6",
   "web/offline/ui.mjs":"04c51c6af6b450bb905f11a41ad2dd813403890b1b3e9fc95383951416b22daa",
   "web/pages/article-verification.mjs":"5cf3d8419aed6df1527a83135312160b06e219130df70aeec52cff9f8fc1ca62",
