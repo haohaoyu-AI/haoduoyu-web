@@ -9,6 +9,7 @@ on:
         default: 5044ed66af80f9593879453d23c88c3851a06f12
         options:
           # Exact source and Worker bytes verified before registration.
+          - d715770a7753ea70931b330ce297fd566af6f0dd
           - bc8449887e6b88f11b05ccbed13613f2f34e9b57
           - e993885c752e97532214ef14a2fcf32b324bc08c
           - 52f5f32f29526b302e0f58bf3272f2d636f782a4
@@ -75,60 +76,64 @@ jobs:
         working-directory: source
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify committed data trends frontend before regeneration
-        if: inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57'
+        if: inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd'
         working-directory: source
         run: node scripts/frontend-build.mjs --check
       - name: Build accepted Worker without migrations or deployment
         working-directory: source
         run: npm run build
       - name: Verify restored source artifacts
-        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd'
         working-directory: source
         run: npm run check:artifacts
       - name: Verify safe Markdown for reports and daily reminders
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/ai-report-markdown.test.mjs tests/ai-reports-navigation.test.mjs tests/ai-reminder-markdown.test.mjs
       - name: Verify update recovery and draft preservation
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/sw-update-recovery.test.mjs tests/unify-service-worker.test.mjs tests/unify-memo-controller-refresh.test.mjs
       - name: Verify AI report author colors
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/ai-report-author-colors.test.mjs
       - name: Verify mobile navigation cleanup
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test --test-name-pattern='phone bottom navigation|mobile-only stylesheet' tests/unify-mobile.test.mjs
       - name: Verify compact phone calendar layout and navigation
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: |
           node --test tests/mobile-calendar-layout.test.mjs
           node --test --test-name-pattern='compact phone calendar' tests/daily-todos-ui.test.mjs
       - name: Verify compact mobile article review
-        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/mobile-review-layout.test.mjs tests/mobile-review-collapse.test.mjs
       - name: Verify OpenAI review and backup contracts without provider calls
-        if: inputs.run_regression_tests && (inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == '5044ed66af80f9593879453d23c88c3851a06f12' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/openai-review.test.mjs tests/openai-review-ui.test.mjs tests/openai-review-migration-backup.test.mjs tests/openai-review-model-progress.test.mjs tests/openai-review-runtime.test.mjs
       - name: Verify read-only data trends and preserved diagnosis UI
-        if: inputs.run_regression_tests && (inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: |
           node --test tests/review-trends.test.mjs tests/review-analytics.test.mjs tests/content-review-data.test.mjs tests/content-review-ui.test.mjs tests/content-review-v121.test.mjs tests/content-review-v13.test.mjs tests/review-sections-current.test.mjs
           node --test tests/openai-review-connectivity.test.mjs tests/openai-review-observable-ui.test.mjs
           node scripts/verify-data-trends.mjs
       - name: Verify Claude public crawling policy and unchanged API authorization
-        if: inputs.run_regression_tests && (inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57')
+        if: inputs.run_regression_tests && (inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
         working-directory: source
         run: node --test tests/claude-robots.test.mjs tests/static-etags.test.mjs tests/public-business.test.mjs
+      - name: Verify rules hierarchy and prompt version contracts
+        if: inputs.run_regression_tests && (inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd')
+        working-directory: source
+        run: node --test --test-concurrency=1 tests/content-review*.test.mjs tests/review-*.test.mjs tests/mobile-review-*.test.mjs tests/claude-robots.test.mjs
       - name: Verify production release guards
         if: inputs.run_regression_tests
-        run: node --test tests/cloudflare-production-restore.test.mjs tests/cloudflare-publish.test.mjs tests/cloudflare-data-trends-release.test.mjs tests/cloudflare-claude-robots-release.test.mjs tests/cloudflare-claude-trends-release.test.mjs tests/cloudflare-claude-notes-drafts-release.test.mjs
+        run: node --test tests/cloudflare-production-restore.test.mjs tests/cloudflare-publish.test.mjs tests/cloudflare-data-trends-release.test.mjs tests/cloudflare-claude-robots-release.test.mjs tests/cloudflare-claude-trends-release.test.mjs tests/cloudflare-claude-notes-drafts-release.test.mjs tests/cloudflare-review-rules-release.test.mjs
       - name: Verify accepted Worker bytes
         run: node .github/scripts/release-policy.mjs artifact
       - name: Publish existing Worker with inherited bindings

@@ -64,7 +64,16 @@ export const claudeNotesDraftsRelease=Object.freeze({
   baseline:'b0d087c9-0713-45b0-bbed-2cde9e100c16',
   bytes:2857206,sha256:'62994011a7d233ce396248ca9a610f0b1eaa6a374aef9c3d56c157df0cfac2fb',
   label:'production-claude-notes-drafts-20261111'});
-const acceptedRelease=commit=>commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
+// Combined rules/prompts and Claude retained-draft source, with existing live features preserved.
+// Apply and verify the separately reviewed 0021 D1 migration before dispatch.
+export const reviewRulesPromptsRelease=Object.freeze({
+  commit:'d715770a7753ea70931b330ce297fd566af6f0dd',
+  tree:'4281cb471b94c392f823ac595b8f88c805a279a1',
+  baseline:'1a68c912-b532-4719-b4ec-e06afbe7e46a',
+  bytes:2919290,sha256:'a2649c03a40db81773545f2d131ace8bf58ac80b2681b033f331836cb889e436',
+  label:'production-combined-review-rules-claude-drafts-20261111'});
+const acceptedRelease=commit=>commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
+  commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
   commit===claudeTrendsRelease.commit?claudeTrendsRelease:
   commit===claudeRobotsRelease.commit?claudeRobotsRelease:
   commit===dataTrendsRelease.commit?dataTrendsRelease:
