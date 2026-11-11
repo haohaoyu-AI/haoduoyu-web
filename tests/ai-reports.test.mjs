@@ -17,6 +17,7 @@ import {handleAiReports} from '../src/ai-reports.mjs';
 import {limitNoteWrites} from '../src/public-note-access.mjs';
 import {digest,csrfFor,stable} from '../src/security.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
+import {stripEmptyReviewTables} from './todo-backup-projection.mjs';
 
 test('AI reports require the owner session, persist truthful input, and replay without duplication',async t=>{
   const app=await fixture(t),session=await app.login(),owner=app.owner;
@@ -55,7 +56,7 @@ test('AI reports require the owner session, persist truthful input, and replay w
   assert.equal(secondPage.data.items.length,2);assert.equal(secondPage.data.has_more,false);
   assert.equal((await call('?offset=-1','GET',null,auth)).status,400);
   const backup=await exportBackup(app.db,{todoUserId:owner});
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v14');assert.equal(backup.data.tables.ai_reports.length,102);
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v18');assert.equal(backup.data.tables.ai_reports.length,102);
   const bad=structuredClone(backup);bad.data.tables.ai_reports[0].author='';bad.sha256=digest(JSON.stringify(stable(bad.data)));
   const badTarget=await fixture(t,{bootstrap:false});
   await assert.rejects(restoreIntoEmptyDatabase(badTarget.db,bad,{allowEmptyRestore:true}),e=>e.code==='INVALID_BACKUP');
@@ -64,7 +65,7 @@ test('AI reports require the owner session, persist truthful input, and replay w
   await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
   const stored=await target.db.prepare('SELECT author,content,created_at FROM matrix_ai_reports WHERE user_id=? AND id=?').bind(owner,id).first();
   assert.deepEqual({...stored},{author:body.author,content:body.content,created_at:created.data.created_at});
-  const old=structuredClone(backup);old.data.format='haoduoyu-matrix-d1-v13';delete old.data.tables.ai_reports;old.sha256=digest(JSON.stringify(stable(old.data)));
+  const old=structuredClone(backup);stripEmptyReviewTables(old.data);old.data.format='haoduoyu-matrix-d1-v13';delete old.data.tables.ai_reports;old.sha256=digest(JSON.stringify(stable(old.data)));
   const oldTarget=await fixture(t,{bootstrap:false});
   await restoreIntoEmptyDatabase(oldTarget.db,old,{allowEmptyRestore:true});
   assert.equal((await oldTarget.db.prepare('SELECT count(*) AS n FROM matrix_ai_reports').first()).n,0);

@@ -62,7 +62,7 @@ test('v7 HTTP backup scopes template tables while operator restore preserves del
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v17');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v18');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);

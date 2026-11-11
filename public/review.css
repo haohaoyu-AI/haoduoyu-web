@@ -25,7 +25,8 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .shell:has(#content-review.review-list-fullscreen) { z-index:1001; backdrop-filter:none; -webkit-backdrop-filter:none; }
 .content-review.review-list-fullscreen { position:fixed; inset:0; z-index:1000; width:100%; height:100%; max-width:none; padding:20px; overflow:auto; background:var(--color-glass-solid); }
-.content-review.review-list-fullscreen .review-body > :not(.review-articles-panel) { display:none; }
+.content-review.review-list-fullscreen .review-secondary-tabs { display:none; }
+.content-review.review-list-fullscreen .review-secondary-panel { padding:0; border:0; background:transparent; }
 .content-review.review-list-fullscreen .review-articles-panel { min-height:calc(100vh - 40px); }
 .content-review .review-panel-head { justify-content:space-between; margin-bottom:var(--space-20); }
 .content-review .review-panel-head > div > .review-note { margin-top:var(--space-6); }
@@ -381,7 +382,12 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   .content-review .review-benchmark-table tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:16px; background:var(--color-white-a-74); border:1px solid var(--color-divider); border-radius:var(--radius-12); }
   .content-review .review-benchmark-table td { min-width:0; padding:0; border:0; }
   .content-review .review-benchmark-table td::before { content:attr(data-label); display:block; color:var(--color-text-secondary); font-size:11px; margin-bottom:4px; }
-  .content-review .review-benchmark-table td:nth-child(3), .content-review .review-benchmark-table td:last-child { grid-column:1 / -1; }
+  .content-review .review-benchmark-table td:nth-child(2),
+  .content-review .review-benchmark-table td:nth-child(5),
+  .content-review .review-benchmark-table td:nth-child(6) { grid-column:1 / -1; }
+.content-review .review-prompt-card { display:grid; gap:12px; min-width:0; padding:20px; border:1px solid var(--color-divider); border-radius:16px; background:var(--color-white-a-74); }
+.content-review .review-prompt-card + .review-prompt-card { margin-top:16px; }
+.content-review .review-prompt-source { margin:0; max-width:100%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:15px; line-height:1.6; }
   .content-review .review-benchmark-table td:first-child { white-space:normal; }
 }
 @media (max-width:760px) {

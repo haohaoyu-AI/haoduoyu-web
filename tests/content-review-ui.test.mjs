@@ -23,7 +23,7 @@ test('legacy view URLs render an accurate empty state and preserve numeric forma
     const html = renderContentReviewContent(normalizeReviewData(),model(view));
     assert.match(html,/暂无内容复盘数据/);
     assert.doesNotMatch(html,/class="review-stat"|<svg|style=/);
-    assert.equal((html.match(/role="tab" /g) || []).length,3);
+    assert.equal((html.match(/role="tab" /g) || []).length,7);
   }
   assert.equal(reviewNumber(null),'—');
   assert.equal(reviewNumber(0),'0');
@@ -32,10 +32,11 @@ test('legacy view URLs render an accurate empty state and preserve numeric forma
 });
 
 test('overview shows six metrics and only supported secondary sections',() => {
-  const html = renderContentReviewContent(fixture(),{...model(),secondary:'attention'});
+  const html = renderContentReviewContent(fixture(),{...model(),secondary:'cockpit'});
   assert.equal((html.match(/class="review-stat"/g) || []).length,6);
-  assert.match(html,/文章列表/);
-  assert.equal((html.match(/role="tab" /g) || []).length,3);
+  assert.doesNotMatch(html,/文章列表/);
+  assert.match(renderContentReviewContent(fixture(),model('articles')),/文章列表/);
+  assert.equal((html.match(/role="tab" /g) || []).length,7);
   assert.doesNotMatch(html,/第一句结论|第二句不应|data-review-view="daily"|review-alerts|<svg/);
 });
 
@@ -154,7 +155,7 @@ test('references stay visible while health and draft data remain hidden',() => {
   data.accountHealth=[{id:'h',account,judgement:'限流',action:'HIDDEN_HEALTH_ACTION'}];
   data.playbooks=[{id:'draft',account,version:2,status:'draft',content_md:'DRAFT_SECRET',rules:[]},
     {id:'active',account,version:1,status:'active',content_md:'ACTIVE_MANUAL',rules:[]}];
-  const html=renderContentReviewContent(data,model());
+  const html=renderContentReviewContent(data,{...model(),secondary:'articles'});
   assert.match(html,/参考标题/); assert.match(html,/样本标题/);
   assert.doesNotMatch(html,/HIDDEN_HEALTH_ACTION|DRAFT_SECRET/);
   const book=renderContentReviewContent(data,{...model(),secondary:'review'});
@@ -165,7 +166,7 @@ test('unknown references and untrusted sample URLs remain inert; hidden notes st
   const data=fixture(); data.articles[0].reference_article_id='missing'; data.articles[0].sample_title=null; data.articles[0].sample_url=null;
   data.articles[1].sample_title='<unsafe>'; data.articles[1].sample_url='javascript:alert(1)';
   data.notes=[{id:'n',account,title:'<script>',body_md:'<img src=x>'}];
-  const html=renderContentReviewContent(data,{...model(),secondary:'notes'});
+  const html=renderContentReviewContent(data,{...model(),secondary:'articles'});
   assert.match(html,/&lt;unsafe&gt;/);
   assert.doesNotMatch(html,/<script>|<img|href="javascript:|&lt;script&gt;|&lt;img src=x&gt;/);
 });

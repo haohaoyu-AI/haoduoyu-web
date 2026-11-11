@@ -87,7 +87,7 @@ test('0006 adds exactly two memo tables without changing any prior schema/data a
 test('v7 scopes memos by owner and restores hidden children, independent tombstones, receipts and high-water mark exactly',async t=>{
   const db=await database(t),{owner}=await seed(db);
   const full=await exportBackup(db),scoped=await exportBackup(db,{todoUserId:owner});
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v17');assert.equal(Object.keys(full.data.tables).length,37);
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');assert.equal(Object.keys(full.data.tables).length,38);
   assert.equal(scoped.data.tables.memo_groups.length,1);assert.equal(scoped.data.tables.memo_notes.length,2);
   assert.ok(!JSON.stringify([scoped.data.tables.memo_groups,scoped.data.tables.memo_notes]).includes('OTHER-MEMO-CANARY'));
   assert.ok(scoped.data.tables.memo_groups[0].deleted_at);
@@ -95,7 +95,7 @@ test('v7 scopes memos by owner and restores hidden children, independent tombsto
   const inventory=await createSourceInventory(db),target=await database(t);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
   await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
-  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:37,reset_tables:3});
+  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:38,reset_tables:3});
   for(const name of ['memo_groups','memo_notes','todos','daily_notes','idempotency'])
     assert.deepEqual(await rows(target,name),await rows(db,name),name);
   assert.equal((await target.prepare('SELECT revision FROM matrix_control').first()).revision,100);

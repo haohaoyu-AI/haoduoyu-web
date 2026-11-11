@@ -8268,8 +8268,7 @@ function openTodoMenu({ target, id: id2, date, anchor }) {
   const attributes = `data-id="${e(id2)}" data-date="${e(date)}" data-owner="${e(owner2)}" role="menuitem"`;
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
-  popover(trigger, `<button data-action="todo-note" ${attributes}>${item.note ? "编辑备注" : "添加备注"}</button>
-<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
 function openTodoNote(options4) {
@@ -8726,8 +8725,7 @@ function todoRow(item, day6) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day6.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${item.note ? `<p class="todo-note-text">备注：${e(item.note)}</p>` : ""}
-
+<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day6.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -10234,7 +10232,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><section id="daily-score" class="daily-score" aria-label="今日打分"><span class="daily-score-label" id="daily-score-label">今日打分</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -10523,6 +10521,7 @@ init_conflict_draft_guards();
 init_retained_drafts();
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
 var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @__PURE__ */ new Map(), historySequence = 0;
+var scoreByDate = /* @__PURE__ */ new Map(), scoreRecord = { date: "", score: null, version: 0, status: "", saveId: "", pending: null, canEdit: false };
 var historyActiveLoad = null;
 var notesSelectedLabel = "生活", notesLabels = [], notesArchivedLabels = [], notesLabelsVerified = false, notesLabelIntent = null, notesArchiveIntent = null, notesLabelBusy = false, notesLabelMessage = "", notesLabelSequence = 0;
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
@@ -11080,7 +11079,7 @@ async function readMixedNotes(date) {
   ensureDailyNotesStore();
   for (const category of ["life", "work"]) ensureDailyNotesStore(category, false);
   const pairs = ["life", "work"].map((category) => ({ category, legacy: notesStores.get(category), entries: entryStores.get(category) }));
-  await Promise.all(pairs.flatMap(({ legacy, entries }) => [legacy.read(date), entries.read(date)]));
+  await Promise.all([...pairs.flatMap(({ legacy, entries }) => [legacy.read(date), entries.read(date)]), readDailyScore(date, expected)]);
   if (expected !== notesIdentityNow()) return;
   await Promise.all(pairs.map(({ category, legacy, entries }) => hydrateNotesDrafts(legacy, entries, category)));
   if (expected === notesIdentityNow() && date === dailyNotesRouteDate()) paintDailyNotesPage();
@@ -11101,6 +11100,7 @@ function joinNotesErrors(values) {
 }
 function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
+  paintDailyScore();
   if (!notesVisible() || notesRefreshPaused) return;
   const root2 = document.querySelector("#daily-notes");
   if (!root2 || !notesStore || !entryStore) return;
@@ -11280,6 +11280,50 @@ async function createNoteLabel(root2) {
     if (expected === notesIdentityNow()) paintDailyNotesPage();
   }
 }
+function paintDailyScore() {
+  const root2 = document.querySelector("#daily-score");
+  if (!root2) return;
+  const date = scoreRecord.date || dailyNotesRouteDate();
+  const label3 = root2.querySelector("#daily-score-label");
+  if (label3) label3.textContent = date === dailyNotesToday() ? "今日打分" : date + " 打分";
+  for (const button2 of root2.querySelectorAll("[data-daily-score]")) {
+    button2.setAttribute("aria-pressed", String(Number(button2.dataset.dailyScore) === scoreRecord.score));
+    button2.disabled = scoreRecord.canEdit === false || scoreRecord.pending != null;
+  }
+  const status = root2.querySelector("#daily-score-status");
+  if (status) status.textContent = scoreRecord.status || (scoreRecord.score ? scoreRecord.score + " 分" : "");
+}
+async function readDailyScore(date, expected = notesIdentityNow()) {
+  try {
+    const data2 = await api("/daily-scores?date=" + encodeURIComponent(date));
+    if (expected !== notesIdentityNow() || date !== dailyNotesRouteDate()) return;
+    scoreRecord = { date, score: data2.score ?? null, version: data2.version || 0, status: "", saveId: "", pending: null, canEdit: data2.can_edit !== false };
+    if (data2.score != null) scoreByDate.set(date, data2.score);
+  } catch (error) {
+    if (expected === notesIdentityNow()) scoreRecord = { date, score: null, version: 0, status: error.message || "打分读取失败", saveId: "", pending: null, canEdit: false };
+  }
+  paintDailyScore();
+}
+async function saveDailyScore(date, score) {
+  if (!Number.isInteger(score) || score < 1 || score > 10 || scoreRecord.canEdit === false) return;
+  const current3 = scoreRecord.date === date ? scoreRecord : { date, score: null, version: 0, saveId: "", canEdit: true };
+  const saveId = current3.pending === score && current3.saveId ? current3.saveId : crypto.randomUUID();
+  scoreRecord = { ...current3, date, status: "保存中…", saveId, pending: score };
+  paintDailyScore();
+  const expected = notesIdentityNow();
+  try {
+    const saved = await api("/daily-scores/" + date, { method: "PUT", body: { score, version: current3.version || 0, save_id: saveId } });
+    if (expected !== notesIdentityNow()) return;
+    scoreRecord = { date, score: saved.score, version: saved.version, status: "已保存", saveId: "", pending: null, canEdit: saved.can_edit !== false };
+    scoreByDate.set(date, saved.score);
+  } catch (error) {
+    if (expected !== notesIdentityNow()) return;
+    if (error.status === 409) await readDailyScore(date, expected);
+    if (expected !== notesIdentityNow()) return;
+    scoreRecord = { ...scoreRecord, status: error.message || "保存失败，可再点一次", pending: null, saveId };
+  }
+  paintDailyScore();
+}
 function monthTime(value) {
   return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)) : "";
 }
@@ -11301,13 +11345,20 @@ function makeMonthCard(date, items, selected) {
     button2.classList.add("is-empty");
     return button2;
   }
+  const score = scoreByDate.get(date);
   button2.dataset.notesHistoryDay = date;
   button2.setAttribute("aria-pressed", String(date === selected));
-  button2.setAttribute("aria-label", date + "，" + items.length + " 条记录");
+  button2.setAttribute("aria-label", date + "，" + items.length + " 条记录" + (score ? "，" + score + " 分" : ""));
   const heading = document.createElement("span");
   heading.className = "notes-calendar-day-heading";
   heading.textContent = String(Number(date.slice(8)));
   button2.append(heading);
+  if (score) {
+    const mark = document.createElement("span");
+    mark.className = "notes-score-mark";
+    mark.textContent = score + "分";
+    button2.append(mark);
+  }
   return button2;
 }
 function paintHistoryRows(root2) {
@@ -11348,13 +11399,15 @@ function paintHistoryRows(root2) {
       section.className = "notes-timeline-day";
       const heading = document.createElement("h3");
       heading.className = "notes-timeline-date";
-      heading.textContent = date;
+      heading.textContent = date + (scoreByDate.get(date) ? " · " + scoreByDate.get(date) + "分" : "");
       section.append(heading, ...items.map(card));
       return section;
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown);
-    list2.replaceChildren(...rows.map(card));
+    const dayScore = scoreByDate.get(selected);
+    const scoreLine = dayScore ? Object.assign(document.createElement("p"), { className: "notes-score-mark", textContent: selected + " 打分 " + dayScore }) : null;
+    list2.replaceChildren(...[scoreLine, ...rows.map(card)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
   root2.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
@@ -11391,6 +11444,13 @@ async function loadHistory(month = "", chosenDate = "") {
       { headers: { "X-Note-Labels-Version": "3" } }
     );
     const days = checkedNoteMonth(value, target);
+    if (!active5()) return;
+    try {
+      const scored = await api("/daily-scores?month=" + encodeURIComponent(target));
+      if (active5() && scored?.month === target && Array.isArray(scored.items))
+        scoreByDate = new Map(scored.items.map((item) => [item.date, item.score]));
+    } catch {
+    }
     if (!active5()) return;
     applyHistoryMonth(root2, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
@@ -11498,9 +11558,13 @@ async function handleEntryAction(target, entries) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root2 = document.querySelector("#daily-notes");
-  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order]");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-daily-score]");
   if (!target || !root2?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.dailyScore) {
+    await saveDailyScore(dailyNotesRouteDate(), Number(target.dataset.dailyScore));
+    return;
+  }
   if (target.dataset.historyOrder) {
     root2.dataset.historyOrder = target.dataset.historyOrder === "asc" ? "desc" : "asc";
     if (historyMonth) paintHistoryRows(root2);
@@ -15030,7 +15094,7 @@ function safeUrl2(value) {
 }
 function number2(value) {
   const n = finiteNumber(value);
-  if (n === null || n < 0) return "—";
+  if (n === null || n < 0) return "";
   return n >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
 function articleLink(article, account) {
@@ -15038,34 +15102,52 @@ function articleLink(article, account) {
   const local = `?page=review&account=${encodeURIComponent(account)}&review_article=${encodeURIComponent(article.id)}`;
   return `<a href="${e(external2 || local)}"${external2 ? ' target="_blank" rel="noopener noreferrer"' : ""}>${e(article.title || "未命名文章")}</a>`;
 }
+function latestSnapshot(snapshots2, articleId) {
+  return (snapshots2 || []).filter((row) => String(row.article_id) === String(articleId)).sort((a, b) => String(b.snapshot_date || "").localeCompare(String(a.snapshot_date || "")))[0] || null;
+}
+function metricText(snapshot) {
+  if (!snapshot) return "—";
+  const parts2 = [];
+  for (const [label3, key2] of [["阅读", "reads"], ["点赞", "likes"], ["评论", "comments"], ["收藏", "favorites"], ["分享", "shares"], ["展现", "impressions"]]) {
+    const text = number2(snapshot[key2]);
+    if (text) parts2.push(`${label3} ${text}`);
+  }
+  const ctr = finiteNumber(snapshot.ctr);
+  if (ctr !== null && ctr >= 0) parts2.push(`点击率 ${ctr.toFixed(1)}%`);
+  return parts2.length ? parts2.join(" · ") : "—";
+}
 function renderBenchmarkLibrary(data2 = {}, account = "") {
   const accounts = new Map((data2.benchmarkAccounts || []).filter((item) => item.account === account).map((item) => [String(item.id), item]));
   const ownArticles = (data2.articles || []).filter((item) => item.account === account);
-  const rows = (data2.benchmarkArticles || []).filter((item) => item.account === account && accounts.has(String(item.benchmark_account_id))).map((item) => ({ item, published: reviewDateTime(item.published_at) })).sort((a, b) => {
+  const samples = (data2.benchmarkArticles || []).filter((item) => item.account === account && accounts.has(String(item.benchmark_account_id))).map((item) => ({
+    item,
+    published: reviewDateTime(item.published_at),
+    used: ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id))
+  })).filter((row) => row.used.length).sort((a, b) => {
     const dayOrder = b.published.slice(0, 10).localeCompare(a.published.slice(0, 10));
     if (dayOrder) return dayOrder;
     const aTimed = a.published.length > 10, bTimed = b.published.length > 10;
     return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
   });
-  if (!rows.length) return '<section class="review-benchmark-library"><h3>爆文库</h3><p class="review-note">暂无爆文</p></section>';
-  const headers = ["发布时间", "账号", "标题", "阅读", "配图数", "收录日期", "已仿"];
-  const body2 = rows.map(({ item, published }) => {
+  if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
+  const headers = ["对标账号", "样本标题", "样本阅读", "仿写账号", "仿写标题", "仿写数据"];
+  const body2 = samples.flatMap(({ item, used }) => used.map((article, index) => {
     const owner2 = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl2(item.url);
     const title = e(item.title || "未命名文章");
-    const used = ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id));
+    const reads2 = number2(item.reads);
     const cells = [
-      e(published || "未知"),
       e(owner2.name || "未命名账号"),
       target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
-      e(number2(item.reads)),
-      e(number2(item.image_count)),
-      e(reviewDateTime(item.collected_on) || "未知"),
-      used.length ? used.map((article) => articleLink(article, account)).join("") : "—"
+      e(reads2 || "—"),
+      e(article.account || account),
+      articleLink(article, account),
+      e(metricText(latestSnapshot(data2.snapshots, article.id)))
     ];
-    return `<tr id="review-benchmark-${e(encodeURIComponent(item.id))}" tabindex="-1">${cells.map((cell, index) => `<td data-label="${headers[index]}">${cell}</td>`).join("")}</tr>`;
-  }).join("");
-  return `<section class="review-benchmark-library"><h3>爆文库</h3><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body2}</tbody></table></div></section>`;
+    const id2 = index === 0 ? ` id="review-benchmark-${e(encodeURIComponent(item.id))}"` : "";
+    return `<tr${id2} tabindex="-1">${cells.map((cell, cellIndex) => `<td data-label="${headers[cellIndex]}">${cell}</td>`).join("")}</tr>`;
+  })).join("");
+  return `<section class="review-benchmark-library"><h2>爆文库</h2><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body2}</tbody></table></div></section>`;
 }
 
 // web/core/review-list-observation.mjs
@@ -15187,7 +15269,14 @@ function collapsed(title, body2, id2 = "") {
     title
   )}</summary>${body2}</details>`;
 }
-var REVIEW_SECTIONS = [["benchmarks", "对标账号"], ["review", "规则"], ["trends", "数据趋势"]];
+var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["trends", "数据趋势"], ["library", "爆文库"]];
+function activeSection(vm4) {
+  const raw = vm4.secondary === "review" ? "rules" : vm4.secondary;
+  if (REVIEW_SECTIONS.some(([id2]) => id2 === raw)) return raw;
+  if (vm4.view === "articles") return "articles";
+  if (vm4.view === "playbook") return "rules";
+  return "cockpit";
+}
 function v13Accounts(data2) {
   const accounts = data2.benchmarkAccounts || [];
   if (!accounts.length) return empty2("暂无对标账号");
@@ -15207,20 +15296,26 @@ function v13Accounts(data2) {
     return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
   }).join("");
 }
-function archives(data2, vm4) {
-  const selected = REVIEW_SECTIONS.some(([id2]) => id2 === vm4.secondary) ? vm4.secondary : "benchmarks";
-  const body2 = selected === "trends" ? renderReviewTrends(data2, vm4) : selected === "review" ? playbook(data2, vm4) : v13Accounts(data2) + renderBenchmarkLibrary(data2, vm4.account);
-  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body2}</div></section>`;
+function sectionBody(selected, data2, vm4, rows) {
+  if (selected === "articles") return articleListPanel(rows, vm4, data2);
+  if (selected === "benchmarks") return v13Accounts(data2);
+  if (selected === "rules") return playbook(data2, vm4);
+  if (selected === "prompts") return promptPage(data2, vm4);
+  if (selected === "trends") return renderReviewTrends(data2, vm4);
+  if (selected === "library") return renderBenchmarkLibrary(data2, vm4.account);
+  return overview(data2, vm4);
+}
+function archives(data2, vm4, rows, override) {
+  const selected = activeSection(vm4);
+  const body2 = override ?? sectionBody(selected, data2, vm4, rows);
+  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body2}</div></section>`;
 }
 function overview(data2, vm4) {
-  const rows = enrichArticles(data2, { account: vm4.account });
   const range = ["this", "last"].includes(vm4.filters?.metricsRange) ? vm4.filters.metricsRange : "this";
   const current3 = reviewOverviewMetrics(data2, { account: vm4.account, range, now: vm4.now || (/* @__PURE__ */ new Date()).toISOString() });
   const noSample = range !== "last" && current3.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
-  const articlePanel = articleListPanel(rows, vm4, data2);
-  return cards + articlePanel + archives(data2, vm4, "", [], []);
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
 }
 function articleListPanel(rows, vm4, data2) {
   const expanded = Boolean(vm4.articlesExpanded);
@@ -15331,30 +15426,34 @@ function renderRuleBook(book, scope) {
     <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
     ${intro}${groups}${other}</section>`;
 }
-function promptList(prompts, scope) {
-  const items = prompts.filter((prompt) => prompt.scope === scope);
-  if (!items.length) return "";
-  return `<div class="review-current-prompts"><h3>当前提示词</h3>${items.map((prompt) => `
-    <details class="review-current-prompt">
-      <summary><span>${e(prompt.title || prompt.prompt_key)}</span><span class="review-note">v${e(prompt.version)}</span></summary>
-      <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || "未记录")} · 上海时间</p>
-      <div class="review-prompt-copy-actions">
-        <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
-        <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
-      </div>
-      <div class="review-markdown">${renderReviewMarkdown(prompt.content_md)}</div>
-    </details>`).join("")}</div>`;
+var promptKindLabels = { longform_write: "写文章", image: "配图", weitoutiao_write: "微头条", transfer_chat: "转写" };
+function promptPage(data2, vm4) {
+  const order = ["longform_write", "image", "weitoutiao_write", "transfer_chat"];
+  const prompts = currentPrompts(data2.prompts, vm4.account).slice().sort((a, b) => {
+    const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
+    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.scope).localeCompare(String(b.scope), "zh") || String(a.prompt_key).localeCompare(String(b.prompt_key), "zh");
+  });
+  if (!prompts.length) return empty2("暂无生效提示词", "当前账号还没有可复制的完整提示词。");
+  return `<div class="review-prompt-page">${prompts.map((prompt) => `<article class="review-prompt-card">
+    <div class="review-v13-rule-meta"><h2>${e(promptKindLabels[prompt.prompt_key] || prompt.title || prompt.prompt_key)}</h2>
+    <span class="review-note">${e([prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "))}</span></div>
+    <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || "未记录")} · 上海时间</p>
+    <div class="review-prompt-copy-actions">
+      <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
+      <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
+    </div>
+    <pre class="review-prompt-source">${e(prompt.content_md || "")}</pre>
+  </article>`).join("")}</div>`;
 }
 function playbook(data2, vm4) {
   const books = currentPlaybooks(data2.playbooks, vm4.account);
-  const prompts = currentPrompts(data2.prompts, vm4.account);
   const layers = applicableScopes(vm4.account).map((scope) => {
     const matches2 = books.filter((book) => book.rules.some((rule) => scopeOf(rule.scope ?? book.account) === scope) || scopeOf(book.account) === scope);
-    if (!matches2.length && !prompts.some((prompt) => prompt.scope === scope)) return "";
+    if (!matches2.length) return "";
     const layerRules = matches2.flatMap((book) => book.rules.filter((rule) => scopeOf(rule.scope ?? book.account) === scope));
     return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm4.account) ? " open" : ""}>
       <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
-      ${matches2.map((book) => renderRuleBook(book, scope)).join("")}${promptList(prompts, scope)}</details>`;
+      ${matches2.map((book) => renderRuleBook(book, scope)).join("")}</details>`;
   }).join("");
   return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty2("暂无生效手册");
 }
@@ -15392,8 +15491,9 @@ function renderContentReviewContent(data2, vm4) {
   if (vm4.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm4.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm4.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key2) => (data2[key2] || []).length);
-  const noDataPanel = "";
-  const body2 = hasData ? overview(data2, vm4) : noDataPanel + empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' + archives(data2, vm4);
+  const selected = activeSection(vm4);
+  const quiet = !hasData && selected !== "trends";
+  const body2 = archives(data2, vm4, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
   return `<div class="review-body"${vm4.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm4)}`;
 }
 
@@ -15415,7 +15515,7 @@ var data = normalizeReviewData(), sequence5 = 0, registered5 = false, identity6 
 var vm3 = {
   account: "V字",
   view: "overview",
-  secondary: "benchmarks",
+  secondary: "cockpit",
   week: "this",
   date: "",
   start: "",
@@ -15493,7 +15593,7 @@ function reviewRoute(href, defaultAccount = vm3.account) {
   const view = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
   const section = p.get("review_section");
   const benchmark = p.get("review_benchmark") || "";
-  const secondary = benchmark ? "benchmarks" : REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : ["notes", "playbook"].includes(section) || view === "playbook" ? "review" : "benchmarks";
+  const secondary = benchmark ? "library" : REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : section === "review" || section === "playbook" || view === "playbook" ? "rules" : view === "articles" ? "articles" : "cockpit";
   const trendRange = p.get("review_trend_range");
   const trends = {
     range: ["7d", "30d", "custom"].includes(trendRange) ? trendRange : "30d",
@@ -15671,15 +15771,15 @@ function changeTrend(target) {
 async function copyReviewPrompt(prompts, account, id2, clipboard = globalThis.navigator?.clipboard) {
   const prompt = currentPrompts(prompts, account).find((row) => String(row.id) === String(id2));
   if (!prompt) throw new Error("提示词已更新，请重新读取后复制。");
-  if (!clipboard?.writeText) throw new Error("当前浏览器不支持剪贴板，请展开提示词后手动复制。");
+  if (!clipboard?.writeText) throw new Error("当前浏览器不支持剪贴板，请从页面上的全文手动复制。");
   try {
     await clipboard.writeText(String(prompt.content_md || ""));
   } catch {
-    throw new Error("复制失败，请允许剪贴板访问，或展开提示词后手动复制。");
+    throw new Error("复制失败，请允许剪贴板访问，或从页面上的全文手动复制。");
   }
 }
 async function copyPromptButton(button2) {
-  const status = button2.closest(".review-current-prompt")?.querySelector("[data-prompt-copy-status]");
+  const status = button2.closest(".review-prompt-card, .review-current-prompt")?.querySelector("[data-prompt-copy-status]");
   button2.disabled = true;
   if (status) status.textContent = "正在复制…";
   try {
@@ -15729,9 +15829,9 @@ function registerEvents2() {
     if (benchmarkLink && node2?.contains(benchmarkLink)) {
       event.preventDefault();
       vm3.article = "";
-      vm3.secondary = "benchmarks";
+      vm3.secondary = "library";
       vm3.benchmark = benchmarkLink.dataset.reviewBenchmark;
-      writeRoute({ section: "benchmarks", article: "", benchmark: vm3.benchmark });
+      writeRoute({ section: "library", article: "", benchmark: vm3.benchmark });
       paintContentReviewPage();
       focusBenchmark(vm3.benchmark);
       return;
@@ -15877,7 +15977,7 @@ function registerEvents2() {
     }
     if (event.target.matches("[data-review-secondary]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
       event.preventDefault();
-      const ids = REVIEW_SECTIONS.map(([id2]) => id2), index = ids.indexOf(vm3.secondary);
+      const ids = REVIEW_SECTIONS.map(([id2]) => id2), current3 = vm3.secondary === "review" ? "rules" : vm3.secondary, index = Math.max(0, ids.indexOf(current3));
       vm3.secondary = event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length];
       vm3.benchmark = "";
       writeRoute({ section: vm3.secondary, benchmark: "" });

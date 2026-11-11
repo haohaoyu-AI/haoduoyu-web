@@ -4,7 +4,7 @@ import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 
 const now = '2026-11-02T04:00:00Z';
-const vm = range => ({account:'A',now,filters:{range:'all',metricsRange:range},secondary:'benchmarks',article:'',loading:false,error:''});
+const vm = range => ({account:'A',now,filters:{range:'all',metricsRange:range},secondary:'cockpit',article:'',loading:false,error:''});
 const render = (snapshots, range = '24h') => renderContentReviewContent(normalizeReviewData({articles:[{id:'a',account:'A',title:'a',published_at:'2026-11-02T03:00:00Z'}],snapshots}),vm(range));
 const cards = html => html.match(/<section class="review-overview-metrics"[\s\S]*?<\/section>/)?.[0] || '';
 

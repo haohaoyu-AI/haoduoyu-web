@@ -18,6 +18,7 @@ let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
 let notesView = 'today', historyMonth = '', historyDate = '', historyDays = new Map(), historySequence = 0;
+let scoreByDate = new Map(), scoreRecord = {date:'', score:null, version:0, status:'', saveId:'', pending:null, canEdit:false};
 let historyActiveLoad = null;
 let notesSelectedLabel = '生活', notesLabels = [], notesArchivedLabels = [], notesLabelsVerified = false,
   notesLabelIntent = null, notesArchiveIntent = null, notesLabelBusy = false, notesLabelMessage = '', notesLabelSequence = 0;
@@ -404,7 +405,7 @@ async function readMixedNotes(date) {
   ensureDailyNotesStore();
   for (const category of ['life', 'work']) ensureDailyNotesStore(category, false);
   const pairs = ['life', 'work'].map(category => ({category, legacy: notesStores.get(category), entries: entryStores.get(category)}));
-  await Promise.all(pairs.flatMap(({legacy, entries}) => [legacy.read(date), entries.read(date)]));
+  await Promise.all([...pairs.flatMap(({legacy, entries}) => [legacy.read(date), entries.read(date)]), readDailyScore(date, expected)]);
   if (expected !== notesIdentityNow()) return;
   await Promise.all(pairs.map(({category, legacy, entries}) => hydrateNotesDrafts(legacy, entries, category)));
   if (expected === notesIdentityNow() && date === dailyNotesRouteDate()) paintDailyNotesPage();
@@ -427,6 +428,7 @@ export function joinNotesErrors(values) {
 }
 export function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
+  paintDailyScore();
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   if (!root || !notesStore || !entryStore) return;
@@ -556,6 +558,50 @@ async function createNoteLabel(root) {
     if (expected === notesIdentityNow()) notesLabelMessage = '添加失败，输入已保留，可重试：' + (error.message || '请联网后重试。');
   } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
 }
+function paintDailyScore() {
+  const root = document.querySelector('#daily-score');
+  if (!root) return;
+  const date = scoreRecord.date || dailyNotesRouteDate();
+  const label = root.querySelector('#daily-score-label');
+  if (label) label.textContent = date === dailyNotesToday() ? '今日打分' : date + ' 打分';
+  for (const button of root.querySelectorAll('[data-daily-score]')) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.dailyScore) === scoreRecord.score));
+    button.disabled = scoreRecord.canEdit === false || scoreRecord.pending != null;
+  }
+  const status = root.querySelector('#daily-score-status');
+  if (status) status.textContent = scoreRecord.status || (scoreRecord.score ? scoreRecord.score + ' 分' : '');
+}
+async function readDailyScore(date, expected = notesIdentityNow()) {
+  try {
+    const data = await api('/daily-scores?date=' + encodeURIComponent(date));
+    if (expected !== notesIdentityNow() || date !== dailyNotesRouteDate()) return;
+    scoreRecord = {date, score:data.score ?? null, version:data.version || 0, status:'', saveId:'', pending:null, canEdit:data.can_edit !== false};
+    if (data.score != null) scoreByDate.set(date, data.score);
+  } catch (error) {
+    if (expected === notesIdentityNow()) scoreRecord = {date, score:null, version:0, status:error.message || '打分读取失败', saveId:'', pending:null, canEdit:false};
+  }
+  paintDailyScore();
+}
+async function saveDailyScore(date, score) {
+  if (!Number.isInteger(score) || score < 1 || score > 10 || scoreRecord.canEdit === false) return;
+  const current = scoreRecord.date === date ? scoreRecord : {date, score:null, version:0, saveId:'', canEdit:true};
+  const saveId = current.pending === score && current.saveId ? current.saveId : crypto.randomUUID();
+  scoreRecord = {...current, date, status:'保存中…', saveId, pending:score};
+  paintDailyScore();
+  const expected = notesIdentityNow();
+  try {
+    const saved = await api('/daily-scores/' + date, {method:'PUT', body:{score, version:current.version || 0, save_id:saveId}});
+    if (expected !== notesIdentityNow()) return;
+    scoreRecord = {date, score:saved.score, version:saved.version, status:'已保存', saveId:'', pending:null, canEdit:saved.can_edit !== false};
+    scoreByDate.set(date, saved.score);
+  } catch (error) {
+    if (expected !== notesIdentityNow()) return;
+    if (error.status === 409) await readDailyScore(date, expected);
+    if (expected !== notesIdentityNow()) return;
+    scoreRecord = {...scoreRecord, status:error.message || '保存失败，可再点一次', pending:null, saveId};
+  }
+  paintDailyScore();
+}
 function monthTime(value) {
   return value && Number.isFinite(Date.parse(value)) ?
     new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)) : '';
@@ -569,10 +615,12 @@ function monthOptions(select, values, current, allLabel) {
 function makeMonthCard(date, items, selected) {
   const button = document.createElement('button'); button.type = 'button'; button.className = 'notes-calendar-day';
   if (!date) { button.disabled = true; button.classList.add('is-empty'); return button; }
+  const score = scoreByDate.get(date);
   button.dataset.notesHistoryDay = date; button.setAttribute('aria-pressed', String(date === selected));
-  button.setAttribute('aria-label', date + '，' + items.length + ' 条记录');
+  button.setAttribute('aria-label', date + '，' + items.length + ' 条记录' + (score ? '，' + score + ' 分' : ''));
   const heading = document.createElement('span'); heading.className = 'notes-calendar-day-heading';
   heading.textContent = String(Number(date.slice(8))); button.append(heading);
+  if (score) { const mark = document.createElement('span'); mark.className = 'notes-score-mark'; mark.textContent = score + '分'; button.append(mark); }
   return button;
 }
 function paintHistoryRows(root) {
@@ -608,12 +656,15 @@ function paintHistoryRows(root) {
     rows = groups.flatMap(([, items]) => items);
     list.replaceChildren(...groups.map(([date, items]) => {
       const section = document.createElement('section'); section.className = 'notes-timeline-day';
-      const heading = document.createElement('h3'); heading.className = 'notes-timeline-date'; heading.textContent = date;
+      const heading = document.createElement('h3'); heading.className = 'notes-timeline-date';
+      heading.textContent = date + (scoreByDate.get(date) ? ' · ' + scoreByDate.get(date) + '分' : '');
       section.append(heading, ...items.map(card)); return section;
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown);
-    list.replaceChildren(...rows.map(card));
+    const dayScore = scoreByDate.get(selected);
+    const scoreLine = dayScore ? Object.assign(document.createElement('p'), {className:'notes-score-mark', textContent:selected + ' 打分 ' + dayScore}) : null;
+    list.replaceChildren(...[scoreLine, ...rows.map(card)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
   root.querySelector('#notes-history-summary').textContent = historyMonth + ' · ' + total + ' 条已同步记录';
@@ -646,6 +697,12 @@ async function loadHistory(month = '', chosenDate = '') {
     const value = await apiNetwork('/note-entries/month?month=' + encodeURIComponent(target),
       {headers:{'X-Note-Labels-Version':'3'}});
     const days = checkedNoteMonth(value, target); if (!active()) return;
+    try {
+      const scored = await api('/daily-scores?month=' + encodeURIComponent(target));
+      if (active() && scored?.month === target && Array.isArray(scored.items))
+        scoreByDate = new Map(scored.items.map(item => [item.date, item.score]));
+    } catch { /* 月份分数缺失时仍显示碎碎念。 */ }
+    if (!active()) return;
     applyHistoryMonth(root, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active()) return;
@@ -740,9 +797,10 @@ async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
-    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order]');
+    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-daily-score]');
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.dailyScore) { await saveDailyScore(dailyNotesRouteDate(), Number(target.dataset.dailyScore)); return; }
   if (target.dataset.historyOrder) {
     root.dataset.historyOrder = target.dataset.historyOrder === 'asc' ? 'desc' : 'asc';
     if (historyMonth) paintHistoryRows(root); return;

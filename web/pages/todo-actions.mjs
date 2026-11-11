@@ -30,8 +30,7 @@ function openTodoMenu({ target, id, date, anchor }) {
   const attributes = `data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(owner)}" role="menuitem"`;
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
-  popover(trigger, `<button data-action="todo-note" ${attributes}>${item.note ? '编辑备注' : '添加备注'}</button>
-<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
 function openTodoNote(options) {

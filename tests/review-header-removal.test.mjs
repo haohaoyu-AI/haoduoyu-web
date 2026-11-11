@@ -4,7 +4,7 @@ import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 
 const data = normalizeReviewData({articles:[{id:'a',account:'A',title:'Article',published_at:'2026-11-02T03:00:00Z'}]});
-const vm = {account:'A',now:'2026-11-02T04:00:00Z',filters:{},secondary:'benchmarks',article:'',loading:false,error:''};
+const vm = {account:'A',now:'2026-11-02T04:00:00Z',filters:{},secondary:'cockpit',article:'',loading:false,error:''};
 
 test('review begins with metrics and keeps refresh without a header block', () => {
   const html = renderContentReviewContent(data,vm);

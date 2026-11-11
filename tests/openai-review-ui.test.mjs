@@ -71,7 +71,7 @@ test('public-business and signed-in sessions use OpenAI while absent and nonconf
 });
 
 test('content review no longer contains a duplicate API entry',()=>{
-  const vm={account:'V字',filters:{},secondary:'benchmarks'},data=normalizeReviewData({articles:[{id:'article',account:'V字',title:'示例'}]});
+  const vm={account:'V字',filters:{},secondary:'articles'},data=normalizeReviewData({articles:[{id:'article',account:'V字',title:'示例'}]});
   const html=renderContentReviewContent(data,vm);
   assert.doesNotMatch(html,/id="openai-review-panel"/);
   assert.match(html,/data-review-articles-expanded="false"/);

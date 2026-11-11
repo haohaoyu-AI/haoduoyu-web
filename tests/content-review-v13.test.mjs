@@ -6,7 +6,7 @@ import {reviewRoute} from '../web/review-controller.mjs';
 
 // Synthetic records only. The UTC publication times straddle Shanghai midnight.
 const account = 'V字', other = '其他账号';
-const vm = extra => ({account, view:'overview', secondary:'benchmarks',
+const vm = extra => ({account, view:'overview', secondary:'cockpit',
   now:'2026-11-02T04:00:00Z', filters:{range:'all'}, article:'', loading:false, error:'', ...extra});
 const htmlFor = (input, extra) => renderContentReviewContent(normalizeReviewData(input), vm(extra));
 const names = ['浅黑科技','首席商业洞察','人工智能学家'];
@@ -109,7 +109,7 @@ test('statistics range offers only weeks and falls back from old or invalid valu
 });
 
 test('article list links its references and detail renders recorded traffic fields', () => {
-  const input=fixture(), html=htmlFor(input);
+  const input=fixture(), html=htmlFor(input,{secondary:'articles'});
   for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,4);
   const a=row(html,'own-a'), b=row(html,'own-b'), u=row(html,'unknown');
   assert.match(a,/review-reference[\s\S]*https:\/\/example\.com\/reference\/0/);
@@ -128,14 +128,17 @@ test('benchmark accounts show current-account features and benchmark library', (
   input.benchmarkAccounts[0].title_patterns=['TITLE_FEATURE'];
   input.benchmarkAccounts[0].structure_notes_md='STRUCTURE_FEATURE';
   const html=htmlFor(input,{secondary:'benchmarks'});
-  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['benchmarks','review','trends']);
-  assert.equal((html.match(/data-review-secondary=/g)||[]).length,3);
+  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['cockpit','articles','benchmarks','rules','prompts','trends','library']);
+  assert.equal((html.match(/data-review-secondary=/g)||[]).length,7);
   assert.equal((html.match(/class="review-v13-benchmark-group"/g)||[]).length,3);
   for (const name of names) assert.ok(html.includes(name),name);
   for (const feature of ['TOPIC_FEATURE','TITLE_FEATURE','STRUCTURE_FEATURE']) assert.ok(html.includes(feature));
-  assert.match(html,/class="review-benchmark-library"/);
-  assert.match(html,/id="review-benchmark-ref-0"/);
+  assert.doesNotMatch(html,/class="review-benchmark-library"/);
+  const library=htmlFor(input,{secondary:'library'});
+  assert.match(library,/class="review-benchmark-library"/);
+  assert.match(library,/id="review-benchmark-ref-0"/);
   assert.doesNotMatch(html,/FOREIGN_/);
+  assert.doesNotMatch(library,/FOREIGN_/);
 });
 
 test('active manual shows all grouped rules without status controls and with complete text', () => {
@@ -158,7 +161,7 @@ test('hidden account-health data cannot create a visible panel and untrusted sam
   assert.match(healthOnly,/暂无内容复盘数据/);
   assert.doesNotMatch(healthOnly,/账号健康|SECRET_HEALTH|限流/);
   const html=htmlFor({articles:[{id:'x',account,title:'<img src=x onerror=alert(1)>',published_at:'2026-11-01',
-    sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]});
+    sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]},{secondary:'articles'});
   assert.doesNotMatch(html,/<img|<script>|href="javascript:/);
   assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;BAD&lt;\/script&gt;/);
 });

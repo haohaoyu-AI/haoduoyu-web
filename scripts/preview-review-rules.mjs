@@ -29,7 +29,7 @@ function page(account) {
   const prompts=${JSON.stringify(prompts)},account=${JSON.stringify(account)};
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-review-action="copy-prompt"]');if(!button)return;
-    const status=button.closest('.review-current-prompt').querySelector('[data-prompt-copy-status]');
+    const status=button.closest('.review-prompt-card, .review-current-prompt')?.querySelector('[data-prompt-copy-status]');
     try{await copyReviewPrompt(prompts,account,button.dataset.promptId);status.textContent='已复制完整提示词。';}
     catch(error){status.textContent=error.message;}
   });</script></html>`;

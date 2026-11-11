@@ -204,6 +204,8 @@ button.badge { min-height:var(--size-control); }
 .daily-todos-primary .daily-todo-items { margin-top:var(--space-8); }
 .daily-todo-row { gap:var(--space-12); border-color:var(--color-todo-divider); }
 .daily-todo-row label { min-height:62px; padding:var(--space-18) 0; gap:var(--space-14); }
+.todo-note-hit { border-radius:var(--radius-14); color:var(--ink-2); }
+.todo-note-hit:hover,.todo-note-hit:focus-visible { background:var(--color-white-a-6); }
 .daily-todo-row input[type=checkbox] { width:22px; height:22px; border-color:var(--color-checkbox-border); background:var(--color-white-a-86); }
 .daily-todo-row input[type=checkbox]:checked { background:var(--accent); border-color:var(--accent); }
 .daily-todo-row input[type=checkbox]:checked::after { left:7px; top:4px; border-color:var(--color-white); }
@@ -216,6 +218,12 @@ button.badge { min-height:var(--size-control); }
 
 .daily-notes { width:min(100%,960px); }
 .notes-toolbar { margin-bottom:var(--space-20); }
+.daily-score { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0 0 16px; }
+.daily-score-label { font-weight:600; }
+.daily-score-scale { display:flex; flex-wrap:wrap; gap:6px; }
+.daily-score-scale button { min-width:44px; min-height:44px; border:1px solid var(--color-divider, var(--line)); border-radius:12px; background:var(--color-white-a-74, transparent); cursor:pointer; }
+.daily-score-scale button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--color-white, #fff); }
+.notes-score-mark { display:block; margin-top:2px; color:var(--accent); font-size:12px; line-height:1.3; }
 .notes-sheet { min-height:400px; padding:var(--space-32); background:var(--color-white-a-69); }
 .notes-reader,.notes-editor { font-size:var(--font-size-16); line-height:var(--line-height-notes); }
 .notes-footer { margin-top:var(--space-18); }

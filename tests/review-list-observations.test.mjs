@@ -12,7 +12,7 @@ test('list retains recorded nearest observations with their ages and account iso
   snapshots.push({id:'sm',article_id:'missing-read',snapshot_date:'2026-11-02',age_hours:23,reads:null});
   snapshots.push({id:'sf',article_id:'foreign',snapshot_date:'2026-11-02',age_hours:24,reads:9999});
   const data = normalizeReviewData({articles,snapshots});
-  const html = renderContentReviewContent(data,{account:'A',now:'2026-11-02T04:00:00Z',filters:{range:'all'},secondary:'benchmarks',article:'',loading:false,error:''});
+  const html = renderContentReviewContent(data,{account:'A',now:'2026-11-02T04:00:00Z',filters:{range:'all'},secondary:'articles',article:'',loading:false,error:''});
   const row = id => html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`))?.[1] || '';
   for (let i = 0; i < 5; i++) {
     assert.match(row(`a${i}`),new RegExp(`${ages[i]} 小时`));

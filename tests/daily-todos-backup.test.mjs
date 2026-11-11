@@ -15,7 +15,7 @@ test('v7 backup preserves daily todos and rejects incomplete or nonempty restore
   assert.equal(created.status,201,created.text);
   assert.equal((await source.request('/api/v1/todos/'+created.data.id,{method:'PATCH',session,body:{completed:true,version:1}})).status,200);
   const backup=await exportBackup(source.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v17');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v18');
   assert.equal(backup.data.tables.todos.length,1);
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});

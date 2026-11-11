@@ -20,6 +20,7 @@ import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes} from './daily-notes.mjs';
+import {handleDailyScores} from './daily-scores.mjs';
 import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
@@ -268,6 +269,8 @@ async function handle(request,env,trace) {
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/daily-notes'||route.startsWith('/daily-notes/'))
       return handleDailyNotes(db,request,route,env,origin,state.revision);
+    if(route==='/daily-scores'||route.startsWith('/daily-scores/'))
+      return handleDailyScores(db,request,route,env,origin,state.revision);
     if(route==='/note-entries'||route.startsWith('/note-entries/'))
       return handleNoteEntries(db,request,route,env,origin,state.revision);
     if(route==='/ai-reports'||route.startsWith('/ai-reports/'))

@@ -48,13 +48,14 @@ test('each supported section and article detail excludes other-account resources
     playbooks:[{id:'own-book',account,status:'active',version:1,content_md:'OWN_PLAYBOOK',rules:[]},
       {id:'other-book',account:other,status:'active',version:2,content_md:'OTHER_PLAYBOOK',rules:[]}]
   };
-  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['benchmarks','review','trends']);
+  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['cockpit','articles','benchmarks','rules','prompts','trends','library']);
   for(const [secondary] of REVIEW_SECTIONS) for(const article of ['', 'own', 'foreign']) {
     const html=render(input,{secondary,article});
-    assert.match(html,/OWN_ARTICLE/);
+    if (secondary === 'articles' || article === 'own') assert.match(html,/OWN_ARTICLE/);
     assert.doesNotMatch(html,/OTHER_|999999|其他账号/, `account leak in ${secondary}/${article}`);
   }
-  assert.match(render(input,{secondary:'benchmarks'}),/OWN_BENCHMARK|OWN_REFERENCE/);
+  assert.match(render(input,{secondary:'benchmarks'}),/OWN_BENCHMARK/);
+  assert.match(render(input,{secondary:'rules'}),/OWN_PLAYBOOK/);
   assert.match(render(input,{secondary:'review'}),/OWN_PLAYBOOK/);
 });
 
@@ -82,7 +83,7 @@ test('article rows contain four columns and isolate references and details', () 
     reports:[{id:'other-r',account:other,summary_md:'OTHER_REASON'}],
     playbooks:[{id:'p',account,status:'active',version:1,rules:[{rule_id:'r1',section:'title',text:'RULE_ONLY_IN_MANUAL'}]}]
   };
-  const html=render(input), row=html.match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)?.[1];
+  const html=render(input,{secondary:'articles'}), row=html.match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)?.[1];
   assert.ok(row); assert.equal((row.match(/<td\b/g)||[]).length,4);
   assert.match(row,/REFERENCE_TITLE/); assert.match(row,/href="https:\/\/example\.com\/reference"/);
   assert.doesNotMatch(row,/OTHER_REASON|RULE_ONLY_IN_MANUAL/);

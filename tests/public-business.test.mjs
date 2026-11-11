@@ -73,6 +73,8 @@ test('anonymous todo CRUD, templates and preferences use only the selected owner
   assert.equal((await read('/todo-preferences',{method:'PATCH',body:{completed_mode:'hide',version:0}})).status,200);
   const result=await read('/todos?date='+date);
   assert.equal(result.data.completed_mode,'hide');assert.equal(result.data.items.length,1);
+  assert.equal((await read('/todos/'+id+'/note',{method:'PATCH',body:{note:'未完成原因',version:result.data.items[0].version}})).status,200);
+  assert.equal((await read('/todos?date='+date)).data.items[0].note,'未完成原因');
   assert.ok(!result.text.includes(other));assert.ok(!result.text.includes('OTHER-USER-PRIVATE-CANARY'));
   assert.equal((await app.db.prepare('SELECT text FROM matrix_todos WHERE user_id=? AND id=?').bind(other,id).first()).text,
     'OTHER-USER-PRIVATE-CANARY');

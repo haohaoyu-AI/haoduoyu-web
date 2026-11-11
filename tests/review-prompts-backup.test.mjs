@@ -14,11 +14,11 @@ test('v17 exact prompt history round trip, user-scoped export and independent al
  await src.db.prepare('INSERT INTO matrix_users VALUES(?,?,?,?)').bind(other,'other','synthetic',stamp).run();
  for(const user of [owner,other])for(const scope of ['global','toutiao','vzi','yujian','wechat'])for(const [version,status] of [[1,'archived'],[2,'active'],[3,'draft']])await insert(src.db,{...prompt(user),scope,version,status});
  const full=await exportBackup(src.db),scoped=await exportBackup(src.db,{todoUserId:owner}),inventory=await createSourceInventory(src.db);
- assert.equal(full.data.format,'haoduoyu-matrix-d1-v17');assert.equal(full.data.tables.review_prompt_versions.length,30);
+ assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');assert.equal(full.data.tables.review_prompt_versions.length,30);
  assert.equal(scoped.data.tables.review_prompt_versions.length,15);assert.ok(scoped.data.tables.review_prompt_versions.every(row=>row.user_id===owner));
  assert.equal(inventory.tables.review_prompt_versions.count,30);assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
  const target=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(target.db,full,{allowEmptyRestore:true});
- assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:37,reset_tables:3});
+ assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:38,reset_tables:3});
  assert.deepEqual((await exportBackup(target.db)).data.tables,full.data.tables);
 });
 test('exact v16 restores into v17 with an empty prompt table and preserves review history',async t=>{
@@ -29,7 +29,7 @@ test('exact v16 restores into v17 with an empty prompt table and preserves revie
  await src.db.prepare('INSERT INTO matrix_review_articles(user_id,id,title,created_at,updated_at) VALUES(?,?,?,?,?)').bind(owner,randomUUID(),'retained v16 article',stamp,stamp).run();
  const inventory=await createSourceInventory(src.db);
  const {applyLocalSchemaMigrations}=await import('../scripts/migration-contract.mjs');await applyLocalSchemaMigrations(src.db);
- const data=(await exportBackup(src.db)).data;delete data.tables.review_prompt_versions;data.format='haoduoyu-matrix-d1-v16';
+ const data=(await exportBackup(src.db)).data;delete data.tables.review_prompt_versions;delete data.tables.daily_scores;data.format='haoduoyu-matrix-d1-v16';
  const backup=sign(data),target=await fixture(t,{bootstrap:false});
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual(await verifyRestoredInventory(target.db,backup,inventory),{verified:true,restored_tables:36,reset_tables:3});

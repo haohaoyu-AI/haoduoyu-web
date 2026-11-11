@@ -97,17 +97,17 @@ test('v7 scopes daily notes to the user while full operator backup preserves all
       .bind('synthetic-notion-notes','cursor',digest('synthetic'),'{"cursor":98}',stamp),
   ]);
   const scoped=await exportBackup(db,{todoUserId:owner}),full=await exportBackup(db);
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v17');
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');
   assert.equal(full.data.source_revision,99);
-  assert.equal(Object.keys(full.data.tables).length,37);
+  assert.equal(Object.keys(full.data.tables).length,38);
   assert.equal(scoped.data.tables.daily_notes.length,1);assert.equal(scoped.data.tables.daily_notes[0].user_id,owner);
   assert.ok(!JSON.stringify(scoped.data.tables.daily_notes).includes('OTHER-USER-NOTE-CANARY'));
   assert.ok(scoped.data.tables.daily_notes[0].deleted_at);
   assert.equal(full.data.tables.daily_notes.length,2);
   const inventory=await createSourceInventory(db);
-  assert.equal(Object.keys(inventory.tables).length,40);
+  assert.equal(Object.keys(inventory.tables).length,41);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
-  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:37,reset_tables:3});
+  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:38,reset_tables:3});
   const target=await database(t);
   const restored=await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
   assert.equal(restored.counts.daily_notes,2);

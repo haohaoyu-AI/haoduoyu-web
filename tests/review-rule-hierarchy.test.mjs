@@ -8,7 +8,7 @@ import {renderContentReviewContent,ruleCard} from '../web/pages/content-review.m
 import {readContentReviewData,copyReviewPrompt} from '../web/review-controller.mjs';
 const book = (account,text,extra = {}) => ({id:account,account,status:'active',version:1,rules:[{rule_id:'R',section:'body',text}],...extra});
 const prompt = (scope,version,status = 'active') => ({id:`${scope}-${version}`,scope,version,status,prompt_key:'longform_write',title:'提示词',content_md:`PROMPT_${scope}_${version}`});
-const render = (data,account = 'V字') => renderContentReviewContent(normalizeReviewData(data),{account,filters:{},secondary:'review'});
+const render = (data,account = 'V字',secondary = 'review') => renderContentReviewContent(normalizeReviewData(data),{account,filters:{},secondary});
 test('safe Markdown supports fixed colors, bold/list, code, headings, quotes and safe links', () => {
   const html = renderReviewMarkdown('- [red]**重点**[/red]\n- **[blue]蓝色[/blue]**\n[green]绿[/green] [amber]黄[/amber]\n<script>alert(1)</script>\n[purple]<img src=x>[/purple]\n[red onclick=x]bad[/red]\n[x](javascript:alert(1))\n[ok](https://example.com/?x=1&y=2)\n`[red]code[/red]`\n# 标题\n> 引用');
   for (const color of ['red','blue','green','amber']) assert.match(html,new RegExp(`class="review-color-${color}"`));
@@ -50,7 +50,7 @@ test('explicit shared rules cannot expose unrelated book introduction or private
 test('only newest active prompts render in layer order, initially collapsed', () => {
   const prompts = [prompt('vzi',1),prompt('global',1),prompt('global',2),prompt('global',3,'draft'),prompt('yujian',1),prompt('wechat',1)];
   assert.deepEqual(currentPrompts(prompts,'V字').map(p=>p.id),['global-2','vzi-1']);
-  const html = render({prompts});
+  const html = render({prompts},'V字','prompts');
   assert.match(html,/PROMPT_global_2/);assert.match(html,/PROMPT_vzi_1/);
   assert.doesNotMatch(html,/PROMPT_global_1|PROMPT_global_3|PROMPT_yujian|PROMPT_wechat|review-current-prompt" open/);
 });
@@ -69,8 +69,10 @@ test('loader requests all book aliases but only current prompt endpoint and enfo
 test('current account is expanded and prompt metadata shows activation time and copy action', () => {
   const html = render({playbooks:[book('整体','GLOBAL'),book('V字','LOCAL')],prompts:[{...prompt('vzi',2),updated_at:'2026-11-10T04:00:00Z'}]});
   assert.match(html,/data-rule-scope="vzi" open/);assert.doesNotMatch(html,/data-rule-scope="global" open/);
-  assert.match(html,/V字账号规则.*1 条规则/);assert.match(html,/生效时间：2026-11-10 12:00/);
-  assert.match(html,/data-review-action="copy-prompt"/);
+  assert.match(html,/V字账号规则.*1 条规则/);
+  const promptsHtml = render({playbooks:[book('整体','GLOBAL'),book('V字','LOCAL')],prompts:[{...prompt('vzi',2),updated_at:'2026-11-10T04:00:00Z'}]},'V字','prompts');
+  assert.match(promptsHtml,/生效时间：2026-11-10 12:00/);
+  assert.match(promptsHtml,/data-review-action="copy-prompt"/);
 });
 test('copy preserves complete raw Markdown, rejects foreign/history rows and reports clipboard failures', async () => {
   const raw = '# 标题\n[red]**原文**[/red]\n```\n<script>raw</script>\n```\n';

@@ -14,7 +14,7 @@ test('reference takes precedence and routes to the scoped benchmark record', () 
   assert.doesNotMatch(html,/fallback|sample\.example|FOREIGN/);
   const url = new URL('https://example.test/?page=review&account=A&review_section=review&review_article=old&review_benchmark=id+%2F%E4%B8%80');
   const route=reviewRoute(url.href);
-  assert.equal(route.secondary,'benchmarks');
+  assert.equal(route.secondary,'library');
   assert.equal(route.article,'');
   assert.equal(route.benchmark,'id /一');
 });

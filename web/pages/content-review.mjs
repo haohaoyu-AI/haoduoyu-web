@@ -85,7 +85,14 @@ a.observed_on || '')) || String(b.updated_at || '').localeCompare(String(a.updat
 function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':'降权','封禁':'封禁'})[row?.judgement] || '未记录'; }
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
-export const REVIEW_SECTIONS = [['benchmarks','对标账号'],['review','规则'],['trends','数据趋势']];
+export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['trends','数据趋势'],['library','爆文库']];
+function activeSection(vm) {
+  const raw = vm.secondary === 'review' ? 'rules' : vm.secondary;
+  if (REVIEW_SECTIONS.some(([id]) => id === raw)) return raw;
+  if (vm.view === 'articles') return 'articles';
+  if (vm.view === 'playbook') return 'rules';
+  return 'cockpit';
+}
 
 function v13Accounts(data) {
   const accounts = data.benchmarkAccounts || [];
@@ -107,23 +114,27 @@ function v13Accounts(data) {
     return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || '<p>暂无特点记录</p>'}</div></section>`;
   }).join('');
 }
-function archives(data,vm) {
-  const selected = REVIEW_SECTIONS.some(([id]) => id === vm.secondary) ? vm.secondary : 'benchmarks';
-  const body = selected === 'trends' ? renderReviewTrends(data,vm) : selected === 'review' ? playbook(data,vm) :
-    v13Accounts(data) + renderBenchmarkLibrary(data,vm.account);
-  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id,label]) => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body}</div></section>`;
+function sectionBody(selected,data,vm,rows) {
+  if (selected === 'articles') return articleListPanel(rows,vm,data);
+  if (selected === 'benchmarks') return v13Accounts(data);
+  if (selected === 'rules') return playbook(data,vm);
+  if (selected === 'prompts') return promptPage(data,vm);
+  if (selected === 'trends') return renderReviewTrends(data,vm);
+  if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
+  return overview(data,vm);
+}
+function archives(data,vm,rows,override) {
+  const selected = activeSection(vm);
+  const body = override ?? sectionBody(selected,data,vm,rows);
+  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id,label]) => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body}</div></section>`;
 }
 
 function overview(data,vm) {
-  const rows = enrichArticles(data,{account:vm.account});
   const range = ['this','last'].includes(vm.filters?.metricsRange) ? vm.filters.metricsRange : 'this';
   const current = reviewOverviewMetrics(data,{account:vm.account,range,now:vm.now || new Date().toISOString()});
   const noSample = range !== 'last' && current.observedCount === 0;
   const value = formatted => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['this','本周'],['last','上周']],range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current.ctrMedian,'ctr'))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current.completion,'completion_rate'))}</article></div></section>`;
-  const articlePanel = articleListPanel(rows,vm,data);
-  return cards +
-    articlePanel + archives(data,vm,'',[],[]);
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['this','本周'],['last','上周']],range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current.ctrMedian,'ctr'))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current.completion,'completion_rate'))}</article></div></section>`;
 }
 function articleListPanel(rows,vm,data) {
   const expanded = Boolean(vm.articlesExpanded);
@@ -235,30 +246,34 @@ function renderRuleBook(book,scope) {
     <span class="review-note">共 ${ruleCountLabel(rules)}</span></div>
     ${intro}${groups}${other}</section>`;
 }
-function promptList(prompts,scope) {
-  const items = prompts.filter(prompt => prompt.scope === scope);
-  if (!items.length) return '';
-  return `<div class="review-current-prompts"><h3>当前提示词</h3>${items.map(prompt => `
-    <details class="review-current-prompt">
-      <summary><span>${e(prompt.title || prompt.prompt_key)}</span><span class="review-note">v${e(prompt.version)}</span></summary>
-      <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || '未记录')} · 上海时间</p>
-      <div class="review-prompt-copy-actions">
-        <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
-        <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
-      </div>
-      <div class="review-markdown">${renderReviewMarkdown(prompt.content_md)}</div>
-    </details>`).join('')}</div>`;
+const promptKindLabels = {longform_write:'写文章',image:'配图',weitoutiao_write:'微头条',transfer_chat:'转写'};
+function promptPage(data,vm) {
+  const order = ['longform_write','image','weitoutiao_write','transfer_chat'];
+  const prompts = currentPrompts(data.prompts,vm.account).slice().sort((a,b) => {
+    const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
+    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.scope).localeCompare(String(b.scope),'zh') || String(a.prompt_key).localeCompare(String(b.prompt_key),'zh');
+  });
+  if (!prompts.length) return empty('暂无生效提示词','当前账号还没有可复制的完整提示词。');
+  return `<div class="review-prompt-page">${prompts.map(prompt => `<article class="review-prompt-card">
+    <div class="review-v13-rule-meta"><h2>${e(promptKindLabels[prompt.prompt_key] || prompt.title || prompt.prompt_key)}</h2>
+    <span class="review-note">${e([prompt.title, 'v'+prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '))}</span></div>
+    <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || '未记录')} · 上海时间</p>
+    <div class="review-prompt-copy-actions">
+      <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
+      <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
+    </div>
+    <pre class="review-prompt-source">${e(prompt.content_md || '')}</pre>
+  </article>`).join('')}</div>`;
 }
 function playbook(data,vm) {
   const books = currentPlaybooks(data.playbooks,vm.account);
-  const prompts = currentPrompts(data.prompts,vm.account);
   const layers = applicableScopes(vm.account).map(scope => {
     const matches = books.filter(book => book.rules.some(rule => scopeOf(rule.scope ?? book.account) === scope) || scopeOf(book.account) === scope);
-    if (!matches.length && !prompts.some(prompt => prompt.scope === scope)) return '';
+    if (!matches.length) return '';
     const layerRules = matches.flatMap(book => book.rules.filter(rule => scopeOf(rule.scope ?? book.account) === scope));
     return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm.account) ? ' open' : ''}>
       <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
-      ${matches.map(book => renderRuleBook(book,scope)).join('')}${promptList(prompts,scope)}</details>`;
+      ${matches.map(book => renderRuleBook(book,scope)).join('')}</details>`;
   }).join('');
   return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty('暂无生效手册');
 }
@@ -297,8 +312,9 @@ export function renderContentReviewContent(data,vm) {
   const rows = enrichArticles(data,{account:vm.account});
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes','prompts']
     .some(key => (data[key] || []).length);
-  const noDataPanel = '';
-  const body = hasData ? overview(data,vm) : noDataPanel + empty('暂无内容复盘数据') +
-    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' + archives(data,vm);
+  const selected = activeSection(vm);
+  const quiet = !hasData && selected !== 'trends';
+  const body = archives(data,vm,rows,quiet ? empty('暂无内容复盘数据') +
+    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : undefined);
   return `<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;
 }

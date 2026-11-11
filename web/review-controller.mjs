@@ -18,7 +18,7 @@ export function readReviewColumnPreference(raw) {
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health','prompts/current'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {
-  account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},
+  account:'V字',view:'overview',secondary:'cockpit',week:'this',date:'',start:'',end:'',periods:[],filters:{},
   metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,articlesExpanded:false,
   article:'',version:'',compare:'',loading:true,error:'',
 };
@@ -83,8 +83,9 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const view = REVIEW_VIEWS.some(([id]) => id === requested) ? requested : 'overview';
   const section = p.get('review_section');
   const benchmark = p.get('review_benchmark') || '';
-  const secondary = benchmark ? 'benchmarks' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
-    ['notes','playbook'].includes(section) || view === 'playbook' ? 'review' : 'benchmarks';
+  const secondary = benchmark ? 'library' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
+    section === 'review' || section === 'playbook' || view === 'playbook' ? 'rules' :
+    view === 'articles' ? 'articles' : 'cockpit';
   const trendRange = p.get('review_trend_range');
   const trends = {range:['7d','30d','custom'].includes(trendRange) ? trendRange : '30d',
     from:p.get('review_trend_from') || '',to:p.get('review_trend_to') || ''};
@@ -224,12 +225,12 @@ function changeTrend(target) {
 export async function copyReviewPrompt(prompts,account,id,clipboard = globalThis.navigator?.clipboard) {
   const prompt = currentPrompts(prompts,account).find(row => String(row.id) === String(id));
   if (!prompt) throw new Error('提示词已更新，请重新读取后复制。');
-  if (!clipboard?.writeText) throw new Error('当前浏览器不支持剪贴板，请展开提示词后手动复制。');
+  if (!clipboard?.writeText) throw new Error('当前浏览器不支持剪贴板，请从页面上的全文手动复制。');
   try { await clipboard.writeText(String(prompt.content_md || '')); }
-  catch { throw new Error('复制失败，请允许剪贴板访问，或展开提示词后手动复制。'); }
+  catch { throw new Error('复制失败，请允许剪贴板访问，或从页面上的全文手动复制。'); }
 }
 async function copyPromptButton(button) {
-  const status = button.closest('.review-current-prompt')?.querySelector('[data-prompt-copy-status]');
+  const status = button.closest('.review-prompt-card, .review-current-prompt')?.querySelector('[data-prompt-copy-status]');
   button.disabled = true;
   if (status) status.textContent = '正在复制…';
   try {
@@ -273,8 +274,8 @@ function registerEvents() {
     const benchmarkLink = event.target.closest?.('a[data-review-benchmark]');
     if (benchmarkLink && node?.contains(benchmarkLink)) {
       event.preventDefault();
-      vm.article = ''; vm.secondary = 'benchmarks'; vm.benchmark = benchmarkLink.dataset.reviewBenchmark;
-      writeRoute({section:'benchmarks',article:'',benchmark:vm.benchmark}); paintContentReviewPage();
+      vm.article = ''; vm.secondary = 'library'; vm.benchmark = benchmarkLink.dataset.reviewBenchmark;
+      writeRoute({section:'library',article:'',benchmark:vm.benchmark}); paintContentReviewPage();
       focusBenchmark(vm.benchmark); return;
     }
     if (event.target.closest?.('a')) return;
@@ -359,7 +360,7 @@ function registerEvents() {
       event.preventDefault(); void toggleReviewFullscreen(); return;
     }
     if (event.target.matches('[data-review-secondary]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
-      event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), index = ids.indexOf(vm.secondary);
+      event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), current = vm.secondary === 'review' ? 'rules' : vm.secondary, index = Math.max(0, ids.indexOf(current));
       vm.secondary = event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length];
       vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage(); root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
     }

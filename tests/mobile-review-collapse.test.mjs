@@ -5,7 +5,7 @@ import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 const data=normalizeReviewData({articles:[{id:'one',account:'A',title:'完整文章标题',published_at:'2026-11-07T01:00:00Z'},
   {id:'two',account:'B',title:'其他账号',published_at:'2026-11-07T01:00:00Z'}]});
-const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{},loading:false,error:'',article:'',secondary:'benchmarks'};
+const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{},loading:false,error:'',article:'',secondary:'articles'};
 test('article collection starts collapsed with accessible controls and preserves its whole data markup',()=>{
   const html=renderContentReviewContent(data,vm);
   assert.match(html,/data-review-articles-expanded="false"/);

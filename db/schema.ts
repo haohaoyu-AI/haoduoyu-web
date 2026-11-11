@@ -303,3 +303,17 @@ export const matrixReviewPromptVersions=sqliteTable('matrix_review_prompt_versio
   check('review_prompt_status',sql`${t.status} IN ('draft','active','archived')`),
   check('review_prompt_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
 ]);
+
+export const matrixDailyScores=sqliteTable('matrix_daily_scores',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id),
+  date:text('date').notNull(),
+  score:integer('score').notNull(),
+  version:integer('version').notNull(),
+  created_at:text('created_at').notNull(),
+  updated_at:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.date]}),
+  check('matrix_daily_scores_score',sql`typeof(${t.score})='integer' AND ${t.score} BETWEEN 1 AND 10`),
+  check('matrix_daily_scores_version',sql`typeof(${t.version})='integer' AND ${t.version} >= 1`),
+  check('matrix_daily_scores_date',sql`${t.date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.date},'+0 days') IS NOT NULL AND date(${t.date},'+0 days') = ${t.date}`),
+]);

@@ -28,9 +28,12 @@ test('benchmark tab shows account features and scoped benchmark library', () => 
   for (const text of ['对标账号','规则','对标甲','科技产业','提问式标题','分析结构']) assert.ok(view.includes(text),text);
   assert.doesNotMatch(view,/复盘与规则|FOREIGN_ACCOUNT|FOREIGN_FEATURE|FOREIGN_REFERENCE/);
   const panel = view.split('id="review-secondary-panel"')[1];
-  assert.match(panel,/BENCHMARK_ARTICLE/);
-  assert.match(panel,/review-benchmark-ref/);
-  assert.match(panel,/爆文库/);
+  assert.match(panel,/对标甲/);
+  assert.doesNotMatch(panel,/BENCHMARK_ARTICLE|review-benchmark-ref/);
+  const library = html('library').split('id="review-secondary-panel"')[1];
+  assert.match(library,/BENCHMARK_ARTICLE/);
+  assert.match(library,/review-benchmark-ref/);
+  assert.match(library,/爆文库/);
 });
 
 test('rules remain fully visible regardless of status and notes and daily summaries stay hidden', () => {

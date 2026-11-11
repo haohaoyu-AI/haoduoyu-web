@@ -17,7 +17,7 @@ const data = normalizeReviewData({
     {id:'foreign-snapshot',article_id:'foreign',age_hours:24,reads:7000},
   ]
 });
-const vm = overrides => ({account:'A',now:'2026-11-02T04:00:00Z',filters:{range:'all'},secondary:'benchmarks',article:'',loading:false,error:'',...overrides});
+const vm = overrides => ({account:'A',now:'2026-11-02T04:00:00Z',filters:{range:'all'},secondary:'articles',article:'',loading:false,error:'',...overrides});
 const render = overrides => renderContentReviewContent(data,vm(overrides));
 const table = html => html.match(/<table class="review-table review-articles-table">[\s\S]*?<\/table>/)?.[0] || '';
 const row = (html,id) => html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`))?.[1] || '';
