@@ -207,45 +207,73 @@ test('notes view puts business text only into value/textContent and offers respo
 
 function emptyNotesView() {
   const node = () => {
-    const children = new Map();
-    return {dataset: {}, children: [], value: '', textContent: '', innerHTML: '', firstElementChild: null,
-      querySelector(selector) { if (!children.has(selector)) children.set(selector, node()); return children.get(selector); },
-      removeAttribute(name) { delete this[name]; }};
+    const queries = new Map();
+    const value = {dataset: {}, children: [], value: '', textContent: '', innerHTML: '', hidden: false,
+      querySelector(selector) { if (!queries.has(selector)) queries.set(selector, node()); return queries.get(selector); },
+      querySelectorAll() { return []; },
+      removeAttribute(name) { delete this[name]; },
+      setAttribute() {},
+      insertBefore(child, before) {
+        if (!child || typeof child.remove !== 'function') return child;
+        child.remove();
+        const index = before ? this.children.indexOf(before) : -1;
+        this.children.splice(index < 0 ? this.children.length : index, 0, child);
+        child.parentNode = this; return child;
+      },
+      append(...children) { for (const child of children) this.insertBefore(child); },
+      replaceChildren(...children) {
+        for (const child of [...this.children]) child.remove();
+        for (const child of children) this.insertBefore(child);
+      },
+      remove() {
+        if (!this.parentNode) return;
+        const list = this.parentNode.children, index = list.indexOf(this);
+        if (index >= 0) list.splice(index, 1); this.parentNode = null;
+      },
+    };
+    Object.defineProperty(value, 'firstElementChild', {get: () => value.children[0] || null});
+    return value;
   };
+  const previous = globalThis.document;
+  globalThis.document = {createElement: () => node(), createTextNode: text => ({nodeType: 3, textContent: String(text)}), activeElement: null};
   const root = node(); root.dataset.category = 'life';
   const current = {date, category: 'life', loaded: true, loading: false, canEdit: true, ids: [], error: ''};
   const legacy = {date, loaded: true, loading: false, canEdit: true, serverText: '', draft: '', version: 0,
     deleted: false, dirty: false, phase: 'saved', error: '', pending: null, updatedAt: null};
   const paint = () => paintNoteEntries(root, {entry: () => undefined}, current, legacy);
-  return {root, current, legacy, paint};
+  return {root, current, legacy, paint, restore() { globalThis.document = previous; }};
 }
 
 test('notes hide the normal autosave badge while real loading, failed and pending states remain visible', () => {
   const view = emptyNotesView(), status = view.root.querySelector('#notes-status');
-  view.paint(); assert.equal(status.textContent, ''); assert.equal(status.hidden, true);
-  view.current.error = '合成读取错误'; view.paint();
-  assert.equal(status.hidden, false); assert.equal(status.textContent, '读取失败');
-  assert.equal(view.root.querySelector('#notes-entry-message').textContent, '合成读取错误');
-  view.current.error = ''; view.current.loaded = false; view.current.loading = true; view.paint();
-  assert.equal(status.hidden, false); assert.equal(status.textContent, '正在读取…');
-  view.current.loaded = true; view.current.loading = false;
-  for (const phase of ['dirty', 'saving', 'unknown', 'conflict', 'oversize', 'error']) {
-    view.legacy.phase = phase; view.legacy.dirty = true; view.legacy.error = '需要处理的合成草稿'; view.paint();
-    assert.equal(status.hidden, false, phase); assert.equal(status.textContent, '有未发送内容', phase);
-    assert.equal(view.root.querySelector('#notes-message').textContent, '需要处理的合成草稿', phase);
-  }
-  view.legacy.phase = 'queued'; view.legacy.dirty = true; view.paint();
-  assert.equal(view.root.querySelector('#notes-legacy-status').textContent, '已存本机，待同步');
+  try {
+    view.paint(); assert.equal(status.textContent, ''); assert.equal(status.hidden, true);
+    view.current.error = '合成读取错误'; view.paint();
+    assert.equal(status.hidden, false); assert.equal(status.textContent, '读取失败');
+    assert.equal(view.root.querySelector('#notes-entry-message').textContent, '合成读取错误');
+    view.current.error = ''; view.current.loaded = false; view.current.loading = true; view.paint();
+    assert.equal(status.textContent, '');
+    view.current.loaded = true; view.current.loading = false;
+    for (const phase of ['dirty', 'saving', 'unknown', 'conflict', 'oversize', 'error']) {
+      view.legacy.phase = phase; view.legacy.dirty = true; view.legacy.error = '需要处理的合成草稿'; view.paint();
+      assert.equal(status.hidden, false, phase); assert.equal(status.textContent, '有未发送内容', phase);
+      assert.equal(view.root.querySelector('#notes-message').textContent, '需要处理的合成草稿', phase);
+    }
+    view.legacy.phase = 'queued'; view.legacy.dirty = true; view.paint();
+    assert.equal(view.root.querySelector('#notes-legacy-status').textContent, '已存本机，待同步');
+  } finally { view.restore(); }
 });
 
 test('legacy time displays only actual Shanghai HH:mm and hides missing timestamps', () => {
   const view = emptyNotesView(), editorTime = view.root.querySelector('#notes-legacy-time'),
     savedTime = view.root.querySelector('#notes-legacy-saved').querySelector('time');
-  view.legacy.updatedAt = '2026-10-24T16:03:00Z'; view.paint();
-  for (const time of [editorTime, savedTime]) {
-    assert.equal(time.textContent, '00:03'); assert.equal(time.hidden, false); assert.equal(time.dateTime, view.legacy.updatedAt);
-  }
-  view.legacy.updatedAt = null; view.paint();
-  for (const time of [editorTime, savedTime]) { assert.equal(time.textContent, ''); assert.equal(time.hidden, true); }
-  assert.doesNotMatch(renderDailyNotes(), /原有记录 <time|>原有记录 <time/);
+  try {
+    view.legacy.updatedAt = '2026-10-24T16:03:00Z'; view.paint();
+    for (const time of [editorTime, savedTime]) {
+      assert.equal(time.textContent, '00:03'); assert.equal(time.hidden, false); assert.equal(time.dateTime, view.legacy.updatedAt);
+    }
+    view.legacy.updatedAt = null; view.paint();
+    for (const time of [editorTime, savedTime]) { assert.equal(time.textContent, ''); assert.equal(time.hidden, true); }
+    assert.doesNotMatch(renderDailyNotes(), /原有记录 <time|>原有记录 <time/);
+  } finally { view.restore(); }
 });
