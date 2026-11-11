@@ -25,6 +25,12 @@ const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduo
   ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
   ['haoduoyu-matrix-d1-v10', v10RestoredTables], ['haoduoyu-matrix-d1-v11', v11RestoredTables],
   ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', v16RestoredTables], ['haoduoyu-matrix-d1-v17', v17RestoredTables], ['haoduoyu-matrix-d1-v18', restoredTables]]);
+/** Format-scoped restore inventory; live HEAD may expose later tables via restoredTables. */
+export function restoredTablesForFormat(format) {
+  const tables = tableSets.get(format);
+  if (!tables) throw new Error('MIGRATION_INVENTORY_MISMATCH');
+  return tables;
+}
 const checksum = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 

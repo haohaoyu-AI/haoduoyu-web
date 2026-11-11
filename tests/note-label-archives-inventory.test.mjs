@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {digest, stable} from '../src/security.mjs';
-import {restoredTables, resetTables, verifyBackupInventory} from '../scripts/migration-inventory.mjs';
+import {restoredTablesForFormat, resetTables, verifyBackupInventory} from '../scripts/migration-inventory.mjs';
 
 const hashRows = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 function makePair(version) {
-  const tables = Object.fromEntries(restoredTables.filter(name => version === 13 || name !== 'note_label_archives').map(name => [name, []]));
+  const restored = restoredTablesForFormat(`haoduoyu-matrix-d1-v${version}`);
+  const tables = Object.fromEntries([...restored].map(name => [name, []]));
   if (version === 13) tables.note_label_archives.push({user_id: 'u', name: '生活', archived_at: '2026-10-29T00:00:00Z'});
   const data = {format: `haoduoyu-matrix-d1-v${version}`, source_revision: 1, tables};
   const inventory = {format: 'haoduoyu-migration-inventory-v1', source_revision: 1, tables: {}};

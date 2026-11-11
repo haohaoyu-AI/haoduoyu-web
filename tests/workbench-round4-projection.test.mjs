@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {projectWorkbenchRound4,round4AddedModules,round4DocumentSpec,round4DocumentDocs} from './workbench-round4-projection.mjs';
 import {projectWorkbenchRound5} from './workbench-round5-projection.mjs';
 import {projectedChangedFiles} from './unify-stage1-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -28,7 +29,7 @@ test('round-four production files and three new frontend modules are pinned; unr
 });
 
 test('round-four API projection restores exact earlier contracts and leaves unrelated edits visible',async()=>{
-  const spec=JSON.parse(await read('public/openapi.json'));
+  const spec=JSON.parse(projectQuietSync('public/openapi.json',await read('public/openapi.json')));
   assert.deepEqual(round4DocumentSpec(spec),JSON.parse(before('public/openapi.json')));
   const unrelated=structuredClone(spec);unrelated.info['x-unapproved-test']='visible';
   assert.equal(round4DocumentSpec(unrelated).info['x-unapproved-test'],'visible');
@@ -41,7 +42,7 @@ test('round-four API projection restores exact earlier contracts and leaves unre
 });
 
 test('round-four docs strip only the approved appended section and preserve other documentation edits',async()=>{
-  const html=await read('public/api-docs.html');
+  const html=projectQuietSync('public/api-docs.html',await read('public/api-docs.html'));
   assert.equal(round4DocumentDocs(html),before('public/api-docs.html'));
   assert.equal(round4DocumentDocs(html+'\n<!-- unrelated-test -->'),before('public/api-docs.html')+'\n<!-- unrelated-test -->');
   if(delta.docs_section) {

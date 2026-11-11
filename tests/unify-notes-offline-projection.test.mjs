@@ -13,10 +13,12 @@ import {unifyNotesOfflineBaseline,unifyNotesOfflinePatch,unifyNotesOfflinePaths,
   projectUnifyNotesOfflineHistory,projectUnifyNotesOfflineModules,notesOfflineHash} from './unify-notes-offline-projection.mjs';
 
 import {projectOct28History} from './oct28-projection.mjs';
+import {quietSyncBaseline,projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
+const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyNotesOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
   '.gitattributes','.gitignore','.gitleaks.toml','.gitleaksignore','drizzle.config.ts','runtime.json','package.json','package-lock.json'];
@@ -33,14 +35,15 @@ test('note-offline pins final B and the fixed C source with exactly seventeen pr
     assert.equal(projectUnifyNotesOffline(file,before),before,'fixed final B input remains valid: '+file);
   }
   assert.ok(unifyNotesOfflinePaths.includes('web/offline/sw-client.mjs'),'the draft persistence update barrier has its own C pin');
-  assert.equal(read('web/core/api.mjs'),git('show',unifyNotesOfflineBaseline+':web/core/api.mjs'),
+  assert.equal(projectQuietSync('web/core/api.mjs',read('web/core/api.mjs')),git('show',unifyNotesOfflineBaseline+':web/core/api.mjs'),
     'the final B identity/preflight implementation cannot change as part of C');
 });
 
 test('note-offline preserves every one of the 64 B modules and adds exactly five reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyNotesOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
+  const known=quietWeb();
   const current=projectUnifyMemosOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
   assert.equal(released.length,64);assert.equal(current.length,69);
   assert.deepEqual(current,[...released,...unifyNotesOfflineAddedModules].sort());
   assert.deepEqual(projectUnifyNotesOfflineModules(current),released,'all original module paths remain exact');

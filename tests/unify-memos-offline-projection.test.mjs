@@ -13,10 +13,12 @@ import {unifyMemosOfflineBaseline,unifyMemosOfflinePatch,unifyMemosOfflinePaths,
   projectUnifyMemosOfflineHistory,projectUnifyMemosOfflineModules,memosOfflineHash} from './unify-memos-offline-projection.mjs';
 
 import {projectOct28History} from './oct28-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
+const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyMemosOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
   '.gitattributes','.gitignore','.gitleaks.toml','.gitleaksignore','drizzle.config.ts','runtime.json','package.json','package-lock.json'];
@@ -39,8 +41,9 @@ test('memo-offline pins final C and the fixed D source with exactly eleven produ
 
 test('memo-offline preserves every one of the 69 C modules and adds exactly two reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyMemosOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
+  const known=quietWeb();
   const current=projectUnifyConflictResolutionModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
   assert.equal(released.length,69);assert.equal(current.length,71);
   assert.deepEqual(current,[...released,...unifyMemosOfflineAddedModules].sort());
   assert.deepEqual(projectUnifyMemosOfflineModules(current),released,'all original module paths remain exact');

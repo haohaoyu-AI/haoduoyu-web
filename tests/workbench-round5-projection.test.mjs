@@ -7,6 +7,7 @@ import {projectWorkbenchRound5,round5AddedModules} from './workbench-round5-proj
 import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
 import {projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifySwModules} from './unify-sw-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -29,7 +30,9 @@ test('round-five presentation files and explicit new module are pinned over the 
   const inventory=projectedChangedFiles(delta.baseline,roots,projectWorkbenchRound6);
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned presentation changes are accepted');
   const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs'));
-  const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
+  const known=new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
+  const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
+    .map(file=>'web/'+file).filter(file=>known.has(file)).sort();
   assert.deepEqual(projectUnifySwModules(modules),[...released,...round5AddedModules].sort(),
     'complete released module inventory plus exact new view helper; only the pinned later SW client projects to absence');
 });

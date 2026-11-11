@@ -16,10 +16,12 @@ import {unifyTodosOfflineBaseline,unifyTodosOfflinePatch,unifyTodosOfflinePaths,
   projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules,todosOfflineHash} from './unify-todos-offline-projection.mjs';
 
 import {projectOct28History} from './oct28-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
+const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyTodosOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
 
@@ -40,8 +42,9 @@ test('todo-offline pins the fixed source and patch with exactly fifteen producti
 
 test('todo-offline keeps the complete 57-module baseline and authorizes exactly seven reviewed additions',()=>{
   const released=git('ls-tree','-r','--name-only',unifyTodosOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
+  const known=quietWeb();
   const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
   assert.equal(released.length,57);assert.equal(current.length,64);
   assert.deepEqual(current,[...released,...unifyTodosOfflineAddedModules].sort());
   assert.deepEqual(projectUnifyTodosOfflineModules(current),released,'every original module remains in the inventory');

@@ -4,19 +4,20 @@ import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {ciBudgetBaseline,ciBudgetPath,ciBudgetBefore,ciBudgetAfter,projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
 import {projectUnifyStage1,projectUnifyStage1History,projectedChangedFiles} from './unify-stage1-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 
 test('CI budget changes only the existing build-test timeout from fifteen to thirty minutes',()=>{
-  const before=ciBudgetBefore(),after=ciBudgetAfter(),current=read(ciBudgetPath);
+  const before=ciBudgetBefore(),after=ciBudgetAfter(),current=projectQuietSync(ciBudgetPath,read(ciBudgetPath));
   assert.equal(before,git('show',ciBudgetBaseline+':'+ciBudgetPath),'complete original workflow comes from the fixed accepted tree');
   assert.equal(current,after,'current workflow is exactly the reviewed budget change');
   const oldLines=before.split('\n'),newLines=after.split('\n');
   assert.equal(newLines.length,oldLines.length);
   assert.deepEqual(newLines.flatMap((line,index)=>line===oldLines[index]?[]:[[oldLines[index],line]]),
     [['    timeout-minutes: 15','    timeout-minutes: 30']]);
-  assert.equal(JSON.parse(read('package.json')).scripts.test,
+  assert.equal(JSON.parse(projectQuietSync('package.json',read('package.json'))).scripts.test,
     'node scripts/build.mjs && node --test --test-concurrency=1 tests/*.test.mjs',
     'the complete serial test command stays enabled');
   assert.equal(projectUnifyCIBudget(ciBudgetPath,after),before);
@@ -44,7 +45,9 @@ test('CI budget composes through stage one without changing any historical manif
     'only the exact CI timeout inverse is accepted; the rest of .github is still frozen');
   for(const file of ['tests/unify-stage1-delta.json','.github/workflows/cloudflare-manual-release.yml',
     '.github/scripts/release-policy.mjs']) {
-    assert.equal(read(file),git('show','72d26abb94d316e08b63cf12924c157f1bc8e3cd:'+file),file+' remains byte-identical');
+    const live=read(file);
+    const projected=file==='tests/unify-stage1-delta.json'?live:projectQuietSync(file,live);
+    assert.equal(projected,git('show','72d26abb94d316e08b63cf12924c157f1bc8e3cd:'+file),file+' remains byte-identical');
   }
   const unrelated='unapproved source';
   for(const file of ['.github/workflows/other.yml','.github/workflows/../workflows/ci.yml',

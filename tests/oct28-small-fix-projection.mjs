@@ -45,7 +45,7 @@ export const quietSyncHashes=Object.freeze({
   "public/workbench.css":"5ce77aca77eb7edd1cac6e4b2b52fd1db3c09323f3c3dcf38804aece949f4279",
   "scripts/build.mjs":"0279068fe4a0a0fcd3910d0ab362896b633dd9ae59762d7d78463858592d18af",
   "scripts/migration-contract.mjs":"1cb6573fab64f8ff5358920bb8db3f4e882adaa5de0b07aac40993bda797c5e2",
-  "scripts/migration-inventory.mjs":"c47a7a86d9e4282d12d25ffdb4cbf070a4e09c87e2c9067edbb095cbcb659ae3",
+  "scripts/migration-inventory.mjs":"504477b8773342082b879a806943ca4786c6f9a310c6a288a18646c6a3b68fd5",
   "src/backup.mjs":"ba41b2a6818aa59a30e7770c24f3d313006b15192e5b1cea98529db43aaf002a",
   "src/business-snapshot.mjs":"647b58ee46b44af28fd90f61cdb5e8598dbd4ddc7c69e1211e95530728cb8317",
   "src/lib/request-trace.mjs":"2048516f4607c4cb3c2b7c87157ff58878bd96e386d9fd58d95b703847de8481",
