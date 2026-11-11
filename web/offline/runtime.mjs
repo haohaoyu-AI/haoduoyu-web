@@ -124,6 +124,24 @@ function runtimeContext(options) {
     getGeneration: () => context.generation, now, uuid});
   return context;
 }
+async function adoptIdentity(context, me, index, generation, invalidate) {
+  const {cache, state, emit, onIdentity} = context;
+  const identity = safeIdentity(me);
+  if (generation !== context.generation) throw fail('身份读取已过期。', 'OFFLINE_SCOPE_CHANGED');
+  if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== 'current')
+    throw fail('身份范围读取不完整，请联网重试。', 'OFFLINE_SCOPE_REQUIRED');
+  if (state.scope && (state.scope !== index.scope_id || identityFingerprint(state.identity) !== identityFingerprint(identity))) {
+    await invalidate({forget: true});
+    throw fail('当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。', 'OFFLINE_SCOPE_CHANGED');
+  }
+  await cache.saveIdentity(identity, index.scope_id);
+  if (generation !== context.generation || state.scope && state.scope !== index.scope_id) {
+    await invalidate({forget: true}); throw fail('身份核实已过期，原本机数据已保留。', 'OFFLINE_SCOPE_CHANGED');
+  }
+  state.scope = index.scope_id; state.verifiedScope = index.scope_id; state.identity = identity;
+  state.online = true; onIdentity(me); emit();
+  return me;
+}
 function identityActions(context) {
   const {cache, state, emit, request, onIdentity} = context;
   async function invalidate({forget = false} = {}) {
@@ -136,23 +154,7 @@ function identityActions(context) {
     if (forget) await cache.forgetIdentity();
     emit();
   }
-  async function adopt(me, index, generation) {
-    const identity = safeIdentity(me);
-    if (generation !== context.generation) throw fail('身份读取已过期。', 'OFFLINE_SCOPE_CHANGED');
-    if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== 'current')
-      throw fail('身份范围读取不完整，请联网重试。', 'OFFLINE_SCOPE_REQUIRED');
-    if (state.scope && (state.scope !== index.scope_id || identityFingerprint(state.identity) !== identityFingerprint(identity))) {
-      await invalidate({forget: true});
-      throw fail('当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。', 'OFFLINE_SCOPE_CHANGED');
-    }
-    await cache.saveIdentity(identity, index.scope_id);
-    if (generation !== context.generation || state.scope && state.scope !== index.scope_id) {
-      await invalidate({forget: true}); throw fail('身份核实已过期，原本机数据已保留。', 'OFFLINE_SCOPE_CHANGED');
-    }
-    state.scope = index.scope_id; state.verifiedScope = index.scope_id; state.identity = identity;
-    state.online = true; onIdentity(me); emit();
-    return me;
-  }
+  const adopt = (me, index, generation) => adoptIdentity(context, me, index, generation, invalidate);
   async function authenticate(options = {}) {
     const generation = context.generation;
     let liveIdentity = null;
@@ -259,68 +261,70 @@ function stateActions(context) {
   }
   return {refresh, queue, resolve};
 }
+async function runSync(context) {
+  const {state, emit, outbox, snapshot, now, online} = context;
+  if (!online()) { state.verifiedScope = null; return context.refresh(); }
+  let stage = 'identity';
+  let owner = state.scope, generation = context.generation;
+  const active = () => generation === context.generation && owner === state.scope;
+  try {
+    if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
+    if (!active()) return {...state};
+    if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
+    await context.verify();
+    if (generation !== context.generation || owner && owner !== state.scope) return {...state};
+    if (!state.verifiedScope) return context.refresh();
+    owner = state.scope; generation = context.generation;
+    state.phase = 'syncing'; emit();
+    stage = 'outbox';
+    await outbox.resume(state.scope);
+    if (!active()) return {...state};
+    const drained = await outbox.drain();
+    if (!active()) return {...state};
+    if (drained.rateLimitedUntil > now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
+      {status: 429, rateLimitedUntil: drained.rateLimitedUntil});
+    stage = 'cache';
+    if (state.verifiedScope) await context.cache.captureDocuments();
+    if (!active()) return {...state};
+    if (state.verifiedScope) {
+      stage = 'snapshot';
+      await (context.snapshotV2 || snapshot).pull({date: today(now)});
+      if (!active()) return {...state};
+      if (context.lastTodoPath) {
+        stage = 'cache';
+        const date = offlineReadRoute(context.lastTodoPath).date;
+        if ((await context.cache.entities()).some(row => row.needs_api_refresh && row.server?.date === date))
+          await context.call(context.lastTodoPath);
+      }
+    }
+    if (!active()) return {...state};
+    state.lastSuccess = now(); state.error = null; state.errorStage = null;
+  } catch (error) {
+    if (!active()) return {...state};
+    if (error.status === 429) {
+      const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
+      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+      if (owner) {
+        const assertActive = () => { if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED'); };
+        try { await outbox.setCooldown(owner, context.cooldownUntil, assertActive); }
+        catch { /* The in-memory deadline still protects this session. */ }
+      }
+    }
+    if (!active()) return {...state};
+    state.error = error.message; state.errorStage = stage;
+    if (error.status) state.online = true;
+    else if (networkFailure(error)) state.online = false;
+  }
+  state.phase = 'idle';
+  await context.refresh();
+  if (!active()) return {...state};
+  context.broadcast();
+  if (state.pending && state.online && !context.stopped) context.scheduleRetry();
+  return {...state};
+}
 function syncActions(context) {
   const {state, emit, outbox, snapshot, now, online} = context;
-  async function run() {
-    if (!online()) { state.verifiedScope = null; return context.refresh(); }
-    let stage = 'identity';
-    let owner = state.scope, generation = context.generation;
-    const active = () => generation === context.generation && owner === state.scope;
-    try {
-      if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
-      if (!active()) return {...state};
-      if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
-      await context.verify();
-      if (generation !== context.generation || owner && owner !== state.scope) return {...state};
-      if (!state.verifiedScope) return context.refresh();
-      owner = state.scope; generation = context.generation;
-      state.phase = 'syncing'; emit();
-      stage = 'outbox';
-      await outbox.resume(state.scope);
-      if (!active()) return {...state};
-      const drained = await outbox.drain();
-      if (!active()) return {...state};
-      if (drained.rateLimitedUntil > now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
-        {status: 429, rateLimitedUntil: drained.rateLimitedUntil});
-      stage = 'cache';
-      if (state.verifiedScope) await context.cache.captureDocuments();
-      if (!active()) return {...state};
-      if (state.verifiedScope) {
-        stage = 'snapshot';
-        await (context.snapshotV2 || snapshot).pull({date: today(now)});
-        if (!active()) return {...state};
-        if (context.lastTodoPath) {
-          stage = 'cache';
-          const date = offlineReadRoute(context.lastTodoPath).date;
-          if ((await context.cache.entities()).some(row => row.needs_api_refresh && row.server?.date === date))
-            await context.call(context.lastTodoPath);
-        }
-      }
-      if (!active()) return {...state};
-      state.lastSuccess = now(); state.error = null; state.errorStage = null;
-    } catch (error) {
-      if (!active()) return {...state};
-      if (error.status === 429) {
-        const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
-        context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
-        if (owner) {
-          const assertActive = () => { if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED'); };
-          try { await outbox.setCooldown(owner, context.cooldownUntil, assertActive); }
-          catch { /* The in-memory deadline still protects this session. */ }
-        }
-      }
-      if (!active()) return {...state};
-      state.error = error.message; state.errorStage = stage;
-      if (error.status) state.online = true;
-      else if (networkFailure(error)) state.online = false;
-    }
-    state.phase = 'idle';
-    await context.refresh();
-    if (!active()) return {...state};
-    context.broadcast();
-    if (state.pending && state.online && !context.stopped) context.scheduleRetry();
-    return {...state};
-  }
+  const run = () => runSync(context);
   function sync({rerun = false} = {}) {
     if (context.syncFlight) {
       if (rerun) context.syncAgain = true;
@@ -375,6 +379,20 @@ async function rememberRead(context, path, value, baseline, memo) {
 function labelRequestOptions(path, options, features) {
   return features.labelsV1 && path.startsWith('/note-entries') ?
     {...options, headers: {...options.headers, 'X-Note-Labels-Version': '1'}} : options;
+}
+async function readCachedOffline(context, path, guard) {
+  const {state, cache, features} = context;
+  state.verifiedScope = null; state.online = false;
+  const memo = features.memos && memoRoute(path);
+  if (memo) { const value = await context.memos.project(path); guard(); await context.refresh(); return value; }
+  const cached = await cache.read(path);
+  const kind = offlineReadRoute(path).kind;
+  if (kind === 'overview') state.cachedAt = cached.saved_at;
+  if (kind === 'todo') state.partial = cached.data.offline_partial === true;
+  const data = ['legacy', ...(!features.notes ? ['note_entries', 'note_entry'] : []), 'memos', 'memo_note'].includes(kind) ?
+    {...cached.data, can_edit: false, ...(Array.isArray(cached.data.entries) ?
+      {entries: cached.data.entries.map(entry => ({...entry, can_edit: false}))} : {})} : cached.data;
+  await context.refresh(); return data;
 }
 function mutationActions(context) {
   const {state, cache, now, uuid, outbox, features} = context;
@@ -448,16 +466,7 @@ function mutationActions(context) {
       if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
       if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return call(path, input, true);
       if (!networkFailure(error)) throw error;
-      state.verifiedScope = null; state.online = false;
-      if (memo) { const value = await context.memos.project(path); guard(); await context.refresh(); return value; }
-      const cached = await cache.read(path);
-      const kind = offlineReadRoute(path).kind;
-      if (kind === 'overview') state.cachedAt = cached.saved_at;
-      if (kind === 'todo') state.partial = cached.data.offline_partial === true;
-      const data = ['legacy', ...(!features.notes ? ['note_entries', 'note_entry'] : []), 'memos', 'memo_note'].includes(kind) ?
-        {...cached.data, can_edit: false, ...(Array.isArray(cached.data.entries) ?
-          {entries: cached.data.entries.map(entry => ({...entry, can_edit: false}))} : {})} : cached.data;
-      await context.refresh(); return data;
+      return readCachedOffline(context, path, guard);
     }
   }
   return {call, mutate};
@@ -488,6 +497,77 @@ function lifecycleActions(context) {
     sync(); return stop;
   }
   return {start, stop: () => stop(), broadcast};
+}
+async function readTodoMonthSnapshot(context, month) {
+  if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith('0000')) return null;
+  if (context.syncFlight) {
+    let timer;
+    const completed = await Promise.race([context.syncFlight.then(() => true),
+      new Promise(resolve => { timer = setTimeout(() => resolve(false), 5000); })]);
+    clearTimeout(timer);
+    if (!completed) return null;
+  }
+  const owner = context.state.scope, generation = context.generation;
+  if (!owner || context.state.verifiedScope !== owner) return null;
+  const result = await context.db.transaction(['entities', 'meta'], 'readonly', async tx => {
+    const snapshot = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
+    const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
+    if (index?.complete !== true || index.scope_id !== owner || !Array.isArray(index.entities) ||
+        !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 60000) return null;
+    const entities = (await tx.getAll('entities')).filter(row => row.scope === owner);
+    const byId = new Map(entities.map(row => [row.entity_id, row]));
+    const items = new Map();
+    for (const expected of index.entities.filter(row => row.entity_type === 'todo' &&
+        row.date?.startsWith(month + '-') && !row.deleted_at)) {
+      const entity = byId.get(expected.entity_id);
+      if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash ||
+          entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
+      items.set(expected.entity_id, {...entity.server, completed: Boolean(entity.server.completed)});
+    }
+    for (const entity of entities) {
+      const server = entity.server;
+      if (entity.entity_id.startsWith('todo:') && !entity.dirty && !entity.remote_missing && server &&
+          !server.deleted_at && server.date?.startsWith(month + '-') && !items.has(entity.entity_id)) return null;
+    }
+    for (const entity of entities.filter(row => row.entity_id.startsWith('todo:') && row.dirty)) {
+      items.delete(entity.entity_id);
+      const value = offlineValue(entity);
+      if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + '-'))
+        items.set(entity.entity_id, {...value, completed: Boolean(value.completed)});
+    }
+    const days = {};
+    for (const item of items.values()) (days[item.date] ||= []).push(item);
+    return {days, verified_at: verified};
+  });
+  if (generation !== context.generation || owner !== context.state.scope || context.state.verifiedScope !== owner)
+    throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+  return result;
+}
+async function acceptMovedTodo(context, {source, todo}, token) {
+  const active = () => token && context.state.scope === token.scope &&
+    context.state.verifiedScope === token.scope && context.generation === token.generation;
+  if (!active() || !source?.id || source.id !== todo?.id) return 'refresh';
+  const ids = ['unscheduled_todo:' + source.id, 'todo:' + source.id];
+  return context.db.transaction(['entities', 'outbox', 'conflicts', 'meta'], 'readwrite', async tx => {
+    if (!active()) return 'refresh';
+    const [operations, conflicts] = await Promise.all([tx.getAll('outbox'), tx.getAll('conflicts')]);
+    if (operations.some(op => op.scope === token.scope && ids.includes(op.entity_id) && !['done', 'archived'].includes(op.status)) ||
+        conflicts.some(conflict => conflict.scope === token.scope && conflict.resolved_at === null &&
+          ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return 'pending';
+    const keys = ids.map(id => entityKey(token.scope, id));
+    const old = await Promise.all(keys.map(key => tx.get('entities', key)));
+    if (!active()) return 'refresh';
+    if (old.some(entity => entity?.dirty)) return 'pending';
+    if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return 'refresh';
+    for (const [i, row] of [source, todo].entries()) {
+      await tx.put('entities', {...old[i], key: keys[i], scope: token.scope, entity_id: ids[i],
+        server: structuredClone(row), remote_missing: false, ...(i === 1 ? {needs_api_refresh: false} : {})});
+    }
+    if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+    const day = await tx.get('meta', entityKey(token.scope, 'get:/todos?date=' + encodeURIComponent(todo.date)));
+    if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+    return Array.isArray(day?.data?.items) ? 'saved' : 'refresh';
+  });
 }
 export function createOfflineRuntime(options) {
   const context = runtimeContext(options);
@@ -524,50 +604,7 @@ export function createOfflineRuntime(options) {
   return {call: callWithRateLimit, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
     captureRateLimitContext, recordRateLimit,
     readMemo: path => context.memos.project(path),
-    async readTodoMonthSnapshot(month) {
-      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith('0000')) return null;
-      if (context.syncFlight) {
-        let timer;
-        const completed = await Promise.race([context.syncFlight.then(() => true),
-          new Promise(resolve => { timer = setTimeout(() => resolve(false), 5000); })]);
-        clearTimeout(timer);
-        if (!completed) return null;
-      }
-      const owner = context.state.scope, generation = context.generation;
-      if (!owner || context.state.verifiedScope !== owner) return null;
-      const result = await context.db.transaction(['entities', 'meta'], 'readonly', async tx => {
-        const snapshot = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
-        const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
-        if (index?.complete !== true || index.scope_id !== owner || !Array.isArray(index.entities) ||
-            !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 60000) return null;
-        const entities = (await tx.getAll('entities')).filter(row => row.scope === owner);
-        const byId = new Map(entities.map(row => [row.entity_id, row]));
-        const items = new Map();
-        for (const expected of index.entities.filter(row => row.entity_type === 'todo' && row.date?.startsWith(month + '-') && !row.deleted_at)) {
-          const entity = byId.get(expected.entity_id);
-          if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash ||
-              entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
-          items.set(expected.entity_id, {...entity.server, completed: Boolean(entity.server.completed)});
-        }
-        for (const entity of entities) {
-          const server = entity.server;
-          if (entity.entity_id.startsWith('todo:') && !entity.dirty && !entity.remote_missing && server &&
-              !server.deleted_at && server.date?.startsWith(month + '-') && !items.has(entity.entity_id)) return null;
-        }
-        for (const entity of entities.filter(row => row.entity_id.startsWith('todo:') && row.dirty)) {
-          items.delete(entity.entity_id);
-          const value = offlineValue(entity);
-          if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + '-'))
-            items.set(entity.entity_id, {...value, completed: Boolean(value.completed)});
-        }
-        const days = {};
-        for (const item of items.values()) (days[item.date] ||= []).push(item);
-        return {days, verified_at: verified};
-      });
-      if (generation !== context.generation || owner !== context.state.scope || context.state.verifiedScope !== owner)
-        throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
-      return result;
-    },
+    readTodoMonthSnapshot: month => readTodoMonthSnapshot(context, month),
     async findTodo(id) {
       const owner = context.state.scope, generation = context.generation;
       if (!owner) throw fail('请先读取工作台数据，原未来待办仍保留。', 'OFFLINE_SCOPE_REQUIRED');
@@ -576,36 +613,13 @@ export function createOfflineRuntime(options) {
       return structuredClone(offlineValue(entity) || null);
     },
     // Confirmed server moves are reflected without discarding local edits.
-    async acceptMovedTodo({source, todo}, token) {
-      const active = () => token && context.state.scope === token.scope &&
-        context.state.verifiedScope === token.scope && context.generation === token.generation;
-      if (!active() || !source?.id || source.id !== todo?.id) return 'refresh';
-      const ids = ['unscheduled_todo:' + source.id, 'todo:' + source.id];
-      return context.db.transaction(['entities', 'outbox', 'conflicts', 'meta'], 'readwrite', async tx => {
-        if (!active()) return 'refresh';
-        const [operations, conflicts] = await Promise.all([tx.getAll('outbox'), tx.getAll('conflicts')]);
-        if (operations.some(op => op.scope === token.scope && ids.includes(op.entity_id) && !['done', 'archived'].includes(op.status)) ||
-            conflicts.some(conflict => conflict.scope === token.scope && conflict.resolved_at === null &&
-              ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return 'pending';
-        const keys = ids.map(id => entityKey(token.scope, id));
-        const old = await Promise.all(keys.map(key => tx.get('entities', key)));
-        if (!active()) return 'refresh';
-        if (old.some(entity => entity?.dirty)) return 'pending';
-        if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return 'refresh';
-        for (const [i, row] of [source, todo].entries()) {
-          await tx.put('entities', {...old[i], key: keys[i], scope: token.scope, entity_id: ids[i],
-            server: structuredClone(row), remote_missing: false, ...(i === 1 ? {needs_api_refresh: false} : {})});
-        }
-        if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
-        // A clean entity alone cannot seed an uncached day for offline reads.
-        const day = await tx.get('meta', entityKey(token.scope, 'get:/todos?date=' + encodeURIComponent(todo.date)));
-        if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
-        return Array.isArray(day?.data?.items) ? 'saved' : 'refresh';
-      });
-    },
+    acceptMovedTodo: (move, token) => acceptMovedTodo(context, move, token),
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
-    retainDrafts: drafts.capture, retainedDrafts: drafts.list, retainedDraftRecords: drafts.records, purgeVerifiedNoteDrafts: drafts.purgeVerified, purgeUserDeletedNoteDrafts: drafts.purgeUserDeleted, discardUnsentNoteDraft: drafts.discardUnsent, discardSelectedDraft: drafts.discardSelected, flushDrafts: drafts.flush,
+    retainDrafts: drafts.capture, retainedDrafts: drafts.list, retainedDraftRecords: drafts.records,
+    purgeVerifiedNoteDrafts: drafts.purgeVerified, purgeUserDeletedNoteDrafts: drafts.purgeUserDeleted,
+    discardUnsentNoteDraft: drafts.discardUnsent, discardSelectedDraft: drafts.discardSelected,
+    flushDrafts: drafts.flush,
     subscribe(callback) { context.listeners.add(callback); callback({...context.state}); return () => context.listeners.delete(callback); }};
 }
 

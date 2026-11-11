@@ -208,16 +208,7 @@ function createContext(options) {
       return value;
     });
   };
-  const retryable = async scope => {
-    const rows = await list(scope), first = new Map(), ready = [];
-    for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
-    for (const row of first.values()) {
-      if (!canDispatch(row) || !['queued', 'unknown', 'sending'].includes(row.status)) continue;
-      const dependency = await dependencyState({db}, row, rows);
-      if (['ready', 'deleted'].includes(dependency)) ready.push(row);
-    }
-    return ready;
-  };
+  const retryable = scope => retryableOperations({db, list, canDispatch}, scope);
 
   async function lease(scope) {
     checkScope(scope);
@@ -256,6 +247,16 @@ function createContext(options) {
     readNetwork, canDispatch, requireDispatch, retryable};
 }
 
+async function retryableOperations({db, list, canDispatch}, scope) {
+  const rows = await list(scope), first = new Map(), ready = [];
+  for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
+  for (const row of first.values()) {
+    if (!canDispatch(row) || !['queued', 'unknown', 'sending'].includes(row.status)) continue;
+    const dependency = await dependencyState({db}, row, rows);
+    if (['ready', 'deleted'].includes(dependency)) ready.push(row);
+  }
+  return ready;
+}
 async function replayOperation(tx, operation, input, all) {
   const replay = all.find(value => value.save_id === operation.save_id);
   if (!replay) return null;
@@ -281,6 +282,29 @@ async function noteCapacity(tx, operation, old) {
   if (count >= 200) throw Object.assign(new Error('本机当日记录已达 200 条，草稿已保留。'), {code: 'OFFLINE_CACHE_LIMIT'});
 }
 
+async function acknowledgeOperation(context, operation, remote) {
+  const {db, checkScope, owner, now} = context;
+  context.requireDispatch(operation);
+  if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) throw new Error('Incomplete note acknowledgement');
+  checkScope(operation.scope);
+  await db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
+    checkScope(operation.scope);
+    const current = await tx.get('outbox', operation.key);
+    if (!context.canDispatch(current) || current.claim_owner !== owner || !['sending', 'unknown'].includes(current.status)) {
+      throw new Error('Offline operation claim changed');
+    }
+    const key = entityKey(operation.scope, operation.entity_id), entity = await tx.get('entities', key);
+    const confirmed = operation.entity_type === 'template' && operation.method === 'DELETE' ?
+      {...operation.base, ...entity.server, ...remote, version: operation.expected_version + 1} : remote;
+    await tx.delete('outbox', operation.key);
+    const remaining = (await tx.getAll('outbox')).some(value => value.scope === operation.scope &&
+      value.entity_id === operation.entity_id && active(value));
+    const proof = acceptedLabelEvidence(operation, confirmed, entity);
+    await tx.put('entities', {...entity, server: confirmed, local: remaining ? entity.local : confirmed,
+      ...(proof ? {label_evidence: proof} : {}), dirty: remaining, conflict: null});
+    await recordResolutionAck(tx, current, confirmed, now());
+  });
+}
 function storageMethods(context) {
   const {db, checkScope, uuid, now, owner} = context;
   async function enqueueInTransaction(tx, input) {
@@ -340,28 +364,7 @@ function storageMethods(context) {
       return result;
     });
   }
-  async function acknowledge(operation, remote) {
-    context.requireDispatch(operation);
-    if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) throw new Error('Incomplete note acknowledgement');
-    checkScope(operation.scope);
-    await db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
-      checkScope(operation.scope);
-      const current = await tx.get('outbox', operation.key);
-      if (!context.canDispatch(current) || current.claim_owner !== owner || !['sending', 'unknown'].includes(current.status)) {
-        throw new Error('Offline operation claim changed');
-      }
-      const key = entityKey(operation.scope, operation.entity_id), entity = await tx.get('entities', key);
-      const confirmed = operation.entity_type === 'template' && operation.method === 'DELETE' ?
-        {...operation.base, ...entity.server, ...remote, version: operation.expected_version + 1} : remote;
-      await tx.delete('outbox', operation.key);
-      const remaining = (await tx.getAll('outbox')).some(value => value.scope === operation.scope &&
-        value.entity_id === operation.entity_id && active(value));
-      const proof = acceptedLabelEvidence(operation, confirmed, entity);
-      await tx.put('entities', {...entity, server: confirmed, local: remaining ? entity.local : confirmed,
-        ...(proof ? {label_evidence: proof} : {}), dirty: remaining, conflict: null});
-      await recordResolutionAck(tx, current, confirmed, now());
-    });
-  }
+  const acknowledge = (operation, remote) => acknowledgeOperation(context, operation, remote);
 
   return {enqueue, enqueueInTransaction, update, acknowledge};
 }

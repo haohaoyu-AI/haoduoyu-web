@@ -2277,16 +2277,7 @@ function createContext(options4) {
       return value;
     });
   };
-  const retryable = async (scope) => {
-    const rows = await list2(scope), first = /* @__PURE__ */ new Map(), ready = [];
-    for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
-    for (const row of first.values()) {
-      if (!canDispatch(row) || !["queued", "unknown", "sending"].includes(row.status)) continue;
-      const dependency = await dependencyState({ db }, row, rows);
-      if (["ready", "deleted"].includes(dependency)) ready.push(row);
-    }
-    return ready;
-  };
+  const retryable = (scope) => retryableOperations({ db, list: list2, canDispatch }, scope);
   async function lease(scope) {
     checkScope(scope);
     return db.transaction(["meta"], "readwrite", async (tx) => {
@@ -2344,6 +2335,16 @@ function createContext(options4) {
     retryable
   };
 }
+async function retryableOperations({ db, list: list2, canDispatch }, scope) {
+  const rows = await list2(scope), first = /* @__PURE__ */ new Map(), ready = [];
+  for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
+  for (const row of first.values()) {
+    if (!canDispatch(row) || !["queued", "unknown", "sending"].includes(row.status)) continue;
+    const dependency = await dependencyState({ db }, row, rows);
+    if (["ready", "deleted"].includes(dependency)) ready.push(row);
+  }
+  return ready;
+}
 async function replayOperation(tx, operation2, input, all) {
   const replay = all.find((value) => value.save_id === operation2.save_id);
   if (!replay) return null;
@@ -2364,6 +2365,33 @@ async function noteCapacity(tx, operation2, old) {
     if (entity.scope === operation2.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation2.body.category && row?.date === operation2.body.date && !deleted(row)) count3++;
   }
   if (count3 >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
+}
+async function acknowledgeOperation(context, operation2, remote) {
+  const { db, checkScope, owner: owner2, now } = context;
+  context.requireDispatch(operation2);
+  if (operation2.entity_type === "note_entry" && !completeNoteRow(remote)) throw new Error("Incomplete note acknowledgement");
+  checkScope(operation2.scope);
+  await db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
+    checkScope(operation2.scope);
+    const current3 = await tx.get("outbox", operation2.key);
+    if (!context.canDispatch(current3) || current3.claim_owner !== owner2 || !["sending", "unknown"].includes(current3.status)) {
+      throw new Error("Offline operation claim changed");
+    }
+    const key = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key);
+    const confirmed2 = operation2.entity_type === "template" && operation2.method === "DELETE" ? { ...operation2.base, ...entity.server, ...remote, version: operation2.expected_version + 1 } : remote;
+    await tx.delete("outbox", operation2.key);
+    const remaining = (await tx.getAll("outbox")).some((value) => value.scope === operation2.scope && value.entity_id === operation2.entity_id && active2(value));
+    const proof = acceptedLabelEvidence(operation2, confirmed2, entity);
+    await tx.put("entities", {
+      ...entity,
+      server: confirmed2,
+      local: remaining ? entity.local : confirmed2,
+      ...proof ? { label_evidence: proof } : {},
+      dirty: remaining,
+      conflict: null
+    });
+    await recordResolutionAck(tx, current3, confirmed2, now());
+  });
 }
 function storageMethods(context) {
   const { db, checkScope, uuid: uuid5, now, owner: owner2 } = context;
@@ -2437,32 +2465,7 @@ function storageMethods(context) {
       return result;
     });
   }
-  async function acknowledge(operation2, remote) {
-    context.requireDispatch(operation2);
-    if (operation2.entity_type === "note_entry" && !completeNoteRow(remote)) throw new Error("Incomplete note acknowledgement");
-    checkScope(operation2.scope);
-    await db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
-      checkScope(operation2.scope);
-      const current3 = await tx.get("outbox", operation2.key);
-      if (!context.canDispatch(current3) || current3.claim_owner !== owner2 || !["sending", "unknown"].includes(current3.status)) {
-        throw new Error("Offline operation claim changed");
-      }
-      const key = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key);
-      const confirmed2 = operation2.entity_type === "template" && operation2.method === "DELETE" ? { ...operation2.base, ...entity.server, ...remote, version: operation2.expected_version + 1 } : remote;
-      await tx.delete("outbox", operation2.key);
-      const remaining = (await tx.getAll("outbox")).some((value) => value.scope === operation2.scope && value.entity_id === operation2.entity_id && active2(value));
-      const proof = acceptedLabelEvidence(operation2, confirmed2, entity);
-      await tx.put("entities", {
-        ...entity,
-        server: confirmed2,
-        local: remaining ? entity.local : confirmed2,
-        ...proof ? { label_evidence: proof } : {},
-        dirty: remaining,
-        conflict: null
-      });
-      await recordResolutionAck(tx, current3, confirmed2, now());
-    });
-  }
+  const acknowledge = (operation2, remote) => acknowledgeOperation(context, operation2, remote);
   return { enqueue, enqueueInTransaction, update, acknowledge };
 }
 function remoteMethods(context) {
@@ -3651,6 +3654,97 @@ async function noteDigest(row) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
+async function purgeVerifiedDrafts({ db, getScope, getGeneration }, snapshots2, tombstones, stillActive = () => true) {
+  const owner2 = getScope(), generation = getGeneration();
+  if (!owner2) return;
+  const active5 = () => {
+    if (owner2 !== getScope() || generation !== getGeneration() || !stillActive())
+      throw new Error("Draft cleanup was cancelled");
+  };
+  const candidates = [];
+  for (const snapshot of snapshots2) {
+    const value = tombstones.get(snapshot.data?.id);
+    if (snapshot.scope === owner2 && matchesDeletedEntry(snapshot.data, value))
+      candidates.push({ snapshot, value, digest: await noteDigest(snapshot.data) });
+  }
+  active5();
+  await db.transaction(["meta"], "readwrite", async (tx) => {
+    active5();
+    for (const { snapshot, value, digest: digest2 } of candidates) {
+      active5();
+      const current3 = await tx.get("meta", snapshot.key);
+      if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
+      const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+      const previous = await tx.get("meta", key);
+      await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+      await tx.delete("meta", current3.key);
+    }
+    active5();
+  });
+}
+async function purgeUserDeletedDrafts({ db, getScope, getGeneration }, raw, snapshots2, value, stillActive = () => true) {
+  const owner2 = getScope(), generation = getGeneration(), target = safeDraft(raw);
+  const evidenceRow = { ...target, draft: value?.text, labels: value?.labels };
+  if (!owner2 || !eligible(target) || !matchesDeletedEntry(evidenceRow, value) || value.version !== target.version + 1) return;
+  const digest2 = await noteDigest(target);
+  const active5 = () => {
+    if (owner2 !== getScope() || generation !== getGeneration() || !stillActive()) throw new Error("Draft cleanup was cancelled");
+  };
+  await db.transaction(["meta"], "readwrite", async (tx) => {
+    active5();
+    let removed4 = false;
+    for (const snapshot of snapshots2) {
+      const row = snapshot.data;
+      if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
+      const current3 = await tx.get("meta", snapshot.key);
+      if (current3 && JSON.stringify(current3) === JSON.stringify(snapshot)) {
+        await tx.delete("meta", current3.key);
+        removed4 = true;
+      }
+    }
+    if (removed4) {
+      const key = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key);
+      await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+    }
+    active5();
+  });
+}
+async function discardUnsentDraft({ db, getScope, getGeneration }, raw) {
+  const owner2 = getScope(), generation = getGeneration(), row = safeDraft(raw);
+  if (!owner2 || !eligible(row) || row.version !== 0 || (row.localVersion || 0) !== 0)
+    throw new Error("本机草稿状态需要重新核对，内容已保留。");
+  const digest2 = await noteDigest(row);
+  const active5 = () => {
+    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+  };
+  await db.transaction(["meta"], "readwrite", async (tx) => {
+    active5();
+    for (const stored of await tx.getAll("meta")) {
+      const data2 = stored.data;
+      if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
+      await tx.delete("meta", stored.key);
+    }
+    const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+    const previous = await tx.get("meta", key);
+    await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, 1) });
+    active5();
+  });
+}
+async function discardSelectedDraft({ db, getScope, getGeneration, pending }, snapshot) {
+  const owner2 = getScope(), generation = getGeneration();
+  if (!owner2 || snapshot?.scope !== owner2 || !["legacy", "note_entry"].includes(snapshot?.draft_kind))
+    throw new Error("草稿身份范围已变化，请重新查看。");
+  await Promise.all([...pending]);
+  return db.transaction(["meta"], "readwrite", async (tx) => {
+    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+    const current3 = await tx.get("meta", snapshot.key);
+    if (!current3 || current3.scope !== owner2 || current3.draft_kind !== snapshot.draft_kind || JSON.stringify(current3) !== JSON.stringify(snapshot))
+      throw new Error("草稿已变化，请重新查看后再删除。");
+    await tx.delete("meta", snapshot.key);
+    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+    return true;
+  });
+}
 function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
   const pending = /* @__PURE__ */ new Set();
   async function write(rows) {
@@ -3674,7 +3768,15 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         }
         const proof = digests[index] && await tx.get("meta", entityKey(owner2, "deleted-note-proof:" + digests[index]));
         if (proof && row.version < proof.version) continue;
-        if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now(), write_id: crypto.randomUUID() });
+        if (unresolved(row)) await tx.put("meta", {
+          key,
+          scope: owner2,
+          draft_kind: row.kind,
+          draft_owner: draftOwner,
+          data: row,
+          saved_at: now(),
+          write_id: crypto.randomUUID()
+        });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
         }
@@ -3698,97 +3800,11 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   async function list2(kind) {
     return (await records(kind)).map((row) => row.data);
   }
-  async function purgeVerified(snapshots2, tombstones, stillActive = () => true) {
-    const owner2 = getScope(), generation = getGeneration();
-    if (!owner2) return;
-    const active5 = () => {
-      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive())
-        throw new Error("Draft cleanup was cancelled");
-    };
-    const candidates = [];
-    for (const snapshot of snapshots2) {
-      const value = tombstones.get(snapshot.data?.id);
-      if (snapshot.scope === owner2 && matchesDeletedEntry(snapshot.data, value))
-        candidates.push({ snapshot, value, digest: await noteDigest(snapshot.data) });
-    }
-    active5();
-    await db.transaction(["meta"], "readwrite", async (tx) => {
-      active5();
-      for (const { snapshot, value, digest: digest2 } of candidates) {
-        active5();
-        const current3 = await tx.get("meta", snapshot.key);
-        if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
-        const key = entityKey(owner2, "deleted-note-proof:" + digest2);
-        const previous = await tx.get("meta", key);
-        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
-        await tx.delete("meta", current3.key);
-      }
-      active5();
-    });
-  }
-  async function purgeUserDeleted(raw, snapshots2, value, stillActive = () => true) {
-    const owner2 = getScope(), generation = getGeneration(), target = safeDraft(raw);
-    const evidenceRow = { ...target, draft: value?.text, labels: value?.labels };
-    if (!owner2 || !eligible(target) || !matchesDeletedEntry(evidenceRow, value) || value.version !== target.version + 1) return;
-    const digest2 = await noteDigest(target);
-    const active5 = () => {
-      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive()) throw new Error("Draft cleanup was cancelled");
-    };
-    await db.transaction(["meta"], "readwrite", async (tx) => {
-      active5();
-      let removed4 = false;
-      for (const snapshot of snapshots2) {
-        const row = snapshot.data;
-        if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
-        const current3 = await tx.get("meta", snapshot.key);
-        if (current3 && JSON.stringify(current3) === JSON.stringify(snapshot)) {
-          await tx.delete("meta", current3.key);
-          removed4 = true;
-        }
-      }
-      if (removed4) {
-        const key = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key);
-        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
-      }
-      active5();
-    });
-  }
-  async function discardUnsent(raw) {
-    const owner2 = getScope(), generation = getGeneration(), row = safeDraft(raw);
-    if (!owner2 || !eligible(row) || row.version !== 0 || (row.localVersion || 0) !== 0)
-      throw new Error("本机草稿状态需要重新核对，内容已保留。");
-    const digest2 = await noteDigest(row);
-    const active5 = () => {
-      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-    };
-    await db.transaction(["meta"], "readwrite", async (tx) => {
-      active5();
-      for (const stored of await tx.getAll("meta")) {
-        const data2 = stored.data;
-        if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
-        await tx.delete("meta", stored.key);
-      }
-      const key = entityKey(owner2, "deleted-note-proof:" + digest2);
-      const previous = await tx.get("meta", key);
-      await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, 1) });
-      active5();
-    });
-  }
-  async function discardSelected(snapshot) {
-    const owner2 = getScope(), generation = getGeneration();
-    if (!owner2 || snapshot?.scope !== owner2 || !["legacy", "note_entry"].includes(snapshot?.draft_kind))
-      throw new Error("草稿身份范围已变化，请重新查看。");
-    await Promise.all([...pending]);
-    return db.transaction(["meta"], "readwrite", async (tx) => {
-      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-      const current3 = await tx.get("meta", snapshot.key);
-      if (!current3 || current3.scope !== owner2 || current3.draft_kind !== snapshot.draft_kind || JSON.stringify(current3) !== JSON.stringify(snapshot))
-        throw new Error("草稿已变化，请重新查看后再删除。");
-      await tx.delete("meta", snapshot.key);
-      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-      return true;
-    });
-  }
+  const tools = { db, getScope, getGeneration, pending };
+  const purgeVerified = (snapshots2, tombstones, stillActive) => purgeVerifiedDrafts(tools, snapshots2, tombstones, stillActive);
+  const purgeUserDeleted = (raw, snapshots2, value, stillActive) => purgeUserDeletedDrafts(tools, raw, snapshots2, value, stillActive);
+  const discardUnsent = (raw) => discardUnsentDraft(tools, raw);
+  const discardSelected = (snapshot) => discardSelectedDraft(tools, snapshot);
   return { capture, list: list2, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
 }
 var fields, unresolved, eligible;
@@ -4324,6 +4340,29 @@ function runtimeContext(options4) {
   });
   return context;
 }
+async function adoptIdentity(context, me, index, generation, invalidate) {
+  const { cache: cache2, state: state2, emit, onIdentity } = context;
+  const identity6 = safeIdentity(me);
+  if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
+  if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
+    throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
+  if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity6))) {
+    await invalidate({ forget: true });
+    throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
+  }
+  await cache2.saveIdentity(identity6, index.scope_id);
+  if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
+    await invalidate({ forget: true });
+    throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
+  }
+  state2.scope = index.scope_id;
+  state2.verifiedScope = index.scope_id;
+  state2.identity = identity6;
+  state2.online = true;
+  onIdentity(me);
+  emit();
+  return me;
+}
 function identityActions(context) {
   const { cache: cache2, state: state2, emit, request, onIdentity } = context;
   async function invalidate({ forget = false } = {}) {
@@ -4341,28 +4380,7 @@ function identityActions(context) {
     if (forget) await cache2.forgetIdentity();
     emit();
   }
-  async function adopt(me, index, generation) {
-    const identity6 = safeIdentity(me);
-    if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
-    if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
-      throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
-    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity6))) {
-      await invalidate({ forget: true });
-      throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
-    }
-    await cache2.saveIdentity(identity6, index.scope_id);
-    if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
-      await invalidate({ forget: true });
-      throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
-    }
-    state2.scope = index.scope_id;
-    state2.verifiedScope = index.scope_id;
-    state2.identity = identity6;
-    state2.online = true;
-    onIdentity(me);
-    emit();
-    return me;
-  }
+  const adopt = (me, index, generation) => adoptIdentity(context, me, index, generation, invalidate);
   async function authenticate(options4 = {}) {
     const generation = context.generation;
     let liveIdentity = null;
@@ -4490,85 +4508,87 @@ function stateActions(context) {
   }
   return { refresh, queue, resolve };
 }
-function syncActions(context) {
+async function runSync(context) {
   const { state: state2, emit, outbox, snapshot, now, online } = context;
-  async function run2() {
-    if (!online()) {
-      state2.verifiedScope = null;
+  if (!online()) {
+    state2.verifiedScope = null;
+    return context.refresh();
+  }
+  let stage = "identity";
+  let owner2 = state2.scope, generation = context.generation;
+  const active5 = () => generation === context.generation && owner2 === state2.scope;
+  try {
+    if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
+    if (!active5()) return { ...state2 };
+    if (context.cooldownUntil > now()) {
+      context.scheduleRetry();
       return context.refresh();
     }
-    let stage = "identity";
-    let owner2 = state2.scope, generation = context.generation;
-    const active5 = () => generation === context.generation && owner2 === state2.scope;
-    try {
-      if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
-      if (!active5()) return { ...state2 };
-      if (context.cooldownUntil > now()) {
-        context.scheduleRetry();
-        return context.refresh();
-      }
-      await context.verify();
-      if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
-      if (!state2.verifiedScope) return context.refresh();
-      owner2 = state2.scope;
-      generation = context.generation;
-      state2.phase = "syncing";
-      emit();
-      stage = "outbox";
-      await outbox.resume(state2.scope);
-      if (!active5()) return { ...state2 };
-      const drained = await outbox.drain();
-      if (!active5()) return { ...state2 };
-      if (drained.rateLimitedUntil > now()) throw Object.assign(
-        new Error("请求较多，请稍后重试。"),
-        { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
-      );
-      stage = "cache";
-      if (state2.verifiedScope) await context.cache.captureDocuments();
-      if (!active5()) return { ...state2 };
-      if (state2.verifiedScope) {
-        stage = "snapshot";
-        await (context.snapshotV2 || snapshot).pull({ date: today(now) });
-        if (!active5()) return { ...state2 };
-        if (context.lastTodoPath) {
-          stage = "cache";
-          const date = offlineReadRoute(context.lastTodoPath).date;
-          if ((await context.cache.entities()).some((row) => row.needs_api_refresh && row.server?.date === date))
-            await context.call(context.lastTodoPath);
-        }
-      }
-      if (!active5()) return { ...state2 };
-      state2.lastSuccess = now();
-      state2.error = null;
-      state2.errorStage = null;
-    } catch (error) {
-      if (!active5()) return { ...state2 };
-      if (error.status === 429) {
-        const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
-        context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
-        if (owner2) {
-          const assertActive = () => {
-            if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-          };
-          try {
-            await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
-          } catch {
-          }
-        }
-      }
-      if (!active5()) return { ...state2 };
-      state2.error = error.message;
-      state2.errorStage = stage;
-      if (error.status) state2.online = true;
-      else if (networkFailure(error)) state2.online = false;
-    }
-    state2.phase = "idle";
-    await context.refresh();
+    await context.verify();
+    if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
+    if (!state2.verifiedScope) return context.refresh();
+    owner2 = state2.scope;
+    generation = context.generation;
+    state2.phase = "syncing";
+    emit();
+    stage = "outbox";
+    await outbox.resume(state2.scope);
     if (!active5()) return { ...state2 };
-    context.broadcast();
-    if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
-    return { ...state2 };
+    const drained = await outbox.drain();
+    if (!active5()) return { ...state2 };
+    if (drained.rateLimitedUntil > now()) throw Object.assign(
+      new Error("请求较多，请稍后重试。"),
+      { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
+    );
+    stage = "cache";
+    if (state2.verifiedScope) await context.cache.captureDocuments();
+    if (!active5()) return { ...state2 };
+    if (state2.verifiedScope) {
+      stage = "snapshot";
+      await (context.snapshotV2 || snapshot).pull({ date: today(now) });
+      if (!active5()) return { ...state2 };
+      if (context.lastTodoPath) {
+        stage = "cache";
+        const date = offlineReadRoute(context.lastTodoPath).date;
+        if ((await context.cache.entities()).some((row) => row.needs_api_refresh && row.server?.date === date))
+          await context.call(context.lastTodoPath);
+      }
+    }
+    if (!active5()) return { ...state2 };
+    state2.lastSuccess = now();
+    state2.error = null;
+    state2.errorStage = null;
+  } catch (error) {
+    if (!active5()) return { ...state2 };
+    if (error.status === 429) {
+      const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
+      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+      if (owner2) {
+        const assertActive = () => {
+          if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+        };
+        try {
+          await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
+        } catch {
+        }
+      }
+    }
+    if (!active5()) return { ...state2 };
+    state2.error = error.message;
+    state2.errorStage = stage;
+    if (error.status) state2.online = true;
+    else if (networkFailure(error)) state2.online = false;
   }
+  state2.phase = "idle";
+  await context.refresh();
+  if (!active5()) return { ...state2 };
+  context.broadcast();
+  if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
+  return { ...state2 };
+}
+function syncActions(context) {
+  const { state: state2, emit, outbox, snapshot, now, online } = context;
+  const run2 = () => runSync(context);
   function sync({ rerun = false } = {}) {
     if (context.syncFlight) {
       if (rerun) context.syncAgain = true;
@@ -4640,6 +4660,25 @@ async function rememberRead(context, path, value, baseline, memo) {
 }
 function labelRequestOptions(path, options4, features) {
   return features.labelsV1 && path.startsWith("/note-entries") ? { ...options4, headers: { ...options4.headers, "X-Note-Labels-Version": "1" } } : options4;
+}
+async function readCachedOffline(context, path, guard) {
+  const { state: state2, cache: cache2, features } = context;
+  state2.verifiedScope = null;
+  state2.online = false;
+  const memo = features.memos && memoRoute(path);
+  if (memo) {
+    const value = await context.memos.project(path);
+    guard();
+    await context.refresh();
+    return value;
+  }
+  const cached = await cache2.read(path);
+  const kind = offlineReadRoute(path).kind;
+  if (kind === "overview") state2.cachedAt = cached.saved_at;
+  if (kind === "todo") state2.partial = cached.data.offline_partial === true;
+  const data2 = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
+  await context.refresh();
+  return data2;
 }
 function mutationActions(context) {
   const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
@@ -4734,21 +4773,7 @@ function mutationActions(context) {
       }
       if (error.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
       if (!networkFailure(error)) throw error;
-      state2.verifiedScope = null;
-      state2.online = false;
-      if (memo) {
-        const value = await context.memos.project(path);
-        guard();
-        await context.refresh();
-        return value;
-      }
-      const cached = await cache2.read(path);
-      const kind = offlineReadRoute(path).kind;
-      if (kind === "overview") state2.cachedAt = cached.saved_at;
-      if (kind === "todo") state2.partial = cached.data.offline_partial === true;
-      const data2 = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
-      await context.refresh();
-      return data2;
+      return readCachedOffline(context, path, guard);
     }
   }
   return { call, mutate };
@@ -4797,6 +4822,81 @@ function lifecycleActions(context) {
   }
   return { start, stop: () => stop(), broadcast };
 }
+async function readTodoMonthSnapshot(context, month) {
+  if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
+  if (context.syncFlight) {
+    let timer2;
+    const completed = await Promise.race([
+      context.syncFlight.then(() => true),
+      new Promise((resolve) => {
+        timer2 = setTimeout(() => resolve(false), 5e3);
+      })
+    ]);
+    clearTimeout(timer2);
+    if (!completed) return null;
+  }
+  const owner2 = context.state.scope, generation = context.generation;
+  if (!owner2 || context.state.verifiedScope !== owner2) return null;
+  const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
+    const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
+    const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
+    if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
+    const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
+    const byId = new Map(entities.map((row) => [row.entity_id, row]));
+    const items = /* @__PURE__ */ new Map();
+    for (const expected of index.entities.filter((row) => row.entity_type === "todo" && row.date?.startsWith(month + "-") && !row.deleted_at)) {
+      const entity = byId.get(expected.entity_id);
+      if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
+      items.set(expected.entity_id, { ...entity.server, completed: Boolean(entity.server.completed) });
+    }
+    for (const entity of entities) {
+      const server = entity.server;
+      if (entity.entity_id.startsWith("todo:") && !entity.dirty && !entity.remote_missing && server && !server.deleted_at && server.date?.startsWith(month + "-") && !items.has(entity.entity_id)) return null;
+    }
+    for (const entity of entities.filter((row) => row.entity_id.startsWith("todo:") && row.dirty)) {
+      items.delete(entity.entity_id);
+      const value = offlineValue(entity);
+      if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + "-"))
+        items.set(entity.entity_id, { ...value, completed: Boolean(value.completed) });
+    }
+    const days = {};
+    for (const item of items.values()) (days[item.date] ||= []).push(item);
+    return { days, verified_at: verified };
+  });
+  if (generation !== context.generation || owner2 !== context.state.scope || context.state.verifiedScope !== owner2)
+    throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+  return result;
+}
+async function acceptMovedTodo(context, { source, todo }, token) {
+  const active5 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
+  if (!active5() || !source?.id || source.id !== todo?.id) return "refresh";
+  const ids = ["unscheduled_todo:" + source.id, "todo:" + source.id];
+  return context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
+    if (!active5()) return "refresh";
+    const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
+    if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
+    const keys = ids.map((id2) => entityKey(token.scope, id2));
+    const old = await Promise.all(keys.map((key) => tx.get("entities", key)));
+    if (!active5()) return "refresh";
+    if (old.some((entity) => entity?.dirty)) return "pending";
+    if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
+    for (const [i, row] of [source, todo].entries()) {
+      await tx.put("entities", {
+        ...old[i],
+        key: keys[i],
+        scope: token.scope,
+        entity_id: ids[i],
+        server: structuredClone(row),
+        remote_missing: false,
+        ...i === 1 ? { needs_api_refresh: false } : {}
+      });
+    }
+    if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+    const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+    if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+    return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
+  });
+}
 function createOfflineRuntime(options4) {
   const context = runtimeContext(options4);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
@@ -4839,51 +4939,7 @@ function createOfflineRuntime(options4) {
     captureRateLimitContext,
     recordRateLimit,
     readMemo: (path) => context.memos.project(path),
-    async readTodoMonthSnapshot(month) {
-      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
-      if (context.syncFlight) {
-        let timer2;
-        const completed = await Promise.race([
-          context.syncFlight.then(() => true),
-          new Promise((resolve) => {
-            timer2 = setTimeout(() => resolve(false), 5e3);
-          })
-        ]);
-        clearTimeout(timer2);
-        if (!completed) return null;
-      }
-      const owner2 = context.state.scope, generation = context.generation;
-      if (!owner2 || context.state.verifiedScope !== owner2) return null;
-      const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
-        const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
-        const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
-        if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
-        const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
-        const byId = new Map(entities.map((row) => [row.entity_id, row]));
-        const items = /* @__PURE__ */ new Map();
-        for (const expected of index.entities.filter((row) => row.entity_type === "todo" && row.date?.startsWith(month + "-") && !row.deleted_at)) {
-          const entity = byId.get(expected.entity_id);
-          if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
-          items.set(expected.entity_id, { ...entity.server, completed: Boolean(entity.server.completed) });
-        }
-        for (const entity of entities) {
-          const server = entity.server;
-          if (entity.entity_id.startsWith("todo:") && !entity.dirty && !entity.remote_missing && server && !server.deleted_at && server.date?.startsWith(month + "-") && !items.has(entity.entity_id)) return null;
-        }
-        for (const entity of entities.filter((row) => row.entity_id.startsWith("todo:") && row.dirty)) {
-          items.delete(entity.entity_id);
-          const value = offlineValue(entity);
-          if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + "-"))
-            items.set(entity.entity_id, { ...value, completed: Boolean(value.completed) });
-        }
-        const days = {};
-        for (const item of items.values()) (days[item.date] ||= []).push(item);
-        return { days, verified_at: verified };
-      });
-      if (generation !== context.generation || owner2 !== context.state.scope || context.state.verifiedScope !== owner2)
-        throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-      return result;
-    },
+    readTodoMonthSnapshot: (month) => readTodoMonthSnapshot(context, month),
     async findTodo(id2) {
       const owner2 = context.state.scope, generation = context.generation;
       if (!owner2) throw fail4("请先读取工作台数据，原未来待办仍保留。", "OFFLINE_SCOPE_REQUIRED");
@@ -4892,36 +4948,7 @@ function createOfflineRuntime(options4) {
       return structuredClone(offlineValue(entity) || null);
     },
     // Confirmed server moves are reflected without discarding local edits.
-    async acceptMovedTodo({ source, todo }, token) {
-      const active5 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
-      if (!active5() || !source?.id || source.id !== todo?.id) return "refresh";
-      const ids = ["unscheduled_todo:" + source.id, "todo:" + source.id];
-      return context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
-        if (!active5()) return "refresh";
-        const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
-        if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
-        const keys = ids.map((id2) => entityKey(token.scope, id2));
-        const old = await Promise.all(keys.map((key) => tx.get("entities", key)));
-        if (!active5()) return "refresh";
-        if (old.some((entity) => entity?.dirty)) return "pending";
-        if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
-        for (const [i, row] of [source, todo].entries()) {
-          await tx.put("entities", {
-            ...old[i],
-            key: keys[i],
-            scope: token.scope,
-            entity_id: ids[i],
-            server: structuredClone(row),
-            remote_missing: false,
-            ...i === 1 ? { needs_api_refresh: false } : {}
-          });
-        }
-        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-        const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
-        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-        return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
-      });
-    },
+    acceptMovedTodo: (move, token) => acceptMovedTodo(context, move, token),
     queue: context.queue,
     resolve: context.resolve,
     invalidate: context.invalidate,
@@ -7488,9 +7515,69 @@ function todoMonthSeed(month, snapshot, loaded) {
   }
   return days;
 }
+async function loadTodoMonth(snapshot, controller, expired, deps) {
+  const { monthDays, seed, active: active5, now, limits, isCurrent, changed: changed4 } = deps;
+  const valid2 = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
+  const count3 = monthDays(snapshot.month);
+  const dates = Array.from({ length: count3 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
+  const revisions = new Map(snapshot.revisions);
+  try {
+    const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
+    if (!valid2()) return;
+    if (initial) for (const [date, items] of Object.entries(initial)) {
+      if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) && (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
+        snapshot.days.set(date, items);
+        snapshot.fresh.add(date);
+      }
+    }
+    for (let start = 0; start < dates.length; start += 5) {
+      const batch = dates.slice(start, start + 5).filter((date) => !snapshot.fresh.has(date));
+      if (!batch.length) continue;
+      const context = { controller, pending: /* @__PURE__ */ new Map() };
+      const results = await Promise.allSettled(batch.map(async (date) => {
+        const revision2 = revisions.get(date) || 0;
+        const value = await deps.read(date, context);
+        if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
+        if (valid2()) {
+          if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
+          snapshot.fresh.add(date);
+        }
+        return value;
+      }));
+      if (!valid2()) return;
+      let failure3;
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === "rejected") {
+          const error = result.reason || new Error("月记录读取失败，请重试");
+          if (!failure3 || error?.status === 429 && (failure3.status !== 429 || (error.retryAfterMs || 6e4) > (failure3.retryAfterMs || 6e4))) failure3 = error;
+        }
+      }
+      if (failure3) {
+        if (failure3.status === 429) {
+          const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure3.retryAfterMs || 6e4));
+          limits.cooldown = Math.max(limits.cooldown, deadline);
+          snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
+        }
+        snapshot.error = failure3.message || "月记录读取失败，请重试";
+        break;
+      }
+    }
+    if (snapshot.fresh.size === count3) snapshot.expiresAt = now() + 6e4;
+  } catch (error) {
+    if (valid2()) snapshot.error = error.message || "月记录读取失败，请重试";
+  } finally {
+    if (snapshot.controller === controller) {
+      snapshot.controller = null;
+      snapshot.loading = false;
+      if (isCurrent(snapshot) && active5(snapshot.owner)) changed4(snapshot);
+    }
+  }
+}
 function createTodoMonthLoader({ read: read2, seed, active: active5, changed: changed4 = () => {
 }, now = Date.now }) {
-  let owner2 = "", current3 = null, cooldown = 0;
+  let owner2 = "", current3 = null;
+  const limits = { cooldown: 0 };
   const monthDays = (month) => {
     const end = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
     end.setUTCMonth(end.getUTCMonth() + 1);
@@ -7510,7 +7597,7 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
       months.clear();
       owner2 = nextOwner;
       current3 = null;
-      cooldown = 0;
+      limits.cooldown = 0;
     }
     if (current3?.month !== month) cancel(current3);
     let snapshot = months.get(month);
@@ -7519,7 +7606,7 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
       months.set(month, snapshot);
     }
     current3 = snapshot;
-    const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
+    const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, limits.cooldown);
     if (snapshot.fresh.size === count3 && now() < snapshot.expiresAt) snapshot.error = "";
     const expired = snapshot.fresh.size === count3 && now() >= snapshot.expiresAt;
     if (expired) snapshot.fresh.clear();
@@ -7530,67 +7617,18 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
       snapshot.controller = controller;
       snapshot.loading = true;
       snapshot.error = "";
-      snapshot.promise = run2(snapshot, controller, expired);
+      snapshot.promise = loadTodoMonth(snapshot, controller, expired, {
+        monthDays,
+        seed,
+        read: read2,
+        active: active5,
+        now,
+        limits,
+        changed: changed4,
+        isCurrent: (value) => current3 === value
+      });
     }
     return snapshot;
-  }
-  async function run2(snapshot, controller, expired) {
-    const valid2 = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
-    const count3 = monthDays(snapshot.month);
-    const dates = Array.from({ length: count3 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
-    const revisions = new Map(snapshot.revisions);
-    try {
-      const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
-      if (!valid2()) return;
-      if (initial) for (const [date, items] of Object.entries(initial)) {
-        if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) && (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
-          snapshot.days.set(date, items);
-          snapshot.fresh.add(date);
-        }
-      }
-      for (let start = 0; start < dates.length; start += 5) {
-        const batch = dates.slice(start, start + 5).filter((date) => !snapshot.fresh.has(date));
-        if (!batch.length) continue;
-        const context = { controller, pending: /* @__PURE__ */ new Map() };
-        const results = await Promise.allSettled(batch.map(async (date) => {
-          const revision2 = revisions.get(date) || 0;
-          const value = await read2(date, context);
-          if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
-          if (valid2()) {
-            if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
-            snapshot.fresh.add(date);
-          }
-          return value;
-        }));
-        if (!valid2()) return;
-        let failure3;
-        for (let i = 0; i < results.length; i++) {
-          const result = results[i];
-          if (result.status === "rejected") {
-            const error = result.reason || new Error("月记录读取失败，请重试");
-            if (!failure3 || error?.status === 429 && (failure3.status !== 429 || (error.retryAfterMs || 6e4) > (failure3.retryAfterMs || 6e4))) failure3 = error;
-          }
-        }
-        if (failure3) {
-          if (failure3.status === 429) {
-            const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure3.retryAfterMs || 6e4));
-            cooldown = Math.max(cooldown, deadline);
-            snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
-          }
-          snapshot.error = failure3.message || "月记录读取失败，请重试";
-          break;
-        }
-      }
-      if (snapshot.fresh.size === count3) snapshot.expiresAt = now() + 6e4;
-    } catch (error) {
-      if (valid2()) snapshot.error = error.message || "月记录读取失败，请重试";
-    } finally {
-      if (snapshot.controller === controller) {
-        snapshot.controller = null;
-        snapshot.loading = false;
-        if (current3 === snapshot && active5(snapshot.owner)) changed4(snapshot);
-      }
-    }
   }
   function update(nextOwner, date, items) {
     if (owner2 !== nextOwner || !Array.isArray(items)) return false;
@@ -8495,7 +8533,7 @@ function moveTodoMonth(offset) {
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
   paintTodoCalendar(day6.date);
-  void loadTodoMonth(nextMonth);
+  void loadTodoMonth2(nextMonth);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
 function paintTodoCalendar(date) {
@@ -8505,7 +8543,7 @@ function paintTodoCalendar(date) {
     calendar.addEventListener("click", (event) => {
       const retry = event.target.closest("[data-todo-calendar-retry]");
       if (retry) {
-        void loadTodoMonth(todoCalendarMonth(todoDay().date));
+        void loadTodoMonth2(todoCalendarMonth(todoDay().date));
         return;
       }
       const button2 = event.target.closest("[data-todo-calendar-view]");
@@ -8531,7 +8569,7 @@ function paintTodoCalendar(date) {
       todosState.calendarMonth = month2;
       calendar.dataset.month = "";
       paintTodoCalendar(todoDay().date);
-      void loadTodoMonth(month2);
+      void loadTodoMonth2(month2);
     });
     calendar.dataset.viewBound = "true";
   }
@@ -8542,7 +8580,7 @@ function paintTodoCalendar(date) {
   calendar.dataset.today = today2;
   if (focusedDate) $(`[data-date="${CSS.escape(focusedDate)}"]`, calendar)?.focus();
 }
-async function loadTodoMonth(month) {
+async function loadTodoMonth2(month) {
   const snapshot = monthLoader.open(month, monthOwner());
   monthSnapshot = snapshot;
   if (todosVisible()) {
@@ -8622,7 +8660,7 @@ async function setTodoPanel(panel2) {
   if (state.todoPanel === "future") await loadUnscheduledTodos();
   else {
     await loadTodos();
-    if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date));
+    if (state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(todoDay().date));
   }
   const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
@@ -8794,7 +8832,7 @@ async function loadTodos(context) {
       const visible3 = todoReadActive(owner2, version2, date, day6, sequence4);
       day6.loading = false;
       paintTodos();
-      if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
+      if (visible3 && state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(date));
       if (!visible3 && todoObservers.size && date === bjtDate()) void loadFloatingToday();
     }
   }
@@ -9019,7 +9057,7 @@ function registerTodosClock() {
         node2.dataset.month = "";
         paintTodoCalendar(todoDay().date);
       }
-      if (ready) void loadTodoMonth(month);
+      if (ready) void loadTodoMonth2(month);
     });
   });
   window.addEventListener("haoduoyu-todos-reset", () => monthLoader.cancel());
@@ -9539,6 +9577,122 @@ function createEntryRecoveryActions(context) {
   }
   return { restoreDraft, dropRestoredDraft };
 }
+function createEntryPersistActions(context) {
+  const { category, page, entry, entries, emit, stopTimer } = context;
+  const { uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
+  async function save(id2) {
+    const item = entry(id2);
+    if (!item) return;
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (item.recoveredBaseline) {
+      const snapshot = { draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item) };
+      item.loading = true;
+      item.error = "正在核对线上记录，本机草稿会保留。";
+      emit();
+      try {
+        if (!loadVerified) throw new Error("无法直接核对线上记录");
+        const list2 = checkedCollection(await loadVerified(item.date), category, item.date);
+        if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
+        if (list2.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
+        const same2 = list2.entries.find((value) => value.id === id2);
+        if (same2 && same2.text === snapshot.draft && equalLabels(labelsOf(same2), snapshot.labels)) {
+          item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
+          return;
+        }
+        if (list2.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
+          item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
+          return;
+        }
+        if (!list2.can_edit || same2 && (same2.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same2.content_hash !== item.recoveredBaseline.contentHash) || !same2 && snapshot.version !== 0) {
+          item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
+          return;
+        }
+      } catch {
+        if (!context.disposed && entry(id2) === item) item.error = "无法核对线上记录，请稍后重试；本机草稿仍保留。";
+        return;
+      } finally {
+        item.loading = false;
+        emit();
+      }
+    }
+    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
+      item.phase = "error";
+      item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
+      emit();
+      return;
+    }
+    if (!persistedVersion(item) && !item.draft.trim()) return;
+    if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
+      item.phase = "error";
+      item.error = "请联网核实完整标签后再保存，草稿已保留。";
+      emit();
+      return;
+    }
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return context.send(item, {
+      kind: "put",
+      version: persistedVersion(item),
+      text: item.draft,
+      saveId: uuid5(),
+      ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
+      ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
+      ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
+    });
+  }
+  async function deleteEntry(id2) {
+    const item = entry(id2);
+    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
+    if (!persistedVersion(item)) {
+      stopTimer(item);
+      item.discarding = true;
+      emit();
+      try {
+        await discardUnsent(item);
+      } catch (error) {
+        item.discarding = false;
+        item.phase = "error";
+        item.error = "本机草稿未能清理，内容已保留：" + error.message;
+        emit();
+        return;
+      }
+      if (context.disposed || entry(id2) !== item) return;
+      const current3 = page(item.date);
+      current3.ids = current3.ids.filter((value) => value !== id2);
+      entries.delete(id2);
+      if (current3.composerId === id2) current3.composerId = "";
+      emit();
+      return;
+    }
+    item.discarding = true;
+    emit();
+    let prepared;
+    try {
+      prepared = await prepareDelete(item);
+    } catch (error) {
+      item.discarding = false;
+      item.phase = "error";
+      item.error = "本机草稿未能核对，内容已保留：" + error.message;
+      emit();
+      return;
+    }
+    if (context.disposed || entry(id2) !== item) return;
+    item.discarding = false;
+    const result = await context.send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
+    if (result && prepared) {
+      try {
+        await finishDelete(prepared, result);
+      } catch {
+      }
+    }
+  }
+  return { save, deleteEntry };
+}
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
   const { put, remove, restore, uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
@@ -9620,117 +9774,8 @@ function createEntryWritingActions(context) {
       }
     }
   }
-  async function save(id2) {
-    const item = entry(id2);
-    if (!item) return;
-    stopTimer(item);
-    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
-    if (item.recoveredBaseline) {
-      const snapshot = { draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item) };
-      item.loading = true;
-      item.error = "正在核对线上记录，本机草稿会保留。";
-      emit();
-      try {
-        if (!loadVerified) throw new Error("无法直接核对线上记录");
-        const list2 = checkedCollection(await loadVerified(item.date), category, item.date);
-        if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
-        if (list2.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
-        const same2 = list2.entries.find((value) => value.id === id2);
-        if (same2 && same2.text === snapshot.draft && equalLabels(labelsOf(same2), snapshot.labels)) {
-          item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
-          return;
-        }
-        if (list2.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
-          item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
-          return;
-        }
-        if (!list2.can_edit || same2 && (same2.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same2.content_hash !== item.recoveredBaseline.contentHash) || !same2 && snapshot.version !== 0) {
-          item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
-          return;
-        }
-      } catch {
-        if (!context.disposed && entry(id2) === item) item.error = "无法核对线上记录，请稍后重试；本机草稿仍保留。";
-        return;
-      } finally {
-        item.loading = false;
-        emit();
-      }
-    }
-    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
-      item.phase = "error";
-      item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
-      emit();
-      return;
-    }
-    if (!persistedVersion(item) && !item.draft.trim()) return;
-    if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
-      item.phase = "error";
-      item.error = "请联网核实完整标签后再保存，草稿已保留。";
-      emit();
-      return;
-    }
-    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-      item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留。";
-      emit();
-      return;
-    }
-    return send(item, {
-      kind: "put",
-      version: persistedVersion(item),
-      text: item.draft,
-      saveId: uuid5(),
-      ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
-      ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
-      ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
-    });
-  }
-  async function deleteEntry(id2) {
-    const item = entry(id2);
-    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
-    if (!persistedVersion(item)) {
-      stopTimer(item);
-      item.discarding = true;
-      emit();
-      try {
-        await discardUnsent(item);
-      } catch (error) {
-        item.discarding = false;
-        item.phase = "error";
-        item.error = "本机草稿未能清理，内容已保留：" + error.message;
-        emit();
-        return;
-      }
-      if (context.disposed || entry(id2) !== item) return;
-      const current3 = page(item.date);
-      current3.ids = current3.ids.filter((value) => value !== id2);
-      entries.delete(id2);
-      if (current3.composerId === id2) current3.composerId = "";
-      emit();
-      return;
-    }
-    item.discarding = true;
-    emit();
-    let prepared;
-    try {
-      prepared = await prepareDelete(item);
-    } catch (error) {
-      item.discarding = false;
-      item.phase = "error";
-      item.error = "本机草稿未能核对，内容已保留：" + error.message;
-      emit();
-      return;
-    }
-    if (context.disposed || entry(id2) !== item) return;
-    item.discarding = false;
-    const result = await send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
-    if (result && prepared) {
-      try {
-        await finishDelete(prepared, result);
-      } catch {
-      }
-    }
-  }
+  context.send = send;
+  const { save, deleteEntry } = createEntryPersistActions(context);
   async function restoreEntry(id2) {
     const item = entry(id2);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
