@@ -9660,7 +9660,30 @@ function createEntryRecoveryActions(context) {
     emit();
     return item;
   }
-  return { restoreDraft };
+  function dropRestoredDraft(id2, draft) {
+    const item = entry(id2);
+    if (!item?.recoveredBaseline || item.draft !== draft || item.composing || item.discarding || item.localQueued || item.pending && !item.pending.uncertain || context.disposed) return false;
+    stopTimer(item);
+    item.writeEpoch++;
+    item.recoveredBaseline = null;
+    item.pending = null;
+    item.remote = null;
+    item.error = "";
+    if (persistedVersion(item) > 0) {
+      item.draft = savedText(item);
+      item.labels = [...item.serverLabels];
+      item.label = item.labels[0] || "";
+      item.dirty = false;
+      item.phase = savedPhase(item);
+    } else {
+      entries.delete(item.id);
+      const current3 = page(item.date);
+      current3.ids = current3.ids.filter((value) => value !== item.id);
+    }
+    emit();
+    return true;
+  }
+  return { restoreDraft, dropRestoredDraft };
 }
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
@@ -9988,6 +10011,7 @@ function createNoteEntriesStore(options4) {
     useServer,
     useDraft,
     restoreDraft,
+    dropRestoredDraft,
     dispose
   } = context;
   const pauseAutosave = () => {
@@ -10016,6 +10040,7 @@ function createNoteEntriesStore(options4) {
     useServer,
     useDraft,
     restoreDraft,
+    dropRestoredDraft,
     pauseAutosave,
     dispose
   };
@@ -10679,6 +10704,143 @@ async function visibleArchive() {
     if (visibleArchiveFlight?.promise === promise) visibleArchiveFlight = null;
   }
 }
+var archiveConfirm = "", archiveMessage = "", archiveBusy = false;
+var archiveGroupKey = ({ draft_kind: kind, data: data2 }) => JSON.stringify([kind, data2?.kind, data2?.category, data2?.date, data2?.draft]);
+function groupArchiveRecords(records) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const record of records) {
+    const key2 = archiveGroupKey(record);
+    if (!groups.has(key2)) groups.set(key2, { key: key2, row: record.data, records: [] });
+    groups.get(key2).records.push(record);
+  }
+  return [...groups.values()];
+}
+function archiveButton(text, onClick, className = "btn text") {
+  const button2 = document.createElement("button");
+  button2.type = "button";
+  button2.className = className;
+  button2.textContent = text;
+  button2.disabled = archiveBusy;
+  button2.addEventListener("click", onClick);
+  return button2;
+}
+function archiveConfirmRow(key2, question, expected) {
+  const row = document.createElement("div"), text = document.createElement("span");
+  row.className = "notes-retained-confirm";
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", question);
+  text.textContent = question;
+  const accept = archiveButton("确认删除", () => void deleteArchiveRecords(key2, expected), "btn text notes-retained-danger");
+  const cancel = archiveButton("取消", () => {
+    archiveConfirm = "";
+    void showRetainedArchive();
+  });
+  row.append(text, accept, cancel);
+  return row;
+}
+function askArchiveDelete(key2) {
+  archiveConfirm = key2;
+  archiveMessage = "";
+  void showRetainedArchive();
+}
+function archiveRecordBusy(record) {
+  const row = record.data;
+  const item = row?.kind === "note_entry" && entryStores.get(row.category)?.entry(row.id);
+  if (!item) return false;
+  if (item.composing || item.discarding || item.localQueued || item.pending && !item.pending.uncertain) return true;
+  if (item.recoveredBaseline) return !entryRecoveryGuard.proof(item);
+  return Boolean(item.pending || item.dirty && item.draft === row.draft);
+}
+async function restoreLegacyAfterDiscard(row, expected) {
+  if (row?.kind !== "legacy" || expected !== notesIdentityNow()) return;
+  const remaining = await getOfflineRuntime().retainedDraftRecords("legacy");
+  const item = notesStores.get(row.category)?.pages.get(row.date);
+  const same2 = ({ data: data2 }) => data2?.category === row.category && data2?.date === row.date && data2?.draft === row.draft;
+  if (expected === notesIdentityNow() && !remaining.some(same2) && item && legacyRecoveryGuard.unchanged(item) && item.draft === row.draft && !item.pending && !item.remote) {
+    item.draft = item.serverText;
+    item.dirty = false;
+    item.error = "";
+    item.phase = item.version ? "saved" : "empty";
+    legacyRecoveryGuard.forget(item);
+    paintDailyNotesPage();
+  }
+}
+async function deleteArchiveRecords(key2, expected) {
+  const offline = getOfflineRuntime();
+  if (!offline || archiveBusy || expected !== notesIdentityNow()) return;
+  archiveBusy = true;
+  archiveConfirm = "";
+  archiveMessage = "正在删除…";
+  await showRetainedArchive();
+  let removed4 = 0, editing3 = 0, failed = 0;
+  try {
+    const records = [...await offline.retainedDraftRecords("legacy"), ...await offline.retainedDraftRecords("note_entry")];
+    for (const record of records.filter((record2) => key2 === "all" || archiveGroupKey(record2) === key2)) {
+      if (expected !== notesIdentityNow()) return;
+      if (archiveRecordBusy(record)) {
+        editing3++;
+        continue;
+      }
+      try {
+        await offline.discardSelectedDraft(record);
+        removed4++;
+        const row = record.data;
+        if (row?.kind === "note_entry") entryStores.get(row.category)?.dropRestoredDraft(row.id, row.draft);
+        await restoreLegacyAfterDiscard(row, expected);
+      } catch {
+        failed++;
+      }
+    }
+    archiveMessage = [
+      `已删除 ${removed4} 份。`,
+      editing3 && `${editing3} 份正在编辑或等待确认，已保留。`,
+      failed && `${failed} 份刚刚发生变化，未删除，请再试一次。`
+    ].filter(Boolean).join("");
+  } finally {
+    archiveBusy = false;
+    if (expected === notesIdentityNow()) {
+      notesDraftRevision++;
+      await showRetainedArchive();
+    }
+  }
+}
+function archiveGroupSection(group, expected) {
+  const { row, records } = group, section = document.createElement("section"), pre = document.createElement("pre");
+  const copies = records.length > 1 ? `（相同内容 ${records.length} 份）` : "";
+  const kind = row?.kind === "legacy" ? "原有记录" : "条目", category = row?.category === "work" ? "工作" : "生活";
+  pre.textContent = row && `${kind} · ${category} · ${row.date}${copies}
+${row.draft}`;
+  section.append(pre);
+  const question = `永久删除这条草稿${records.length > 1 ? `的全部 ${records.length} 份本机副本` : ""}？删除后无法恢复。`;
+  if (archiveConfirm === group.key) section.append(archiveConfirmRow(group.key, question, expected));
+  else section.append(archiveButton(records.length > 1 ? `删除这条（${records.length} 份）` : "删除这份草稿", () => askArchiveDelete(group.key)));
+  return section;
+}
+function archiveBox(root2, expected) {
+  let box = root2.querySelector("#notes-retained-archive");
+  if (box) return box;
+  box = document.createElement("details");
+  box.id = "notes-retained-archive";
+  box.className = "notes-drafts";
+  const summary = document.createElement("summary");
+  box.append(summary);
+  const tools = document.createElement("div");
+  tools.className = "notes-retained-tools";
+  box.append(tools);
+  const status = document.createElement("p");
+  status.className = "notes-retained-status";
+  status.setAttribute("role", "status");
+  box.append(status);
+  const body2 = document.createElement("div");
+  body2.className = "notes-retained-texts";
+  box.append(body2);
+  box.addEventListener("toggle", async () => {
+    if (!box.open || expected !== notesIdentityNow()) return;
+    void showRetainedArchive();
+  });
+  root2.querySelector("#notes-drafts").after(box);
+  return box;
+}
 async function showRetainedArchive() {
   const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence6 = ++visibleArchiveSequence;
   const offline = getOfflineRuntime();
@@ -10688,84 +10850,19 @@ async function showRetainedArchive() {
   if (revision2 !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
   if (!records.length) {
     root2.querySelector("#notes-retained-archive")?.remove();
+    archiveConfirm = "";
+    archiveMessage = "";
     return;
   }
-  let box = root2.querySelector("#notes-retained-archive");
-  if (!box) {
-    box = document.createElement("details");
-    box.id = "notes-retained-archive";
-    box.className = "notes-drafts";
-    const summary = document.createElement("summary");
-    box.append(summary);
-    const button2 = document.createElement("button");
-    button2.className = "btn text";
-    button2.type = "button";
-    button2.dataset.notesAction = "export-drafts";
-    button2.textContent = "导出本机保留草稿";
-    box.append(button2);
-    const body2 = document.createElement("div");
-    body2.className = "notes-retained-texts";
-    box.append(body2);
-    box.addEventListener("toggle", async () => {
-      if (!box.open || expected !== notesIdentityNow()) return;
-      void showRetainedArchive();
-    });
-    root2.querySelector("#notes-drafts").after(box);
-  }
-  box.querySelector("summary").textContent = `本机保留草稿（${records.length} 份）`;
-  if (box.open) box.querySelector(".notes-retained-texts").replaceChildren(...records.map((record) => {
-    const row = record.data, section = document.createElement("section"), pre = document.createElement("pre");
-    pre.textContent = row && `${row.kind === "legacy" ? "原有记录" : "条目"} · ${row.category === "work" ? "工作" : "生活"} · ${row.date}
-${row.draft}`;
-    const button2 = document.createElement("button");
-    button2.type = "button";
-    button2.className = "btn text";
-    button2.textContent = "删除这份草稿";
-    button2.addEventListener("click", async () => {
-      if (expected !== notesIdentityNow()) return;
-      const activeItem = row?.kind === "note_entry" && entryStores.get(row.category)?.entry(row.id);
-      if (activeItem && (activeItem.pending || activeItem.composing || activeItem.dirty && activeItem.draft === row.draft)) {
-        notesDraftError = "这份草稿正在编辑或等待确认，请先处理当前编辑内容。";
-        paintDailyNotesPage();
-        return;
-      }
-      const preview = String(row?.draft || "").slice(0, 80);
-      if (!confirm(`永久删除这 1 份本机草稿？删除后无法恢复。
-${row?.category === "work" ? "工作" : "生活"} · ${row?.date || ""}
-${preview}`)) return;
-      button2.disabled = true;
-      try {
-        await offline.discardSelectedDraft(record);
-        if (row?.kind === "legacy" && expected === notesIdentityNow()) {
-          const remaining = await offline.retainedDraftRecords("legacy");
-          const item = notesStores.get(row.category)?.pages.get(row.date);
-          const same2 = (candidate) => candidate.data?.category === row.category && candidate.data?.date === row.date && candidate.data?.draft === row.draft;
-          if (expected === notesIdentityNow() && !remaining.some(same2) && item && legacyRecoveryGuard.unchanged(item) && item.draft === row.draft && !item.pending && !item.remote) {
-            item.draft = item.serverText;
-            item.dirty = false;
-            item.error = "";
-            item.phase = item.version ? "saved" : "empty";
-            legacyRecoveryGuard.forget(item);
-            paintDailyNotesPage();
-          }
-        }
-        if (expected === notesIdentityNow()) {
-          notesDraftRevision++;
-          await showRetainedArchive();
-        }
-      } catch (error) {
-        if (expected === notesIdentityNow()) {
-          notesDraftError = error.message || "草稿未能删除，请重试。";
-          paintDailyNotesPage();
-          await showRetainedArchive();
-        }
-      } finally {
-        button2.disabled = false;
-      }
-    });
-    section.append(pre, button2);
-    return section;
-  }));
+  const box = archiveBox(root2, expected), groups = groupArchiveRecords(records);
+  const total = records.length > groups.length ? `，共 ${records.length} 份` : "";
+  box.querySelector("summary").textContent = `本机保留草稿（${groups.length} 条${total}）`;
+  box.querySelector(".notes-retained-status").textContent = archiveMessage;
+  box.querySelector(".notes-retained-tools").replaceChildren(
+    archiveButton("导出本机保留草稿", () => void exportDraftArchive()),
+    ...archiveConfirm === "all" ? [archiveConfirmRow("all", `永久删除全部 ${records.length} 份本机保留草稿？删除后无法恢复。`, expected)] : [archiveButton(`全部删除（${records.length} 份）`, () => askArchiveDelete("all"))]
+  );
+  if (box.open) box.querySelector(".notes-retained-texts").replaceChildren(...groups.map((group) => archiveGroupSection(group, expected)));
 }
 async function exportDraftArchive() {
   const expected = notesIdentityNow(), rows = await archivedDrafts();

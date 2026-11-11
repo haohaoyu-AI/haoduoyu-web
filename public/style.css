@@ -580,3 +580,8 @@ progress::-moz-progress-bar { background:var(--ink-2); }
 .ai-report-markdown :is(ul,ol) { padding-left:1.5rem; }
 .ai-report-markdown pre { max-width:100%; overflow-x:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
 .todo-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes-retained-tools { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); margin:var(--s2) 0; }
+.notes-retained-status:empty { display:none; }
+.notes-retained-status { margin:var(--s2) 0; color:var(--ink); }
+.notes-retained-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); padding:var(--s2) var(--s3); margin:var(--s2) 0; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface); color:var(--ink); }
+.btn.text.notes-retained-danger { color:var(--danger); font-weight:var(--font-weight-semibold); }
