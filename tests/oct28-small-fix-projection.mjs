@@ -27,3 +27,7 @@ export function projectSmallFix(file,source) {
   assert.ok(isSmallFixProduct(file,source),'exact approved small UI fix bytes: '+file);
   return old;
 }
+/** Placeholder inverse kept for history projection chain compatibility. */
+export function projectQuietSync(_file,source) {
+  return source;
+}
