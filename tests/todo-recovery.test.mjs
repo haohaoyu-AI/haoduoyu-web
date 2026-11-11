@@ -195,10 +195,13 @@ test('0003 preserves old data with null deletion/default source, and preferences
   const originalTables=(await first.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results.map(row=>row.name);
   const oldRows=new Map();for(const table of originalTables) oldRows.set(table,(await first.db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results);
   await applyFixtureMigrations(first.db);await applyFixtureMigrations(first.db);
-  assert.deepEqual(await first.db.prepare('SELECT * FROM matrix_todos').first(),{...beforeTodo,deleted_at:null});
+  // 0019 adds note / archived_at defaults; keep the pre-0003 row bytes otherwise.
+  assert.deepEqual(await first.db.prepare('SELECT * FROM matrix_todos').first(),{...beforeTodo,deleted_at:null,note:''});
   assert.deepEqual(await first.db.prepare('SELECT * FROM matrix_todo_template_links').first(),{...beforeLink,created_with_todo:1});
-  for(const table of originalTables.filter(name=>!['matrix_todos','matrix_todo_template_links'].includes(name)))
+  for(const table of originalTables.filter(name=>!['matrix_todos','matrix_todo_template_links','matrix_todo_templates'].includes(name)))
     assert.deepEqual((await first.db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results,oldRows.get(table));
+  assert.deepEqual((await first.db.prepare('SELECT * FROM matrix_todo_templates ORDER BY rowid').all()).results,
+    oldRows.get('matrix_todo_templates').map(row=>({...row,archived_at:null})));
   assert.equal((await first.db.prepare('PRAGMA foreign_key_check').all()).results.length,0);
   assert.equal((await preference(first,'hide',0)).status,200);
   await first.mf.dispose();first=null;

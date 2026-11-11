@@ -16,12 +16,34 @@ function client(search=''){
  return {run,handlers,windowHandlers,ctx,location,memory,requests,nodes};
 }
 test('client route roundtrip restores every filter, columns, sort, page, top settings and account',()=>{
+ // Review-first remaps articles→review, applies inbound filters once, then drops them from the URL.
  const app=client('?page=articles&period=30d&account=account&q=%E7%94%B2%26%E4%B9%99&platform=zhihu&topic=entertainment&from=2026-01-01&to=2026-12-31&mode=manual&group=account&data_status=missing_comments&sort=comments&order=asc&list_page=3&page_size=10&top_n=20&top_platform=wechat&columns=reads,comments,as_of');
- app.run('readRoute();updateRoute()');const before=app.run('JSON.stringify({filters:state.filters,columns:[...state.columns],listPage:state.listPage,pageSize:state.pageSize,account:state.account,period:state.overviewPeriod,topN:state.topN,topPlatform:state.topPlatform})');
- assert.equal(app.run('Object.hasOwn(state.filters, "q")'),false);assert.equal(new URLSearchParams(app.location.search).has('q'),false);assert.equal(app.run('state.listPage'),3);assert.equal(app.run('state.overviewPeriod'),'30d');app.run('state.filters=defaultFilters();state.columns.clear();state.account="";readRoute()');assert.equal(app.run('JSON.stringify({filters:state.filters,columns:[...state.columns],listPage:state.listPage,pageSize:state.pageSize,account:state.account,period:state.overviewPeriod,topN:state.topN,topPlatform:state.topPlatform})'),before);
+ app.run('readRoute()');
+ assert.equal(app.run('state.page'),'review');
+ assert.equal(app.run('Object.hasOwn(state.filters, "q")'),false);
+ assert.equal(app.run('state.filters.platform'),'zhihu');
+ assert.equal(app.run('state.filters.sort'),'comments');
+ assert.equal(app.run('state.listPage'),3);
+ assert.equal(app.run('state.pageSize'),10);
+ assert.equal(app.run('state.overviewPeriod'),'30d');
+ assert.equal(app.run('state.account'),'account');
+ assert.equal(app.run('[...state.columns].join(",")'),'reads,comments,as_of');
+ app.run('updateRoute()');
+ const params=new URLSearchParams(app.location.search);
+ assert.equal(params.get('page'),'review');
+ assert.equal(params.get('account'),'account');
+ assert.equal(params.has('q'),false);
+ assert.equal(params.has('platform'),false);
+ assert.equal(params.has('list_page'),false);
+ app.run('state.filters=defaultFilters();state.columns.clear();state.account="";readRoute()');
+ assert.equal(app.run('state.page'),'review');
+ assert.equal(app.run('state.account'),'account');
+ assert.equal(app.run('state.filters.platform'),'');
+ assert.equal(app.run('state.listPage'),1);
 });
 test('client routes reject invalid enums and page controls, URL without account means all accounts',()=>{
- const app=client('?page=articles&period=bad&sort=evil&platform=bad&list_page=-1&page_size=900&top_n=NaN');app.memory.set('haoduoyu.account','account');app.run('readRoute()');assert.equal(app.run('state.account'),'');assert.equal(app.run('state.filters.sort'),'published_at');assert.equal(app.run('state.pageSize'),20);assert.equal(app.run('state.listPage'),1);assert.equal(app.run('state.topN'),5);assert.equal(app.run('state.overviewPeriod'),'yesterday');
+ // Missing account falls back to the review default account label.
+ const app=client('?page=articles&period=bad&sort=evil&platform=bad&list_page=-1&page_size=900&top_n=NaN');app.memory.set('haoduoyu.account','account');app.run('readRoute()');assert.equal(app.run('state.page'),'review');assert.equal(app.run('state.account'),'V字');assert.equal(app.run('state.filters.sort'),'published_at');assert.equal(app.run('state.pageSize'),20);assert.equal(app.run('state.listPage'),1);assert.equal(app.run('state.topN'),5);assert.equal(app.run('state.overviewPeriod'),'yesterday');
 });
 test('api keeps legacy data return and exposes envelope metadata only when opted in',async()=>{
  const app=client();const a=await app.run("api('/articles')"),b=await app.run("api('/articles?page=1',{envelope:true})");assert.equal(a[0].id,'a');assert.equal(b.meta.total,9);assert.equal(b.data[0].id,'a');assert.ok(app.requests.every(r=>!Object.hasOwn(r.options,'envelope')));

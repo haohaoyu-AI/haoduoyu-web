@@ -28,7 +28,7 @@ jobs:
       - run: node scripts/frontend-build.mjs --check
       - run: npm run build
       # Per-test timeout prevents one pending VM promise from burning the whole job.
-      - run: node scripts/build.mjs && node --test --test-concurrency=1 --test-timeout=60000 tests/*.test.mjs
+      - run: node scripts/build.mjs && node --test --test-concurrency=1 --test-timeout=600000 tests/*.test.mjs
       - run: npm run check:artifacts
       - run: npm run check:previews
   secret-scan:

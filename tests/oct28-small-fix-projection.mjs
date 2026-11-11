@@ -24,7 +24,7 @@ export const quietSyncHashes=Object.freeze({
   ".ci/public-assets.json":"b39fb3211dbc10d4e829cab8d6e06c40753b5e9d8e678ffbedb380ec40b6a759",
   ".github/scripts/cloudflare-publish.mjs":"a65a15fa31c89048c8b5c6eb455f0ea70b32d9adcdda048d3640cb5c088002ec",
   ".github/scripts/release-policy.mjs":"fac0f436d710f9f7a81bb3e117ce7b193fd6ee6e9e1362a43dd4a235574f3011",
-  ".github/workflows/ci.yml":"fb8c9112ad6af67c86eed891466bd6a38af109371100d91d708c97bb7a8bf1c7",
+  ".github/workflows/ci.yml":"267bc415f6d5a5a14b159be474161edc49c7bf4fd64d73e52ed116fd55c5ff4a",
   ".github/workflows/cloudflare-manual-release.yml":"f1bd292b723cb29eb6ff2984fc0941e1eebf72d8d9162435b3984683f33b9329",
   "db/schema.ts":"fccabaae5519e1e00b40cc5718458c071caa614afef3a150e4a64130564ea474",
   "drizzle/meta/_journal.json":"6d716073b710fd3e9b0e7e4b809704fe90d4d9bceea7a6e61e0cac4d17a00084",
