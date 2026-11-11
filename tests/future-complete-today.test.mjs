@@ -8,9 +8,7 @@ import {beijingDay} from '../src/lib/time.mjs';
 import {planFutureMove,verifyFutureMove} from '../web/pages/unscheduled-todos.mjs';
 
 async function setup(t) {
- const app=await fixture(t,{migrationCount:9}),session=await app.login();
- const sql=await readFile(new URL('../drizzle/0009_unscheduled_todos.sql',import.meta.url),'utf8');
- await app.db.batch(sql.split('--> statement-breakpoint').map(part=>app.db.prepare(part.trim())));
+ const app=await fixture(t),session=await app.login();
  const call=async(route,method='GET',body)=>{const r=new Request(app.origin+'/api/v1'+route,{method,headers:{Cookie:session.cookie,Origin:app.origin,'X-CSRF-Token':session.csrfToken,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const res=await handleUnscheduledTodos(app.db,r,route,app.origin);return (await res.json()).data;};
  return {app,session,call};
 }

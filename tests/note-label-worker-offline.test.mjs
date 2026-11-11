@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
@@ -9,11 +8,7 @@ import {createOfflineRuntime} from '../web/offline/runtime.mjs';
 import {beijingDay} from '../src/lib/time.mjs';
 
 async function setup(t) {
-  const app=await fixture(t,{migrationCount:9}),session=await app.login();
-  for(const name of ['0009_unscheduled_todos.sql','0010_note_labels.sql']) {
-    const sql=await readFile(new URL('../drizzle/'+name,import.meta.url),'utf8');
-    await app.db.batch(sql.split('--> statement-breakpoint').map(s=>app.db.prepare(s.trim())));
-  }
+  const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const env={DB:app.db,SITE_ORIGIN:app.origin,PUBLIC_BUSINESS_MODE:'0',PUBLIC_BUSINESS_USER_ID:owner,
     PUBLIC_BUSINESS_ACCOUNT_IDS:'[]',DAILY_NOTES_OWNER_ID:owner,MEMOS_OWNER_ID:owner};

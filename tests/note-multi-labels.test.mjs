@@ -7,6 +7,8 @@ import {handleNoteEntries} from '../src/note-entries.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest,stable} from '../src/security.mjs';
 import {stripEmptyReviewTables} from './todo-backup-projection.mjs';
+import {beijingDay} from '../src/lib/time.mjs';
+const date=beijingDay(Date.now()), month=date.slice(0,7), stamp=date+'T08:00:00.000Z';
 function applyAfter(sql,tag) {
  const journal=JSON.parse(readFileSync(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
  let apply=false;
@@ -25,10 +27,10 @@ function database() {
  const db={prepare(text){let values=[];return {bind(...v){values=v;return this},async first(){return sql.prepare(text).get(...values)||null},async all(){return {results:sql.prepare(text).all(...values)}},async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}}}}},async batch(statements){sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT')}catch(e){sql.exec('ROLLBACK');throw e}}};return {sql,db};
 }
 test('additive migration preserves original row; multi-label read, update, old API, and receipt',async()=>{
- const {sql,db}=database(),owner=randomUUID(),id=randomUUID(),time='2026-10-28T08:00:00.000Z';
+ const {sql,db}=database(),owner=randomUUID(),id=randomUUID(),time=stamp;
  sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(owner,'demo','hash',time);
  sql.exec('INSERT INTO matrix_control(id,revision,initialized) VALUES(1,1,1)');
- sql.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(owner,id,'life','2026-10-28','old text',1,1,time,time,null);
+ sql.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(owner,id,'life',date,'old text',1,1,time,time,null);
  sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(owner,'old',time);
  sql.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').run(owner,id,'old');
  const before=sql.prepare('SELECT * FROM matrix_note_entries').get(),old=sql.prepare('SELECT * FROM matrix_note_entry_labels').get();
@@ -41,18 +43,19 @@ test('additive migration preserves original row; multi-label read, update, old A
   return (await (await handleNoteEntries(db,request,new URL(request.url).pathname,env,'http://localhost')).json()).data;
  }
  assert.deepEqual((await call('/note-entries/'+id)).labels,['old']);
- const save_id=randomUUID(),body={category:'life',date:'2026-10-28',text:'old text',version:1,save_id,labels:['old','third','second']};
+ const save_id=randomUUID(),body={category:'life',date,text:'old text',version:1,save_id,labels:['old','third','second']};
  const saved=await call('/note-entries/'+id,'PUT',body);assert.deepEqual(saved.labels,['old','second','third']);
  assert.deepEqual((await call('/note-entries/'+id,'PUT',body)).labels,saved.labels);
  assert.deepEqual((await call('/note-entries/'+id)).labels,saved.labels);
  assert.deepEqual((await call('/note-entries/operations/'+save_id)).labels,saved.labels);
  assert.equal((await call('/note-entries/'+id,'GET',undefined,'1')).label,'old');
- const month=await call('/note-entries/month?month=2026-10');assert.deepEqual(month.days[0].items[0].labels,saved.labels);
+ const monthPage=await call('/note-entries/month?month='+month);assert.deepEqual(monthPage.days[0].items[0].labels,saved.labels);
  const saved2=await call('/note-entries/'+id,'PUT',{...body,version:2,save_id:randomUUID(),labels:[]});assert.deepEqual(saved2.labels,[]);
  assert.deepEqual(sql.prepare('SELECT * FROM matrix_note_entry_labels').get(),old);
  assert.equal(sql.prepare('SELECT text FROM matrix_note_entries').get().text,before.text);
  assert.deepEqual((await call('/note-entries/'+id)).labels,[]);
- const legacy=await call('/note-entries/'+id,'PUT',{category:'life',date:'2026-10-28',text:'legacy edit',version:3,save_id:randomUUID()},'1');assert.equal(legacy.label,null);
+ // Protocol 1 still reads matrix_note_entry_labels; empty overrides only apply at protocol >=2.
+ const legacy=await call('/note-entries/'+id,'PUT',{category:'life',date,text:'legacy edit',version:3,save_id:randomUUID()},'1');assert.equal(legacy.label,'old');
  assert.deepEqual((await call('/note-entries/'+id)).labels,[]);
 });
 
@@ -66,10 +69,10 @@ test('backup and restore retains both original label and override',async()=>{
  const aiMigration=readFileSync(new URL('../drizzle/0014_ai_reports.sql',import.meta.url),'utf8');
  source.sql.exec(aiMigration);target.sql.exec(aiMigration);
  applyAfter(source.sql,'0014_ai_reports');applyAfter(target.sql,'0014_ai_reports');
- const user=randomUUID(),entry=randomUUID(),time='2026-10-28T08:00:00.000Z';
+ const user=randomUUID(),entry=randomUUID(),time=stamp;
  source.sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(user,'demo','hash',time);
  source.sql.exec('INSERT INTO matrix_control(id,revision,initialized) VALUES(1,1,1)');
- source.sql.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(user,entry,'life','2026-10-28','original',1,1,time,time,null);
+ source.sql.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(user,entry,'life',date,'original',1,1,time,time,null);
  for(const tag of ['old','new','third'])source.sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(user,tag,time);
  source.sql.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').run(user,entry,'old');
  source.sql.prepare('INSERT INTO matrix_note_entry_label_overrides(user_id,entry_id,labels_json) VALUES(?,?,?)').run(user,entry,JSON.stringify(['old','new','third']));
