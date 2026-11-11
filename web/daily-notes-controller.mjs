@@ -144,6 +144,107 @@ async function visibleArchive() {
   visibleArchiveFlight = {identity, revision, promise};
   try { return await promise; } finally { if (visibleArchiveFlight?.promise === promise) visibleArchiveFlight = null; }
 }
+// Each page load keeps its own copy of an unresolved draft, so identical text piles up across visits.
+// The archive shows one row per text and deletes every copy of it. Confirmation stays in the page:
+// some browsers silently refuse window.confirm, which made the old delete button do nothing.
+let archiveConfirm = '', archiveMessage = '', archiveBusy = false;
+const archiveGroupKey = ({draft_kind: kind, data}) => JSON.stringify([kind, data?.kind, data?.category, data?.date, data?.draft]);
+function groupArchiveRecords(records) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = archiveGroupKey(record);
+    if (!groups.has(key)) groups.set(key, {key, row: record.data, records: []});
+    groups.get(key).records.push(record);
+  }
+  return [...groups.values()];
+}
+function archiveButton(text, onClick, className = 'btn text') {
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = className; button.textContent = text; button.disabled = archiveBusy;
+  button.addEventListener('click', onClick); return button;
+}
+function archiveConfirmRow(key, question, expected) {
+  const row = document.createElement('div'), text = document.createElement('span');
+  row.className = 'notes-retained-confirm'; row.setAttribute('role', 'group'); row.setAttribute('aria-label', question);
+  text.textContent = question;
+  const accept = archiveButton('确认删除', () => void deleteArchiveRecords(key, expected), 'btn text notes-retained-danger');
+  const cancel = archiveButton('取消', () => { archiveConfirm = ''; void showRetainedArchive(); });
+  row.append(text, accept, cancel); return row;
+}
+function askArchiveDelete(key) { archiveConfirm = key; archiveMessage = ''; void showRetainedArchive(); }
+// Opening the page restores every retained draft into its entry. That restored, untouched copy may be
+// deleted; an entry the user has typed into since, or one with a live save, still owns its text.
+function archiveRecordBusy(record) {
+  const row = record.data;
+  const item = row?.kind === 'note_entry' && entryStores.get(row.category)?.entry(row.id);
+  if (!item) return false;
+  if (item.composing || item.discarding || item.localQueued || item.pending && !item.pending.uncertain) return true;
+  if (item.recoveredBaseline) return !entryRecoveryGuard.proof(item);
+  return Boolean(item.pending || item.dirty && item.draft === row.draft);
+}
+async function restoreLegacyAfterDiscard(row, expected) {
+  if (row?.kind !== 'legacy' || expected !== notesIdentityNow()) return;
+  const remaining = await getOfflineRuntime().retainedDraftRecords('legacy');
+  const item = notesStores.get(row.category)?.pages.get(row.date);
+  const same = ({data}) => data?.category === row.category && data?.date === row.date && data?.draft === row.draft;
+  if (expected === notesIdentityNow() && !remaining.some(same) && item && legacyRecoveryGuard.unchanged(item) &&
+      item.draft === row.draft && !item.pending && !item.remote) {
+    item.draft = item.serverText; item.dirty = false; item.error = ''; item.phase = item.version ? 'saved' : 'empty';
+    legacyRecoveryGuard.forget(item); paintDailyNotesPage();
+  }
+}
+async function deleteArchiveRecords(key, expected) {
+  const offline = getOfflineRuntime();
+  if (!offline || archiveBusy || expected !== notesIdentityNow()) return;
+  archiveBusy = true; archiveConfirm = ''; archiveMessage = '正在删除…'; await showRetainedArchive();
+  let removed = 0, editing = 0, failed = 0;
+  try {
+    const records = [...await offline.retainedDraftRecords('legacy'), ...await offline.retainedDraftRecords('note_entry')];
+    for (const record of records.filter(record => key === 'all' || archiveGroupKey(record) === key)) {
+      if (expected !== notesIdentityNow()) return;
+      if (archiveRecordBusy(record)) { editing++; continue; }
+      try {
+        await offline.discardSelectedDraft(record); removed++;
+        const row = record.data;
+        if (row?.kind === 'note_entry') entryStores.get(row.category)?.dropRestoredDraft(row.id, row.draft);
+        await restoreLegacyAfterDiscard(row, expected);
+      }
+      catch { failed++; }
+    }
+    archiveMessage = [`已删除 ${removed} 份。`, editing && `${editing} 份正在编辑或等待确认，已保留。`,
+      failed && `${failed} 份刚刚发生变化，未删除，请再试一次。`].filter(Boolean).join('');
+  } finally {
+    archiveBusy = false;
+    if (expected === notesIdentityNow()) { notesDraftRevision++; await showRetainedArchive(); }
+  }
+}
+function archiveGroupSection(group, expected) {
+  const {row, records} = group, section = document.createElement('section'), pre = document.createElement('pre');
+  const copies = records.length > 1 ? `（相同内容 ${records.length} 份）` : '';
+  const kind = row?.kind === 'legacy' ? '原有记录' : '条目', category = row?.category === 'work' ? '工作' : '生活';
+  pre.textContent = row && `${kind} · ${category} · ${row.date}${copies}\n${row.draft}`;
+  section.append(pre);
+  const question = `永久删除这条草稿${records.length > 1 ? `的全部 ${records.length} 份本机副本` : ''}？删除后无法恢复。`;
+  if (archiveConfirm === group.key) section.append(archiveConfirmRow(group.key, question, expected));
+  else section.append(archiveButton(records.length > 1 ? `删除这条（${records.length} 份）` : '删除这份草稿', () => askArchiveDelete(group.key)));
+  return section;
+}
+function archiveBox(root, expected) {
+  let box = root.querySelector('#notes-retained-archive');
+  if (box) return box;
+  box = document.createElement('details'); box.id = 'notes-retained-archive'; box.className = 'notes-drafts';
+  const summary = document.createElement('summary'); box.append(summary);
+  const tools = document.createElement('div'); tools.className = 'notes-retained-tools'; box.append(tools);
+  const status = document.createElement('p'); status.className = 'notes-retained-status'; status.setAttribute('role', 'status');
+  box.append(status);
+  const body = document.createElement('div'); body.className = 'notes-retained-texts'; box.append(body);
+  box.addEventListener('toggle', async () => {
+    if (!box.open || expected !== notesIdentityNow()) return;
+    void showRetainedArchive();
+  });
+  root.querySelector('#notes-drafts').after(box);
+  return box;
+}
 async function showRetainedArchive() {
   const expected = notesIdentityNow(), revision = notesDraftRevision, sequence = ++visibleArchiveSequence;
   const offline = getOfflineRuntime();
@@ -151,53 +252,17 @@ async function showRetainedArchive() {
   const root = document.querySelector('#daily-notes');
   if (!root || !notesVisible() || expected !== notesIdentityNow() || sequence !== visibleArchiveSequence) return;
   if (revision !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
-  if (!records.length) { root.querySelector('#notes-retained-archive')?.remove(); return; }
-  let box = root.querySelector('#notes-retained-archive');
-  if (!box) {
-    box = document.createElement('details'); box.id = 'notes-retained-archive'; box.className = 'notes-drafts';
-    const summary = document.createElement('summary'); box.append(summary);
-    const button = document.createElement('button'); button.className = 'btn text'; button.type = 'button';
-    button.dataset.notesAction = 'export-drafts'; button.textContent = '导出本机保留草稿'; box.append(button);
-    const body = document.createElement('div'); body.className = 'notes-retained-texts'; box.append(body);
-    box.addEventListener('toggle', async () => {
-      if (!box.open || expected !== notesIdentityNow()) return;
-      void showRetainedArchive();
-    });
-    root.querySelector('#notes-drafts').after(box);
-  }
-  box.querySelector('summary').textContent = `本机保留草稿（${records.length} 份）`;
-  if (box.open) box.querySelector('.notes-retained-texts').replaceChildren(...records.map(record => {
-    const row = record.data, section = document.createElement('section'), pre = document.createElement('pre');
-    pre.textContent = row && `${row.kind === 'legacy' ? '原有记录' : '条目'} · ${row.category === 'work' ? '工作' : '生活'} · ${row.date}\n${row.draft}`;
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'btn text'; button.textContent = '删除这份草稿';
-    button.addEventListener('click', async () => {
-      if (expected !== notesIdentityNow()) return;
-      const activeItem = row?.kind === 'note_entry' && entryStores.get(row.category)?.entry(row.id);
-      if (activeItem && (activeItem.pending || activeItem.composing || activeItem.dirty && activeItem.draft === row.draft)) {
-        notesDraftError = '这份草稿正在编辑或等待确认，请先处理当前编辑内容。'; paintDailyNotesPage(); return;
-      }
-      const preview = String(row?.draft || '').slice(0, 80);
-      if (!confirm(`永久删除这 1 份本机草稿？删除后无法恢复。\n${row?.category === 'work' ? '工作' : '生活'} · ${row?.date || ''}\n${preview}`)) return;
-      button.disabled = true;
-      try {
-        await offline.discardSelectedDraft(record);
-        if (row?.kind === 'legacy' && expected === notesIdentityNow()) {
-          const remaining = await offline.retainedDraftRecords('legacy');
-          const item = notesStores.get(row.category)?.pages.get(row.date);
-          const same = candidate => candidate.data?.category === row.category && candidate.data?.date === row.date && candidate.data?.draft === row.draft;
-          if (expected === notesIdentityNow() && !remaining.some(same) && item && legacyRecoveryGuard.unchanged(item) &&
-              item.draft === row.draft && !item.pending && !item.remote) {
-            item.draft = item.serverText; item.dirty = false; item.error = ''; item.phase = item.version ? 'saved' : 'empty';
-            legacyRecoveryGuard.forget(item); paintDailyNotesPage();
-          }
-        }
-        if (expected === notesIdentityNow()) { notesDraftRevision++; await showRetainedArchive(); }
-      } catch (error) {
-        if (expected === notesIdentityNow()) { notesDraftError = error.message || '草稿未能删除，请重试。'; paintDailyNotesPage(); await showRetainedArchive(); }
-      } finally { button.disabled = false; }
-    });
-    section.append(pre, button); return section;
-  }));
+  // With nothing left the whole box disappears, which is itself the confirmation.
+  if (!records.length) { root.querySelector('#notes-retained-archive')?.remove(); archiveConfirm = ''; archiveMessage = ''; return; }
+  const box = archiveBox(root, expected), groups = groupArchiveRecords(records);
+  const total = records.length > groups.length ? `，共 ${records.length} 份` : '';
+  box.querySelector('summary').textContent = `本机保留草稿（${groups.length} 条${total}）`;
+  box.querySelector('.notes-retained-status').textContent = archiveMessage;
+  box.querySelector('.notes-retained-tools').replaceChildren(
+    archiveButton('导出本机保留草稿', () => void exportDraftArchive()),
+    ...archiveConfirm === 'all' ? [archiveConfirmRow('all', `永久删除全部 ${records.length} 份本机保留草稿？删除后无法恢复。`, expected)]
+      : [archiveButton(`全部删除（${records.length} 份）`, () => askArchiveDelete('all'))]);
+  if (box.open) box.querySelector('.notes-retained-texts').replaceChildren(...groups.map(group => archiveGroupSection(group, expected)));
 }
 async function exportDraftArchive() {
   const expected = notesIdentityNow(), rows = await archivedDrafts();

@@ -305,7 +305,23 @@ function createEntryRecoveryActions(context) {
     }
     emit(); return item;
   }
-  return {restoreDraft};
+  // Explicitly deleting a recovered snapshot returns its entry to the saved state, or drops an entry that existed
+  // only as that snapshot, so the next local capture cannot write the same text straight back.
+  function dropRestoredDraft(id, draft) {
+    const item = entry(id);
+    if (!item?.recoveredBaseline || item.draft !== draft || item.composing || item.discarding || item.localQueued ||
+        item.pending && !item.pending.uncertain || context.disposed) return false;
+    stopTimer(item); item.writeEpoch++; item.recoveredBaseline = null; item.pending = null; item.remote = null; item.error = '';
+    if (persistedVersion(item) > 0) {
+      item.draft = savedText(item); item.labels = [...item.serverLabels]; item.label = item.labels[0] || '';
+      item.dirty = false; item.phase = savedPhase(item);
+    } else {
+      entries.delete(item.id);
+      const current = page(item.date); current.ids = current.ids.filter(value => value !== item.id);
+    }
+    emit(); return true;
+  }
+  return {restoreDraft, dropRestoredDraft};
 }
 
 function createEntryWritingActions(context) {
@@ -514,11 +530,11 @@ export function createNoteEntriesStore(options) {
     createEntryWritingActions(context), createEntryRecoveryActions(context));
   Object.assign(context, createEntryResolutionActions(context));
   const {category, pages, entries, page, entry, start, read, readOne, edit, relabelDraft, save, deleteEntry, restoreEntry,
-    reconcile, retryPending, useServer, useDraft, restoreDraft, dispose} = context;
+    reconcile, retryPending, useServer, useDraft, restoreDraft, dropRestoredDraft, dispose} = context;
   const pauseAutosave = () => {
     context.autosavePaused = true; for (const item of entries.values()) context.stopTimer(item);
     return () => { context.autosavePaused = false; };
   };
   return {category, pages, entries, page, entry, start, read, readOne, edit, relabelDraft, save, deleteEntry, restoreEntry,
-    reconcile, retryPending, useServer, useDraft, restoreDraft, pauseAutosave, dispose};
+    reconcile, retryPending, useServer, useDraft, restoreDraft, dropRestoredDraft, pauseAutosave, dispose};
 }
