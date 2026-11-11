@@ -4,8 +4,11 @@ import {randomUUID} from 'node:crypto';
 import {createNoteEntriesStore} from '../web/core/note-entries-state.mjs';
 import {createNotesEditorView, noteDraftNeedsAttention, noteEditorCanCollapse} from '../web/core/notes-editor-view.mjs';
 import {localDocument, documentState, isLocalDocument} from '../web/offline/document.mjs';
+import {dailyNotesToday} from '../web/core/daily-notes-state.mjs';
 
-const day = '2026-10-26', yesterday = '2026-10-25', stamp = '2026-10-26T01:00:00Z';
+const day = dailyNotesToday();
+const yesterday = new Date(Date.parse(day + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+const stamp = day + 'T01:00:00Z';
 const settled = () => new Promise(resolve => setImmediate(resolve));
 function serverRow({id = randomUUID(), text = '线上原文', version = 1, deleted = false, category = 'life', date = day} = {}) {
   return {id, category, date, text, version, deleted, can_edit: true, created_at: stamp, updated_at: stamp,
@@ -80,10 +83,16 @@ test('editing a confirmed record preserves its actual baseline until a real serv
   assert.equal(item.localQueued, false); assert.equal(item.contentHash, records.get(item.id).server.content_hash);
 });
 test('queued collection hydration restores multiple independent entries and their original category/date', async () => {
-  const c = client({category: 'work'}); await c.store.read(yesterday);
-  const one = c.store.start(yesterday); c.store.edit(one.id, '工作第一条'); await c.store.save(one.id);
-  const two = c.store.start(yesterday); assert.notEqual(one.id, two.id);
-  c.store.edit(two.id, '工作第二条'); await c.store.save(two.id); await c.store.read(day);
+  const oneId = randomUUID(), twoId = randomUUID();
+  const localRow = (id, text, version) => ({id, category: 'work', date: yesterday, text, version, deleted: false,
+    can_edit: true, created_at: stamp, updated_at: stamp});
+  const records = new Map([
+    [oneId, {local: localRow(oneId, '工作第一条', 1), server: null, operation: {save_id: randomUUID(), status: 'queued'}, conflict: null}],
+    [twoId, {local: localRow(twoId, '工作第二条', 1), server: null, operation: {save_id: randomUUID(), status: 'queued'}, conflict: null}],
+  ]);
+  const c = client({category: 'work', records}); await c.store.read(yesterday);
+  const one = c.store.entry(oneId), two = c.store.entry(twoId); assert.notEqual(one.id, two.id);
+  await c.store.read(day);
   c.store.edit(one.id, '跨午夜继续工作'); await c.store.save(one.id);
   assert.equal(c.writes.at(-1).body.date, yesterday); assert.equal(c.writes.at(-1).body.category, 'work');
   const reloaded = client({category: 'work', records: c.records}); await reloaded.store.read(yesterday);
@@ -291,7 +300,7 @@ test('explicit custom label remains bound to a draft and its first durable opera
   const reloaded = client({manualSave: true, records:c.records}); await reloaded.store.read(day);
   assert.equal(reloaded.store.entry(item.id).label, '兴趣');
   const bad = client({manualSave: true}); await bad.store.read(day);
-  assert.throws(() => bad.store.start(day, {label:'工作'}), /标签无效/);
+  assert.throws(() => bad.store.start(day, {label:' 兴趣'}), /标签无效/);
 });
 
 test('a mislabeled acknowledgement cannot mark an explicit label send complete', async () => {

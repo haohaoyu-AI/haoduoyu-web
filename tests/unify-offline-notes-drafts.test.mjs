@@ -5,8 +5,9 @@ import {createMemoryDB} from '../web/offline/db.mjs';
 import {createDraftJournal} from '../web/offline/drafts.mjs';
 import {createEntryRecoveryGuard} from '../web/offline/retained-drafts.mjs';
 import {createNoteEntriesStore} from '../web/core/note-entries-state.mjs';
+import {dailyNotesToday} from '../web/core/daily-notes-state.mjs';
 
-const scope = 'a'.repeat(64), date = '2026-10-26';
+const scope = 'a'.repeat(64), date = dailyNotesToday();
 const draft = (kind = 'note_entry') => ({kind, id: randomUUID(), category: 'work', date, draft: '中文合成中',
   version: 0, serverText: '', contentHash: '', dirty: true, phase: 'dirty', pending: null});
 test('unchanged recovered drafts do not multiply across tabs but edits and lost source remain safe',async()=>{

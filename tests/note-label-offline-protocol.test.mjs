@@ -7,7 +7,8 @@ import {createOutbox} from '../web/offline/outbox.mjs';
 import {createOfflineRuntime as oldRuntime} from './fixtures/b242-offline-runtime.mjs';
 import {projectWorkbenchSnapshot} from '../src/workbench-snapshot.mjs';
 import {snapshotBudget} from '../src/snapshot-budget.mjs';
-const scope='a'.repeat(64),date='2026-10-28',stamp='2026-10-28T01:00:00.000Z';
+import {dailyNotesToday} from '../web/core/daily-notes-state.mjs';
+const scope='a'.repeat(64),date=dailyNotesToday(),stamp=date+'T01:00:00.000Z';
 const empty=()=>Object.fromEntries(['todos','life_notes','work_notes','work_reminders','memo_groups','memos'].map(k=>[k,[]]));
 const snap=()=>projectWorkbenchSnapshot(empty(),{scope_id:scope,generated_at:stamp},snapshotBudget());
 function fixture(t) {

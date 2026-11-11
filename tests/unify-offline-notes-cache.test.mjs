@@ -5,9 +5,11 @@ import {createMemoryDB, entityKey} from '../web/offline/db.mjs';
 import {createOfflineCache, offlineReadRoute} from '../web/offline/cache.mjs';
 import {createNotesCache, isNoteApiRow, noteReadRoute} from '../web/offline/notes.mjs';
 import {documentState, documentValue, isLocalDocument} from '../web/offline/document.mjs';
+import {dailyNotesToday} from '../web/core/daily-notes-state.mjs';
 
-const owner = 'a'.repeat(64), otherOwner = 'b'.repeat(64), date = '2026-10-26', otherDate = '2026-10-25';
-const stamp = '2026-10-26T01:00:00Z', hash = 'c'.repeat(64), snapshotHash = 'd'.repeat(64);
+const owner = 'a'.repeat(64), otherOwner = 'b'.repeat(64), date = dailyNotesToday();
+const otherDate = new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+const stamp = date + 'T01:00:00Z', hash = 'c'.repeat(64), snapshotHash = 'd'.repeat(64);
 const path = (day = date, category = 'life') => '/note-entries?category=' + category + '&date=' + day;
 function apiRow(extra = {}) {
   return {id: randomUUID(), category: 'life', date, text: '真实 API 内容', version: 1, change_seq: 1,
