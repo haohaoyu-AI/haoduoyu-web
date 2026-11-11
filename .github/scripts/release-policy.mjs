@@ -57,7 +57,15 @@ export const claudeTrendsRelease=Object.freeze({
   baseline:'c0b4f9c0-810f-45dd-ab1b-17ca3a54f750',
   bytes:2852117,sha256:'e2d26a1967a346c9a6d78f088945467359fee3dddede6f48027a307470de2651',
   label:'production-claude-review-trends-20261111'});
-const acceptedRelease=commit=>commit===claudeTrendsRelease.commit?claudeTrendsRelease:
+// Exact daily-notes retained-draft fix on top of the deployed PR46 source; frontend only, inherits bindings and guards.
+export const claudeNotesDraftsRelease=Object.freeze({
+  commit:'bc8449887e6b88f11b05ccbed13613f2f34e9b57',
+  tree:'7c7f9bd1345db9cfa8b6e47e218c5f0390389d69',
+  baseline:'b0d087c9-0713-45b0-bbed-2cde9e100c16',
+  bytes:2857206,sha256:'62994011a7d233ce396248ca9a610f0b1eaa6a374aef9c3d56c157df0cfac2fb',
+  label:'production-claude-notes-drafts-20261111'});
+const acceptedRelease=commit=>commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
+  commit===claudeTrendsRelease.commit?claudeTrendsRelease:
   commit===claudeRobotsRelease.commit?claudeRobotsRelease:
   commit===dataTrendsRelease.commit?dataTrendsRelease:
   commit===openaiReviewRelease.commit?openaiReviewRelease:
