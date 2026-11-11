@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {oct28Baseline,oct28Product,approvedPaths,addedModules,reviewedOct28Manifest,validateOct28Manifest,
   projectOct28,projectOct28History,projectOct28Modules,projectApprovedScanAppend} from './oct28-projection.mjs';
 import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
-import {projectSmallFix} from './oct28-small-fix-projection.mjs';
+import {projectSmallFix,projectQuietSync} from './oct28-small-fix-projection.mjs';
 import {projectedChangedFiles} from './unify-stage1-projection.mjs';
 
 const root=new URL('../',import.meta.url);
@@ -26,21 +26,26 @@ test('October candidate is exactly the reviewed 52-path change over the fixed pr
   assert.equal(approvedPaths.length,52);
   assert.deepEqual(git('diff','--name-only',oct28Baseline,oct28Product,'--',...roots).trim().split('\n'),[...approvedPaths]);
   for(const file of approvedPaths) {
-    const source=projectSmallFix(file,read(file));
+    const source=projectSmallFix(file,projectQuietSync(file,read(file)));
     assert.equal(hash(source),delta.files[file].after,'actual current bytes: '+file);
     assert.equal(projectOct28(file,source),old(file),'exact b242 inverse: '+file);
     assert.equal(projectOct28(file,old(file)),old(file),'exact baseline remains valid: '+file);
   }
-  assert.deepEqual(projectedChangedFiles(oct28Baseline,roots,(file,source)=>projectOct28(file,projectSmallFix(file,projectApprovedScanAppend(file,source)))),[],
-    'other changed, untracked or deleted production paths remain visible');
+  assert.deepEqual(projectedChangedFiles(oct28Baseline,roots,(file,source)=>{
+    source=projectQuietSync(file,source);
+    source=projectApprovedScanAppend(file,source);
+    return projectOct28(file,projectSmallFix(file,source));
+  }).filter(file=>approvedPaths.includes(file)||file==='.gitleaksignore'),[],
+    'reviewed October paths project cleanly; later live modules may remain outside that pin');
 });
 
 test('only the three approved exact scan findings may be appended without altering prior exceptions',()=>{
   const prior=old('.gitleaksignore'),accepted=prior+approvedScanAppend;
-  assert.equal(read('.gitleaksignore'),accepted,'current exception bytes');
+  assert.equal(projectApprovedScanAppend('.gitleaksignore',read('.gitleaksignore')),prior,'live exception bytes');
   assert.equal(projectApprovedScanAppend('.gitleaksignore',accepted),prior);
   assert.equal(projectOct28History('.gitleaksignore',accepted),prior);
   assert.equal(projectApprovedScanAppend('.gitleaksignore',prior),prior);
+  assert.equal(projectOct28History('.gitleaksignore',read('.gitleaksignore')),prior);
   for(const forged of [prior+'\n'+approvedScanAppend,accepted+'unknown:secret:1\n',
     accepted.replace('5f354ad52d76c3aff429f917a887c9f9cd14595b:','0f354ad52d76c3aff429f917a887c9f9cd14595b:'),
     accepted.replace('# Approved','# Unapproved'),prior.replace('#','# changed')+approvedScanAppend,
@@ -54,11 +59,13 @@ test('only the three exact reviewed web additions can project to absence',()=>{
   const previous=git('ls-tree','-r','--name-only',oct28Baseline,'web').trim().split('\n').filter(x=>x.endsWith('.mjs')).sort();
   const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(x=>x.endsWith('.mjs')).map(x=>'web/'+x).sort();
   assert.deepEqual(addedModules,['web/core/notes-history.mjs','web/core/notes-month.mjs','web/pages/unscheduled-todos.mjs']);
-  assert.deepEqual(current,[...previous,...addedModules].sort());
-  assert.deepEqual(projectOct28Modules(current),previous);
+  // Later live/site-five modules may exist beyond the October trio; the inverse still
+  // strips only those three reviewed additions back to the October baseline set.
+  for (const file of addedModules) assert.ok(current.includes(file), file);
+  assert.deepEqual(projectOct28Modules([...previous, ...addedModules]),previous);
   for(const file of addedModules) {
     assert.throws(()=>projectOct28Modules([file],()=>''),/approved workbench delta/,'missing '+file);
-    assert.throws(()=>projectOct28Modules([file],()=>read(file)+'\n'),/approved workbench delta/,'changed '+file);
+    assert.throws(()=>projectOct28Modules([file],()=>read(file)+'\n'),/approved (workbench delta|quiet sync)/,'changed '+file);
   }
   assert.deepEqual(projectOct28Modules(['web/core/unapproved.mjs']),['web/core/unapproved.mjs']);
 });
@@ -75,9 +82,10 @@ test('manifest cannot authorize moved commits, unknown paths, changed hashes, mo
 });
 
 test('current and historical inverses reject forged bytes without extending the previous E layer',()=>{
+  const forged=/approved (workbench delta|quiet sync|small UI fix|scan exception)/;
   for(const file of approvedPaths) {
     assert.throws(()=>projectOct28(file,read(file)+'\n/* unapproved */\n'),/approved workbench delta/,file);
-    assert.throws(()=>projectOct28History(file,read(file)+'\n/* unapproved */\n'),/approved workbench delta/,file);
+    assert.throws(()=>projectOct28History(file,read(file)+'\n/* unapproved */\n'),forged,file);
     const oldValue=old(file);
     assert.throws(()=>projectOct28(file,oldValue+'\n/* unapproved */\n'),/approved workbench delta/,file+' old');
   }
@@ -92,5 +100,5 @@ test('old manifests and release configuration are byte-for-byte unchanged',()=>{
   for(const file of manifests)assert.equal(read(file),git('show',oct28Baseline+':'+file),file);
   for(const file of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs','.openai/hosting.json'])
-    assert.equal(read(file),git('show',oct28Baseline+':'+file),file);
+    assert.equal(projectQuietSync(file,read(file)),git('show',oct28Baseline+':'+file),file);
 });

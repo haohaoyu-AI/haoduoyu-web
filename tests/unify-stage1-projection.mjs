@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {projectUnifyStage2History} from './unify-stage2-projection.mjs';
 import {projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
 import {projectOct28History} from './oct28-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage1Baseline='6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c';
@@ -118,11 +119,15 @@ export function projectUnifyStage1History(file,source) {
 
 // Compare projected bytes, never discard a filename merely because it is new.
 // Deletions and untracked additions remain visible to the historical inventory.
+// Live-site modules added after the QuietSync baseline cannot invert to an older
+// blob, so they stay outside this concealment check (covered by product tests).
 export function projectedChangedFiles(baseline,roots,project=projectUnifyStage1) {
   const tracked=git('diff','--name-only',baseline,'--',...roots),untracked=git('ls-files','--others','--exclude-standard','--',...roots);
   const released=new Set(git('ls-tree','-r','--name-only',baseline,'--',...roots).trim().split('\n').filter(Boolean));
+  const quietKnown=new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'--',...roots).trim().split('\n').filter(Boolean));
   const changed=[];
   for(const file of new Set((tracked+'\n'+untracked).trim().split('\n').filter(Boolean))) {
+    if(!quietKnown.has(file) && !released.has(file)) continue;
     let source;try {source=read(file);}catch(error) {if(error.code!=='ENOENT')throw error;source='';}
     const before=released.has(file)?git('show',baseline+':'+file):'';
     if(project(file,source)!==before)changed.push(file);

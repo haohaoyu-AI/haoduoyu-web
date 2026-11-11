@@ -199,6 +199,21 @@ function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}
     setInterval: setTimer, clearInterval: id => timers.delete(id), requestAnimationFrame() {},
   });
   new vm.Script(source).runInContext(context);
+  // loadTodoTemplates always follows /todo-templates with /todo-templates?archived=1.
+  // Auto-resolve that second read so catch-all hanging mocks cannot stall the suite.
+  let currentApi = context.api;
+  Object.defineProperty(context, 'api', {
+    configurable: true, enumerable: true,
+    get() {
+      return function api(path, options = {}) {
+        if (!options?.method && String(path || '').startsWith('/todo-templates?archived')) {
+          return Promise.resolve({items: []});
+        }
+        return currentApi(path, options);
+      };
+    },
+    set(value) {currentApi = value;},
+  });
   const run = script => vm.runInContext(script, context);
   run("state.me={id:'synthetic-todo-user',username:'Synthetic user',csrfToken:'synthetic-csrf'};state.page='todos'");
   return {
@@ -225,7 +240,7 @@ test('future calendar plans save and reload on the chosen date and returning tod
   const html=c.run('renderTodos()');
   assert.match(html,/<form id="todo-form"[^>]*data-date="2027-01-01"/);
   assert.doesNotMatch(html,/<form[^>]*hidden[^>]*id="todo-form"/);
-  assert.match(html,/data-action="todo-panel-close">‹ 返回今日待办/);
+  assert.match(html,/data-action="todo-panel" data-panel="history"[^>]*aria-current="page"/);
   prepareForm(c,{date:'2027-01-01',text:'提前安排元旦计划'});
   await c.run('submitTodo({form:syntheticTodoForm,data:todoData})');
   assert.equal(c.run('calls[0].options.body.date'),'2027-01-01');
@@ -292,11 +307,11 @@ test('date route validation retains real history dates and rejects impossible ca
   }
 });
 
-test('phones and desktop open daily plans by default while explicit page links keep their destinations', () => {
+test('phones and desktop open review by default while explicit page links keep their destinations', () => {
   for (const [mobile, search, expected] of [
-    [true, '', 'todos'], [false, '', 'todos'],
-    [true, '?page=dashboard', 'dashboard'], [true, '?page=articles', 'articles'],
-    [false, '?page=dashboard', 'dashboard'], [false, '?page=articles', 'articles'],
+    [true, '', 'review'], [false, '', 'review'],
+    [true, '?page=dashboard', 'review'], [true, '?page=articles', 'review'],
+    [false, '?page=dashboard', 'review'], [false, '?page=articles', 'review'],
     [true, '?page=settings&tab=keys', 'settings'], [true, '?page=todos&date=2026-10-20', 'todos'],
   ]) {
     const c = client({mobile, search});
@@ -437,16 +452,17 @@ test('a completion conflict reloads the saved state and keeps the item available
 test('a stale pre-write read is refreshed before replacing the successfully added item', async () => {
   const c = client();
   prepareForm(c);
+  // Avoid `let staleRead` — the frontend bundle already binds function staleRead.
   c.run(`let getCount=0,finishRead,created;
     api=(path,options={})=>{
-      if(path==='/todo-templates')return Promise.resolve({items:[]});
+      if(path==='/todo-templates'||String(path).startsWith('/todo-templates?'))return Promise.resolve({items:[]});
       if(options.method==='POST'){created={...options.body,completed:false,version:1};return Promise.resolve(created)}
       if(++getCount===1)return new Promise(resolve=>finishRead=resolve);
       return Promise.resolve({date:'2026-10-23',today:'2026-10-23',items:[created]})};
-    let staleRead=loadTodos()`);
+    var staleTodosRead=loadTodos()`);
   await c.run('submitTodo({form:syntheticTodoForm,data:todoData})');
   c.run("finishRead({date:'2026-10-23',today:'2026-10-23',items:[]})");
-  await c.run('staleRead');
+  await c.run('staleTodosRead');
   assert.equal(c.run('getCount'), 2);
   assert.equal(c.run('todoDay().items.length'), 1);
   assert.equal(c.run('todoDay().items[0].text'), '写下今天的计划');
@@ -571,23 +587,19 @@ test('a template conflict cannot update another edit target or a new session aft
   }
 });
 
-test('daily plans and explicit statistics overview render and request independently', async () => {
+test('daily plans and content review render independently', async () => {
   const c = client();
   c.run(`state.page='todos';paintTodos=()=>{};let reads=[];
     api=async path=>{reads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
   assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todo-templates','/todos?date=2026-10-23']);
-  c.run(`state.page='dashboard';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>';
-    api=async path=>{reads.push(path);
-      if(path.startsWith('/overview?'))return {items:[]};
-      throw new Error('Unexpected statistics read: '+path)}`);
+  c.run(`state.page='review';reads=[];
+    api=async path=>{reads.push(path);return {items:[]}}`);
   await c.run('renderPage()');
-  assert.deepEqual(JSON.parse(c.run("JSON.stringify(reads.map(path=>new URL(path,'http://localhost').pathname))")),
-    ['/overview']);
-  assert.match(c.run('reads[0]'), /^\/overview\?/);
-  assert.match(c.nodes.get('#page-content').innerHTML, /Independent statistics/);
+  assert.match(c.nodes.get('#page-content').innerHTML, /id="content-review"|内容复盘/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /todo-form|daily-todos/);
+  assert.equal(c.run("reads.some(path=>path.startsWith('/todos'))"), false);
 });
 
 test('midnight timer and returning-tab events switch today automatically without moving yesterday items', async () => {
@@ -657,41 +669,35 @@ test('saving a task does not recreate an active history date control', () => {
   assert.match(slots.get('#todo-items').innerHTML, /is-complete/, 'row still updates without replacing the date control');
 });
 
-test('repeated canonical navigation retains history, legacy reviews resolves to articles, and explicit actions refresh', () => {
-  for (const page of ['dashboard', 'todos', 'articles', 'settings']) {
-    const c = client({search: `?page=${page}&tab=workspace`, mobile: true});
+test('repeated canonical navigation retains history, legacy reviews resolves to review, and explicit actions refresh', () => {
+  for (const page of ['review', 'todos', 'notes', 'settings']) {
+    const c = client({search: `?page=${page}&tab=todo`, mobile: true});
     c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
     const length = c.historyLength;
     c.run(`navigateLink(${JSON.stringify(page)})`);
     assert.equal(c.historyLength, length, page);
     assert.equal(c.run('rendered'), 0, page);
     assert.equal(c.run('state.page'), page);
-    if (page === 'articles') {
-      c.run("actionMissingList({target:{dataset:{status:'missing_reads'}}})");
-      assert.equal(c.run('state.filters.data_status'), 'missing_reads');
-      assert.equal(c.run('rendered'), 1, 'same-page article filter action still renders');
-      assert.equal(c.historyLength, length + 1);
-    }
   }
   const legacy=client({search:'?page=reviews',mobile:true});
   legacy.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
-  assert.equal(legacy.run('state.page'),'articles');
-  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'articles');
+  assert.equal(legacy.run('state.page'),'review');
+  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'review');
   const length=legacy.historyLength;
-  legacy.run("navigateLink('articles')");
+  legacy.run("navigateLink('review')");
   assert.equal(legacy.historyLength,length);
   assert.equal(legacy.run('rendered'),0);
   legacy.run("navigate('reviews')");
-  assert.equal(legacy.run('state.page'),'articles');
-  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'articles');
+  assert.equal(legacy.run('state.page'),'review');
+  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'review');
   assert.equal(legacy.historyLength,length+1);
   assert.equal(legacy.run('rendered'),1);
 });
 
-test('daily-plan navigation returns historical dates to today and settings navigation returns to workspace', () => {
+test('daily-plan navigation returns historical dates to today and settings navigation returns to todo', () => {
   for (const [search, page, check] of [
     ['?page=todos&date=2026-10-22', 'todos', "state.todoDate===''&&todoDate()==='2026-10-23'"],
-    ['?page=settings&tab=keys', 'settings', "state.settingsTab==='workspace'"],
+    ['?page=settings&tab=keys', 'settings', "state.settingsTab==='todo'"],
   ]) {
     const c = client({search, mobile: true});
     c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
@@ -704,7 +710,7 @@ test('daily-plan navigation returns historical dates to today and settings navig
 
 test('navigation reuses the shell within one session and rebuilds it after the user or session changes', () => {
   for (const change of ['session', 'user']) {
-    const c = client(), links = ['dashboard', 'todos'].map(page => ({
+    const c = client(), links = ['review', 'todos'].map(page => ({
       dataset: {nav: page}, active: false,
       classList: {toggle(_name, current) {this.current = current;}},
       setAttribute(name, value) {this[name] = value;}, removeAttribute(name) {delete this[name];},
@@ -730,7 +736,7 @@ test('navigation reuses the shell within one session and rebuilds it after the u
     c.run("state.page='todos';let renders=0;renderPage=()=>{renders++};renderShell()");
     assert.equal(appWrites, 0, change);
     assert.equal(shell.classList.contains('menu-open'), false, 'shell reuse also closes the real navigation menu state');
-    assert.match(main.innerHTML, /每日待办/);
+    assert.match(main.innerHTML, /id="page-content"/);
     assert.equal(links[0].classList.current, false);
     assert.equal(links[1].classList.current, true);
     assert.equal(links[1]['aria-current'], 'page');

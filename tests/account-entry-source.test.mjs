@@ -52,7 +52,7 @@ test('creation asks only for a homepage and format test describes its limits', (
     for (const mobile of [false, true]) {
       globalThis.window = {matchMedia:()=>({matches:mobile})};
       readRoute();
-      assert.equal(state.page, 'settings'); assert.equal(state.settingsTab, 'accounts');
+      assert.equal(state.page, 'settings'); assert.equal(state.settingsTab, 'workspace');
       assert.equal(mobilePage('settings'), 'settings');
       assert.match(renderAccounts(), /data-action="new-account"/);
     }

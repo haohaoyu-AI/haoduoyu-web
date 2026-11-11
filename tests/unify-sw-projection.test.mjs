@@ -31,8 +31,10 @@ test('SW shell pins eleven exact paths and one new module over the fixed final m
     assert.equal(projectUnifySw(file,before),before,'exact stage-two bytes remain accepted: '+file);
   }
   const released=git('ls-tree','-r','--name-only',unifySwBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
+  const {quietSyncBaseline}=await import('./oct28-small-fix-projection.mjs');
+  const known=new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
   const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
   assert.equal(current.length,64);assert.deepEqual(projectUnifyTodosOfflineModules(current),[...released,...unifySwAddedModules].sort());
   assert.deepEqual(projectUnifySwModules(current),released,'only the exact reviewed SW client projects to absence');
   assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),

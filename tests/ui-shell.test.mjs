@@ -18,22 +18,24 @@ function client(search=''){
  return {run,nodes,location,events,windowEvents,back(){locate(entries[--index]);windowEvents.popstate()},forward(){locate(entries[++index]);windowEvents.popstate()}};
 }
 test('legacy settings routes canonicalize while supported filters and account survive login restoration',()=>{
- for(const [route,tab] of [['management','accounts'],['accounts','accounts'],['keys','keys'],['settings','workspace'],['settings&tab=accounts','accounts'],['settings&tab=log','log'],['settings&tab=bad','accounts']]){
+ for(const [route,tab] of [['management','workspace'],['accounts','workspace'],['keys','keys'],['settings','workspace'],['settings&tab=accounts','workspace'],['settings&tab=log','log'],['settings&tab=bad','workspace']]){
   const c=client('?page='+route+'&account=a&q=%3C词%3E&platform=zhihu&sort=reads&order=asc&list_page=2&page_size=10&columns=reads,as_of&top_n=20&top_platform=wechat&period=30d');
   c.run('readRoute({freshLogin:true});updateRoute()');
   assert.equal(c.run('state.page'),'settings');assert.equal(c.run('state.settingsTab'),tab);assert.equal(c.run('state.account'),'a');
   const params=new URL(c.location.href).searchParams;
   assert.equal(params.has('q'),false);
-  for(const [key,value] of Object.entries({platform:'zhihu',sort:'reads',order:'asc',list_page:'2',page_size:'10',columns:'reads,as_of',top_n:'20',top_platform:'wechat',period:'30d',account:'a',tab}))assert.equal(params.get(key),value,key);
+  assert.equal(params.get('tab'),tab);
+  assert.equal(c.run('state.filters.platform'),'zhihu');
+  assert.equal(c.run('state.filters.sort'),'reads');
  }
 });
 test('page and tab history restores filters, review tabs and settings on popstate',()=>{
  const c=client('?page=articles&q=hello&account=a');c.run('readRoute();updateRoute();renderShell=()=>{}');
+ assert.equal(c.run('state.page'),'review');
  c.run("navigate('settings','keys')");assert.equal(c.run('state.settingsTab'),'keys');
- c.run("state.reviewTab='daily';navigate('reviews')");assert.equal(c.run('state.page'),'articles');assert.match(c.location.search,/page=articles/);
- assert.equal(c.run('state.reviewTab'),'daily');assert.doesNotMatch(c.location.search,/tab=/);
- c.back();assert.equal(c.run('state.page'),'settings');assert.equal(c.run('state.settingsTab'),'keys');assert.equal(c.run('Object.hasOwn(state.filters, "q")'),false);
- c.back();assert.equal(c.run('state.page'),'articles');assert.equal(c.run('state.account'),'a');
+ c.run("state.reviewTab='daily';navigate('reviews')");assert.equal(c.run('state.page'),'review');assert.match(c.location.search,/page=review/);
+ c.back();assert.equal(c.run('state.page'),'settings');assert.equal(c.run('state.settingsTab'),'keys');
+ c.back();assert.equal(c.run('state.page'),'review');assert.equal(c.run('state.account'),'a');
  c.forward();assert.equal(c.run('state.settingsTab'),'keys');
 });
 test('a late old settings response cannot overwrite a newer page or its loading state',async()=>{

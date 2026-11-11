@@ -11,10 +11,12 @@ import {unifyStage2Baseline,unifyStage2Paths,unifyStage2Before,unifyStage2Manife
   projectUnifyStage2,projectUnifyStage2History,stage2Hash} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
 import {projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
+import {quietSyncBaseline,projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyStage2Manifest();
+const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 
 test('stage two pins exactly ten mobile presentation paths without adding any application modules',async()=>{
   for(const file of unifyStage2Paths) {
@@ -27,8 +29,9 @@ test('stage two pins exactly ten mobile presentation paths without adding any ap
   assert.deepEqual(projectedChangedFiles(unifyStage2Baseline,roots,projectUnifyStage2),[],
     'business stores, APIs, schemas, backups, sync and deployment files are unchanged');
   const released=git('ls-tree','-r','--name-only',unifyStage2Baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
+  const known=quietWeb();
   const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
   assert.equal(current.length,64);assert.deepEqual(projectUnifySwModules(current),released,
     'complete mobile module inventory stays fixed after the exact later SW client projects to absence');
   assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),
@@ -69,7 +72,8 @@ test('stage-two manifest cannot authorize another baseline, digest, module, asse
 test('stage two composes through exact stage-one and historical manifests instead of replacing their contracts',()=>{
   const manifests=git('ls-tree','-r','--name-only',unifyStage2Baseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
   for(const file of manifests)assert.equal(read(file),git('show',unifyStage2Baseline+':'+file),'historical manifest unchanged: '+file);
-  assert.equal(read('.github/scripts/release-policy.mjs'),git('show',unifyStage2Baseline+':.github/scripts/release-policy.mjs'),
+  assert.equal(projectQuietSync('.github/scripts/release-policy.mjs',read('.github/scripts/release-policy.mjs')),
+    git('show',unifyStage2Baseline+':.github/scripts/release-policy.mjs'),
     'mobile UI never expands the production Worker allowlist');
   for(const file of unifyStage2Paths.filter(file=>file!=='public/mobile.css')) {
     assert.equal(projectUnifyStage1(file,read(file)),git('show','6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c:'+file),

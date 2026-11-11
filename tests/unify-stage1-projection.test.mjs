@@ -12,6 +12,7 @@ import {unifyStage1Baseline,unifyStage1Paths,unifyStage1Styles,unifyStage1Before
   validateUnifyStage1Delta,projectUnifyStage1,projectUnifyStage1History,projectedChangedFiles,expandStage1Css,stage1Hash} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectOct28History} from './oct28-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=file=>readFileSync(join(root,file),'utf8');
@@ -74,7 +75,8 @@ test('history adapter accepts only fixed checkpoint blobs and never arbitrary le
   assert.equal(projectUnifyStage1History(file,read(file)),unifyStage1Before(file));
   const historical=git('ls-tree','-r','--name-only',unifyStage1Baseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
   for(const manifest of historical)assert.equal(read(manifest),git('show',unifyStage1Baseline+':'+manifest),'historical manifest unchanged: '+manifest);
-  assert.equal(read('.github/scripts/release-policy.mjs'),git('show',unifyStage1Baseline+':.github/scripts/release-policy.mjs'),'production release allowlist unchanged');
+  assert.equal(projectQuietSync('.github/scripts/release-policy.mjs',read('.github/scripts/release-policy.mjs')),
+    git('show',unifyStage1Baseline+':.github/scripts/release-policy.mjs'),'production release allowlist unchanged');
 });
 
 test('new token asset uses the existing static GET and HEAD path without changing cache or security policy',async()=>{

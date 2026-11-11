@@ -108,7 +108,7 @@ function handleResponsiveLayout() {
 function navigateLink(page) {
   const target = mobilePage(page);
   const same = target === state.page && (target !== "memos" || !state.memoView) &&
-    (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+    (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;

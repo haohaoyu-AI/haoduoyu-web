@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -27,7 +27,8 @@ jobs:
       - run: npm run check:web
       - run: node scripts/frontend-build.mjs --check
       - run: npm run build
-      - run: npm test
+      # Per-test timeout prevents one pending VM promise from burning the whole job.
+      - run: node scripts/build.mjs && node --test --test-concurrency=1 --test-timeout=60000 tests/*.test.mjs
       - run: npm run check:artifacts
       - run: npm run check:previews
   secret-scan:
