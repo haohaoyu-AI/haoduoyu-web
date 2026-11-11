@@ -34,19 +34,67 @@ function openTodoMenu({ target, id, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
+function readNote(node) {
+  const raw = node?.isContentEditable ? node.textContent : node?.value;
+  return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4000);
+}
+function placeNoteCaret(node) {
+  if (!node) return;
+  node.focus();
+  const selection = window.getSelection?.();
+  if (!selection || !node.isContentEditable) {
+    const end = node.value?.length || 0;
+    node.setSelectionRange?.(end, end);
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+function rememberNote(node) {
+  const text = readNote(node);
+  const shown = node.isContentEditable ? node.textContent : node.value;
+  if (shown !== text) {
+    if (node.isContentEditable) node.textContent = text;
+    else node.value = text;
+    placeNoteCaret(node);
+  }
+  if (node.dataset.future === "1") {
+    const view = futureTodoView();
+    if (view.noteEdit?.id === node.dataset.id) view.noteEdit.text = text;
+    return;
+  }
+  const day = todoDay(node.dataset.date);
+  if (day.noteEdit?.id === node.dataset.id) day.noteEdit.text = text;
+}
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
   watchTodoNotes.ready = true;
-  document.addEventListener("input", event => {
-    const input = event.target;
-    if (!input?.matches?.("[data-todo-note-input]")) return;
-    if (input.dataset.future === "1") {
-      const view = futureTodoView();
-      if (view.noteEdit?.id === input.dataset.id) view.noteEdit.text = input.value;
-      return;
+  document.addEventListener("beforeinput", event => {
+    const node = event.target;
+    if (!node?.matches?.("[data-todo-note-input]")) return;
+    if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
+      event.preventDefault();
+      node.blur();
     }
-    const day = todoDay(input.dataset.date);
-    if (day.noteEdit?.id === input.dataset.id) day.noteEdit.text = input.value;
+  });
+  document.addEventListener("paste", event => {
+    const node = event.target?.closest?.("[data-todo-note-input]");
+    if (!node) return;
+    event.preventDefault();
+    const text = (event.clipboardData?.getData("text/plain") || "").replace(/\r?\n/g, "");
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  document.addEventListener("input", event => {
+    if (event.target?.matches?.("[data-todo-note-input]")) rememberNote(event.target);
   });
   document.addEventListener("focusout", event => {
     if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
@@ -65,9 +113,7 @@ function openFutureNote(options) {
   view.noteEdit={id:item.id,text:item.note || ""};
   view.noteError="";
   paintUnscheduledTodos();
-  const input=document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
-  input?.focus();
-  input?.setSelectionRange?.(input.value.length,input.value.length);
+  placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
 function openTodoNote(options) {
   watchTodoNotes();
@@ -78,16 +124,13 @@ function openTodoNote(options) {
   day.noteEdit={id:item.id,text:item.note || ""};
   day.noteError="";
   paintTodos();
-  const input=document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
-  input?.focus();
-  const end=input?.value.length || 0;
-  input?.setSelectionRange?.(end, end);
+  placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
 async function commitFutureNote(input) {
   if(futureRepainting())return;
   const view=futureTodoView(),item=view.items.find(row=>row.id===input.dataset.id);
   if(!item||view.noteEdit?.id!==item.id||view.noteEdit.committing)return;
-  const text=input.value;
+  const text=readNote(input);
   if(text===(item.note || "")){view.noteEdit=null;view.noteError="";paintUnscheduledTodos();return;}
   view.noteEdit.committing=true; view.noteEdit.text=text;
   try {
@@ -113,7 +156,7 @@ async function commitTodoNote(input) {
   if(!context)return;
   const {day,item,owner}=context;
   if(day.noteEdit?.id!==item.id||day.noteEdit.committing)return;
-  const text=input.value;
+  const text=readNote(input);
   if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
   day.noteEdit.committing=true; day.noteEdit.text=text;
   try {

@@ -5141,7 +5141,8 @@ function todoNoteField(item, { pending = false, editing: editing3 = null, error 
   const alert = error && active5 ? `<span class="todo-note-error" role="alert">${e(error)}</span>` : "";
   const marker = future ? ` data-future="1"` : "";
   if (active5) {
-    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date)}"${marker} value="${e(editing3.text ?? "")}"${pending ? " disabled" : ""}>${alert}`;
+    const editable = pending ? "false" : "true";
+    return `<span class="todo-note-hit todo-note-text todo-note-input" data-todo-note-input role="textbox" contenteditable="${editable}" enterkeyhint="done" spellcheck="false" aria-multiline="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date)}"${marker}>${e(editing3.text ?? "")}</span>${alert}`;
   }
   const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
   const label3 = item.note ? "编辑备注" : "添加备注";
@@ -8332,19 +8333,67 @@ function openTodoMenu({ target, id: id2, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
+function readNote(node2) {
+  const raw = node2?.isContentEditable ? node2.textContent : node2?.value;
+  return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4e3);
+}
+function placeNoteCaret(node2) {
+  if (!node2) return;
+  node2.focus();
+  const selection = window.getSelection?.();
+  if (!selection || !node2.isContentEditable) {
+    const end = node2.value?.length || 0;
+    node2.setSelectionRange?.(end, end);
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(node2);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+function rememberNote(node2) {
+  const text = readNote(node2);
+  const shown = node2.isContentEditable ? node2.textContent : node2.value;
+  if (shown !== text) {
+    if (node2.isContentEditable) node2.textContent = text;
+    else node2.value = text;
+    placeNoteCaret(node2);
+  }
+  if (node2.dataset.future === "1") {
+    const view = futureTodoView();
+    if (view.noteEdit?.id === node2.dataset.id) view.noteEdit.text = text;
+    return;
+  }
+  const day6 = todoDay(node2.dataset.date);
+  if (day6.noteEdit?.id === node2.dataset.id) day6.noteEdit.text = text;
+}
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
   watchTodoNotes.ready = true;
-  document.addEventListener("input", (event) => {
-    const input = event.target;
-    if (!input?.matches?.("[data-todo-note-input]")) return;
-    if (input.dataset.future === "1") {
-      const view = futureTodoView();
-      if (view.noteEdit?.id === input.dataset.id) view.noteEdit.text = input.value;
-      return;
+  document.addEventListener("beforeinput", (event) => {
+    const node2 = event.target;
+    if (!node2?.matches?.("[data-todo-note-input]")) return;
+    if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
+      event.preventDefault();
+      node2.blur();
     }
-    const day6 = todoDay(input.dataset.date);
-    if (day6.noteEdit?.id === input.dataset.id) day6.noteEdit.text = input.value;
+  });
+  document.addEventListener("paste", (event) => {
+    const node2 = event.target?.closest?.("[data-todo-note-input]");
+    if (!node2) return;
+    event.preventDefault();
+    const text = (event.clipboardData?.getData("text/plain") || "").replace(/\r?\n/g, "");
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    node2.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  document.addEventListener("input", (event) => {
+    if (event.target?.matches?.("[data-todo-note-input]")) rememberNote(event.target);
   });
   document.addEventListener("focusout", (event) => {
     if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
@@ -8363,9 +8412,7 @@ function openFutureNote(options4) {
   view.noteEdit = { id: item.id, text: item.note || "" };
   view.noteError = "";
   paintUnscheduledTodos();
-  const input = document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
-  input?.focus();
-  input?.setSelectionRange?.(input.value.length, input.value.length);
+  placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
 function openTodoNote(options4) {
   watchTodoNotes();
@@ -8376,16 +8423,13 @@ function openTodoNote(options4) {
   day6.noteEdit = { id: item.id, text: item.note || "" };
   day6.noteError = "";
   paintTodos();
-  const input = document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
-  input?.focus();
-  const end = input?.value.length || 0;
-  input?.setSelectionRange?.(end, end);
+  placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
 async function commitFutureNote(input) {
   if (futureRepainting()) return;
   const view = futureTodoView(), item = view.items.find((row) => row.id === input.dataset.id);
   if (!item || view.noteEdit?.id !== item.id || view.noteEdit.committing) return;
-  const text = input.value;
+  const text = readNote(input);
   if (text === (item.note || "")) {
     view.noteEdit = null;
     view.noteError = "";
@@ -8417,7 +8461,7 @@ async function commitTodoNote(input) {
   if (!context) return;
   const { day: day6, item, owner: owner2 } = context;
   if (day6.noteEdit?.id !== item.id || day6.noteEdit.committing) return;
-  const text = input.value;
+  const text = readNote(input);
   if (text === (item.note || "")) {
     day6.noteEdit = null;
     day6.noteError = "";

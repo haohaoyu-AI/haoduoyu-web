@@ -5,9 +5,10 @@ export function todoNoteField(item, { pending = false, editing = null, error = "
   const alert = error && active ? `<span class="todo-note-error" role="alert">${e(error)}</span>` : "";
   const marker = future ? ` data-future="1"` : "";
   if (active) {
-    return `<input class="todo-note-input" data-todo-note-input type="text" maxlength="4000" enterkeyhint="done" autocomplete="off" ` +
-      `spellcheck="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date)}"${marker} value="${e(editing.text ?? "")}"` +
-      `${pending ? " disabled" : ""}>${alert}`;
+    const editable = pending ? "false" : "true";
+    return `<span class="todo-note-hit todo-note-text todo-note-input" data-todo-note-input role="textbox" contenteditable="${editable}" ` +
+      `enterkeyhint="done" spellcheck="false" aria-multiline="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date)}"${marker}>` +
+      `${e(editing.text ?? "")}</span>${alert}`;
   }
   const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
   const label = item.note ? "编辑备注" : "添加备注";
