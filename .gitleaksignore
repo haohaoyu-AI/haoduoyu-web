@@ -304,3 +304,10 @@ c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:
 c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:10
 c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:.ci/public-assets.json:generic-api-key:16
 c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb:tests/oct28-small-fix-projection.mjs:generic-api-key:13
+
+# QuietSync product SHA-256 pins (content digests, not credentials), independently recomputed.
+a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:31
+a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:39
+a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:43
+a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:57
+a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:67

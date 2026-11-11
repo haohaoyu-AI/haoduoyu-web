@@ -199,3 +199,11 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 仅追加这 4 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42996761221>。
 
 本地用与 CI 相同的 Gitleaks 8.30.1 和 `--all --full-history -m --root` 扫描 617 个提交，追加后为 0 项。把其中一条指纹的提交号改一位后，仍只报告原来那一条 `.ci/public-assets.json:5`，说明没有按路径放行。
+
+## 2026-11-12 QuietSync 投影：五条公开内容摘要
+
+发布登记分支的全历史扫描会读到夜间 12 条分支。CI 43109615308 的 secret-scan 因此报告提交 `a83d8420633ed42a609480caa133cede8a1c6784` 上 `tests/oct28-small-fix-projection.mjs` 的 5 条 generic-api-key（第 31、39、43、57、67 行）。它们分别钉住公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）、`public/tokens.css`（11728 字节），以及同提交的 `src/public-note-access.mjs`（2282 字节）和 `web/core/api.mjs`（5075 字节）的内容 SHA256。从该提交原始 Git blob 重算，五处均与投影清单值一致，不是凭据。
+
+仅追加这 5 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/43109615308>。
+
+本地用与 CI 相同的 Gitleaks 8.30.1 和 `--all --full-history -m --root` 扫描 647 个提交，追加后为 0 项。把其中一条指纹的提交号改一位后，仍只报告原来那一条 `tests/oct28-small-fix-projection.mjs:31`，说明没有按路径放行。
