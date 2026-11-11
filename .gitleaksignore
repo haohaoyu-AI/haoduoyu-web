@@ -295,3 +295,6 @@ fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixt
 
 # Exact historical public CSS content SHA256, independently recomputed.
 07673981b00b7eeba83833448a75daa43b3064ab:desktop/original-web-workbench/bundle/source-build-manifest.json:generic-api-key:9
+
+# User-approved exact historical public OpenAPI digest; see docs/security/secret-scan-exceptions.md.
+faa86f862f032f8a896d813ea4ac2f7d3eb13b96:.ci/public-assets.json:generic-api-key:10
