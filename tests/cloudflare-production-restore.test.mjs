@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {releases,productionRestore,previousProductionRelease,openaiReviewRelease,dataTrendsRelease,claudeRobotsRelease,claudeTrendsRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
+import {releases,productionRestore,previousProductionRelease,openaiReviewRelease,dataTrendsRelease,claudeRobotsRelease,claudeTrendsRelease,claudeNotesDraftsRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
 const commit='b35dd510aec0fe67a88aa02edabcd73bfda9b33f';
 const baseline='3bd46508-c1fd-4845-af7d-93afc85b7d31';
 const tree='6b3daff954b41ce78654d3832863dab800a1494a';
@@ -58,7 +58,7 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
   assert.match(yaml,/environment: cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
   assert.match(yaml,/contents: read/);assert.match(yaml,/actions: read/);assert.match(yaml,/fetch-depth: 0/);
   assert.equal((yaml.match(/persist-credentials: false/g)||[]).length,2);
-  const sharedCondition=`if: inputs.target_commit == '${commit}' || inputs.target_commit == '${previousProductionRelease.commit}' || inputs.target_commit == '${openaiReviewRelease.commit}' || inputs.target_commit == '${dataTrendsRelease.commit}' || inputs.target_commit == '${claudeRobotsRelease.commit}' || inputs.target_commit == '${claudeTrendsRelease.commit}'`;
+  const sharedCondition=`if: inputs.target_commit == '${commit}' || inputs.target_commit == '${previousProductionRelease.commit}' || inputs.target_commit == '${openaiReviewRelease.commit}' || inputs.target_commit == '${dataTrendsRelease.commit}' || inputs.target_commit == '${claudeRobotsRelease.commit}' || inputs.target_commit == '${claudeTrendsRelease.commit}' || inputs.target_commit == '${claudeNotesDraftsRelease.commit}'`;
   assert.equal(yaml.split(sharedCondition).length-1,1,'artifact verification remains mandatory for all exact production sources');
   const optionalCondition=sharedCondition.replace('if: ','if: inputs.run_regression_tests && (')+')';
   assert.equal(yaml.split(optionalCondition).length-1,5,'optional regressions retain the same exact source coverage');
