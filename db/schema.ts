@@ -331,7 +331,7 @@ export const matrixReviewArticleDiagnoses=sqliteTable('matrix_review_article_dia
   beijing_date:text('beijing_date').notNull(),
 },t=>[
   primaryKey({columns:[t.user_id,t.article_id]}),
-  index('review_article_diagnoses_day').on(t.user_id,t.beijing_date),
+  index('matrix_review_article_diagnoses_day').on(t.user_id,t.beijing_date),
   check('matrix_review_article_diagnosis_version',sql`typeof(${t.prompt_version})='integer' AND ${t.prompt_version} >= 0`),
   check('matrix_review_article_diagnosis_day',sql`${t.beijing_date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.beijing_date},'+0 days') IS NOT NULL AND date(${t.beijing_date},'+0 days') = ${t.beijing_date}`),
 ]);

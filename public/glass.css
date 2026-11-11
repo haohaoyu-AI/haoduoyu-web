@@ -205,6 +205,7 @@ button.badge { min-height:var(--size-control); }
 .daily-todo-row { gap:var(--space-12); border-color:var(--color-todo-divider); }
 .daily-todo-check { min-height:62px; padding:var(--space-18) 0; }
 .todo-note-hit,.todo-note-hit:hover,.todo-note-hit:focus-visible { border-radius:0; background:transparent; box-shadow:none; color:#067647; }
+.todo-note-text,.todo-note-input { font-size:.82em; font-style:italic; line-height:1.35; color:#067647; caret-color:#067647; }
 .daily-todo-row input[type=checkbox] { width:22px; height:22px; border-color:var(--color-checkbox-border); background:var(--color-white-a-86); }
 .daily-todo-row input[type=checkbox]:checked { background:var(--accent); border-color:var(--accent); }
 .daily-todo-row input[type=checkbox]:checked::after { left:7px; top:4px; border-color:var(--color-white); }

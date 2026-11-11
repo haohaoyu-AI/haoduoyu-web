@@ -514,6 +514,19 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .content-review .review-stat-change { display:block; margin-top:8px; font-size:13px; font-weight:650; line-height:1.4; }
 .content-review .review-stat-change.up { color:#067647; }
 .content-review .review-stat-change.down { color:var(--color-danger); }
+.content-review .review-cockpit-charts { display:grid; gap:var(--space-20); margin-top:var(--space-24); }
+.content-review .review-cockpit-chart h3 { margin:0 0 var(--space-8); font-size:var(--font-size-15); font-weight:var(--font-weight-semibold); }
+.content-review .review-cockpit-legend { display:flex; flex-wrap:wrap; gap:var(--space-6) var(--space-16); margin:0 0 var(--space-8); padding:0; list-style:none; color:var(--color-text-secondary); font-size:var(--font-size-12); }
+.content-review .review-cockpit-legend li { display:flex; align-items:center; gap:var(--space-6); }
+.content-review .review-cockpit-legend i { width:14px; height:3px; border-radius:2px; background:var(--review-chart-reads); }
+.content-review .review-cockpit-legend i.lane-1 { background:var(--color-text-secondary); }
+.content-review .review-cockpit-legend i.lane-2 { background:var(--review-chart-ctr); }
+.content-review .review-cockpit-line { stroke:var(--review-chart-reads); stroke-width:var(--review-chart-width); stroke-linecap:round; stroke-linejoin:round; }
+.content-review .review-cockpit-line.lane-1 { stroke:var(--color-text-secondary); }
+.content-review .review-cockpit-line.lane-2 { stroke:var(--review-chart-ctr); }
+.content-review .review-cockpit-dot { fill:var(--review-chart-reads); stroke:var(--color-glass-solid); stroke-width:var(--review-focus-width); }
+.content-review .review-cockpit-dot.lane-1 { fill:var(--color-text-secondary); }
+.content-review .review-cockpit-dot.lane-2 { fill:var(--review-chart-ctr); }
 .content-review .review-diagnosis { margin-top:18px; }
 .content-review .review-diagnosis h3 { margin:0 0 8px; font-size:18px; }
 .content-review .review-diagnosis .btn { min-height:44px; }

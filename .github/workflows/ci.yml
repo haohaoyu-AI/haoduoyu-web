@@ -1,9 +1,9 @@
 name: Foundation CI
 on:
   push:
-    branches: [main, 'opt/**']
+    branches: [main, 'opt/**', 'cursor/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'cursor/**']
 permissions:
   contents: read
 concurrency:

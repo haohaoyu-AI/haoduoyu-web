@@ -1,8 +1,8 @@
 import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
-import {renderCockpitMethod} from './review-trends.mjs';
 import {renderArticleDiagnosis} from './review-diagnosis.mjs';
+import {renderCockpitCharts} from './review-cockpit-charts.mjs';
 import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
@@ -162,11 +162,6 @@ function metricChange(label, current, previous, prefix = '') {
 function statCard(label, body, change) {
   return `<article class="review-stat"><span>${label}</span>${body}${change}</article>`;
 }
-function cockpitMethod(data, vm, current) {
-  if (!current.window) return '';
-  try { return renderCockpitMethod(data, vm, current.window); }
-  catch { return '<details class="review-trend-method"><summary>统计口径与数据时间</summary><p>口径暂时无法计算。</p></details>'; }
-}
 function overview(data,vm) {
   const range = ['this','last','30d'].includes(vm.filters?.metricsRange) ? vm.filters.metricsRange : 'this';
   const current = reviewOverviewMetrics(data,{account:vm.account,range,now:vm.now || new Date().toISOString()});
@@ -186,7 +181,7 @@ function overview(data,vm) {
   return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
-    `<div class="review-stats">${cards}</div></section>${cockpitMethod(data,vm,current)}`;
+    `<div class="review-stats">${cards}</div>${renderCockpitCharts(current.series)}</section>`;
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">

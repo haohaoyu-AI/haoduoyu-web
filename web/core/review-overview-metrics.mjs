@@ -60,6 +60,16 @@ export function metricDelta(current, previous) {
   return Number.isFinite(rounded) ? rounded : null;
 }
 
+function dailySeries(rows, bounds, nowMs) {
+  if (!bounds.start || !bounds.end) return [];
+  const days = [];
+  for (let date = bounds.start; date <= bounds.end; date = shiftDay(date, 1)) {
+    const dayRows = rows.filter(row => publishedIn(row, {start:date, end:date, closed:true}, nowMs));
+    days.push({date, ...summarize(dayRows)});
+  }
+  return days;
+}
+
 /** Publication cohort in Shanghai time; samples retain their recorded observation ages. */
 export function reviewOverviewMetrics(data, {account, range = '24h', now = new Date().toISOString()} = {}) {
   const nowMs = instant(now);
@@ -69,7 +79,8 @@ export function reviewOverviewMetrics(data, {account, range = '24h', now = new D
   const current = summarize(rows.filter(row => publishedIn(row, bounds, nowMs)));
   if (!bounds.previous) return current;
   const previous = summarize(rows.filter(row => publishedIn(row, bounds.previous, nowMs)));
-  return {...current, previous, comparisonLabel:bounds.label, window:{start:bounds.start, end:bounds.end}};
+  return {...current, previous, comparisonLabel:bounds.label, window:{start:bounds.start, end:bounds.end},
+    series:dailySeries(rows, bounds, nowMs)};
 }
 export function reviewDuration(value) {
   const n = finiteNumber(value);

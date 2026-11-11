@@ -27,6 +27,9 @@ test('Shanghai Monday and complete prior week include date-only records but excl
   assert.equal(last.readsMedian,4999.5);
   assert.equal(last.avgReadSeconds,499.5);
   assert.deepEqual(last.samples.readsMedian,{count:2,minHours:23,maxHours:24});
+  assert.equal(last.series.length,7);
+  assert.equal(last.series[0].date,'2026-10-26');
+  assert.equal(last.series.at(-1).date,'2026-11-01');
 });
 test('missing values remain missing; zero is retained and durations format correctly', () => {
   const value = reviewOverviewMetrics({articles:[article('x','2026-11-02T03:00:00Z')],snapshots:[snap('x','x',10,{reads:10})]}, {account:'A',range:'24h',now});

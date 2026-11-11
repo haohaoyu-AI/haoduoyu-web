@@ -79,8 +79,11 @@
   .todo-calendar-grid { gap:0; }
   .todo-calendar-day { min-width:44px; min-height:44px; }
   button,.btn,.article-link { max-width:100%; }
-  /* Form fields stay at 16px so iOS does not zoom. The note editor is not a field. */
+  /* Form fields stay at 16px so iOS does not zoom. Todo notes keep the same .82em italic size while editing. */
   :is(input,textarea,select,[contenteditable="true"]):not(.todo-note-input) { font-size:var(--font-size-16,16px)!important; }
+  .todo-note-input,[contenteditable="true"].todo-note-input {
+    font-size:.82em!important; font-style:italic!important; line-height:1.35; color:#067647; caret-color:#067647;
+  }
   input:not([type=checkbox]):not([type=radio]),select { min-height:44px; }
   input,textarea,select { max-width:100%; box-sizing:border-box; }
   :is(input,textarea,select,[contenteditable="true"]) {
