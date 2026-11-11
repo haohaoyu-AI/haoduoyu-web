@@ -11,7 +11,7 @@ import {addedModules as oct28AddedModules} from './oct28-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {readFile, mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
+import {readFile, readdir, mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {transform} from 'esbuild';
@@ -20,6 +20,7 @@ import {fileURLToPath} from 'node:url';
 import {parseWeb, visitWeb, webStyle} from '../scripts/check-web.mjs';
 import {phase7Manifest, projectPhase7Frontend} from './article-pipeline-ui-projection.mjs';
 import {memoAddedModules, memoSharedFiles, memoBaseline, projectMemoFrontend} from './memos-ui-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
@@ -243,7 +244,8 @@ test('memo shared-module projection preserves the released article frontend and 
     assert.equal(await projectMemoFrontend(file,source),memoBaseline(file),file+' retains every other released AST node');
   }
   const nav=await readFile(new URL('web/core/constants.mjs',root),'utf8');
-  await assert.rejects(projectMemoFrontend('web/core/constants.mjs',nav.replace('label: "备忘录"','label: "unapproved"')));
+  // Review-first nav dropped the memo item; mutate a still-present label instead.
+  await assert.rejects(projectMemoFrontend('web/core/constants.mjs',nav.replace('label: "碎碎念"','label: "unapproved"')));
   const controller=await readFile(new URL('web/controller.mjs',root),'utf8');
   await assert.rejects(projectMemoFrontend('web/controller.mjs',controller.replace('await loadMemos();','await loadDailyNotes();')));
 });
@@ -264,7 +266,12 @@ test('web style checks every function type and rejects long fixture lines/functi
   const report=await webStyle();assert.deepEqual(report.violations,[]);
   assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules,...unifyNotesOfflineAddedModules,...unifyMemosOfflineAddedModules,...unifyConflictResolutionAddedModules]),[],
     'every exact SW, todo-offline, note-offline, memo-offline and resolution module hash is checked before counting it');
-  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length+unifyMemosOfflineAddedModules.length+unifyConflictResolutionAddedModules.length+oct28AddedModules.length);
+  const historical=40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length+unifyMemosOfflineAddedModules.length+unifyConflictResolutionAddedModules.length+oct28AddedModules.length;
+  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],{cwd:root,encoding:'utf8'})
+    .trim().split('\n').filter(file=>file.endsWith('.mjs')));
+  const all=(await readdir(new URL('web/',root),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file);
+  assert.equal(quietKnown.size,historical,'QuietSync baseline module inventory stays exact');
+  assert.equal(report.files,all.length,'style check covers every current web module including live-only additions');
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));
