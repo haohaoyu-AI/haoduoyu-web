@@ -28,7 +28,7 @@ export const quietSyncHashes=Object.freeze({
   ".github/workflows/cloudflare-manual-release.yml":"f1bd292b723cb29eb6ff2984fc0941e1eebf72d8d9162435b3984683f33b9329",
   "db/schema.ts":"fccabaae5519e1e00b40cc5718458c071caa614afef3a150e4a64130564ea474",
   "drizzle/meta/_journal.json":"6d716073b710fd3e9b0e7e4b809704fe90d4d9bceea7a6e61e0cac4d17a00084",
-  "package.json":"0632f9dbaebdd60a81ea47eb888aee75ade70dbe9e407ac7c3ae9d3b45153d5d",
+  "package.json":"604df681522eb7c92a17391b8cd35582717100820d4203fe4247764044c5ddcd",
   "public/api-docs.html":"9ad53bf4c42769bb4f9e9b80357091385ff6e4e9141480e15347fd38e0c88291",
   "public/app.js":"2749b23d2abe0d87033682beb691ed68334d77ae3268aa554f60ffcce6b9afe5",
   "public/glass.css":"571e37644b7e1e55b039f1d4da2e00173a10b1c91ba00c96148bb2872ae1efba",

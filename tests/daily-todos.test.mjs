@@ -253,8 +253,12 @@ test('generated todo migration only appends its table and preserves existing row
   // table. Stop before 0005: that migration correctly fails closed on it, as
   // covered independently by the article graph/model boundary tests.
   await applyFixtureMigrations(app.db,{through:5});
-  const created=await create(app,app.session,input());assert.equal(created.status,201);
   assert.deepEqual((await app.db.prepare('SELECT * FROM legacy_todo_sentinel').all()).results,snapshots.get('legacy_todo_sentinel'));
+  // Live createTodo reads the note column added in 0019. Drop the sentinel so
+  // the article-pipeline gate can pass, finish migrations, then smoke-create.
+  await app.db.prepare('DROP TABLE legacy_todo_sentinel').run();
+  await applyFixtureMigrations(app.db);
+  const created=await create(app,app.session,input());assert.equal(created.status,201,created.text);
 });
 
 test('persisted fixtures apply only pending migrations and preserve todo history after restart',async t=>{
