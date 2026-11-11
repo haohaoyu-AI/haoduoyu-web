@@ -29,7 +29,7 @@ test('site upgrade release pins exact source, tree, Worker artifact and current 
   assert.throws(()=>verifyWorker(Buffer.alloc(siteFiveUpgradesRelease.bytes),siteFiveUpgradesRelease.commit));
   const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
   const options=yaml.split('        options:\n')[1].split('      run_regression_tests:')[0];
-  assert.ok(options.startsWith('          # Exact source and Worker bytes verified before registration.\n          - '+siteFiveUpgradesRelease.commit+'\n'));
+  assert.ok(options.includes('          - '+siteFiveUpgradesRelease.commit+'\n'));
   assert.ok(options.includes('          - '+reviewRulesPromptsRelease.commit+'\n'));
   assert.match(yaml,/group: haoduoyu-cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
   assert.match(yaml,/environment: cloudflare-production/);assert.doesNotMatch(yaml,/contents: write|wrangler secret|migrations apply/);

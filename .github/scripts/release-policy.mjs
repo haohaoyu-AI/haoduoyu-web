@@ -79,7 +79,15 @@ export const siteFiveUpgradesRelease=Object.freeze({
   baseline:'a9efcff1-4876-40ff-b4c3-b23cf5846543',
   bytes:2946480,sha256:'31e52a9001f33e0d13fa78eddac4202cb6cab4c46e71e4a9f6a6ce8c9730106d',
   label:'production-site-five-upgrades-20261111'});
-const acceptedRelease=commit=>commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
+// Exact approved night-review source. Apply and verify 0024 on production D1 before dispatch.
+export const nightReviewTwelveRelease=Object.freeze({
+  commit:'3f4789dbe1994508ed89d15e472613e91b94fb87',
+  tree:'bb54dc9ec7ea995060ee4bd055c5bbf96e7890e0',
+  baseline:'fd2185c8-4114-45a4-bd32-f1e71119dfbd',
+  bytes:2943560,sha256:'2a98bb9300978b6219756009aa44a1ec3c4af323b157649fc2ec0417340a3462',
+  label:'production-night-review-twelve-20261112'});
+const acceptedRelease=commit=>commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
+  commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
   commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
   commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
   commit===claudeTrendsRelease.commit?claudeTrendsRelease:
