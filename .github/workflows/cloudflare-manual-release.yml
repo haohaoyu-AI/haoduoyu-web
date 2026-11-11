@@ -127,7 +127,7 @@ jobs:
         working-directory: source
         run: node --test tests/claude-robots.test.mjs tests/static-etags.test.mjs tests/public-business.test.mjs
       - name: Verify rules hierarchy and prompt version contracts
-        if: inputs.run_regression_tests && inputs.target_commit == 'faa86f862f032f8a896d813ea4ac2f7d3eb13b96'
+        if: inputs.run_regression_tests && (inputs.target_commit == 'faa86f862f032f8a896d813ea4ac2f7d3eb13b96')
         working-directory: source
         run: node --test --test-concurrency=1 tests/content-review*.test.mjs tests/review-*.test.mjs tests/mobile-review-*.test.mjs tests/claude-robots.test.mjs
       - name: Verify production release guards
