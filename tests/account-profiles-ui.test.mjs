@@ -40,9 +40,9 @@ test('profile submission infers platform on the server, retries with a stable id
   app.run(`let calls=[],toasts=[];closeModal=()=>{};renderShell=()=>{};toast=value=>toasts.push(value);
     api=async(path,options)=>{calls.push({path,options});if(options)return {id:'a',name:'已有账号',profile_reused:true};
       return path==='/accounts'?[{id:'a',platform:'zhihu',name:'已有账号'}]:[{account_id:'a',profile_url:'https://www.zhihu.com/people/synthetic'}];};
-    let form={dataset:{id:''}},data={platform:'',name:'新名称',profile_url:'https://www.zhihu.com/people/synthetic'};`);
-  await app.run('submitAccountForm({form,data,values:new URLSearchParams()})');
-  await app.run('submitAccountForm({form,data,values:new URLSearchParams()})');
+    var form={dataset:{id:''}},accountFormData={platform:'',name:'新名称',profile_url:'https://www.zhihu.com/people/synthetic'};`);
+  await app.run('submitAccountForm({form,data:accountFormData,values:new URLSearchParams()})');
+  await app.run('submitAccountForm({form,data:accountFormData,values:new URLSearchParams()})');
   const calls=JSON.parse(app.run('JSON.stringify(calls.filter(call=>call.options))'));
   assert.equal(calls[0].options.body.profile_url,'https://www.zhihu.com/people/synthetic');
   assert.equal(Object.hasOwn(calls[0].options.body,'platform'),false);
@@ -56,11 +56,11 @@ test('late account save cannot overwrite another session',async()=>{
   const app=client();
   app.run(`let calls=[];closeModal=()=>{};renderShell=()=>{};toast=()=>{};
     api=async(path,options)=>{calls.push({path,options});return options?{id:'new'}:[];};
-    let form={dataset:{id:''}},data={profile_url:'https://www.zhihu.com/people/synthetic'};`);
-  await app.run('submitAccountForm({form,data,values:new URLSearchParams()})');
+    var form={dataset:{id:''}},accountFormData={profile_url:'https://www.zhihu.com/people/synthetic'};`);
+  await app.run('submitAccountForm({form,data:accountFormData,values:new URLSearchParams()})');
   assert.deepEqual(JSON.parse(app.run('JSON.stringify(calls[0].options.body)')),{profile_url:'https://www.zhihu.com/people/synthetic'});
   app.run(`let finish;calls=[];api=(path,options)=>{calls.push({path,options});return new Promise(resolve=>finish=resolve);};
-    let accountSavePending=submitAccountForm({form,data,values:new URLSearchParams()});runtime.sessionEpoch++;state.accounts=[{id:'new-session'}];finish({id:'old-session'});`);
+    let accountSavePending=submitAccountForm({form,data:accountFormData,values:new URLSearchParams()});runtime.sessionEpoch++;state.accounts=[{id:'new-session'}];finish({id:'old-session'});`);
   await app.run('accountSavePending');
   assert.equal(app.run('calls.length'),1);assert.equal(app.run('state.accounts[0].id'),'new-session');
 });
