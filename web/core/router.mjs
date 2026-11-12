@@ -53,7 +53,7 @@ function updateRoute(push = false) {
     u.searchParams.delete("ai_tab");
     if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun); else u.searchParams.delete("openai_run");
   } else if (state.page === "ai-reports") {
-    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
+    u.searchParams.set("ai_tab", state.aiDailyTab || "reports");
     if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
     else u.searchParams.delete("openai_run");
   } else { u.searchParams.delete("ai_tab"); u.searchParams.delete("openai_run"); }
@@ -62,12 +62,12 @@ function updateRoute(push = false) {
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else u.searchParams.delete("tab");
-  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
+  if (["review", "ai-reports"].includes(state.page)) u.searchParams.set("account", state.account || "V字");
   else u.searchParams.delete("account");
   for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
     u.searchParams.delete(key);
   if (state.page !== "review") {
-    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare", "review_section"])
       u.searchParams.delete(key);
   }
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
@@ -79,11 +79,13 @@ function readRoute() {
   const fallback = "review";
   state.page = raw === "reminders" ? "ai-reports" : Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   state.page = mobilePage(state.page);
+  const legacyWeekly = state.page === "review" && (params.get("review_section") === "weekly" || params.get("review_view") === "weekly");
+  if (legacyWeekly) state.page = "ai-reports";
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
   }
   state.diagnosisTab = params.get("diagnosis_tab") === "reports" ? "reports" : "help";
-  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyTab = legacyWeekly ? "reports" : ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
   state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";

@@ -211,7 +211,7 @@ async function state(db,owner,env,account,accountData) {
   const unlabelled=data.articles.filter(row=>!row.title_pattern&&!labels[row.id]).length;
   const library=await benchmarkArticles(db,owner,account);
   return {account,configured:Boolean(server.key&&server.model),default_model:server.model,settings,usage:await usage(db,owner,settings),runs,
-    weekly:weekly.slice(0,8),titles:labels,benchmarks:notes,
+    weekly:weekly.slice(0,8),titles:labels,patterns:patternStats(enrichArticles(data,{account}),labels),benchmarks:notes,
     candidates:await proposedRules(db,owner,await currentBooks(db,owner)),
     pending:{titles:unlabelled,benchmarks:library.filter(row=>!notes[row.id]).length,weekly:seen.has(period.start)?null:period}};
 }
@@ -296,7 +296,7 @@ export async function handleReviewAi({db,request,route,env,origin,owner,actorFor
   }
   if(Object.keys(input).some(key=>!['account','model','effort','redo','period_start'].includes(key)))invalid('请求字段无效');
   const account=accountOf(input.account||'V字');
-  if(action==='weekly')return json(await generateWeekly(db,owner,env,account,input,accountData));
+  if(action==='weekly')throw fail(410,'REVIEW_WEEKLY_RETIRED','独立周报已停止生成，请前往 AI 汇报查看历史和日常汇报');
   if(action==='titles')return json(await classifyTitles(db,owner,env,account,input,accountData));
   return json(await breakdownBenchmarks(db,owner,env,account,input));
 }

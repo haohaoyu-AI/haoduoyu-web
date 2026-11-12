@@ -1,13 +1,13 @@
 import {apiNetwork} from './core/api.mjs';
 
 // One shared view of the AI state for the review page, the reminders page and settings.
-let ai = {status:'idle', messages:{}}, account = '', ticket = 0, autoWeekly = '';
+let ai = {status:'idle', messages:{}}, account = '', ticket = 0;
 const listeners = new Set();
 const emit = () => { for (const listener of listeners) listener(); };
 const request = (path, options = {}) => apiNetwork(path, {...options, suppressAuthRedirect:true});
 export const reviewAiView = () => ai;
 export function watchReviewAi(listener) { listeners.add(listener); return () => listeners.delete(listener); }
-export function resetReviewAi() { ticket++; ai = {status:'idle', messages:{}}; account = ''; autoWeekly = ''; }
+export function resetReviewAi() { ticket++; ai = {status:'idle', messages:{}}; account = ''; }
 
 export async function loadReviewAi(nextAccount = 'V字', {force = false} = {}) {
   if (!force && account === nextAccount && ['ready','loading'].includes(ai.status)) return;
@@ -33,7 +33,7 @@ async function loadModels() {
 }
 export function loadReviewAiModels() { return loadModels(); }
 const say = (key, text, error = false) => { ai = {...ai, messages:{...ai.messages, [key]:text ? {text, error} : null}}; };
-const done = {weekly:() => '周报已生成。', titles:data => data.labelled ? `已归类 ${data.labelled} 篇${data.remaining ? `，还剩 ${data.remaining} 篇` : ''}。` : '没有需要归类的标题。',
+const done = {titles:data => data.labelled ? `已归类 ${data.labelled} 篇${data.remaining ? `，还剩 ${data.remaining} 篇` : ''}。` : '没有需要归类的标题。',
   benchmarks:data => data.done ? `已拆解 ${data.done} 篇${data.remaining ? `，还剩 ${data.remaining} 篇` : ''}。` : '没有需要拆解的爆文。'};
 async function runFeature(feature, once = {}) {
   if (ai.busy || !done[feature]) return;
@@ -45,12 +45,6 @@ async function runFeature(feature, once = {}) {
   } catch (error) { say(feature, error.message || '没有完成，请稍后重试。', true); }
   ai = {...ai, busy:'', once:{}};
   await loadReviewAi(account, {force:true});
-}
-/** Generate this week's report once per visit when the weekly tab is first shown and it is still missing. */
-export function autoGenerateWeekly() {
-  const due = ai.data?.pending?.weekly;
-  if (ai.status !== 'ready' || !ai.data.configured || !due || ai.busy || autoWeekly === due.start) return;
-  autoWeekly = due.start; void runFeature('weekly');
 }
 async function changeRule(target, context) {
   const id = target.dataset.ruleId, status = target.dataset.status;

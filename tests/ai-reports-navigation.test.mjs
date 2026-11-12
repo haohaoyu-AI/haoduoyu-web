@@ -33,8 +33,8 @@ test('report reading page has no report entry controls and offers date navigatio
     assert.match(html, new RegExp(`data-ai-daily-tab="${name}"`));
     assert.match(html, new RegExp(`data-ai-daily-panel="${name}"`));
   }
-  assert.match(html, /data-ai-daily-tab="reminders" aria-pressed="true"/);
-  assert.match(html, /data-ai-daily-panel="reports" hidden/);
+  assert.match(html, /data-ai-daily-tab="reports" aria-pressed="true"/);
+  assert.match(html, /data-ai-daily-panel="reminders" hidden/);
   assert.doesNotMatch(html, /账号优化|当天工作提醒|前一天 AI 汇报/);
 });
 
