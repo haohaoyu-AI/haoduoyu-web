@@ -11,11 +11,14 @@ export const cockpitRestoreAssets=Object.freeze([
   "public/sw.js",
   ".ci/public-assets.json"
 ]);
+// One test-only VM counter rename; this is not an additional production asset.
+export const cockpitRestoreFixtures=Object.freeze(['tests/daily-todos-ui.test.mjs']);
 export const cockpitRestoreSources=Object.freeze([
   "web/pages/content-review.mjs",
   "web/pages/review-trends.mjs"
 ]);
 export const cockpitRestoreHashes=Object.freeze({
+  "tests/daily-todos-ui.test.mjs":"1b60962658a32eabb9f475745df6629d645ad1b67f5e794c6689e7897ba99a59",
   "public/app.js": "2e06f7582876d465e25833181eb664f008a48a6e2034e817358b583133ca77c0",
   "public/index.html": "de82cff7c6a6a3fa1bdbab1d4c33577e5ea37a9acd71703c879094187d6461eb",
   "public/sw.js": "88141fa2b246f21f80117dd210fdd8430ded419be9d6c1a58587bb7e2f1b6b88",
@@ -38,7 +41,7 @@ export function verifyCockpitRestoreSources(read=file=>readFileSync(new URL('../
 // Historical intermediates and unrecognized bytes pass through, never normalized away.
 // The older strict projection layers remain responsible for rejecting unknown assets.
 export function projectCockpitRestore(file,source) {
-  if(!cockpitRestoreAssets.includes(file)||hash(source)!==cockpitRestoreHashes[file])return source;
+  if(![...cockpitRestoreAssets,...cockpitRestoreFixtures].includes(file)||hash(source)!==cockpitRestoreHashes[file])return source;
   verifyCockpitRestoreSources();
   return cockpitRestoreBefore(file);
 }

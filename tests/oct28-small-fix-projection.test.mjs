@@ -1,3 +1,4 @@
+import {projectCockpitRestore} from './cockpit-trends-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -26,7 +27,7 @@ test('small fix is exactly the pinned closed set and each inverse rejects altere
 test('quiet sync pins restored live product bytes and leaves other digests for later layers',()=>{
   for(const file of Object.keys(quietSyncHashes)) {
     const prior=git('show',smallFixProduct+':'+file), current=read(file);
-    assert.equal(hash(current),quietSyncHashes[file],file+' pinned quiet-sync product');
+    assert.equal(hash(projectCockpitRestore(file,current)),quietSyncHashes[file],file+' pinned quiet-sync product');
     assert.equal(projectQuietSync(file,current),prior,file+' quiet-sync inverse');
     assert.equal(projectQuietSync(file,prior),prior,file+' quiet-sync prior');
     assert.equal(projectQuietSync(file,current+'\n'),current+'\n',file+' unknown digest passes through');

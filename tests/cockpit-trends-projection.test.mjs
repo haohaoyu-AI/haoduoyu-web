@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {cockpitRestoreAssets,cockpitRestoreSources,cockpitRestoreHashes,cockpitRestoreBefore,
+import {cockpitRestoreAssets,cockpitRestoreFixtures,cockpitRestoreSources,cockpitRestoreHashes,cockpitRestoreBefore,
   verifyCockpitRestoreSources,projectCockpitRestore} from './cockpit-trends-projection.mjs';
 import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
@@ -46,4 +46,15 @@ test('cockpit source delta preserves six cards and date controls; shared plot on
     .replace("${curveLabel}。${daily ? '逐日数字见下方表格。' : ''}",
       "${latest ? `最新近 ${result.rolling.days} 天中位数 ${format(latest[rolling])}` : '样本不足以画出走势线'}。逐日数字见下方表格。");
   assert.equal(reverted,original,'no other plotting, statistics, controls or legacy renderer bytes change');
+});
+
+test('the sole pinned test fixture changes only VM counter identifiers, never assertions or product behavior',()=>{
+  assert.deepEqual(cockpitRestoreFixtures,['tests/daily-todos-ui.test.mjs']);
+  for(const file of cockpitRestoreFixtures) {
+    const current=read(file),before=cockpitRestoreBefore(file);
+    assert.equal(current.replaceAll('testApiReads','reads'),before);
+    assert.equal(projectCockpitRestore(file,current),before);
+    assert.equal(projectQuietSync(file,current),projectQuietSync(file,before));
+    assert.equal(projectCockpitRestore(file,current+'\n'),current+'\n');
+  }
 });
