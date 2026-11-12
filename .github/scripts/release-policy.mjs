@@ -120,7 +120,15 @@ export const patternNamesWholeRelease=Object.freeze({
   baseline:'50b3d721-0549-4660-b58d-256543b9a406',
   bytes:3058658,sha256:'8fceb6512bfbe89cfe7acc357cffdd1726a2d869c0cdda0a5833483dd8beaeac',
   label:'production-pattern-names-whole-20261112'});
-const acceptedRelease=commit=>commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
+// Title patterns shown by example title, duplicate spellings merged. Baseline is the version uploaded by run 43185724050.
+export const patternExamplesRelease=Object.freeze({
+  commit:'3fad099ae38fd2043ad398bedf9b0041af9ba082',
+  tree:'46ed2c7141c8f7a6714fa3648c91366ad2f8b8f5',
+  baseline:'be38aa14-16a7-4942-beb3-d2a1108e31ff',
+  bytes:3062847,sha256:'85a1f4bfafec05ff8d39b7fa6391aff79c57c8049f56b555fc1af15da79e978c',
+  label:'production-pattern-examples-20261112'});
+const acceptedRelease=commit=>commit===patternExamplesRelease.commit?patternExamplesRelease:
+  commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
   commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
   commit===sixUpgradesRelease.commit?sixUpgradesRelease:
   commit===chartRestoreRelease.commit?chartRestoreRelease:
