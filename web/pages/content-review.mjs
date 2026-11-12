@@ -2,7 +2,7 @@ import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
 import {renderArticleDiagnosis} from './review-diagnosis.mjs';
-import {renderCockpitCharts} from './review-cockpit-charts.mjs';
+import {renderCockpitTrends} from './review-trends.mjs';
 import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
@@ -181,7 +181,7 @@ function overview(data,vm) {
   return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
-    `<div class="review-stats">${cards}</div>${renderCockpitCharts(current.series)}</section>`;
+    `<div class="review-stats">${cards}</div>${renderCockpitTrends(data,vm,current.window)}</section>`;
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">

@@ -116,10 +116,12 @@ test('navigation, empty data, daily table, validation, account isolation and HTM
   for(const text of ['发文数','阅读中位数','CTR 中位数','近30天','平均阅读时长','平均阅读完成率'])assert.ok(html.includes(text),text);
   assert.match(html,/data-review-secondary="cockpit"[^>]+aria-selected="true"/);
   assert.match(html,/class="review-overview-metrics"/);
-  assert.match(html,/class="review-cockpit-charts"/);
+  assert.match(html,/class="review-trends review-cockpit-trends"/);
   assert.doesNotMatch(html,/统计口径与数据时间/);
   assert.doesNotMatch(html,/data-review-secondary="trends"/);
-  assert.doesNotMatch(html,/数据趋势|阅读走势|点击率走势|逐日数据|review-trend-dot/);
+  assert.match(html,/阅读走势/);
+  assert.match(html,/点击率走势/);
+  assert.doesNotMatch(html,/数据趋势|逐日数据|review-cockpit-charts/);
   assert.doesNotMatch(html,/<script>/);
   assert.doesNotMatch(html,/ style="/,'the strict style policy forbids inline styles');
   const empty=renderContentReviewContent(data(),model);assert.match(empty,/data-review-secondary="cockpit"/);assert.match(empty,/暂无内容复盘数据/);

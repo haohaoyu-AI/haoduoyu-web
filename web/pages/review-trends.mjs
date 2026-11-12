@@ -68,7 +68,7 @@ function readout(point) {
   return `${when}《${point.title || '未命名'}》阅读 ${reads(point.reads)} · 点击率 ${percent(point.ctr)}` +
     `${point.verdict ? ` · ${point.verdict}` : ''}${point.provisional ? ' · 不满 24 小时的数据，暂定' : ''}`;
 }
-function figure(result,{key,rolling,kind,title,hint,format,tick,height,threshold}) {
+function figure(result,{key,rolling,kind,title,hint,format,tick,height,threshold,daily = true}) {
   const plotted = result.series.filter(day => day.position !== null);
   const points = result.points.filter(point => point[key] !== null), curve = plotted.filter(day => day[rolling] !== null);
   const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint)}</span></div>`;
@@ -103,8 +103,9 @@ function figure(result,{key,rolling,kind,title,hint,format,tick,height,threshold
   const best = [...points].sort((a,b) => b[key] - a[key])[0];
   const resting = best ? `最高：${readout(best)}` : '';
   const latest = curve.at(-1);
+  const curveLabel = latest ? `最新近 ${result.rolling.days} 天中位数 ${format(latest[rolling])}` : '样本不足以画出走势线';
   return `<section class="review-trend-figure">${head}<div class="review-trend-chart"><svg height="${height}" role="img"
-    aria-label="${e(title)}：${points.length} 篇文章按北京时间发布时间排列，${latest ? `最新近 ${result.rolling.days} 天中位数 ${format(latest[rolling])}` : '样本不足以画出走势线'}。逐日数字见下方表格。"
+    aria-label="${e(title)}：${points.length} 篇文章按北京时间发布时间排列，${curveLabel}。${daily ? '逐日数字见下方表格。' : ''}"
     >${grid}${hitLine}${dots}${lines}${hitLabel}${days}</svg></div>
     <p class="review-trend-readout" data-trend-readout-target data-default="${e(resting)}">${e(resting)}</p></section>`;
 }
@@ -141,6 +142,20 @@ function dailyTable(result) {
 export function renderCockpitMethod(data, vm, window) {
   const now = vm.now || new Date().toISOString();
   return method(reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now}));
+}
+/** Restore the v101 article plots while sharing v102's single cockpit date window. */
+export function renderCockpitTrends(data,vm,window) {
+  const now = vm.now || new Date().toISOString();
+  const result = reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now});
+  const pending = result.points.filter(point => point.provisional && (known(point.reads) || known(point.ctr))).length;
+  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ''}` +
+    `${result.end === day(now) ? '今天尚未结束。' : ''}缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`;
+  return `<section class="review-trends review-cockpit-trends" aria-label="文章阅读与点击率走势">${legend(result)}
+    ${figure(result,{key:'reads',rolling:'rolling_reads',kind:'log',title:'阅读走势',height:260,format:reads,tick:readsTick,
+      hint:'每个点是一篇文章，线越往上整体越好',threshold:result.thresholds?.hit,daily:false})}
+    ${figure(result,{key:'ctr',rolling:'rolling_ctr',kind:'linear',title:'点击率走势',height:190,format:percent,tick:percentTick,
+      hint:'标题和封面吸不吸引人',daily:false})}
+    <p class="review-note review-trend-note">${e(note)}</p></section>`;
 }
 export function renderReviewTrends(data,vm) {
   const now = vm.now || new Date().toISOString(),today = day(now),t = vm.trends || {};
