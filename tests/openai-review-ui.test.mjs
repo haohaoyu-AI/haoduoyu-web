@@ -200,7 +200,7 @@ test('OpenAI operations bypass offline transport and do not alter global public-
   const files=await Promise.all(['web/openai-review-controller.mjs','web/openai-settings-controller.mjs'].map(path=>readFile(path,'utf8')));
   for(const source of files) {assert.match(source,/apiNetwork/);assert.match(source,/suppressAuthRedirect: true/);assert.doesNotMatch(source,/outbox|offlineRequest/);}
   const controller=await readFile('web/controller.mjs','utf8');
-  assert.match(controller,/state\.me\?\.publicBusiness \? \{todo: settingsTabs.todo\}/);
+  assert.match(controller,/state\.me\?\.publicBusiness \? \{todo: settingsTabs.todo, ai: settingsTabs.ai\}/);
   assert.doesNotMatch(controller,/openai: settingsTabs.openai/);
 });
 

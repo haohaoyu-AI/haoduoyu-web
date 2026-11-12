@@ -13,7 +13,8 @@ export function renderAiReports() {
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders"><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reminders"><div id="ai-experiments" class="content-review ai-experiments"></div>
+      <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
       <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-list" aria-live="polite"></div>
       </section>

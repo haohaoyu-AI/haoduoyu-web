@@ -33,11 +33,15 @@ function copyButton(action, id = '') {
   return `<button type="button" class="btn" data-review-action="${action}"${marker}>复制完整提示词</button>`;
 }
 function card(title, note, time, content, action) {
+  const long = String(content).split('\n').length > 10 || String(content).length > 600;
   const when = time ? `<p class="review-note">生效时间：${e(time)} · 上海时间</p>` : '';
   return `<article class="review-prompt-card"><div class="review-v13-rule-meta"><h2>${e(title)}</h2>` +
     `<span class="review-note">${e(note)}</span></div>${when}<div class="review-prompt-copy-actions">${action}` +
     `<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div>` +
-    `<pre class="review-prompt-source">${e(content)}</pre></article>`;
+    `<pre class="review-prompt-source${long ? ' is-folded' : ''}">${e(content)}</pre>` +
+    // Folding only limits what is shown; the element still holds the whole prompt for copying.
+    (long ? '<button type="button" class="btn text review-prompt-toggle" data-review-action="toggle-prompt"' +
+      ' aria-expanded="false">展开全文</button>' : '') + '</article>';
 }
 export function renderPromptPage(data, vm) {
   const order = ['longform_write','image','weitoutiao_write','transfer_chat'];

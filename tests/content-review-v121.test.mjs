@@ -48,7 +48,7 @@ test('each supported section and article detail excludes other-account resources
     playbooks:[{id:'own-book',account,status:'active',version:1,content_md:'OWN_PLAYBOOK',rules:[]},
       {id:'other-book',account:other,status:'active',version:2,content_md:'OTHER_PLAYBOOK',rules:[]}]
   };
-  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['cockpit','articles','benchmarks','rules','prompts','library']);
+  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['cockpit','weekly','articles','benchmarks','rules','prompts','library']);
   for(const [secondary] of REVIEW_SECTIONS) for(const article of ['', 'own', 'foreign']) {
     const html=render(input,{secondary,article});
     if (secondary === 'articles' || article === 'own') assert.match(html,/OWN_ARTICLE/);

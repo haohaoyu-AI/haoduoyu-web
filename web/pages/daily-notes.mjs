@@ -58,16 +58,22 @@ export function renderDailyNotes() {
     '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div>' +
     '<p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section>' +
     '<div id="notes-today">' +
-    '<section id="daily-score" class="daily-score" aria-label="今日打分"><span class="daily-score-label" id="daily-score-label">今日打分</span>' +
-    '<div class="daily-score-scale" role="group" aria-label="1 到 10 分">' +
-    [1,2,3,4,5,6,7,8,9,10].map(score => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + '</button>').join('') +
-    '</div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section>' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
     '<label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span>' +
     '<input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label>' +
     '<button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button>' +
     '<button class="btn text" type="button" data-notes-action="today">今天</button></div>' +
+    // Scored days collapse to one chip beside the date; the 1–10 row shows only while choosing.
+    '<section id="daily-score" class="daily-score is-open" aria-label="今日打分">' +
+    '<button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button>' +
+    '<span id="daily-score-trend" class="daily-score-trend"></span>' +
+    '<div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span>' +
+    '<span class="daily-score-end" aria-hidden="true">很糟</span>' +
+    '<div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' +
+    [1,2,3,4,5,6,7,8,9,10].map(score => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + '</button>').join('') +
+    '</div><span class="daily-score-end" aria-hidden="true">很好</span></div>' +
+    '<span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section>' +
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
     '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +

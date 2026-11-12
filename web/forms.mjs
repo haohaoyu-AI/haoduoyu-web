@@ -10,7 +10,7 @@ import { storage } from "./core/storage.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { articleFormCurrent, saveArticleForm } from "./pages/article-form.mjs";
 import { submitTodo } from "./pages/todos.mjs";
-import { submitTodoNote } from "./pages/todo-actions.mjs";
+import { submitTodoCount, submitTodoNote } from "./pages/todo-actions.mjs";
 import { submitTodoTemplateEdit, submitTodoTemplateForm } from "./pages/todo-templates.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
 import { toast } from "./ui/toast.mjs";
@@ -124,6 +124,7 @@ const forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (form.id === 'todo-count-form') { event.preventDefault(); await submitTodoCount({form,data:Object.fromEntries(new FormData(form))}); return; }
   if (form.id === 'todo-note-form') { event.preventDefault(); await submitTodoNote({form,data:Object.fromEntries(new FormData(form))}); return; }
   if (["todo-template-form", "todo-template-edit-form"].includes(form.id)) {
     event.preventDefault();

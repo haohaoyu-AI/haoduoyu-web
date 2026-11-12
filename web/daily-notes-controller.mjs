@@ -575,25 +575,67 @@ async function createNoteLabel(root) {
     if (expected === notesIdentityNow()) notesLabelMessage = '添加失败，输入已保留，可重试：' + (error.message || '请联网后重试。');
   } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
 }
+// The last seven days up to the viewed date, drawn as a wordless sparkline. Unscored days break the line.
+let scoreTrend = new Map(), scoreTrendMonths = new Set(), scoreOpen = false;
+const scoreDayBefore = (date, days) => new Date(Date.parse(date + 'T00:00:00Z') - days * 86400000).toISOString().slice(0, 10);
+function scoreTrendSvg(date) {
+  const days = Array.from({length:7}, (_, index) => scoreDayBefore(date, 6 - index));
+  const points = days.map((day, index) => scoreTrend.has(day) ? {x:6 + index * 12, y:21 - (scoreTrend.get(day) - 1) * 2, day} : null);
+  if (points.filter(Boolean).length < 2) return '';
+  let lines = '';
+  for (let index = 1; index < points.length; index++) {
+    const from = points[index - 1], to = points[index];
+    if (from && to) lines += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"/>';
+  }
+  const dots = points.filter(Boolean).map(point => '<circle cx="' + point.x + '" cy="' + point.y + '" r="' + (point.day === date ? 3 : 2) + '"/>').join('');
+  const spoken = days.filter(day => scoreTrend.has(day)).map(day => day.slice(5) + ' ' + scoreTrend.get(day) + ' 分').join('，');
+  return '<svg width="84" height="24" viewBox="0 0 84 24" role="img" aria-label="近 7 天打分：' + spoken + '">' + lines + dots + '</svg>';
+}
+async function readScoreTrend(date, expected = notesIdentityNow()) {
+  const months = [...new Set([date.slice(0, 7), scoreDayBefore(date, 6).slice(0, 7)])].filter(month => !scoreTrendMonths.has(month));
+  try {
+    for (const month of months) {
+      const data = await api('/daily-scores?month=' + encodeURIComponent(month));
+      if (expected !== notesIdentityNow()) return;
+      for (const item of data.items || []) scoreTrend.set(item.date, item.score);
+      scoreTrendMonths.add(month);
+    }
+  } catch { /* The trend is decoration; scoring still works without it. */ }
+  if (expected === notesIdentityNow() && date === dailyNotesRouteDate()) paintDailyScore();
+}
 function paintDailyScore() {
   const root = document.querySelector('#daily-score');
   if (!root) return;
   const date = scoreRecord.date || dailyNotesRouteDate();
   const label = root.querySelector('#daily-score-label');
   if (label) label.textContent = date === dailyNotesToday() ? '今日打分' : date + ' 打分';
+  const scored = scoreRecord.score != null, open = !scored || scoreOpen || scoreRecord.pending != null;
+  root.classList.toggle('is-open', open);
+  const chip = root.querySelector('#daily-score-chip');
+  if (chip) {
+    chip.hidden = !scored;
+    chip.textContent = (date === dailyNotesToday() ? '今日 ' : date.slice(5) + ' ') + scoreRecord.score + ' 分';
+    chip.setAttribute('aria-expanded', String(open));
+    chip.setAttribute('aria-label', chip.textContent + (scoreRecord.canEdit === false ? '' : '，点击修改'));
+    chip.disabled = scoreRecord.canEdit === false;
+  }
+  const trend = root.querySelector('#daily-score-trend');
+  if (trend) { if (scored) scoreTrend.set(date, scoreRecord.score); trend.innerHTML = scoreTrendSvg(date); }
   for (const button of root.querySelectorAll('[data-daily-score]')) {
     button.setAttribute('aria-pressed', String(Number(button.dataset.dailyScore) === scoreRecord.score));
     button.disabled = scoreRecord.canEdit === false || scoreRecord.pending != null;
   }
   const status = root.querySelector('#daily-score-status');
-  if (status) status.textContent = scoreRecord.status || (scoreRecord.score ? scoreRecord.score + ' 分' : '');
+  if (status) status.textContent = scoreRecord.status === '已保存' ? '' : scoreRecord.status || '';
 }
 async function readDailyScore(date, expected = notesIdentityNow()) {
   try {
     const data = await api('/daily-scores?date=' + encodeURIComponent(date));
     if (expected !== notesIdentityNow() || date !== dailyNotesRouteDate()) return;
     scoreRecord = {date, score:data.score ?? null, version:data.version || 0, status:'', saveId:'', pending:null, canEdit:data.can_edit !== false};
-    if (data.score != null) scoreByDate.set(date, data.score);
+    scoreOpen = false;
+    if (data.score != null) scoreByDate.set(date, data.score); else scoreTrend.delete(date);
+    void readScoreTrend(date, expected);
   } catch (error) {
     if (expected === notesIdentityNow()) scoreRecord = {date, score:null, version:0, status:error.message || '打分读取失败', saveId:'', pending:null, canEdit:false};
   }
@@ -610,7 +652,7 @@ async function saveDailyScore(date, score) {
     const saved = await api('/daily-scores/' + date, {method:'PUT', body:{score, version:current.version || 0, save_id:saveId}});
     if (expected !== notesIdentityNow()) return;
     scoreRecord = {date, score:saved.score, version:saved.version, status:'已保存', saveId:'', pending:null, canEdit:saved.can_edit !== false};
-    scoreByDate.set(date, saved.score);
+    scoreByDate.set(date, saved.score); scoreOpen = false;
   } catch (error) {
     if (expected !== notesIdentityNow()) return;
     if (error.status === 409) await readDailyScore(date, expected);
@@ -814,7 +856,9 @@ async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
-    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-daily-score]');
+    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],' +
+    '[data-history-order],[data-daily-score],[data-daily-score-toggle]');
+  if (target?.matches('[data-daily-score-toggle]')) { scoreOpen = !scoreOpen; paintDailyScore(); return; }
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
   if (target.dataset.dailyScore) { await saveDailyScore(dailyNotesRouteDate(), Number(target.dataset.dailyScore)); return; }

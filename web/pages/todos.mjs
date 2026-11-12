@@ -1,5 +1,6 @@
 import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
+import { todoCount } from "../core/todo-count.mjs";
 import { api } from "../core/api.mjs";
 import { createTodoMonthLoader, todoMonthScopeTransition, todoMonthSeed } from "../core/todo-month.mjs";
 import { getOfflineRuntime, onOfflineRuntime } from "../offline/runtime.mjs";
@@ -184,6 +185,13 @@ function todoDateControls(date) {
 function todoNoteField(item, day, pending) {
   return renderTodoNote(item, { date: day.date, pending, editing: day.noteEdit, error: day.noteError });
 }
+function todoCountButton(item, day, pending) {
+  const count = todoCount(item.note);
+  if (!count || day.noteEdit?.id === item.id) return "";
+  const full = count.done >= count.target;
+  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day.date)}"
+aria-label="${full ? `已记满 ${count.target} 次` : `记一次，目前 ${count.done}/${count.target} 次`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
+}
 function todoRow(item, day) {
   const pending = todoBusy(day, item.id);
   const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
@@ -194,7 +202,7 @@ function todoRow(item, day) {
 <label class="daily-todo-check" for="${check}"><input id="${check}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check}">${e(item.text)}</label>
-${todoNoteField(item, day, pending)}</div>
+${todoNoteField(item, day, pending)}</div>${todoCountButton(item, day, pending)}
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }

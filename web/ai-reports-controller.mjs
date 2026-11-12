@@ -1,3 +1,4 @@
+import {loadExperimentsPanel} from './experiments-panel-controller.mjs';
 import {OPENAI_TABS, openAiSessionAvailable, readOpenAiRuns} from './core/openai-review-state.mjs';
 import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
@@ -82,6 +83,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   }).catch(error => {
     if (current()) paintAiDailyReminders(null, error.message || '提醒读取失败，请稍后重试');
   });
+  void loadExperimentsPanel();
   await Promise.all([report, reminders]);
 }
 

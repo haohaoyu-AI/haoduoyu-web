@@ -1,3 +1,4 @@
+import {autoGenerateWeekly, loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
 import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
@@ -174,9 +175,16 @@ async function toggleArticleList() {
   button?.focus({preventScroll:true});
   if (!expanded) root()?.querySelector('.review-articles-panel')?.scrollIntoView({block:'start',behavior:'instant'});
 }
+const aiContext = () => ({account:vm.account, playbooks:() => data.playbooks, reload:() => void loadContentReview(pageContext),
+  applyPlaybook:saved => { data = {...data, playbooks:data.playbooks.map(item => String(item.id) === String(saved.id) ? {...item, ...saved} : item)}; }});
 export function paintContentReviewPage() {
   const node = root(); if (!node) return;
+  vm.ai = reviewAiView();
+  // Keep an open one-off selector and its focus across the repaint an AI update triggers.
+  const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : '';
   node.innerHTML = renderContentReviewContent(data,vm);
+  if (focused) node.querySelector(`[data-ai-once="${focused}"]`)?.focus({preventScroll:true});
+  if (!vm.loading && !vm.error && vm.secondary === 'weekly') autoGenerateWeekly();
   syncReviewFullscreen();
   const dialog = node.querySelector('[role="dialog"]');
   for (const child of node.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
@@ -199,6 +207,7 @@ export async function loadContentReview(context) {
     const result = await readContentReviewDataWithRetry(read,requested.account,current);
     if (!current() || !result) return;
     data = result; syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark);
+    void loadReviewAi(requested.account, {force:true});
     if (vm.article) void loadStoredDiagnosis(vm.article);
   } catch (error) {
     if (!current() || error.name === 'AbortError') return;
@@ -325,6 +334,11 @@ function onReviewClick(event) {
   }
   if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
   if (vm.loading || vm.error) return;
+  if (target.dataset.aiAction) { reviewAiClick(target, aiContext()); return; }
+  if (target.dataset.reviewAction === 'toggle-prompt') {
+    const source = target.closest('.review-prompt-card')?.querySelector('.review-prompt-source'), folded = source?.classList.toggle('is-folded');
+    target.textContent = folded ? '展开全文' : '收起'; target.setAttribute('aria-expanded', String(!folded)); return;
+  }
   if (target.dataset.reviewAction === 'copy-prompt') { void copyPromptButton(target); return; }
   if (target.dataset.reviewAction === 'copy-diagnosis-prompt') { void copyPromptText(target, diagnosisPromptText(data.prompts, vm.account)); return; }
   if (target.dataset.reviewAction === 'copy-prompt-block') {
@@ -382,6 +396,7 @@ function onReviewKeydown(event) {
 function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
+  watchReviewAi(() => { if (root() && !vm.loading) paintContentReviewPage(); });
   document.addEventListener('fullscreenchange', () => {
     const node = root();
     if (node?.classList.contains('review-list-fullscreen') && !document.fullscreenElement && node.dataset.nativeFullscreen === 'true') {
@@ -407,6 +422,7 @@ function registerEvents() {
     const target = event.target;
     const node = root();
     if (!node?.contains(target) || vm.loading || vm.error) return;
+    if (reviewAiInput(target)) return;
     if (target.dataset.reviewTrend) { changeTrend(target); return; }
     const column = target.dataset.reviewColumn;
     if (column !== undefined) {
