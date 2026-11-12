@@ -32,11 +32,13 @@ test('cockpit inverse rejects drift in either source and never projects sources 
     assert.equal(projectCockpitRestore(file,read('public/app.js')),read('public/app.js'));
 });
 test('cockpit source delta preserves six cards and date controls; shared plot only changes its aria table note',()=>{
-  const file='web/pages/content-review.mjs',before=cockpitRestoreBefore(file);
-  const expected=before.replace("import {renderCockpitCharts} from './review-cockpit-charts.mjs';",
-    "import {renderCockpitTrends} from './review-trends.mjs';")
-    .replace('${renderCockpitCharts(current.series)}','${renderCockpitTrends(data,vm,current.window)}');
-  assert.equal(read(file),expected,'only import and lower chart renderer change');
+  // Later releases edit other parts of this page (the weekly tab arrived on 2026-11-12), so the page is
+  // checked for the restoration's two substitutions instead of whole-file equality.
+  const file='web/pages/content-review.mjs',page=read(file);
+  assert.ok(cockpitRestoreBefore(file).includes('${renderCockpitCharts(current.series)}'));
+  assert.ok(page.includes("import {renderCockpitTrends} from './review-trends.mjs';"));
+  assert.ok(page.includes('${renderCockpitTrends(data,vm,current.window)}'));
+  assert.ok(!page.includes('renderCockpitCharts'),'the lower chart renderer stays the restored one');
   const trends='web/pages/review-trends.mjs';
   const original=cockpitRestoreBefore(trends),current=read(trends);
   const addition=current.match(/\/\*\* Restore the v101 article plots[\s\S]*?(?=export function renderReviewTrends)/)?.[0];

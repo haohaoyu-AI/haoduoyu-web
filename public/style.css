@@ -602,3 +602,33 @@ progress::-moz-progress-bar { background:var(--ink-2); }
 .notes-retained-status { margin:var(--s2) 0; color:var(--ink); }
 .notes-retained-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); padding:var(--s2) var(--s3); margin:var(--s2) 0; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface); color:var(--ink); }
 .btn.text.notes-retained-danger { color:var(--danger); font-weight:var(--font-weight-semibold); }
+/* Counted to-dos: a +1 button large enough for a thumb, kept apart from the row menu. */
+.todo-count-add { flex:0 0 auto; min-width:48px; min-height:36px; margin-right:var(--s2); font-weight:var(--font-weight-semibold); font-variant-numeric:tabular-nums; }
+.todo-count-add:disabled { opacity:.55; }
+#todo-count-form label { display:block; margin:var(--s3) 0 var(--s1); }
+#todo-count-form .form-actions { margin-top:var(--s3); }
+@media (max-width:600px) { .todo-count-add { min-width:52px; min-height:44px; } }
+/* Daily score: one chip plus a wordless seven-day line once scored; the 1–10 row only while choosing. */
+#daily-score { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); margin:0; min-width:0; }
+#daily-score.is-open { flex:1 0 100%; order:-1; }
+#daily-score .daily-score-picker { display:none; flex-wrap:nowrap; align-items:center; gap:var(--s2); min-width:0; flex:1 1 auto; }
+#daily-score.is-open .daily-score-picker { display:flex; }
+#daily-score .daily-score-label { font-weight:var(--font-weight-semibold); white-space:nowrap; }
+#daily-score .daily-score-end { color:var(--ink-3); font-size:12px; white-space:nowrap; }
+#daily-score .daily-score-scale { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:4px; flex:1 1 auto; max-width:420px; min-width:0; }
+#daily-score .daily-score-scale button { min-width:0; min-height:36px; padding:0; border-radius:10px; font-variant-numeric:tabular-nums; }
+#daily-score .daily-score-chip { min-height:36px; padding:0 14px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--ink); font-weight:var(--font-weight-semibold); font-variant-numeric:tabular-nums; cursor:pointer; white-space:nowrap; }
+#daily-score .daily-score-chip:disabled { cursor:default; }
+#daily-score .daily-score-trend { display:inline-flex; align-items:center; }
+#daily-score .daily-score-trend:empty { display:none; }
+#daily-score .daily-score-trend line { stroke:var(--accent); stroke-width:2; stroke-linecap:round; }
+#daily-score .daily-score-trend circle { fill:var(--accent); }
+#daily-score .notes-status:empty { display:none; }
+@media (max-width:600px) {
+  #daily-score .daily-score-picker { flex-wrap:wrap; }
+  #daily-score .daily-score-label { flex:1 0 100%; }
+  #daily-score .daily-score-scale { max-width:none; gap:3px; }
+  #daily-score .daily-score-scale button { min-height:40px; }
+  #daily-score .daily-score-chip { min-height:40px; }
+}
+#daily-score.is-open .daily-score-trend { display:none; }

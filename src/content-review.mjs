@@ -1,3 +1,4 @@
+import {handleReviewAi,isReviewAiRoute} from './review-ai.mjs';
 import {handleArticleDiagnosis,isArticleDiagnosisRoute} from './article-diagnosis.mjs';
 import {handleReviewPrompts,isReviewPromptRoute} from './review-prompts.mjs';
 import {bodyFor,authenticate,digest,stable,fail} from './security.mjs';
@@ -213,6 +214,7 @@ async function patchRule(db,request,owner,ruleId,input,env,origin) {
 }
 async function handle(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env),url=new URL(request.url),method=request.method;
+  if(isReviewAiRoute(route))return handleReviewAi({db,request,route,env,origin,owner,actorFor,writeLimit,accountData,account:reviewSpecs.articles.fields.account});
   if(isArticleDiagnosisRoute(route))return handleArticleDiagnosis({db,request,route,env,origin,owner,actorFor,writeLimit});
   if(isReviewPromptRoute(route))return handleReviewPrompts(db,request,route,env,origin,initialRevision,{owner,actorFor,writeLimit});
   if(isReviewResourceRoute(route))return handleReviewResources(db,request,route,env,origin,initialRevision);

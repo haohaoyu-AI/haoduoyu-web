@@ -33,9 +33,10 @@ import {loadWorkReminders} from "./work-reminders-controller.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
+import {aiSettingsPage, loadAiSettings} from "./ai-settings-controller.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 function mainContent() {
-  const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo} :
+  const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo, ai: settingsTabs.ai} :
     Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace" && key !== "openai"));
   const settingsHint = state.page !== "settings" ? "" : state.me?.publicBusiness ?
     '<p class="hint"><a href="?page=login">管理员登录</a></p>' : state.me ?
@@ -64,7 +65,7 @@ function reuseShell() {
 function renderShell() {
   redirectMobileArticlePage();
   if (state.page === "settings" && (state.settingsTab === "workspace" || state.settingsTab === "openai" ||
-    state.me?.publicBusiness && state.settingsTab !== "todo"))
+    state.me?.publicBusiness && !["todo", "ai"].includes(state.settingsTab)))
     state.settingsTab = "todo";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -206,6 +207,7 @@ async function renderPage() {
       case "settings":
         if (state.settingsTab === "workspace") break;
         else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
+        else if (state.settingsTab === "ai") { html = aiSettingsPage(); void loadAiSettings(); }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);

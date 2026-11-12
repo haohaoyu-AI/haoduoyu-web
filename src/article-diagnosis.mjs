@@ -2,6 +2,7 @@ import {bodyFor,digest,fail} from './security.mjs';
 import {storeFor} from './storage.mjs';
 import {reviewUuid} from './content-review-validation.mjs';
 import {openaiReviewSettings} from './openai-review.mjs';
+import {reviewAiChoice} from './review-ai.mjs';
 import {beijingDay} from './lib/time.mjs';
 import {ARTICLE_DIAGNOSIS_KEY,articleDiagnosisFacts,diagnosisPromptText,selectDiagnosisPrompt} from '../shared/article-diagnosis.mjs';
 
@@ -53,19 +54,23 @@ function outputText(data) {
     .map(item => typeof item.text === 'string' ? item.text : '').join('').trim() : '';
   return data?.status === 'completed' ? output.slice(0,2000) : '';
 }
-async function askModel(env, prompt, facts) {
-  const settings = openaiReviewSettings(env);
+async function askModel(env, prompt, facts, choice = {}) {
+  const settings = {...openaiReviewSettings(env), ...(choice.model ? {model:choice.model} : {})};
   if (!settings.key || !settings.model) throw fail(503,'OPENAI_REVIEW_NOT_CONFIGURED','服务器尚未配置有效 API 密钥和模型，未调用 API');
   const provider = typeof env.ARTICLE_DIAGNOSIS_FETCH === 'function' ? env.ARTICLE_DIAGNOSIS_FETCH : fetch;
   let headers;
   try { headers = new Headers({Authorization:'Bearer ' + settings.key,'Content-Type':'application/json'}); }
   catch { throw fail(503,'OPENAI_REVIEW_INVALID_KEY_FORMAT','服务器密钥配置格式无效，未调用 API'); }
-  const body = JSON.stringify({model:settings.model,store:false,max_output_tokens:500,
-    input:[{role:'system',content:prompt},{role:'user',content:facts.text}]});
+  // A chosen effort needs room for reasoning tokens; the three-sentence answer itself stays short.
+  const bodyFor = effort => JSON.stringify({model:settings.model,store:false,max_output_tokens:effort ? 4000 : 500,
+    ...(effort ? {reasoning:{effort}} : {}),input:[{role:'system',content:prompt},{role:'user',content:facts.text}]});
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
-    const response = await provider('https://api.openai.com/v1/responses', {method:'POST',headers,body,redirect:'manual',signal:controller.signal});
+    const send = effort => provider('https://api.openai.com/v1/responses', {method:'POST',headers,body:bodyFor(effort),redirect:'manual',signal:controller.signal});
+    let response = await send(choice.effort || '');
+    // A rejected effort setting generated nothing, so one plain retry is safe.
+    if (response.status === 400 && choice.effort) { await response.body?.cancel?.().catch(() => {}); response = await send(''); }
     if (!response.ok) { await response.body?.cancel?.().catch(() => {}); throw fail(502,'DIAGNOSIS_FAILED','诊断没有完成，未保存结果'); }
     const payload = await response.json();
     const text = outputText(payload);
@@ -104,7 +109,8 @@ async function createDiagnosis(db, env, owner, article) {
   const facts = articleDiagnosisFacts(evidence, article);
   const again = await savedDiagnosis(db, owner, article.id);
   if (again?.result_text) return again;
-  const text = await askModel(env, prompt, facts);
+  const choice = await reviewAiChoice(db, owner, env, 'diagnosis').catch(() => ({}));
+  const text = await askModel(env, prompt, facts, choice);
   const winner = await savedDiagnosis(db, owner, article.id);
   if (winner?.result_text) return winner;
   return storeResult(db, owner, article, promptRow, prompt, facts, text);

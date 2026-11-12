@@ -1,3 +1,4 @@
+import {renderBenchmarkBreakdown, renderWeeklyPage, titlePattern} from './review-ai.mjs';
 import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
@@ -99,7 +100,7 @@ a.observed_on || '')) || String(b.updated_at || '').localeCompare(String(a.updat
 function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':'降权','封禁':'封禁'})[row?.judgement] || '未记录'; }
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
-export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['library','爆文库']];
+export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['weekly','周报'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['library','爆文库']];
 function activeSection(vm) {
   const raw = vm.secondary === 'review' ? 'rules' : vm.secondary === 'trends' ? 'cockpit' : vm.secondary;
   if (REVIEW_SECTIONS.some(([id]) => id === raw)) return raw;
@@ -122,8 +123,9 @@ function v13Accounts(data) {
       topic ? `<section class="review-account-feature"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : '',
       patterns.length ? `<section class="review-account-feature"><h4>标题特点</h4><div class="review-markdown">${patterns.map(item => 
         renderReviewMarkdown(item)).join('')}</div></section>` : '',
-      structure ? `<section class="review-account-feature"><h4>其他特点</h4><div class="review-markdown">${structureParts.map(part => 
-        renderReviewMarkdown(part)).join('')}</div></section>` : ''
+      structure ? `<details class="review-account-feature review-account-more"><summary><h4>其他特点</h4></summary><div
+        class="review-markdown">${structureParts.map(part => 
+        renderReviewMarkdown(part)).join('')}</div></details>` : ''
     ].join('');
     const profile = safeReviewUrl(account.profile_url);
     const name = e(account.name || '未命名账号');
@@ -138,7 +140,8 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'benchmarks') return v13Accounts(data);
   if (selected === 'rules') return playbook(data,vm);
   if (selected === 'prompts') return promptPage(data,vm);
-  if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
+  if (selected === 'weekly') return renderWeeklyPage(data,vm);
+  if (selected === 'library') return renderBenchmarkBreakdown(data,vm) + renderBenchmarkLibrary(data,vm.account);
   return overview(data,vm);
 }
 function archives(data,vm,rows,override) {
@@ -213,7 +216,7 @@ function articleLibrary(rows,vm,data = {}) {
     return [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
-      '未命名文章')}</button>${sampleLabel(row,data)}`],
+      '未命名文章')}</button>${titlePattern(vm,row)}${sampleLabel(row,data)}`],
     ...metrics,
     ['判定',`${judgement}${supplement}`]
   ]; };

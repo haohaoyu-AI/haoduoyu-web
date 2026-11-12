@@ -5,7 +5,8 @@ import { state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
-import { closeModal } from "../ui/modal.mjs";
+import { closeModal, openModal } from "../ui/modal.mjs";
+import { TODO_COUNT_MAX, todoCount, todoCountChange } from "../core/todo-count.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
 import { futureRepainting, futureTodoView, paintUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { loadTodos, paintTodos, setTodoNotice, todoRepainting } from "./todos.mjs";
@@ -31,8 +32,54 @@ function openTodoMenu({ target, id, date, anchor }) {
   const attributes = `data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(owner)}" role="menuitem"`;
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
-  popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  const count = todoCount(item.note);
+  const counting = count ? `<button data-action="todo-count-set" ${attributes}>修改次数（${count.target} 次）</button>
+${count.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一次</button>` : ""}
+<button data-action="todo-count-clear" ${attributes}>取消计次</button>` : `<button data-action="todo-count-set" ${attributes}>设置次数</button>`;
+  popover(trigger, `${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
+}
+// Counting writes through the ordinary note endpoint, one versioned save per tap.
+async function changeTodoCount(options, action, target = 0) {
+  const context = todoActionContext({ ...options, owner: options.owner || todoOwner() });
+  if (!context || todoBusy(context.day, context.item.id) || context.day.countWrites?.has(context.item.id)) return false;
+  const { day, item, owner } = context, note = todoCountChange(item.note, action, target);
+  if (note === null) return false;
+  (day.countWrites ||= new Set()).add(item.id);
+  try {
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
+    if (!todoSessionActive(owner)) return false;
+    mergeTodo(day, saved); day.noteError = "";
+    return true;
+  } catch (error) {
+    if (isRequestAbort(error) || !todoSessionActive(owner)) return false;
+    setTodoNotice(day, error.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error.message || "没有记上，请重试");
+    return false;
+  } finally {
+    day.countWrites.delete(item.id);
+    if (todoSessionActive(owner)) paintTodos();
+  }
+}
+function openTodoCount({ id, date, owner }) {
+  const context = todoActionContext({ id, date, owner: owner || todoOwner() });
+  if (!context) return;
+  const count = todoCount(context.item.note);
+  openModal("设置次数", `<form id="todo-count-form" data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(context.owner)}">
+<p class="muted">${e(context.item.text)}</p>
+<label for="todo-count-target">一共要做几次</label>
+<input class="input" id="todo-count-target" name="target" type="number" inputmode="numeric" min="1" max="${TODO_COUNT_MAX}" step="1" required
+  value="${count?.target ?? ""}">
+<p class="muted">设置后每做一次点“+1”，备注会自动显示“2/5 次”。次数满了仍由你点左边的圆圈完成。</p>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">确定</button></div></form>`);
+}
+async function submitTodoCount({ form, data }) {
+  const target = Number(data.target), message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");
+  if (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX) { message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数`; return; }
+  if (button.disabled) return;
+  button.disabled = true; message.textContent = "";
+  const saved = await changeTodoCount({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner }, "set", target);
+  if (saved) closeModal(); else { button.disabled = false; message.textContent = "没有保存，请重试"; }
 }
 function readNote(node) {
   const raw = node?.isContentEditable ? node.textContent : node?.value;
@@ -328,4 +375,5 @@ async function changeTodoTemplate(options, remove = false) {
     }
   }
 }
-export { canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote, renderTodoUndo, restoreTodo, todoBusy };
+export { changeTodoCount, openTodoCount, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
+  renderTodoUndo, restoreTodo, todoBusy };
