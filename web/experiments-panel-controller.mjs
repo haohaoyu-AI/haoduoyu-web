@@ -4,7 +4,7 @@ import {normalizeReviewData} from './core/review-data.mjs';
 import {currentPlaybooks} from './core/review-rule-scopes.mjs';
 import {readReviewCollection} from './review-controller.mjs';
 import {renderReportReview} from './pages/review-ai.mjs';
-import {loadReviewAi, reviewAiClick, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
+import {loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
 
 // Reports, historical reviews and decisions share one entry.
 let data = null, sequence = 0, registered = false, panelError = false;
@@ -21,6 +21,9 @@ function register() {
   if (registered) return;
   registered = true;
   watchReviewAi(paint);
+  document.addEventListener('change', event => {
+    if (state.page === 'ai-reports' && event.target.closest?.('#ai-experiments')) reviewAiInput(event.target);
+  });
   document.addEventListener('click', event => {
     if (event.target.closest?.('#ai-experiments [data-retry-review]')) { void loadExperimentsPanel(); return; }
     const target = event.target.closest?.('#ai-experiments [data-ai-action]');

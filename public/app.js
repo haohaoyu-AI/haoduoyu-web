@@ -16930,6 +16930,9 @@ function register2() {
   if (registered3) return;
   registered3 = true;
   watchReviewAi(paint);
+  document.addEventListener("change", (event) => {
+    if (state.page === "ai-reports" && event.target.closest?.("#ai-experiments")) reviewAiInput(event.target);
+  });
   document.addEventListener("click", (event) => {
     if (event.target.closest?.("#ai-experiments [data-retry-review]")) {
       void loadExperimentsPanel();
