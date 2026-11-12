@@ -113,7 +113,15 @@ export const reviewAiNamesRelease=Object.freeze({
   baseline:'f5dc58f5-30f5-46af-86d0-6dcc70e3a2ff',
   bytes:3058658,sha256:'d853f3c10213f4c2428204f0aafdb232a09df1a5565d156166c956dcd7496dfe',
   label:'production-review-ai-names-20261112'});
-const acceptedRelease=commit=>commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
+// One-line follow-up: AI pattern names are stored whole. Baseline is the version uploaded by run 43183633923.
+export const patternNamesWholeRelease=Object.freeze({
+  commit:'3584b78760770487feb8bf65ad2cbaee79d93aae',
+  tree:'da512b191174c47353104d87c11a685f683bab8d',
+  baseline:'50b3d721-0549-4660-b58d-256543b9a406',
+  bytes:3058658,sha256:'8fceb6512bfbe89cfe7acc357cffdd1726a2d869c0cdda0a5833483dd8beaeac',
+  label:'production-pattern-names-whole-20261112'});
+const acceptedRelease=commit=>commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
+  commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
   commit===sixUpgradesRelease.commit?sixUpgradesRelease:
   commit===chartRestoreRelease.commit?chartRestoreRelease:
   commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
