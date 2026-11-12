@@ -127,7 +127,15 @@ export const patternExamplesRelease=Object.freeze({
   baseline:'be38aa14-16a7-4942-beb3-d2a1108e31ff',
   bytes:3062847,sha256:'85a1f4bfafec05ff8d39b7fa6391aff79c57c8049f56b555fc1af15da79e978c',
   label:'production-pattern-examples-20261112'});
-const acceptedRelease=commit=>commit===patternExamplesRelease.commit?patternExamplesRelease:
+// Unified AI reports on the exact deployed title-pattern source; no D1 or binding changes.
+export const unifiedAiReportsRelease=Object.freeze({
+  commit:'9835ad1308b75656c29d234a82fb046d61934817',
+  tree:'644a97f21ed732387b42fb59f44ca3768596d143',
+  baseline:'7f460fad-6aad-4550-bf32-3f8821dc32e4',
+  bytes:3055215,sha256:'2344f363b04e83de2072b7c3ebca6bb61e628a4873b9421c0f02aa1a9697d960',
+  label:'production-unified-ai-reports-20261112'});
+const acceptedRelease=commit=>commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
+  commit===patternExamplesRelease.commit?patternExamplesRelease:
   commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
   commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
   commit===sixUpgradesRelease.commit?sixUpgradesRelease:
