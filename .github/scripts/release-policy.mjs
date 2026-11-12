@@ -105,7 +105,16 @@ export const sixUpgradesRelease=Object.freeze({
   baseline:'afb86c5e-6a63-448c-b1ac-9e6470d68e3a',
   bytes:3054674,sha256:'013bceaae5a2bd85381fba1e8d63d3dfc0361e76605474aeef4f4d700a2728c0',
   label:'production-six-upgrades-20261112'});
-const acceptedRelease=commit=>commit===sixUpgradesRelease.commit?sixUpgradesRelease:
+// Follow-up to the six upgrades: readable names for rule codes and a baseline for pre-existing candidate rules.
+// Baseline is the version uploaded by successful run 43181992990 (DEPLOYMENT_CONFIRMED for 75e2db9).
+export const reviewAiNamesRelease=Object.freeze({
+  commit:'3528ad571af87b243f479611d4a049cb83ee1fa7',
+  tree:'0da628fa632d2ac4b20fc5aac0a59111c9b45386',
+  baseline:'f5dc58f5-30f5-46af-86d0-6dcc70e3a2ff',
+  bytes:3058658,sha256:'d853f3c10213f4c2428204f0aafdb232a09df1a5565d156166c956dcd7496dfe',
+  label:'production-review-ai-names-20261112'});
+const acceptedRelease=commit=>commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
+  commit===sixUpgradesRelease.commit?sixUpgradesRelease:
   commit===chartRestoreRelease.commit?chartRestoreRelease:
   commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
   commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
