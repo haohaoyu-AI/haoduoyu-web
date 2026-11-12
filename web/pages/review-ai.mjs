@@ -1,6 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {enrichArticles} from '../../shared/review-analytics.mjs';
-import {experiments, patternStats} from '../../shared/review-experiments.mjs';
+import {experiments, patternStats, ruleNames} from '../../shared/review-experiments.mjs';
 import {renderReviewMarkdown} from '../core/review-markdown.mjs';
 
 export const AI_FEATURE_LABELS = {weekly:'周报', titles:'标题归类', benchmarks:'爆文拆解', diagnosis:'单篇诊断'};
@@ -9,6 +9,17 @@ const known = value => value !== null && value !== undefined && Number.isFinite(
 const reads = value => !known(value) ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : Math.round(value).toLocaleString('zh-CN');
 const rate = value => known(value) ? `${value.toFixed(1)}%` : '—';
 const busy = (ai, key) => ai?.busy === key;
+// Patterns are often recorded as bare rule codes ("T3"); show the rule's own words first and the code after.
+const nameCache = new WeakMap();
+function namesOf(data) {
+  const books = data?.playbooks;
+  if (!Array.isArray(books)) return new Map();
+  if (!nameCache.has(books)) nameCache.set(books, ruleNames(books));
+  return nameCache.get(books);
+}
+function patternHtml(pattern, names) {
+  return names.has(pattern) ? `${e(names.get(pattern))} <small class="review-pattern-code">${e(pattern)}</small>` : e(pattern);
+}
 const button = (label, action, attrs = '', kind = 'btn small') =>
   `<button class="${kind}" type="button" data-ai-action="${action}" ${attrs}>${e(label)}</button>`;
 
@@ -91,10 +102,11 @@ function weeklySection(vm) {
 }
 function patternSection(data, vm) {
   const ai = vm.ai, gate = unavailable(ai), rows = enrichArticles(data, {account: vm.account});
-  const labels = ai?.data?.titles || {}, stats = patternStats(rows, labels), pending = ai?.data?.pending?.titles || 0;
+  const labels = ai?.data?.titles || {}, stats = patternStats(rows, labels), pending = ai?.data?.pending?.titles || 0, names = namesOf(data);
   const table = stats.length ? `<div class="review-pattern-wrap"><table class="review-pattern-table"><caption class="review-sr-only">各标题套路的表现</caption>
     <thead><tr><th>标题套路</th><th>篇数</th><th>阅读中位数</th><th>点击率中位数</th><th>爆款</th></tr></thead><tbody>${stats.map(item =>
-      `<tr><th scope="row">${e(item.pattern)}</th><td>${item.count}</td><td>${e(reads(item.reads))}</td><td>${e(rate(item.ctr))}</td>
+      `<tr><th scope="row">${patternHtml(item.pattern, names)}</th><td>${item.count}</td>
+      <td>${e(reads(item.reads))}</td><td>${e(rate(item.ctr))}</td>
       <td>${item.hits}</td></tr>`).join('')}
     </tbody></table></div><p class="review-note">只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>` : '<p class="review-note">还没有归类好的标题。</p>';
   return `<section class="review-ai-block" aria-label="标题套路"><div class="review-ai-head"><h2>标题套路</h2>
@@ -131,9 +143,10 @@ export function benchmarkAiNote(vm, id) {
   const part = (label, value) => value ? `<span><b>${label}</b>${e(value)}</span>` : '';
   return `<div class="review-ai-note">${part('套路', note.pattern)}${part('钩子', note.hook)}${part('题材', note.topic)}${part('可套用', note.template)}</div>`;
 }
-export function titlePattern(vm, row) {
-  const own = row.title_pattern, label = own || vm.ai?.data?.titles?.[row.id];
-  return label ? `<span class="review-pattern-tag${own ? '' : ' is-ai'}" title="${own ? '已登记的标题套路' : 'AI 归类'}">${e(label)}</span>` : '';
+export function titlePattern(vm, row, data) {
+  const own = row.title_pattern, label = own || vm.ai?.data?.titles?.[row.id], names = namesOf(data);
+  const shown = names.has(label) ? names.get(label) : label, origin = own ? '已登记的标题套路' : 'AI 归类';
+  return label ? `<span class="review-pattern-tag${own ? '' : ' is-ai'}" title="${e(origin + (shown === label ? '' : '：' + label))}">${e(shown)}</span>` : '';
 }
 /** Settings → AI: one default per feature, a daily ceiling, and what ran lately. */
 export function renderAiSettings(ai) {

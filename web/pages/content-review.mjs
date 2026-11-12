@@ -216,7 +216,7 @@ function articleLibrary(rows,vm,data = {}) {
     return [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
-      '未命名文章')}</button>${titlePattern(vm,row)}${sampleLabel(row,data)}`],
+      '未命名文章')}</button>${titlePattern(vm,row,data)}${sampleLabel(row,data)}`],
     ...metrics,
     ['判定',`${judgement}${supplement}`]
   ]; };

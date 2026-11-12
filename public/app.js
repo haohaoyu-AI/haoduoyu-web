@@ -14893,6 +14893,21 @@ function weeklyPeriod(today2) {
   const end = new Date(at.getTime() - back * 864e5), start = new Date(end.getTime() - 6 * 864e5);
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
 }
+function ruleShortName(text, max = 22) {
+  const line = String(text ?? "").split("\n").map((part) => part.replace(/[*_`#>]/g, "").replace(/^[\s\-·•\d.、)）]+/, "").trim()).find(Boolean) || "";
+  const sentence = line.split(/[。；;！!？?]/)[0].trim();
+  return sentence.length > max ? sentence.slice(0, max) + "…" : sentence;
+}
+function ruleNames(playbooks = []) {
+  const names = /* @__PURE__ */ new Map();
+  for (const book of playbooks) for (const rule of book.rules || []) {
+    if (!rule || typeof rule.rule_id !== "string" || names.has(rule.rule_id)) continue;
+    const name = ruleShortName(rule.text);
+    if (name && name !== rule.rule_id) names.set(rule.rule_id, name);
+  }
+  return names;
+}
+var namedPattern = (pattern2, names) => names?.has(pattern2) ? `${names.get(pattern2)}（${pattern2}）` : pattern2;
 
 // web/core/review-markdown.mjs
 init_dom();
@@ -14993,6 +15008,16 @@ var known = (value) => value !== null && value !== void 0 && Number.isFinite(val
 var reads = (value) => !known(value) ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
 var rate2 = (value) => known(value) ? `${value.toFixed(1)}%` : "—";
 var busy = (ai2, key) => ai2?.busy === key;
+var nameCache = /* @__PURE__ */ new WeakMap();
+function namesOf(data3) {
+  const books = data3?.playbooks;
+  if (!Array.isArray(books)) return /* @__PURE__ */ new Map();
+  if (!nameCache.has(books)) nameCache.set(books, ruleNames(books));
+  return nameCache.get(books);
+}
+function patternHtml(pattern2, names) {
+  return names.has(pattern2) ? `${e(names.get(pattern2))} <small class="review-pattern-code">${e(pattern2)}</small>` : e(pattern2);
+}
 var button2 = (label3, action, attrs = "", kind = "btn small") => `<button class="${kind}" type="button" data-ai-action="${action}" ${attrs}>${e(label3)}</button>`;
 function onceOptions(ai2, feature) {
   if (ai2?.options !== feature) return "";
@@ -15074,9 +15099,10 @@ function weeklySection(vm3) {
 }
 function patternSection(data3, vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), rows = enrichArticles(data3, { account: vm3.account });
-  const labels4 = ai2?.data?.titles || {}, stats = patternStats(rows, labels4), pending = ai2?.data?.pending?.titles || 0;
+  const labels4 = ai2?.data?.titles || {}, stats = patternStats(rows, labels4), pending = ai2?.data?.pending?.titles || 0, names = namesOf(data3);
   const table2 = stats.length ? `<div class="review-pattern-wrap"><table class="review-pattern-table"><caption class="review-sr-only">各标题套路的表现</caption>
-    <thead><tr><th>标题套路</th><th>篇数</th><th>阅读中位数</th><th>点击率中位数</th><th>爆款</th></tr></thead><tbody>${stats.map((item) => `<tr><th scope="row">${e(item.pattern)}</th><td>${item.count}</td><td>${e(reads(item.reads))}</td><td>${e(rate2(item.ctr))}</td>
+    <thead><tr><th>标题套路</th><th>篇数</th><th>阅读中位数</th><th>点击率中位数</th><th>爆款</th></tr></thead><tbody>${stats.map((item) => `<tr><th scope="row">${patternHtml(item.pattern, names)}</th><td>${item.count}</td>
+      <td>${e(reads(item.reads))}</td><td>${e(rate2(item.ctr))}</td>
       <td>${item.hits}</td></tr>`).join("")}
     </tbody></table></div><p class="review-note">只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>` : '<p class="review-note">还没有归类好的标题。</p>';
   return `<section class="review-ai-block" aria-label="标题套路"><div class="review-ai-head"><h2>标题套路</h2>
@@ -15119,9 +15145,10 @@ function benchmarkAiNote(vm3, id2) {
   const part = (label3, value) => value ? `<span><b>${label3}</b>${e(value)}</span>` : "";
   return `<div class="review-ai-note">${part("套路", note.pattern)}${part("钩子", note.hook)}${part("题材", note.topic)}${part("可套用", note.template)}</div>`;
 }
-function titlePattern(vm3, row) {
-  const own3 = row.title_pattern, label3 = own3 || vm3.ai?.data?.titles?.[row.id];
-  return label3 ? `<span class="review-pattern-tag${own3 ? "" : " is-ai"}" title="${own3 ? "已登记的标题套路" : "AI 归类"}">${e(label3)}</span>` : "";
+function titlePattern(vm3, row, data3) {
+  const own3 = row.title_pattern, label3 = own3 || vm3.ai?.data?.titles?.[row.id], names = namesOf(data3);
+  const shown = names.has(label3) ? names.get(label3) : label3, origin = own3 ? "已登记的标题套路" : "AI 归类";
+  return label3 ? `<span class="review-pattern-tag${own3 ? "" : " is-ai"}" title="${e(origin + (shown === label3 ? "" : "：" + label3))}">${e(shown)}</span>` : "";
 }
 function renderAiSettings(ai2) {
   if (!ai2 || ai2.status === "loading") return '<section id="ai-settings" class="ai-settings"><p role="status">正在读取 AI 设置…</p></section>';
@@ -16116,7 +16143,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
     const supplement = chosen.includes("reads") ? "" : observation.kind === "immature" ? "未满24h" : age;
     return [
       ["发布时间", e(reviewDateTime(row.published_at) || "—")],
-      ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${titlePattern(vm3, row)}${sampleLabel(row, data3)}`],
+      ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${titlePattern(vm3, row, data3)}${sampleLabel(row, data3)}`],
       ...metrics2,
       ["判定", `${judgement}${supplement}`]
     ];

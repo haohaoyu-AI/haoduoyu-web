@@ -52,3 +52,22 @@ export function weeklyPeriod(today) {
   const end = new Date(at.getTime() - back * 86400000), start = new Date(end.getTime() - 6 * 86400000);
   return {start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10)};
 }
+
+/** A rule's first sentence, short enough to stand in for its code ("T3") wherever a person reads it. */
+export function ruleShortName(text, max = 22) {
+  const line = String(text ?? '').split('\n').map(part => part.replace(/[*_`#>]/g, '').replace(/^[\s\-·•\d.、)）]+/, '').trim()).find(Boolean) || '';
+  const sentence = line.split(/[。；;！!？?]/)[0].trim();
+  return sentence.length > max ? sentence.slice(0, max) + '…' : sentence;
+}
+/** Rule code → readable name, from the given playbooks. Title patterns are often recorded as bare rule codes. */
+export function ruleNames(playbooks = []) {
+  const names = new Map();
+  for (const book of playbooks) for (const rule of book.rules || []) {
+    if (!rule || typeof rule.rule_id !== 'string' || names.has(rule.rule_id)) continue;
+    const name = ruleShortName(rule.text);
+    if (name && name !== rule.rule_id) names.set(rule.rule_id, name);
+  }
+  return names;
+}
+/** "标题先写冲突结果（T3）" for a known code; anything else is returned as written. */
+export const namedPattern = (pattern, names) => names?.has(pattern) ? `${names.get(pattern)}（${pattern}）` : pattern;

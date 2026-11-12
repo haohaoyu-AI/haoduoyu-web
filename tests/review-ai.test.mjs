@@ -139,3 +139,29 @@ test('benchmark breakdown reads titles only and stores notes beside, not in, the
   assert.equal(sql.prepare('SELECT title_pattern FROM matrix_review_benchmark_articles WHERE id=?').get(art).title_pattern,null);
   assert.deepEqual((await call('ai/benchmarks','POST',{account:'V字'})).data,{done:0,remaining:0});
 });
+test('rule codes get readable names, and rules stored as candidate before the loop began are not suggestions',async t=>{
+  const {ruleNames,namedPattern,ruleShortName}=await import('../shared/review-experiments.mjs');
+  assert.equal(ruleShortName('- **标题先写冲突结果**，少用问句结尾。后面还有很长的说明'),'标题先写冲突结果，少用问句结尾');
+  assert.equal(ruleShortName('一二三四五六七八九十一二三四五六七八九十一二三四五'),'一二三四五六七八九十一二三四五六七八九十一二…');
+  const names=ruleNames([{rules:[{rule_id:'T3',text:'年龄节点串起一生。详细写法……'},{rule_id:'T9',text:''}]}]);
+  assert.equal(namedPattern('T3',names),'年龄节点串起一生（T3）');assert.equal(namedPattern('T9',names),'T9');assert.equal(namedPattern('对话体',names),'对话体');
+  const {call,article,calls,sql,owner}=fixture(t);
+  const period=weeklyPeriod(new Date(Date.now()+8*3600000).toISOString().slice(0,10));
+  const inside=Math.round((Date.now()-Date.parse(period.end+'T04:00:00Z'))/86400000);
+  article('周内文章',inside,500,{pattern:'T3'});
+  const columns=sql.prepare("PRAGMA table_info('matrix_review_playbooks')").all().map(row=>row.name);
+  const book=id=>{const row={user_id:owner,id,account:'V字',version:6,status:'active',content_md:'',published_on:'2026-11-01',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+    rules_json:JSON.stringify([{rule_id:'T3',section:'title',text:'年龄节点串起一生。',status:'candidate'},{rule_id:'G1',section:'topic',text:'旧规则一',status:'candidate'}])};
+    const keys=columns.filter(key=>key in row);
+    sql.prepare(`INSERT OR REPLACE INTO matrix_review_playbooks(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`).run(...keys.map(key=>row[key]));};
+  const id=randomUUID();book(id);
+  const first=(await call('ai?account=V%E5%AD%97')).data;
+  assert.deepEqual(first.candidates[id],[],'everything stored as candidate at first read is the baseline');
+  const rules=JSON.parse(sql.prepare('SELECT rules_json FROM matrix_review_playbooks WHERE id=?').get(id).rules_json);
+  sql.prepare('UPDATE matrix_review_playbooks SET rules_json=? WHERE id=?').run(JSON.stringify([...rules,{rule_id:'N1',section:'title',text:'新的小改建议。',status:'candidate'}]),id);
+  assert.deepEqual((await call('ai?account=V%E5%AD%97')).data.candidates[id],['N1'],'only a later candidate is a suggestion');
+  assert.equal((await call('ai/weekly','POST',{account:'V字'})).status,200);
+  const facts=calls.at(-1).body.input[1].content,system=calls.at(-1).body.input[0].content;
+  assert.match(facts,/套路 年龄节点串起一生（T3）/);assert.match(facts,/\[待确认\] 新的小改建议。（N1）/);
+  assert.doesNotMatch(facts,/旧规则一/,'baseline rules are not reported as experiments');assert.match(system,/代号只能放在名称后的括号里/);
+});

@@ -5,7 +5,7 @@ import {openaiReviewSettings} from './openai-review.mjs';
 import {beijingDay} from './lib/time.mjs';
 import {day,enrichArticles,median} from '../shared/review-analytics.mjs';
 import {reviewView} from './content-review-validation.mjs';
-import {experiments,patternStats,weeklyPeriod,RULE_STATUS_LABELS} from '../shared/review-experiments.mjs';
+import {experiments,namedPattern,patternStats,ruleNames,weeklyPeriod,RULE_STATUS_LABELS} from '../shared/review-experiments.mjs';
 
 // AI output lives in the audit log under fixed entity ids. It never rewrites articles, snapshots,
 // rules or benchmark records, so no schema change is needed and bot-owned data keeps its hashes.
@@ -16,7 +16,7 @@ const modelPattern=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Control':'no-store'}});
 const actorId=owner=>'review-ai:'+owner;
 const entity={settings:()=>'review-ai:settings',runs:date=>'review-ai:runs:'+date,weekly:account=>'review-ai:weekly:'+account,
-  titles:account=>'review-ai:titles:'+account,benchmarks:account=>'review-ai:benchmarks:'+account};
+  titles:account=>'review-ai:titles:'+account,benchmarks:account=>'review-ai:benchmarks:'+account,baseline:()=>'review-ai:rule-baseline'};
 export const isReviewAiRoute=route=>route===base||route.startsWith(base+'/');
 const invalid=(message='AI 设置无效')=>{throw fail(400,'VALIDATION_ERROR',message);};
 
@@ -152,6 +152,15 @@ async function currentBooks(db,owner) {
   for(const row of rows){const book=reviewView('playbooks',row);if(['draft','archived'].includes(book.status)||latest.has(book.account))continue;latest.set(book.account,book);}
   return [...latest.values()];
 }
+/** Rules the bot proposed after the experiment loop began. Playbooks written before it store "candidate" on
+ * every rule, so the first read records those ids as a baseline and only later candidates count as suggestions. */
+async function proposedRules(db,owner,books) {
+  const stored=books.flatMap(book=>(book.rules||[]).filter(rule=>rule?.status==='candidate'&&typeof rule.rule_id==='string').map(rule=>rule.rule_id));
+  let baseline=(await events(db,owner,entity.baseline(),1))[0]?.rule_ids;
+  if(!Array.isArray(baseline)){baseline=[...new Set(stored)];await record(db,owner,'baseline',entity.baseline(),{rule_ids:baseline});}
+  const old=new Set(baseline);
+  return Object.fromEntries(books.map(book=>[book.id,(book.rules||[]).filter(rule=>rule?.status==='candidate'&&!old.has(rule.rule_id)).map(rule=>rule.rule_id)]));
+}
 function periodRows(rows,start,end) {return rows.filter(row=>{const date=day(row.published_at);return date&&date>=start&&date<=end;});}
 function summary(rows) {
   const measured=rows.filter(row=>row.reads_24h!==null),ctr=rows.map(row=>row.ctr_24h).filter(value=>value!==null);
@@ -159,16 +168,17 @@ function summary(rows) {
   return {count:rows.length,measured:measured.length,hits:count('爆'),middles:count('中'),flops:count('扑'),
     reads:measured.length?median(measured.map(row=>row.reads_24h)):null,ctr:ctr.length?median(ctr):null};
 }
-function weeklyFacts(data,labels,account,period,books) {
+function weeklyFacts(data,labels,account,period,books,proposed) {
   const rows=enrichArticles(data,{account}),current=periodRows(rows,period.start,period.end);
   const previous=periodRows(rows,shift(period.start,-7),shift(period.start,-1));
-  const now=summary(current),before=summary(previous),trial=experiments(books,rows);
-  const line=row=>`- ${day(row.published_at)}｜${row.verdict||'未判定'}｜阅读 ${reads(row.reads_24h)}｜点击率 ${rate(row.ctr_24h)}｜套路 ${row.title_pattern||labels[row.id]||'未归类'}｜${short(row.title,80)}`;
+  const now=summary(current),before=summary(previous),trial=experiments(books,rows,{explicit:proposed}),names=ruleNames(books);
+  const named=pattern=>namedPattern(pattern,names);
+  const line=row=>`- ${day(row.published_at)}｜${row.verdict||'未判定'}｜阅读 ${reads(row.reads_24h)}｜点击率 ${rate(row.ctr_24h)}｜套路 ${named(row.title_pattern||labels[row.id]||'未归类')}｜${short(row.title,80)}`;
   const stat=(name,item)=>`${name}：发文 ${item.count} 篇，有数据 ${item.measured} 篇，爆/中/扑 ${item.hits}/${item.middles}/${item.flops}，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}`;
   const patterns=patternStats(rows.filter(row=>day(row.published_at)>=shift(period.end,-29)&&day(row.published_at)<=period.end),labels).slice(0,12)
-    .map(item=>`- ${item.pattern}：${item.count} 篇，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}，爆 ${item.hits} 篇`);
+    .map(item=>`- ${named(item.pattern)}：${item.count} 篇，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}，爆 ${item.hits} 篇`);
   const rules=trial.map(rule=>
-    `- [${RULE_STATUS_LABELS[rule.status]}] ${rule.rule_id}：${short(rule.text,160)}｜用了这条的 ${rule.live.n_with} 篇，阅读中位数 ${reads(rule.live.reads_with)}，点击率 ${rate(rule.live.ctr_with)}；同期没用的 ${rule.live.n_without} 篇，阅读中位数 ${reads(rule.live.reads_without)}，点击率 ${rate(rule.live.ctr_without)}${rule.live.ready?'':'（样本不足 '+rule.live.needed+' 篇）'}`);
+    `- [${RULE_STATUS_LABELS[rule.status]}] ${short(rule.text,160)}（${rule.rule_id}）｜用了这条的 ${rule.live.n_with} 篇，阅读中位数 ${reads(rule.live.reads_with)}，点击率 ${rate(rule.live.ctr_with)}；同期没用的 ${rule.live.n_without} 篇，阅读中位数 ${reads(rule.live.reads_without)}，点击率 ${rate(rule.live.ctr_without)}${rule.live.ready?'':'（样本不足 '+rule.live.needed+' 篇）'}`);
   const text=[`账号：${account}`,`本期：${period.start} 至 ${period.end}（北京时间，按发布日期；阅读取发布后约 24 小时）`,stat('本期',now),stat('上期',before),
     '','本期文章：',...(current.length?current.slice(0,45).map(line):['（本期没有文章）']),'','近 30 天标题套路：',...(patterns.length?patterns:['（还没有归类）']),
     '','试验中和待确认的小改：',...(rules.length?rules:['（没有）'])].join('\n');
@@ -182,7 +192,7 @@ const weeklySystem=`你是头条图文账号的周复盘助手，读者是账号
 ## 没用的
 ## 试验结果
 ## 下周做什么
-要求：每条都带上数据里的具体数字；样本少于 3 篇的判断要写明“样本少”；“试验结果”逐条说明每个小改建议采纳、放弃还是继续观察，样本不足就写继续观察；“下周做什么”最多 3 条，必须具体到可以直接执行。不要客套话，不要重复原始表格。`;
+要求：读者不认识规则和套路的代号（如 T3、G12），提到它们时必须写文字名称，代号只能放在名称后的括号里，不得单独罗列代号；每条都带上数据里的具体数字；样本少于 3 篇的判断要写明“样本少”；“试验结果”只写“试验中和待确认的小改”里列出的条目，逐条说明建议采纳、放弃还是继续观察，样本不足就写继续观察；那里写“（没有）”时这一节只写“本周没有进行中的试验。”；“下周做什么”最多 3 条，必须具体到可以直接执行。不要客套话，不要重复原始表格。`;
 const titlesSystem=`你给头条图文标题归类“标题套路”。${guard}
 优先使用“已有套路”里的名称，确实都不合适时才从备选里选或新起一个不超过 6 个字的名称。备选：对话体、快讯体、揭底体、研究发现体、追踪揭秘体、外媒体、数字冲突体、又一爆雷体、设问体、人物逆袭体、科普解密体、其他。
 只输出 JSON：{"items":[{"i":序号,"pattern":"套路名"}]}，每个标题一条，不要解释。`;
@@ -202,14 +212,14 @@ async function state(db,owner,env,account,accountData) {
   const library=await benchmarkArticles(db,owner,account);
   return {account,configured:Boolean(server.key&&server.model),default_model:server.model,settings,usage:await usage(db,owner,settings),runs,
     weekly:weekly.slice(0,8),titles:labels,benchmarks:notes,
-    candidates:Object.fromEntries((await currentBooks(db,owner)).map(book=>[book.id,(book.rules||[]).filter(rule=>rule?.status==='candidate').map(rule=>rule.rule_id)])),
+    candidates:await proposedRules(db,owner,await currentBooks(db,owner)),
     pending:{titles:unlabelled,benchmarks:library.filter(row=>!notes[row.id]).length,weekly:seen.has(period.start)?null:period}};
 }
 async function generateWeekly(db,owner,env,account,input,accountData) {
   const period=input.period_start?{start:input.period_start,end:shift(input.period_start,6)}:weeklyPeriod(beijingDay(Date.now()));
   if(!/^\d{4}-\d{2}-\d{2}$/.test(period.start)||!Number.isFinite(Date.parse(period.start))||period.end>=beijingDay(Date.now()))invalid('周报周期无效');
   const data=await accountData(storeFor(db),owner,account),labels=await titleLabels(db,owner,account);
-  const facts=weeklyFacts(data,labels,account,period,await currentBooks(db,owner));
+  const books=await currentBooks(db,owner),facts=weeklyFacts(data,labels,account,period,books,await proposedRules(db,owner,books));
   if(!facts.stats.current.count)throw fail(409,'REVIEW_AI_EMPTY','这一周没有文章，未调用 API');
   const result=await run(db,owner,env,'weekly',input,choice=>askOpenAi({env,...choice,system:weeklySystem,user:facts.text,maxTokens:6000}));
   const saved={period_start:period.start,period_end:period.end,summary_md:result.text.slice(0,6000),model:result.model,effort:result.effort,stats:facts.stats};

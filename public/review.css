@@ -588,6 +588,8 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-pattern-table th:first-child { text-align:left; }
 .review-pattern-table thead th { color:var(--color-text-secondary); font-size:12px; font-weight:var(--font-weight-semibold); }
 .review-pattern-tag { display:inline-block; margin-left:8px; padding:0 8px; border-radius:999px; background:var(--color-segmented); color:var(--color-text-secondary); font-size:12px; line-height:20px; white-space:nowrap; vertical-align:middle; }
+.review-pattern-code { margin-left:6px; color:var(--color-text-muted); font-weight:400; font-size:12px; }
+.review-pattern-table th:first-child { white-space:normal; min-width:180px; }
 .review-pattern-tag.is-ai { border:1px dashed var(--color-divider); background:transparent; }
 /* Experiments. */
 .review-exp-group + .review-exp-group { margin-top:18px; }
