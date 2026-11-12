@@ -96,7 +96,17 @@ export const chartRestoreRelease=Object.freeze({
   baseline:'b1a7f54e-41cc-416e-b027-c54cdcd41621',
   bytes:2966551,sha256:'f340427433c45bcb0a0dcd0ee31bccc434524c2149e152c8e59b3cf8c034799a',
   label:'production-dashboard-chart-restore-20261112'});
-const acceptedRelease=commit=>commit===chartRestoreRelease.commit?chartRestoreRelease:
+// Six upgrades (counted to-dos, compact score, review text, AI weekly loop) stacked on the deployed chart-restore source.
+// No migration, binding or wrangler change. Baseline is the version uploaded by successful run 43145436661
+// (DEPLOYMENT_CONFIRMED for ae90dc9); the publisher still rechecks the live version before writing.
+export const sixUpgradesRelease=Object.freeze({
+  commit:'75e2db9a05fd04cb873c1f41046a9ad14dfbf01e',
+  tree:'218aaab30fe8e43306cf9e08ee25127baba649a1',
+  baseline:'afb86c5e-6a63-448c-b1ac-9e6470d68e3a',
+  bytes:3054674,sha256:'013bceaae5a2bd85381fba1e8d63d3dfc0361e76605474aeef4f4d700a2728c0',
+  label:'production-six-upgrades-20261112'});
+const acceptedRelease=commit=>commit===sixUpgradesRelease.commit?sixUpgradesRelease:
+  commit===chartRestoreRelease.commit?chartRestoreRelease:
   commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
   commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
   commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
