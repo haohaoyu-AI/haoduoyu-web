@@ -165,3 +165,10 @@ test('rule codes get readable names, and rules stored as candidate before the lo
   assert.match(facts,/套路 年龄节点串起一生（T3）/);assert.match(facts,/\[待确认\] 新的小改建议。（N1）/);
   assert.doesNotMatch(facts,/旧规则一/,'baseline rules are not reported as experiments');assert.match(system,/代号只能放在名称后的括号里/);
 });
+test('a long existing pattern name is stored whole, not cut at twelve characters',async t=>{
+  const long='极小细节引出巨大后果+具体人物';
+  const {call,article}=fixture(t,{answer:()=>({status:200,text:JSON.stringify({items:[{i:0,pattern:long}]})})});
+  const id=article('粘贴收款码卡了 0.2 秒，程序员顺手揪出内鬼',3,6746);
+  assert.equal((await call('ai/titles','POST',{account:'V字'})).status,200);
+  assert.equal((await call('ai?account=V%E5%AD%97')).data.titles[id],long);
+});

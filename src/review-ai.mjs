@@ -235,7 +235,7 @@ async function classifyTitles(db,owner,env,account,input,accountData) {
   let found={};
   const result=await run(db,owner,env,'titles',input,async choice=>{
     const answer=await askOpenAi({env,...choice,system:titlesSystem,user,maxTokens:6000});
-    for(const item of parseItems(answer.text,todo.length)){const pattern=short(item.pattern,12);if(pattern)found[todo[item.i].id]=pattern;}
+    for(const item of parseItems(answer.text,todo.length)){const pattern=short(item.pattern,30);if(pattern)found[todo[item.i].id]=pattern;}
     if(!Object.keys(found).length)throw fail(502,'REVIEW_AI_FAILED','模型没有给出可用的归类，请重试');
     return answer;
   });
@@ -252,7 +252,7 @@ async function breakdownBenchmarks(db,owner,env,account,input) {
   const result=await run(db,owner,env,'benchmarks',input,async choice=>{
     const answer=await askOpenAi({env,...choice,system:benchmarksSystem,user,maxTokens:8000});
     for(const item of parseItems(answer.text,todo.length)) {
-      const note={pattern:short(item.pattern,12),hook:short(item.hook,60),topic:short(item.topic,20),template:short(item.template,80)};
+      const note={pattern:short(item.pattern,30),hook:short(item.hook,60),topic:short(item.topic,20),template:short(item.template,80)};
       if(note.pattern||note.hook)found[todo[item.i].id]=note;
     }
     if(!Object.keys(found).length)throw fail(502,'REVIEW_AI_FAILED','模型没有给出可用的拆解，请重试');
