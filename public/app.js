@@ -6757,7 +6757,7 @@ function updateRoute(push = false) {
     if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
     else u.searchParams.delete("openai_run");
   } else if (state.page === "ai-reports") {
-    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
+    u.searchParams.set("ai_tab", state.aiDailyTab || "reports");
     if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
     else u.searchParams.delete("openai_run");
   } else {
@@ -6769,12 +6769,12 @@ function updateRoute(push = false) {
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else u.searchParams.delete("tab");
-  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
+  if (["review", "ai-reports"].includes(state.page)) u.searchParams.set("account", state.account || "V字");
   else u.searchParams.delete("account");
   for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
     u.searchParams.delete(key);
   if (state.page !== "review") {
-    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare", "review_section"])
       u.searchParams.delete(key);
   }
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
@@ -6786,12 +6786,14 @@ function readRoute() {
   const fallback = "review";
   state.page = raw === "reminders" ? "ai-reports" : Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   state.page = mobilePage(state.page);
+  const legacyWeekly = state.page === "review" && (params.get("review_section") === "weekly" || params.get("review_view") === "weekly");
+  if (legacyWeekly) state.page = "ai-reports";
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
   }
   state.diagnosisTab = params.get("diagnosis_tab") === "reports" ? "reports" : "help";
-  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyTab = legacyWeekly ? "reports" : ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
   state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
@@ -13907,16 +13909,15 @@ function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
       </div>
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders"><div id="ai-experiments" class="content-review ai-experiments"></div>
-      <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
-      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div>
+      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
+      <div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
     </div>
   </section>`;
@@ -14367,7 +14368,7 @@ function currentPrompts(prompts = [], account3) {
 
 // web/review-ai-controller.mjs
 init_api();
-var ai = { status: "idle", messages: {} }, account = "", ticket = 0, autoWeekly = "";
+var ai = { status: "idle", messages: {} }, account = "", ticket = 0;
 var listeners = /* @__PURE__ */ new Set();
 var emit = () => {
   for (const listener of listeners) listener();
@@ -14382,7 +14383,6 @@ function resetReviewAi() {
   ticket++;
   ai = { status: "idle", messages: {} };
   account = "";
-  autoWeekly = "";
 }
 async function loadReviewAi(nextAccount = "V字", { force = false } = {}) {
   if (!force && account === nextAccount && ["ready", "loading"].includes(ai.status)) return;
@@ -14421,7 +14421,6 @@ var say = (key, text, error = false) => {
   ai = { ...ai, messages: { ...ai.messages, [key]: text ? { text, error } : null } };
 };
 var done = {
-  weekly: () => "周报已生成。",
   titles: (data3) => data3.labelled ? `已归类 ${data3.labelled} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要归类的标题。",
   benchmarks: (data3) => data3.done ? `已拆解 ${data3.done} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要拆解的爆文。"
 };
@@ -14439,12 +14438,6 @@ async function runFeature(feature, once = {}) {
   }
   ai = { ...ai, busy: "", once: {} };
   await loadReviewAi(account, { force: true });
-}
-function autoGenerateWeekly() {
-  const due = ai.data?.pending?.weekly;
-  if (ai.status !== "ready" || !ai.data.configured || !due || ai.busy || autoWeekly === due.start) return;
-  autoWeekly = due.start;
-  void runFeature("weekly");
 }
 async function changeRule(target, context) {
   const id2 = target.dataset.ruleId, status = target.dataset.status;
@@ -15102,23 +15095,25 @@ function renderExperiments(data3, vm3, { compact: compact2 = false } = {}) {
     ${group("进行中的试验", `每条攒够 ${running[0]?.live.needed ?? 6} 篇有数据的文章再下结论；阅读取发布后约 24 小时。`, running, "没有进行中的试验。")}</section>`;
 }
 function weeklySection(vm3) {
-  const ai2 = vm3.ai, gate = unavailable(ai2);
-  if (gate) return `<section class="review-ai-block"><h2>周报</h2>${gate}</section>`;
-  const reports = ai2.data.weekly || [], latest = reports[0], due = ai2.data.pending?.weekly;
+  const ai2 = vm3.ai;
+  if (!ai2 || ai2.status === "loading") return '<p class="review-note">正在读取历史周报…</p>';
+  if (ai2.status === "error") return `<p class="review-ai-message is-error" role="alert">${e(ai2.error || "历史周报读取失败")} ${button2("重试", "reload")}</p>`;
+  const reports = ai2.data?.weekly || [];
   const body2 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>
     <p class="review-note">${e(report.period_start)} 至 ${e(report.period_end)} · ${e(report.model || "")}${report.effort ? " · 强度" + e(AI_EFFORT_LABELS.find(([id2]) => id2 === report.effort)?.[1] || "") : ""}</p>`;
-  const older = reports.slice(1).map((report) => `<details
-    class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body2(report)}</details>`).join("");
-  const hint = due ? `${due.start} 至 ${due.end} 的周报还没生成。` : latest ? "本期已生成，可以重新生成。" : "";
-  return `<section class="review-ai-block" aria-label="周报"><div class="review-ai-head"><h2>周报</h2><span class="review-note">${e(hint)}</span></div>
-    ${runControls(ai2, "weekly", latest && !due ? "重新生成" : "立即生成")}${notice(ai2, "weekly")}
-    ${latest ? body2(latest) : '<p class="review-note">还没有周报。每周日生成上周六到本周五的总结，也可以现在点“立即生成”。</p>'}${older}</section>`;
+  return `<details class="review-ai-block review-weekly-old"><summary>历史周报</summary>
+    <p class="review-note">独立周报已停止生成，日常汇报与决策请在这里查看。</p>${reports.length ? reports.map((report) => `<details
+      class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body2(report)}</details>`).join("") : '<p class="review-note">暂无历史周报。</p>'}</details>`;
 }
 function patternSection(data3, vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), rows = enrichArticles(data3, { account: vm3.account });
   const labels4 = ai2?.data?.titles || {}, stats = patternStats(rows, labels4), pending = ai2?.data?.pending?.titles || 0, names = namesOf(data3);
-  const article = (item) => `<li><button type="button" class="review-title-button" data-review-article="${e(item.id)}"
-    aria-haspopup="dialog">${e(item.title || "未命名文章")}</button>
+  const article = (item) => `<li><a class="review-title-button" href="?${e(new URLSearchParams({
+    page: "review",
+    account: vm3.account,
+    review_section: "articles",
+    review_article: item.id
+  }))}">${e(item.title || "未命名文章")}</a>
     <span class="review-note">阅读 ${e(reads(item.reads))}${item.verdict ? " · " + e(item.verdict) : ""}</span></li>`;
   const block = (item) => {
     const best = item.articles[0], few = item.count < 3;
@@ -15135,8 +15130,8 @@ function patternSection(data3, vm3) {
     <span class="review-note">${pending ? `${pending} 篇还没归类` : "全部已归类"}</span></div>
     ${gate || (pending ? runControls(ai2, "titles", `归类 ${Math.min(pending, 60)} 篇`) : "")}${notice(ai2, "titles")}${table2}</section>`;
 }
-function renderWeeklyPage(data3, vm3) {
-  return `<div class="review-weekly-page">${renderExperiments(data3, vm3)}${weeklySection(vm3)}${patternSection(data3, vm3)}</div>`;
+function renderReportReview(data3, vm3) {
+  return `<div class="review-weekly-page">${renderExperiments(data3, vm3)}${patternSection(data3, vm3)}${weeklySection(vm3)}</div>`;
 }
 function benchmarkAiBar(vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), pending = ai2?.data?.pending?.benchmarks || 0;
@@ -15191,7 +15186,7 @@ function renderAiSettings(ai2) {
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id2, label3]) => `<option value="${id2}"${id2 === value ? " selected" : ""}>${label3}</option>`).join("")}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).map(([feature, label3]) => `<tr><th scope="row">${label3}</th>
+  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature !== "weekly").map(([feature, label3]) => `<tr><th scope="row">${label3}</th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(
     feature,
     draft.features[feature].effort
@@ -16067,7 +16062,7 @@ function collapsed(title, body2, id2 = "") {
     title
   )}</summary>${body2}</details>`;
 }
-var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["weekly", "周报"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["library", "爆文库"]];
+var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["library", "爆文库"]];
 function activeSection(vm3) {
   const raw = vm3.secondary === "review" ? "rules" : vm3.secondary === "trends" ? "cockpit" : vm3.secondary;
   if (REVIEW_SECTIONS.some(([id2]) => id2 === raw)) return raw;
@@ -16100,7 +16095,6 @@ function sectionBody(selected, data3, vm3, rows) {
   if (selected === "benchmarks") return v13Accounts(data3);
   if (selected === "rules") return playbook(data3, vm3);
   if (selected === "prompts") return promptPage(data3, vm3);
-  if (selected === "weekly") return renderWeeklyPage(data3, vm3);
   if (selected === "library") return renderBenchmarkBreakdown(data3, vm3) + renderBenchmarkLibrary(data3, vm3.account);
   return overview(data3, vm3);
 }
@@ -16536,7 +16530,6 @@ function paintContentReviewPage() {
   const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : "";
   node2.innerHTML = renderContentReviewContent(data, vm2);
   if (focused) node2.querySelector(`[data-ai-once="${focused}"]`)?.focus({ preventScroll: true });
-  if (!vm2.loading && !vm2.error && vm2.secondary === "weekly") autoGenerateWeekly();
   syncReviewFullscreen();
   const dialog = node2.querySelector('[role="dialog"]');
   for (const child of node2.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
@@ -16925,19 +16918,23 @@ function registerEvents2() {
 // web/experiments-panel-controller.mjs
 init_api();
 init_state();
-var data2 = null, sequence3 = 0, registered3 = false;
+var data2 = null, sequence3 = 0, registered3 = false, panelError = false;
 var account2 = () => state.account || "V字";
 var root2 = () => document.querySelector("#ai-experiments");
 function paint() {
   const node2 = root2();
   if (!node2 || state.page !== "ai-reports") return;
-  node2.innerHTML = data2 ? renderExperiments(data2, { account: account2(), ai: reviewAiView() }, { compact: true }) : "";
+  node2.innerHTML = data2 ? renderReportReview(data2, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
 }
 function register2() {
   if (registered3) return;
   registered3 = true;
   watchReviewAi(paint);
   document.addEventListener("click", (event) => {
+    if (event.target.closest?.("#ai-experiments [data-retry-review]")) {
+      void loadExperimentsPanel();
+      return;
+    }
     const target = event.target.closest?.("#ai-experiments [data-ai-action]");
     if (!target || state.page !== "ai-reports" || !data2) return;
     reviewAiClick(target, {
@@ -16953,25 +16950,32 @@ function register2() {
 async function loadExperimentsPanel() {
   register2();
   const ticket2 = ++sequence3, session2 = runtime.sessionEpoch, name = account2();
+  data2 = null;
+  panelError = false;
+  paint();
   void loadReviewAi(name);
   const current3 = () => ticket2 === sequence3 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
   const read2 = (path) => apiNetwork(path, { suppressAuthRedirect: true });
   try {
-    const [articles, snapshots2, playbooks] = await Promise.all(["articles", "snapshots", "playbooks"].map((kind) => readReviewCollection(
+    const [articles, snapshots2, reports, playbooks] = await Promise.all(["articles", "snapshots", "reports", "playbooks"].map((kind) => readReviewCollection(
       read2,
       kind,
       name,
       current3
     )));
-    if (!current3() || !articles || !snapshots2 || !playbooks) return;
+    if (!current3() || !articles || !snapshots2 || !reports || !playbooks) return;
     const ids = new Set(articles.items.map((row) => String(row.id)));
     data2 = normalizeReviewData({
       articles: articles.items,
       snapshots: snapshots2.items.filter((row) => ids.has(String(row.article_id))),
+      reports: reports.items,
       playbooks: currentPlaybooks(playbooks.items, name)
     });
   } catch {
-    if (current3()) data2 = null;
+    if (current3()) {
+      data2 = null;
+      panelError = true;
+    }
   }
   if (current3()) paint();
 }
@@ -17038,7 +17042,7 @@ async function loadAiReports({ resetDate = false } = {}) {
   const current3 = () => ticket2 === sequence4 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
   paintAiReports([], "", true, date, visibleMonth);
   paintAiDailyReminders(null, "", true);
-  selectDailyTab(state.aiDailyTab || "reminders");
+  selectDailyTab(state.aiDailyTab || "reports");
   const report = readAllAiReports(api, current3).then((items) => {
     if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth);
   }).catch((error) => {

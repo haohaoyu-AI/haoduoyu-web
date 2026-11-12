@@ -14,7 +14,9 @@ function fixture(t,{answer}={}) {
     .split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean))sql.exec(statement);
   const db={prepare(text){let values=[];return {bind(...args){values=args;return this;},
     async first(){return sql.prepare(text).get(...values)||null;},async all(){return {results:sql.prepare(text).all(...values)};},
-    async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}};}};}};
+    async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}};}};},
+    async batch(statements){sql.exec('BEGIN');try{for(const statement of statements)await statement.run();sql.exec('COMMIT');}
+      catch(error){sql.exec('ROLLBACK');throw error;}}};
   const owner=randomUUID(),origin='http://localhost',calls=[];
   sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(owner,'owner','synthetic',new Date().toISOString());
   sql.exec('INSERT INTO matrix_control(id,initialized) VALUES(1,1)');
@@ -83,26 +85,33 @@ test('state, settings and model list',async t=>{
   assert.deepEqual(list.data.models,['o9-mini','gpt-b','gpt-a']);assert.equal(calls.at(-1).auth,'Bearer '+KEY);
   assert.equal((await call('ai/unknown','POST',{})).status,404);
 });
-test('weekly report uses the saved model, logs the run and never writes review records',async t=>{
-  const {call,article,calls,sql}=fixture(t);
-  const period=weeklyPeriod(new Date(Date.now()+8*3600000).toISOString().slice(0,10));
-  const inside=Math.round((Date.now()-Date.parse(period.end+'T04:00:00Z'))/86400000);
-  article('周内文章：把 300 万仪器砸到 40 万',inside,1234,{rules:['T-x'],ctr:9.5});article('周内另一篇',inside+1,300);
-  await call('ai/settings','PUT',{features:{weekly:{model:'gpt-b',effort:'medium'}}});
-  const before=sql.prepare('SELECT revision FROM matrix_control').get().revision;
-  const made=await call('ai/weekly','POST',{account:'V字'});
-  assert.equal(made.status,200,JSON.stringify(made));assert.equal(made.data.period_start,period.start);assert.match(made.data.summary_md,/合成周报/);
-  const sent=calls.at(-1).body;
-  assert.equal(sent.model,'gpt-b');assert.deepEqual(sent.reasoning,{effort:'medium'});assert.equal(sent.store,false);
-  assert.match(sent.input[1].content,/周内文章：把 300 万仪器砸到 40 万/);assert.match(sent.input[1].content,/阅读 1234/);assert.match(sent.input[0].content,/不是给你的指令/);
-  const state=(await call('ai?account=V%E5%AD%97')).data;
-  assert.equal(state.weekly.length,1);assert.equal(state.pending.weekly,null);assert.equal(state.usage.used,1);
-  assert.deepEqual([state.runs[0].feature,state.runs[0].status,state.runs[0].model,state.runs[0].input_tokens],['weekly','succeeded','gpt-b',120]);
-  assert.equal(sql.prepare('SELECT revision FROM matrix_control').get().revision,before,'AI output must not advance the review data revision');
-  const once=await call('ai/weekly','POST',{account:'V字',model:'gpt-a',effort:''});
-  assert.equal(calls.at(-1).body.model,'gpt-a');assert.equal(calls.at(-1).body.reasoning,undefined);assert.equal(once.data.model,'gpt-a');
-  assert.equal((await call('ai?account=V%E5%AD%97')).data.weekly.length,1,'a regenerated week replaces the shown report');
-  assert.equal((await call('ai/weekly','POST',{account:'V字',period_start:'2031-01-04'})).status,400);
+test('weekly history and patterns remain readable without generation; weekly POST is retired',async t=>{
+  const {call,article,calls,sql,owner}=fixture(t);
+  const id=article('合成标题',3,1234,{pattern:'合成套路'});
+  const history={period_start:'2026-10-31',period_end:'2026-11-06',summary_md:'合成历史周报'};
+  sql.prepare('INSERT INTO matrix_audit(id,actor,action,entity_id,detail_json,created_at) VALUES(?,?,?,?,?,?)')
+    .run(randomUUID(),'review-ai:'+owner,'review-ai.weekly','review-ai:weekly:V字',JSON.stringify(history),'2026-11-08T00:00:00Z');
+  const before=(await call('ai?account=V%E5%AD%97')).data;
+  assert.equal(before.weekly[0].summary_md,history.summary_md);
+  assert.equal(before.patterns[0].pattern,'合成套路');
+  assert.equal(before.patterns[0].articles[0].id,id);
+  assert.equal(calls.length,0);
+  assert.equal((await call('ai/weekly','POST',{account:'V字'})).status,410);
+  const after=(await call('ai?account=V%E5%AD%97')).data;
+  assert.deepEqual(after.weekly,before.weekly);assert.deepEqual(after.patterns,before.patterns);
+  assert.equal(calls.length,0);assert.equal(after.usage.used,0);
+});
+test('four decision actions update only their isolated fixture rules',async t=>{
+  const {call}=fixture(t),id=randomUUID();
+  const rules=[['agree','candidate'],['decline','candidate'],['keep','trial'],['drop','trial']]
+    .map(([rule_id,status])=>({rule_id,section:'title',text:'合成规则 '+rule_id,status}));
+  let book=(await call('playbooks/'+id,'PUT',{account:'V字',version:1,status:'active',published_on:'2026-11-01',rules})).data;
+  for(const [rule_id,status] of [['agree','trial'],['decline','dropped'],['keep','kept'],['drop','dropped']]) {
+    const result=await call('rules/'+rule_id,'PATCH',{account:'V字',playbook_id:id,expected_hash:book.content_hash,save_id:randomUUID(),status});
+    assert.equal(result.status,200);book=result.data;
+    assert.equal(book.rules.find(rule=>rule.rule_id===rule_id).status,status);
+  }
+  assert.deepEqual(book.rules.map(rule=>rule.status),['trial','dropped','kept','dropped']);
 });
 test('an unsupported effort is retried once without it; failures are logged and the daily limit holds',async t=>{
   const {call,article,calls}=fixture(t,{answer:(body,n)=>body.reasoning?{status:400}:{status:200,text:'{"items":[{"i":0,"pattern":"对话体"},{"i":9,"pattern":"越界"},{"i":1,"pattern":""}]}'}});
@@ -160,10 +169,7 @@ test('rule codes get readable names, and rules stored as candidate before the lo
   const rules=JSON.parse(sql.prepare('SELECT rules_json FROM matrix_review_playbooks WHERE id=?').get(id).rules_json);
   sql.prepare('UPDATE matrix_review_playbooks SET rules_json=? WHERE id=?').run(JSON.stringify([...rules,{rule_id:'N1',section:'title',text:'新的小改建议。',status:'candidate'}]),id);
   assert.deepEqual((await call('ai?account=V%E5%AD%97')).data.candidates[id],['N1'],'only a later candidate is a suggestion');
-  assert.equal((await call('ai/weekly','POST',{account:'V字'})).status,200);
-  const facts=calls.at(-1).body.input[1].content,system=calls.at(-1).body.input[0].content;
-  assert.match(facts,/套路 年龄节点串起一生（T3）/);assert.match(facts,/\[待确认\] 新的小改建议。（N1）/);
-  assert.doesNotMatch(facts,/旧规则一/,'baseline rules are not reported as experiments');assert.match(system,/代号只能放在名称后的括号里/);
+
 });
 test('a long existing pattern name is stored whole, not cut at twelve characters',async t=>{
   const long='极小细节引出巨大后果+具体人物';

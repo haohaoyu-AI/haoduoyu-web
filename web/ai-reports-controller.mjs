@@ -72,7 +72,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   const current = () => ticket === sequence && session === runtime.sessionEpoch && state.page === 'ai-reports';
   paintAiReports([], '', true, date, visibleMonth);
   paintAiDailyReminders(null, '', true);
-  selectDailyTab(state.aiDailyTab || 'reminders');
+  selectDailyTab(state.aiDailyTab || 'reports');
   const report = readAllAiReports(api, current).then(items => {
     if (current() && items) paintAiReports(reportsForDailyDate(items, date), '', false, date, visibleMonth);
   }).catch(error => {

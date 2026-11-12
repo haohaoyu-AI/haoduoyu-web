@@ -7,16 +7,15 @@ export function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
       </div>
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders"><div id="ai-experiments" class="content-review ai-experiments"></div>
-      <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
-      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div>
+      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
+      <div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
     </div>
   </section>`;

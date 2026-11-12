@@ -87,24 +87,23 @@ export function renderExperiments(data, vm, {compact = false} = {}) {
     ${group('进行中的试验', `每条攒够 ${running[0]?.live.needed ?? 6} 篇有数据的文章再下结论；阅读取发布后约 24 小时。`, running, '没有进行中的试验。')}</section>`;
 }
 function weeklySection(vm) {
-  const ai = vm.ai, gate = unavailable(ai);
-  if (gate) return `<section class="review-ai-block"><h2>周报</h2>${gate}</section>`;
-  const reports = ai.data.weekly || [], latest = reports[0], due = ai.data.pending?.weekly;
+  const ai = vm.ai;
+  if (!ai || ai.status === 'loading') return '<p class="review-note">正在读取历史周报…</p>';
+  if (ai.status === 'error') return `<p class="review-ai-message is-error" role="alert">${e(ai.error || '历史周报读取失败')} ${button('重试', 'reload')}</p>`;
+  const reports = ai.data?.weekly || [];
   const body = report => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || '')}</div>
     <p class="review-note">${e(report.period_start)} 至 ${e(report.period_end)} · ${e(report.model || '')}${report.effort
       ? ' · 强度' + e(AI_EFFORT_LABELS.find(([id]) => id === report.effort)?.[1] || '') : ''}</p>`;
-  const older = reports.slice(1).map(report => `<details
-    class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body(report)}</details>`).join('');
-  const hint = due ? `${due.start} 至 ${due.end} 的周报还没生成。` : latest ? '本期已生成，可以重新生成。' : '';
-  return `<section class="review-ai-block" aria-label="周报"><div class="review-ai-head"><h2>周报</h2><span class="review-note">${e(hint)}</span></div>
-    ${runControls(ai, 'weekly', latest && !due ? '重新生成' : '立即生成')}${notice(ai, 'weekly')}
-    ${latest ? body(latest) : '<p class="review-note">还没有周报。每周日生成上周六到本周五的总结，也可以现在点“立即生成”。</p>'}${older}</section>`;
+  return `<details class="review-ai-block review-weekly-old"><summary>历史周报</summary>
+    <p class="review-note">独立周报已停止生成，日常汇报与决策请在这里查看。</p>${reports.length ? reports.map(report => `<details
+      class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body(report)}</details>`).join('') :
+      '<p class="review-note">暂无历史周报。</p>'}</details>`;
 }
 function patternSection(data, vm) {
   const ai = vm.ai, gate = unavailable(ai), rows = enrichArticles(data, {account: vm.account});
   const labels = ai?.data?.titles || {}, stats = patternStats(rows, labels), pending = ai?.data?.pending?.titles || 0, names = namesOf(data);
-  const article = item => `<li><button type="button" class="review-title-button" data-review-article="${e(item.id)}"
-    aria-haspopup="dialog">${e(item.title || '未命名文章')}</button>
+  const article = item => `<li><a class="review-title-button" href="?${e(new URLSearchParams({page:'review', account:vm.account,
+    review_section:'articles', review_article:item.id}))}">${e(item.title || '未命名文章')}</a>
     <span class="review-note">阅读 ${e(reads(item.reads))}${item.verdict ? ' · ' + e(item.verdict) : ''}</span></li>`;
   // A pattern name alone is abstract, so every pattern leads with its best-read real title and opens to all of them.
   const block = item => { const best = item.articles[0], few = item.count < 3;
@@ -122,8 +121,8 @@ function patternSection(data, vm) {
     <span class="review-note">${pending ? `${pending} 篇还没归类` : '全部已归类'}</span></div>
     ${gate || (pending ? runControls(ai, 'titles', `归类 ${Math.min(pending, 60)} 篇`) : '')}${notice(ai, 'titles')}${table}</section>`;
 }
-export function renderWeeklyPage(data, vm) {
-  return `<div class="review-weekly-page">${renderExperiments(data, vm)}${weeklySection(vm)}${patternSection(data, vm)}</div>`;
+export function renderReportReview(data, vm) {
+  return `<div class="review-weekly-page">${renderExperiments(data, vm)}${patternSection(data, vm)}${weeklySection(vm)}</div>`;
 }
 /** Shown above the benchmark library: what the AI made of each headline. */
 export function benchmarkAiBar(vm) {
@@ -172,7 +171,7 @@ export function renderAiSettings(ai) {
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id,label]) => `<option value="${id}"${id === value ? ' selected' : ''}>${label}</option>`).join('')}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).map(([feature,label]) => `<tr><th scope="row">${label}</th>
+  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature !== 'weekly').map(([feature,label]) => `<tr><th scope="row">${label}</th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(feature,
       draft.features[feature].effort)}</td></tr>`).join('');
   const status = {succeeded:'成功', failed:'失败', running:'进行中'};

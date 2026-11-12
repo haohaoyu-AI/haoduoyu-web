@@ -1,4 +1,4 @@
-import {autoGenerateWeekly, loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
+import {loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
 import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
@@ -184,7 +184,6 @@ export function paintContentReviewPage() {
   const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : '';
   node.innerHTML = renderContentReviewContent(data,vm);
   if (focused) node.querySelector(`[data-ai-once="${focused}"]`)?.focus({preventScroll:true});
-  if (!vm.loading && !vm.error && vm.secondary === 'weekly') autoGenerateWeekly();
   syncReviewFullscreen();
   const dialog = node.querySelector('[role="dialog"]');
   for (const child of node.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
