@@ -93,12 +93,12 @@ test('inline common templates sit directly below the plan input and use the actu
 
 test('the daily page loads common templates immediately and waits for the day before permitting a single click add',async()=>{
   const c=client();
-  c.run(`paintTodos=()=>{};let reads=[],writes=[],finishTemplates,finishDay,finishAdd;
+  c.run(`paintTodos=()=>{};let testApiReads=[],writes=[],finishTemplates,finishDay,finishAdd;
     api=(path,options={})=>{
       if(options.method){writes.push(options.body);return new Promise(resolve=>finishAdd=resolve)}
-      reads.push(path);return new Promise(resolve=>{if(path==='/todo-templates')finishTemplates=resolve;else finishDay=resolve})};
+      testApiReads.push(path);return new Promise(resolve=>{if(path==='/todo-templates')finishTemplates=resolve;else finishDay=resolve})};
     let reading=loadTodos()`);
-  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')),['/todo-templates','/todos?date=2026-10-23']);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')),['/todo-templates','/todos?date=2026-10-23']);
   c.run("finishTemplates({items:[{id:'common',text:'常用事项'}]})");
   await Promise.resolve();
   await c.run("useTodoTemplate('common')");
@@ -589,25 +589,25 @@ test('a template conflict cannot update another edit target or a new session aft
 
 test('daily plans and content review render independently', async () => {
   const c = client();
-  c.run(`state.page='todos';paintTodos=()=>{};let reads=[];
-    api=async path=>{reads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
+  c.run(`state.page='todos';paintTodos=()=>{};let testApiReads=[];
+    api=async path=>{testApiReads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
-  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todo-templates','/todos?date=2026-10-23']);
-  c.run(`state.page='review';reads=[];
-    api=async path=>{reads.push(path);return {items:[]}}`);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')), ['/todo-templates','/todos?date=2026-10-23']);
+  c.run(`state.page='review';testApiReads=[];
+    api=async path=>{testApiReads.push(path);return {items:[]}}`);
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="content-review"|内容复盘/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /todo-form|daily-todos/);
-  assert.equal(c.run("reads.some(path=>path.startsWith('/todos'))"), false);
+  assert.equal(c.run("testApiReads.some(path=>path.startsWith('/todos'))"), false);
 });
 
 test('midnight timer and returning-tab events switch today automatically without moving yesterday items', async () => {
   for (const trigger of ['timer', 'focus', 'visibilitychange']) {
     const c = client({now: '2026-10-23T15:59:59Z'});
     c.put('yesterday', item('yesterday', '2026-10-23'));
-    c.run(`paintTodos=()=>{};todoDay().items=[yesterday];let reads=[];
-      api=async path=>{reads.push(path);return {date:'2026-10-24',today:'2026-10-24',items:[]}}`);
+    c.run(`paintTodos=()=>{};todoDay().items=[yesterday];let testApiReads=[];
+      api=async path=>{testApiReads.push(path);return {date:'2026-10-24',today:'2026-10-24',items:[]}}`);
     c.setNow('2026-10-23T16:00:01Z');
     if (trigger === 'timer') c.timers.values().next().value();
     else if (trigger === 'focus') c.windowEvents.get('focus')();
@@ -615,7 +615,7 @@ test('midnight timer and returning-tab events switch today automatically without
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(c.run('todoDate()'), '2026-10-24', trigger);
-    assert.equal(c.run("reads.find(path=>path.startsWith('/todos?'))"), '/todos?date=2026-10-24', trigger);
+    assert.equal(c.run("testApiReads.find(path=>path.startsWith('/todos?'))"), '/todos?date=2026-10-24', trigger);
     assert.equal(c.run('todoDay().items.length'), 0, trigger);
     assert.equal(c.run("todoDay('2026-10-23').items[0].id"), 'yesterday', trigger);
   }

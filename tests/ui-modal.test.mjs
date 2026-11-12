@@ -79,8 +79,8 @@ test('review modal: daily account selection and its change handler filter actual
 
 test('a direct review target absent from a cached index is refreshed once and never defaults to another article',async()=>{
   const app=await client([articles[0]]);await app.run("reviewModal('article-a')");app.run('closeModal()');
-  app.run("let reads=0;api=async()=>{reads++;return [{id:'article-a',account_id:'account-a',title:'Synthetic old'},{id:'external-new',account_id:'account-a',title:'Synthetic external new'}]}");
-  await app.run("reviewModal('external-new')");assert.equal(app.run('reads'),1);
+  app.run("let testApiReads=0;api=async()=>{testApiReads++;return [{id:'article-a',account_id:'account-a',title:'Synthetic old'},{id:'external-new',account_id:'account-a',title:'Synthetic external new'}]}");
+  await app.run("reviewModal('external-new')");assert.equal(app.run('testApiReads'),1);
   assert.match(app.nodes.get('#overlay').innerHTML,/value="external-new" selected/);
   app.run('closeModal();api=async()=>[]');
   await assert.rejects(app.run("reviewModal('missing-target')"),/文章不存在或无权访问/);

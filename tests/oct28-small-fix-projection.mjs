@@ -1,3 +1,4 @@
+import {projectCockpitRestore} from './cockpit-trends-projection.mjs';
 // Independent, closed inverse for the two reviewed UI refinements,
 // plus the QuietSync layer that maps the restored live/site-five/night
 // product bytes back to the small-fix product before the older inverses run.
@@ -121,6 +122,7 @@ export function projectSmallFix(file,source) {
 /** Invert restored live / site-five / night-review product bytes to the small-fix product.
  *  Unrecognized digests pass through so older projection layers can keep using historical intermediates. */
 export function projectQuietSync(file,source) {
+  source=projectCockpitRestore(file,source);
   if(!Object.hasOwn(quietSyncHashes,file))return source;
   const old=quietBefore(file);
   if(source===old)return source;
