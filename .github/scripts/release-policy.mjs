@@ -134,7 +134,15 @@ export const unifiedAiReportsRelease=Object.freeze({
   baseline:'7f460fad-6aad-4550-bf32-3f8821dc32e4',
   bytes:3055215,sha256:'2344f363b04e83de2072b7c3ebca6bb61e628a4873b9421c0f02aa1a9697d960',
   label:'production-unified-ai-reports-20261112'});
-const acceptedRelease=commit=>commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
+// Event wiring only, on the exact unified AI reports version confirmed in production.
+export const aiReportModelOptionsRelease=Object.freeze({
+  commit:'b6f8af9dfeac65f34e40388c356a850a226a2a51',
+  tree:'dc9a71a0789724359c124fa46b767675186559a4',
+  baseline:'25c4c7ae-6e9e-4646-9896-74d5b47cfa30',
+  bytes:3055386,sha256:'f3cd419d69aa87a8166f6ffe0f3917efefd73b0eaa3cc1ebc9803bba776bbb49',
+  label:'production-ai-report-model-options-20261112'});
+const acceptedRelease=commit=>commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
+  commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
   commit===patternExamplesRelease.commit?patternExamplesRelease:
   commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
   commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:

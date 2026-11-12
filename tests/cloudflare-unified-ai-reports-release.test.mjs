@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {unifiedAiReportsRelease as release,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
+import {aiReportModelOptionsRelease,unifiedAiReportsRelease as release,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
 
 test('unified AI reports pins the approved source, artifact and current production baseline',async()=>{
   const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
@@ -21,4 +21,18 @@ test('unified AI reports pins the approved source, artifact and current producti
   assert.ok(yaml.includes('          - '+release.commit+'\n'));
   assert.match(yaml,/group: haoduoyu-cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
   assert.doesNotMatch(yaml,/contents: write|wrangler secret|migrations apply/);
+});
+
+test('model selector fix pins exact source and its independently confirmed production baseline',async()=>{
+  const fix=aiReportModelOptionsRelease;
+  assert.equal(fix.commit,'b6f8af9dfeac65f34e40388c356a850a226a2a51');
+  assert.equal(fix.tree,'dc9a71a0789724359c124fa46b767675186559a4');
+  assert.equal(fix.bytes,3055386);
+  assert.equal(fix.sha256,'f3cd419d69aa87a8166f6ffe0f3917efefd73b0eaa3cc1ebc9803bba776bbb49');
+  const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
+    TARGET_COMMIT:fix.commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:'25c4c7ae-6e9e-4646-9896-74d5b47cfa30'};
+  assert.equal(validateRequest(env),fix);
+  assert.throws(()=>validateRequest({...env,EXPECTED_CURRENT_VERSION:release.baseline}));
+  assert.equal(await verifyEligibility(fix.commit,{request:async()=>Response.json({sha:fix.commit,tree:{sha:fix.tree}})}),fix);
+  assert.throws(()=>verifyWorker(Buffer.alloc(fix.bytes),fix.commit));
 });
