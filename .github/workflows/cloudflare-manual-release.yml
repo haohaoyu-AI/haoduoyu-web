@@ -10,6 +10,7 @@ on:
         options:
           # Exact source and Worker bytes verified before registration.
           - 3f4789dbe1994508ed89d15e472613e91b94fb87
+          - ae90dc9148ce7d579714ad245f26d6829f1a556b
           - 58ac4a201e5a3a0e9107d077c3642997b09ece07
           - d715770a7753ea70931b330ce297fd566af6f0dd
           - bc8449887e6b88f11b05ccbed13613f2f34e9b57

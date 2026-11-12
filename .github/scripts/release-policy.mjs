@@ -86,7 +86,18 @@ export const nightReviewTwelveRelease=Object.freeze({
   baseline:'fd2185c8-4114-45a4-bd32-f1e71119dfbd',
   bytes:2943560,sha256:'2a98bb9300978b6219756009aa44a1ec3c4af323b157649fc2ec0417340a3462',
   label:'production-night-review-twelve-20261112'});
-const acceptedRelease=commit=>commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
+// Exact chart-restoration source, independently rebuilt without production writes.
+// Expected v102 baseline comes from successful run 43113806310/job 130836462978,
+// DEPLOYMENT_CONFIRMED at 2026-11-11T22:41:23.7569521Z; not a live production read.
+// The unchanged publisher must recheck the actual active/latest version before writes.
+export const chartRestoreRelease=Object.freeze({
+  commit:'ae90dc9148ce7d579714ad245f26d6829f1a556b',
+  tree:'b498bbd131b1e59fd03fcc34786009b8a1169312',
+  baseline:'b1a7f54e-41cc-416e-b027-c54cdcd41621',
+  bytes:2966551,sha256:'f340427433c45bcb0a0dcd0ee31bccc434524c2149e152c8e59b3cf8c034799a',
+  label:'production-dashboard-chart-restore-20261112'});
+const acceptedRelease=commit=>commit===chartRestoreRelease.commit?chartRestoreRelease:
+  commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
   commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
   commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
   commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
