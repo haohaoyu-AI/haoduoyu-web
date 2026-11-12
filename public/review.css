@@ -588,6 +588,19 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-pattern-table th:first-child { text-align:left; }
 .review-pattern-table thead th { color:var(--color-text-secondary); font-size:12px; font-weight:var(--font-weight-semibold); }
 .review-pattern-tag { display:inline-block; margin-left:8px; padding:0 8px; border-radius:999px; background:var(--color-segmented); color:var(--color-text-secondary); font-size:12px; line-height:20px; white-space:nowrap; vertical-align:middle; }
+.review-pattern-list { display:grid; gap:8px; }
+.review-pattern-item { padding:12px 14px; border-radius:12px; background:var(--color-white-a-74); min-width:0; }
+.review-pattern-item > summary { display:grid; gap:4px; cursor:pointer; list-style:none; }
+.review-pattern-item > summary::-webkit-details-marker { display:none; }
+.review-pattern-item > summary::before { display:none; }
+.review-pattern-name { font-size:15px; font-weight:var(--font-weight-semibold); overflow-wrap:anywhere; }
+.review-pattern-name::before { content:"▸"; display:inline-block; width:1.1em; color:var(--color-text-muted); }
+.review-pattern-item[open] .review-pattern-name::before { content:"▾"; }
+.review-pattern-figures { display:flex; flex-wrap:wrap; gap:2px 16px; padding-left:1.1em; font-size:13px; color:var(--color-text-secondary); font-variant-numeric:tabular-nums; }
+.review-pattern-figures b { color:var(--color-text); font-weight:var(--font-weight-semibold); }
+.review-pattern-example { padding-left:1.1em; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.review-pattern-articles { display:grid; gap:8px; margin:10px 0 0; padding:10px 0 0 1.1em; border-top:1px solid var(--color-divider); list-style:none; }
+.review-pattern-articles li { display:grid; gap:2px; min-width:0; }
 .review-pattern-code { margin-left:6px; color:var(--color-text-muted); font-weight:400; font-size:12px; }
 .review-pattern-table th:first-child { white-space:normal; min-width:180px; }
 .review-pattern-tag.is-ai { border:1px dashed var(--color-divider); background:transparent; }

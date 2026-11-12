@@ -64,7 +64,7 @@ test('experiment evidence compares tagged articles with untagged ones from the s
   assert.deepEqual(experiments([defaulted],rows,{explicit:{b1:['r9']}}).map(rule=>rule.rule_id),['r1','r9']);
   assert.deepEqual(experiments([defaulted],rows,{explicit:{}}).map(rule=>rule.rule_id),['r1'],'until the explicit list arrives nothing is offered for confirmation');
   assert.deepEqual(patternStats([{id:'a',reads_24h:100,ctr_24h:5,verdict:'爆',title_pattern:null},{id:'b',reads_24h:300,ctr_24h:7,title_pattern:'对话体'},{id:'c',reads_24h:null}],{a:'对话体',c:'对话体'}),
-    [{pattern:'对话体',count:2,reads:200,ctr:6,hits:1}]);
+    [{pattern:'对话体',code:'',count:2,reads:200,ctr:6,hits:1,articles:[{id:'b',title:'',reads:300,verdict:''},{id:'a',title:'',reads:100,verdict:'爆'}]}]);
 });
 test('state, settings and model list',async t=>{
   const {call,article,calls}=fixture(t);article('标题一',3,500);article('标题二',2,800,{pattern:'对话体'});
@@ -171,4 +171,15 @@ test('a long existing pattern name is stored whole, not cut at twelve characters
   const id=article('粘贴收款码卡了 0.2 秒，程序员顺手揪出内鬼',3,6746);
   assert.equal((await call('ai/titles','POST',{account:'V字'})).status,200);
   assert.equal((await call('ai?account=V%E5%AD%97')).data.titles[id],long);
+});
+test('spellings of one pattern merge, and each pattern lists its articles most-read first',async()=>{
+  const {patternStats:stats,splitPattern}=await import('../shared/review-experiments.mjs');
+  assert.deepEqual(splitPattern('T5 人物逆袭体'),{code:'T5',name:'人物逆袭体'});assert.deepEqual(splitPattern('揭底体'),{code:'',name:'揭底体'});
+  assert.deepEqual(splitPattern('T11'),{code:'',name:'T11'},'a bare code is left as written');
+  const row=(id,pattern,reads,title)=>({id,title,title_pattern:pattern,reads_24h:reads,ctr_24h:8,verdict:'中'});
+  const result=stats([row('a','人物逆袭体',100,'甲'),row('b','T5 人物逆袭体',900,'乙'),row('c','极小细节引出巨大后果+具',50,'丙'),
+    row('d','极小细节引出巨大后果+具体人物',70,'丁'),row('e','揭底体',10,'戊'),row('f','揭底',20,'己')]);
+  assert.deepEqual(result.map(item=>[item.pattern,item.code,item.count]),[['人物逆袭体','T5',2],['极小细节引出巨大后果+具体人物','',2],['揭底',"",1],['揭底体','',1]]);
+  assert.deepEqual(result[0].articles.map(item=>item.title),['乙','甲']);
+  assert.equal(result.some(item=>item.pattern==='揭底'),true,'short names are never merged by prefix');
 });

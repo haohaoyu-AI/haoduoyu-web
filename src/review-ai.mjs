@@ -176,7 +176,7 @@ function weeklyFacts(data,labels,account,period,books,proposed) {
   const line=row=>`- ${day(row.published_at)}｜${row.verdict||'未判定'}｜阅读 ${reads(row.reads_24h)}｜点击率 ${rate(row.ctr_24h)}｜套路 ${named(row.title_pattern||labels[row.id]||'未归类')}｜${short(row.title,80)}`;
   const stat=(name,item)=>`${name}：发文 ${item.count} 篇，有数据 ${item.measured} 篇，爆/中/扑 ${item.hits}/${item.middles}/${item.flops}，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}`;
   const patterns=patternStats(rows.filter(row=>day(row.published_at)>=shift(period.end,-29)&&day(row.published_at)<=period.end),labels).slice(0,12)
-    .map(item=>`- ${named(item.pattern)}：${item.count} 篇，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}，爆 ${item.hits} 篇`);
+    .map(item=>`- ${named(item.pattern)}（例：${short(item.articles[0]?.title,40)}）：${item.count} 篇，阅读中位数 ${reads(item.reads)}，点击率中位数 ${rate(item.ctr)}，爆 ${item.hits} 篇`);
   const rules=trial.map(rule=>
     `- [${RULE_STATUS_LABELS[rule.status]}] ${short(rule.text,160)}（${rule.rule_id}）｜用了这条的 ${rule.live.n_with} 篇，阅读中位数 ${reads(rule.live.reads_with)}，点击率 ${rate(rule.live.ctr_with)}；同期没用的 ${rule.live.n_without} 篇，阅读中位数 ${reads(rule.live.reads_without)}，点击率 ${rate(rule.live.ctr_without)}${rule.live.ready?'':'（样本不足 '+rule.live.needed+' 篇）'}`);
   const text=[`账号：${account}`,`本期：${period.start} 至 ${period.end}（北京时间，按发布日期；阅读取发布后约 24 小时）`,stat('本期',now),stat('上期',before),

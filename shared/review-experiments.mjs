@@ -31,18 +31,32 @@ export function experiments(playbooks = [], rows = [], {explicit = null} = {}) {
   }
   return rules;
 }
-/** Reads and click rate by title pattern; an article's own pattern wins over the AI label. */
+/** "T5 人物逆袭体" and "人物逆袭体" are one pattern: the leading code is kept apart from the name. */
+export function splitPattern(label) {
+  const text = String(label ?? '').trim(), match = /^([A-Za-z]{1,3}\d{1,3})[\s·:：.、-]+(\S[\s\S]*)$/.exec(text);
+  return match ? {code: match[1], name: match[2].trim()} : {code: '', name: text};
+}
+/** Reads and click rate by title pattern; an article's own pattern wins over the AI label.
+ * Spellings of one pattern are merged: a leading code is ignored, and a name cut short joins the full name it begins.
+ * Each group lists its articles, most-read first, so a pattern can be shown by example instead of by name alone. */
 export function patternStats(rows = [], labels = {}) {
   const groups = new Map();
   for (const row of rows) {
-    const pattern = row.title_pattern || labels[row.id];
-    if (!pattern || !measured(row)) continue;
-    if (!groups.has(pattern)) groups.set(pattern, []);
-    groups.get(pattern).push(row);
+    const label = row.title_pattern || labels[row.id];
+    if (!label || !measured(row)) continue;
+    const {code, name} = splitPattern(label);
+    if (!groups.has(name)) groups.set(name, {code: '', items: []});
+    const group = groups.get(name); group.items.push(row); group.code ||= code;
   }
-  return [...groups.entries()].map(([pattern, items]) => ({pattern, count: items.length, reads: mid(items.map(row => row.reads_24h)),
-    ctr: mid(items.map(row => row.ctr_24h)), hits: items.filter(row => row.verdict === '爆').length}))
-    .sort((a, b) => b.count - a.count || (b.reads ?? 0) - (a.reads ?? 0));
+  for (const [name, group] of [...groups]) {
+    const full = name.length >= 8 && [...groups.keys()].filter(other => other !== name && other.startsWith(name));
+    if (!full || full.length !== 1) continue;
+    const target = groups.get(full[0]); target.items.push(...group.items); target.code ||= group.code; groups.delete(name);
+  }
+  return [...groups.entries()].map(([pattern, {code, items}]) => ({pattern, code, count: items.length, reads: mid(items.map(row => row.reads_24h)),
+    ctr: mid(items.map(row => row.ctr_24h)), hits: items.filter(row => row.verdict === '爆').length,
+    articles: [...items].sort((x, y) => y.reads_24h - x.reads_24h).map(row => ({id: row.id, title: row.title || '', reads: row.reads_24h, verdict: row.verdict || ''}))}))
+    .sort((x, y) => y.count - x.count || (y.reads ?? 0) - (x.reads ?? 0));
 }
 /** The latest Saturday-to-Friday week that ended at least two days before `today` (Beijing date): a new one each Sunday, with every article a full day old. */
 export function weeklyPeriod(today) {

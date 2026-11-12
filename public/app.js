@@ -14870,21 +14870,38 @@ function experiments(playbooks = [], rows = [], { explicit = null } = {}) {
   }
   return rules2;
 }
+function splitPattern(label3) {
+  const text = String(label3 ?? "").trim(), match = /^([A-Za-z]{1,3}\d{1,3})[\s·:：.、-]+(\S[\s\S]*)$/.exec(text);
+  return match ? { code: match[1], name: match[2].trim() } : { code: "", name: text };
+}
 function patternStats(rows = [], labels4 = {}) {
   const groups = /* @__PURE__ */ new Map();
   for (const row of rows) {
-    const pattern2 = row.title_pattern || labels4[row.id];
-    if (!pattern2 || !measured(row)) continue;
-    if (!groups.has(pattern2)) groups.set(pattern2, []);
-    groups.get(pattern2).push(row);
+    const label3 = row.title_pattern || labels4[row.id];
+    if (!label3 || !measured(row)) continue;
+    const { code, name } = splitPattern(label3);
+    if (!groups.has(name)) groups.set(name, { code: "", items: [] });
+    const group = groups.get(name);
+    group.items.push(row);
+    group.code ||= code;
   }
-  return [...groups.entries()].map(([pattern2, items]) => ({
+  for (const [name, group] of [...groups]) {
+    const full = name.length >= 8 && [...groups.keys()].filter((other) => other !== name && other.startsWith(name));
+    if (!full || full.length !== 1) continue;
+    const target = groups.get(full[0]);
+    target.items.push(...group.items);
+    target.code ||= group.code;
+    groups.delete(name);
+  }
+  return [...groups.entries()].map(([pattern2, { code, items }]) => ({
     pattern: pattern2,
+    code,
     count: items.length,
     reads: mid(items.map((row) => row.reads_24h)),
     ctr: mid(items.map((row) => row.ctr_24h)),
-    hits: items.filter((row) => row.verdict === "爆").length
-  })).sort((a, b) => b.count - a.count || (b.reads ?? 0) - (a.reads ?? 0));
+    hits: items.filter((row) => row.verdict === "爆").length,
+    articles: [...items].sort((x, y) => y.reads_24h - x.reads_24h).map((row) => ({ id: row.id, title: row.title || "", reads: row.reads_24h, verdict: row.verdict || "" }))
+  })).sort((x, y) => y.count - x.count || (y.reads ?? 0) - (x.reads ?? 0));
 }
 function weeklyPeriod(today2) {
   const at = /* @__PURE__ */ new Date(today2 + "T00:00:00Z"), weekday = at.getUTCDay();
@@ -15100,11 +15117,20 @@ function weeklySection(vm3) {
 function patternSection(data3, vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), rows = enrichArticles(data3, { account: vm3.account });
   const labels4 = ai2?.data?.titles || {}, stats = patternStats(rows, labels4), pending = ai2?.data?.pending?.titles || 0, names = namesOf(data3);
-  const table2 = stats.length ? `<div class="review-pattern-wrap"><table class="review-pattern-table"><caption class="review-sr-only">各标题套路的表现</caption>
-    <thead><tr><th>标题套路</th><th>篇数</th><th>阅读中位数</th><th>点击率中位数</th><th>爆款</th></tr></thead><tbody>${stats.map((item) => `<tr><th scope="row">${patternHtml(item.pattern, names)}</th><td>${item.count}</td>
-      <td>${e(reads(item.reads))}</td><td>${e(rate2(item.ctr))}</td>
-      <td>${item.hits}</td></tr>`).join("")}
-    </tbody></table></div><p class="review-note">只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>` : '<p class="review-note">还没有归类好的标题。</p>';
+  const article = (item) => `<li><button type="button" class="review-title-button" data-review-article="${e(item.id)}"
+    aria-haspopup="dialog">${e(item.title || "未命名文章")}</button>
+    <span class="review-note">阅读 ${e(reads(item.reads))}${item.verdict ? " · " + e(item.verdict) : ""}</span></li>`;
+  const block = (item) => {
+    const best = item.articles[0], few = item.count < 3;
+    const code = item.code && !names.has(item.pattern);
+    return `<details class="review-pattern-item"><summary><span class="review-pattern-name">${patternHtml(item.pattern, names)}${code ? ` <small class="review-pattern-code">${e(item.code)}</small>` : ""}${few ? ' <small class="review-pattern-code">样本少</small>' : ""}</span>
+      <span class="review-pattern-figures"><span><b>${item.count}</b> 篇</span><span>阅读中位数 <b>${e(reads(item.reads))}</b></span>
+      <span>点击率 <b>${e(rate2(item.ctr))}</b></span><span>爆款 <b>${item.hits}</b></span></span>
+      <span class="review-pattern-example">例：${e(best?.title || "未命名文章")}<span class="review-note">（阅读 ${e(reads(best?.reads))}）</span></span></summary>
+      <ul class="review-pattern-articles">${item.articles.map(article).join("")}</ul></details>`;
+  };
+  const table2 = stats.length ? `<div class="review-pattern-list">${stats.map(block).join("")}</div>
+    <p class="review-note">每个套路下面的“例”是其中阅读最高的一篇，点开可以看全部文章。只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>` : '<p class="review-note">还没有归类好的标题。</p>';
   return `<section class="review-ai-block" aria-label="标题套路"><div class="review-ai-head"><h2>标题套路</h2>
     <span class="review-note">${pending ? `${pending} 篇还没归类` : "全部已归类"}</span></div>
     ${gate || (pending ? runControls(ai2, "titles", `归类 ${Math.min(pending, 60)} 篇`) : "")}${notice(ai2, "titles")}${table2}</section>`;

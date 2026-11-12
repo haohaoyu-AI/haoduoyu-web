@@ -103,12 +103,21 @@ function weeklySection(vm) {
 function patternSection(data, vm) {
   const ai = vm.ai, gate = unavailable(ai), rows = enrichArticles(data, {account: vm.account});
   const labels = ai?.data?.titles || {}, stats = patternStats(rows, labels), pending = ai?.data?.pending?.titles || 0, names = namesOf(data);
-  const table = stats.length ? `<div class="review-pattern-wrap"><table class="review-pattern-table"><caption class="review-sr-only">各标题套路的表现</caption>
-    <thead><tr><th>标题套路</th><th>篇数</th><th>阅读中位数</th><th>点击率中位数</th><th>爆款</th></tr></thead><tbody>${stats.map(item =>
-      `<tr><th scope="row">${patternHtml(item.pattern, names)}</th><td>${item.count}</td>
-      <td>${e(reads(item.reads))}</td><td>${e(rate(item.ctr))}</td>
-      <td>${item.hits}</td></tr>`).join('')}
-    </tbody></table></div><p class="review-note">只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>` : '<p class="review-note">还没有归类好的标题。</p>';
+  const article = item => `<li><button type="button" class="review-title-button" data-review-article="${e(item.id)}"
+    aria-haspopup="dialog">${e(item.title || '未命名文章')}</button>
+    <span class="review-note">阅读 ${e(reads(item.reads))}${item.verdict ? ' · ' + e(item.verdict) : ''}</span></li>`;
+  // A pattern name alone is abstract, so every pattern leads with its best-read real title and opens to all of them.
+  const block = item => { const best = item.articles[0], few = item.count < 3;
+    const code = item.code && !names.has(item.pattern);
+    return `<details class="review-pattern-item"><summary><span class="review-pattern-name">${patternHtml(item.pattern, names)}${code
+      ? ` <small class="review-pattern-code">${e(item.code)}</small>` : ''}${few ? ' <small class="review-pattern-code">样本少</small>' : ''}</span>
+      <span class="review-pattern-figures"><span><b>${item.count}</b> 篇</span><span>阅读中位数 <b>${e(reads(item.reads))}</b></span>
+      <span>点击率 <b>${e(rate(item.ctr))}</b></span><span>爆款 <b>${item.hits}</b></span></span>
+      <span class="review-pattern-example">例：${e(best?.title || '未命名文章')}<span class="review-note">（阅读 ${e(reads(best?.reads))}）</span></span></summary>
+      <ul class="review-pattern-articles">${item.articles.map(article).join('')}</ul></details>`; };
+  const table = stats.length ? `<div class="review-pattern-list">${stats.map(block).join('')}</div>
+    <p class="review-note">每个套路下面的“例”是其中阅读最高的一篇，点开可以看全部文章。只统计有 24 小时数据的文章；少于 3 篇的套路仅供参考。</p>`
+    : '<p class="review-note">还没有归类好的标题。</p>';
   return `<section class="review-ai-block" aria-label="标题套路"><div class="review-ai-head"><h2>标题套路</h2>
     <span class="review-note">${pending ? `${pending} 篇还没归类` : '全部已归类'}</span></div>
     ${gate || (pending ? runControls(ai, 'titles', `归类 ${Math.min(pending, 60)} 篇`) : '')}${notice(ai, 'titles')}${table}</section>`;
