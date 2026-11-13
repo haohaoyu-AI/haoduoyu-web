@@ -113,41 +113,6 @@ test('four decision actions update only their isolated fixture rules',async t=>{
   }
   assert.deepEqual(book.rules.map(rule=>rule.status),['trial','dropped','kept','dropped']);
 });
-test('an unsupported effort is retried once without it; failures are logged and the daily limit holds',async t=>{
-  const {call,article,calls}=fixture(t,{answer:(body,n)=>body.reasoning?{status:400}:{status:200,text:'{"items":[{"i":0,"pattern":"对话体"},{"i":9,"pattern":"越界"},{"i":1,"pattern":""}]}'}});
-  const a=article('美国：不许卖！中国：问过我了吗？',1,500);article('较早的标题',2,400);
-  await call('ai/settings','PUT',{daily_limit:2,features:{titles:{model:'gpt-a',effort:'low'}}});
-  const done=await call('ai/titles','POST',{account:'V字'});
-  assert.equal(done.status,200,JSON.stringify(done));assert.deepEqual(done.data,{labelled:1,remaining:1});
-  assert.equal(calls.filter(item=>item.url.endsWith('/responses')).length,2);
-  const state=(await call('ai?account=V%E5%AD%97')).data;
-  assert.deepEqual(state.titles,{[a]:'对话体'});assert.equal(state.runs[0].effort_ignored,true);assert.equal(state.pending.titles,1);
-  await call('ai/titles','POST',{account:'V字'});
-  assert.deepEqual((await call('ai/titles','POST',{account:'V字'})).data,{labelled:0,remaining:0},'nothing left to label costs no call');
-  article('第三个标题',0,null);
-  const blocked=await call('ai/titles','POST',{account:'V字'});
-  assert.equal(blocked.status,429);assert.equal(blocked.error.code,'REVIEW_AI_LIMIT');
-});
-test('provider failures surface plainly and are not saved',async t=>{
-  const {call,article}=fixture(t,{answer:()=>({status:401})});article('标题',2,500);
-  const failed=await call('ai/titles','POST',{account:'V字'});
-  assert.equal(failed.status,502);assert.match(failed.error.message,/密钥/);
-  const state=(await call('ai?account=V%E5%AD%97')).data;
-  assert.deepEqual(state.titles,{});assert.equal(state.runs[0].status,'failed');assert.equal(state.usage.used,1,'a failed call still counts toward the limit');
-});
-test('benchmark breakdown reads titles only and stores notes beside, not in, the library',async t=>{
-  const {call,sql,owner}=fixture(t,{answer:()=>({status:200,text:'说明文字 {"items":[{"i":0,"pattern":"揭底体","hook":"全球蛋糕分完","topic":"中西对比","template":"怪不得…：…"}]} 结束'})});
-  const acc=randomUUID(),art=randomUUID(),now=new Date().toISOString();
-  sql.prepare('INSERT INTO matrix_review_benchmark_accounts(user_id,id,account,platform,name,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(owner,acc,'V字','toutiao','合成对标',now,now);
-  sql.prepare('INSERT INTO matrix_review_benchmark_articles(user_id,id,benchmark_account_id,title,url,reads,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(owner,art,acc,'怪不得西方黑脸','https://example.com/a',200000,now,now);
-  assert.equal((await call('ai?account=V%E5%AD%97')).data.pending.benchmarks,1);
-  const done=await call('ai/benchmarks','POST',{account:'V字'});
-  assert.deepEqual(done.data,{done:1,remaining:0});
-  const state=(await call('ai?account=V%E5%AD%97')).data;
-  assert.deepEqual(state.benchmarks[art],{pattern:'揭底体',hook:'全球蛋糕分完',topic:'中西对比',template:'怪不得…：…'});
-  assert.equal(sql.prepare('SELECT title_pattern FROM matrix_review_benchmark_articles WHERE id=?').get(art).title_pattern,null);
-  assert.deepEqual((await call('ai/benchmarks','POST',{account:'V字'})).data,{done:0,remaining:0});
-});
 test('rule codes get readable names, and rules stored as candidate before the loop began are not suggestions',async t=>{
   const {ruleNames,namedPattern,ruleShortName}=await import('../shared/review-experiments.mjs');
   assert.equal(ruleShortName('- **标题先写冲突结果**，少用问句结尾。后面还有很长的说明'),'标题先写冲突结果，少用问句结尾');
@@ -171,13 +136,6 @@ test('rule codes get readable names, and rules stored as candidate before the lo
   assert.deepEqual((await call('ai?account=V%E5%AD%97')).data.candidates[id],['N1'],'only a later candidate is a suggestion');
 
 });
-test('a long existing pattern name is stored whole, not cut at twelve characters',async t=>{
-  const long='极小细节引出巨大后果+具体人物';
-  const {call,article}=fixture(t,{answer:()=>({status:200,text:JSON.stringify({items:[{i:0,pattern:long}]})})});
-  const id=article('粘贴收款码卡了 0.2 秒，程序员顺手揪出内鬼',3,6746);
-  assert.equal((await call('ai/titles','POST',{account:'V字'})).status,200);
-  assert.equal((await call('ai?account=V%E5%AD%97')).data.titles[id],long);
-});
 test('spellings of one pattern merge, and each pattern lists its articles most-read first',async()=>{
   const {patternStats:stats,splitPattern}=await import('../shared/review-experiments.mjs');
   assert.deepEqual(splitPattern('T5 人物逆袭体'),{code:'T5',name:'人物逆袭体'});assert.deepEqual(splitPattern('揭底体'),{code:'',name:'揭底体'});
@@ -188,4 +146,13 @@ test('spellings of one pattern merge, and each pattern lists its articles most-r
   assert.deepEqual(result.map(item=>[item.pattern,item.code,item.count]),[['人物逆袭体','T5',2],['极小细节引出巨大后果+具体人物','',2],['揭底',"",1],['揭底体','',1]]);
   assert.deepEqual(result[0].articles.map(item=>item.title),['乙','甲']);
   assert.equal(result.some(item=>item.pattern==='揭底'),true,'short names are never merged by prefix');
+});
+
+test('title classification and headline breakdown are retired without calling the provider',async t=>{
+  const {call,calls,article}=fixture(t);
+  article('一篇文章',3,500);
+  for(const path of ['ai/titles','ai/benchmarks']){
+    const before=calls.length,reply=await call(path,'POST',{account:'V字'});
+    assert.equal(reply.status,410,path);assert.equal(reply.error.code,'REVIEW_AI_RETIRED');assert.equal(calls.length,before,'no provider call');
+  }
 });

@@ -1,4 +1,3 @@
-import {renderBenchmarkBreakdown, titlePattern} from './review-ai.mjs';
 import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
@@ -140,7 +139,7 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'benchmarks') return v13Accounts(data);
   if (selected === 'rules') return playbook(data,vm);
   if (selected === 'prompts') return promptPage(data,vm);
-  if (selected === 'library') return renderBenchmarkBreakdown(data,vm) + renderBenchmarkLibrary(data,vm.account);
+  if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
   return overview(data,vm);
 }
 function archives(data,vm,rows,override) {
@@ -215,7 +214,7 @@ function articleLibrary(rows,vm,data = {}) {
     return [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
-      '未命名文章')}</button>${titlePattern(vm,row,data)}${sampleLabel(row,data)}`],
+      '未命名文章')}</button>${sampleLabel(row,data)}`],
     ...metrics,
     ['判定',`${judgement}${supplement}`]
   ]; };

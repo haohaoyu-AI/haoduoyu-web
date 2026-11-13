@@ -297,6 +297,6 @@ export async function handleReviewAi({db,request,route,env,origin,owner,actorFor
   if(Object.keys(input).some(key=>!['account','model','effort','redo','period_start'].includes(key)))invalid('请求字段无效');
   const account=accountOf(input.account||'V字');
   if(action==='weekly')throw fail(410,'REVIEW_WEEKLY_RETIRED','独立周报已停止生成，请前往 AI 汇报查看历史和日常汇报');
-  if(action==='titles')return json(await classifyTitles(db,owner,env,account,input,accountData));
-  return json(await breakdownBenchmarks(db,owner,env,account,input));
+  // Title classification and headline breakdown were retired on 2026-11-13; their stored results are kept, unused.
+  throw fail(410,'REVIEW_AI_RETIRED','标题归类和爆文拆解已停用');
 }

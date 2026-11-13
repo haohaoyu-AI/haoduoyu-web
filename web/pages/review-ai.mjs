@@ -121,8 +121,9 @@ function patternSection(data, vm) {
     <span class="review-note">${pending ? `${pending} 篇还没归类` : '全部已归类'}</span></div>
     ${gate || (pending ? runControls(ai, 'titles', `归类 ${Math.min(pending, 60)} 篇`) : '')}${notice(ai, 'titles')}${table}</section>`;
 }
+// Decisions are made in the daily reminders with the bot, so this panel only keeps the archive of past weekly reports.
 export function renderReportReview(data, vm) {
-  return `<div class="review-weekly-page">${renderExperiments(data, vm)}${patternSection(data, vm)}${weeklySection(vm)}</div>`;
+  return `<div class="review-weekly-page">${weeklySection(vm)}</div>`;
 }
 /** Shown above the benchmark library: what the AI made of each headline. */
 export function benchmarkAiBar(vm) {
@@ -171,7 +172,7 @@ export function renderAiSettings(ai) {
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id,label]) => `<option value="${id}"${id === value ? ' selected' : ''}>${label}</option>`).join('')}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature !== 'weekly').map(([feature,label]) => `<tr><th scope="row">${label}</th>
+  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature === 'diagnosis').map(([feature,label]) => `<tr><th scope="row">${label}</th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(feature,
       draft.features[feature].effort)}</td></tr>`).join('');
   const status = {succeeded:'成功', failed:'失败', running:'进行中'};

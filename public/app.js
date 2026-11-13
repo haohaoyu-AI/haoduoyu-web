@@ -14019,507 +14019,6 @@ function paintOpenAiDiary(items = [], { error = "", loading = false, owner: owne
   root3.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
 }
 
-// web/core/review-data.mjs
-var SNAPSHOT_NUMBERS = [
-  "impressions",
-  "fan_impressions",
-  "reads",
-  "fan_reads",
-  "ctr",
-  "completion_rate",
-  "avg_read_seconds",
-  "likes",
-  "comments",
-  "reposts",
-  "shares",
-  "favorites",
-  "revenue"
-];
-var SNAPSHOT_JSON = ["traffic_sources", "completion_curve", "audience"];
-var SUM_FIELDS = ["impressions", "fan_impressions", "reads", "fan_reads", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
-var AVG_FIELDS = ["ctr", "completion_rate", "avg_read_seconds"];
-function parseJson(value, fallback = null) {
-  if (value === null || value === void 0 || value === "") return fallback;
-  if (typeof value !== "string") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-function finiteNumber(value) {
-  if (typeof value !== "number" && typeof value !== "string" || value === "") return null;
-  if (typeof value === "string" && !value.trim()) return null;
-  const number3 = Number(value);
-  return Number.isFinite(number3) ? number3 : null;
-}
-function calendarDate(date) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
-  const stamp3 = Date.parse(`${date}T00:00:00Z`);
-  return Number.isFinite(stamp3) && new Date(stamp3).toISOString().slice(0, 10) === date ? date : "";
-}
-var shanghaiClock = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-function shanghaiParts(value) {
-  if (typeof value !== "string") return null;
-  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
-  if (!match || !calendarDate(match[1]) || Number(match[2]) > 23 || Number(match[3]) > 59 || Number(match[4] || 0) > 59 || match[6] !== "Z" && (Number(match[6].slice(1, 3)) > 23 || Number(match[6].slice(4, 6)) > 59)) return null;
-  const stamp3 = Date.parse(value);
-  if (!Number.isFinite(stamp3)) return null;
-  return Object.fromEntries(shanghaiClock.formatToParts(stamp3).map((part) => [part.type, part.value]));
-}
-function day4(value) {
-  if (typeof value !== "string") return "";
-  if (calendarDate(value)) return value;
-  const parts2 = shanghaiParts(value);
-  return parts2 ? calendarDate(`${parts2.year.padStart(4, "0")}-${parts2.month}-${parts2.day}`) : "";
-}
-function reviewDateTime(value) {
-  if (typeof value !== "string") return "";
-  if (calendarDate(value)) return value;
-  const parts2 = shanghaiParts(value), date = day4(value);
-  return parts2 && date ? `${date} ${parts2.hour}:${parts2.minute}` : "";
-}
-function shiftDay(value, amount) {
-  const date = day4(value);
-  if (!date || !Number.isFinite(amount)) return "";
-  return new Date(Date.parse(`${date}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
-}
-function list(value) {
-  return Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
-}
-function object3(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-}
-function rules(value) {
-  return list(parseJson(value, [])).filter((rule) => rule && typeof rule === "object" && typeof rule.rule_id === "string");
-}
-function normalizeReviewData(input = {}) {
-  return {
-    benchmarkAccounts: list(input.benchmarkAccounts || input["benchmark-accounts"]).filter(Boolean),
-    benchmarkArticles: list(input.benchmarkArticles || input["benchmark-articles"]).filter(Boolean),
-    notes: list(input.notes).filter(Boolean),
-    accountHealth: list(input.accountHealth || input["account-health"]).filter(Boolean),
-    articles: list(input.articles).filter(Boolean).map((article) => ({ ...article, image_count: finiteNumber(article.image_count) })),
-    snapshots: list(input.snapshots).filter(Boolean).map((snapshot) => {
-      const normalized = { ...snapshot };
-      for (const field2 of SNAPSHOT_NUMBERS) normalized[field2] = finiteNumber(snapshot[field2]);
-      for (const field2 of SNAPSHOT_JSON) normalized[field2] = parseJson(snapshot[field2]);
-      return normalized;
-    }),
-    reports: list(input.reports).filter(Boolean).map((report) => ({
-      ...report,
-      verdicts: object3(parseJson(report.verdicts, {})),
-      findings: object3(parseJson(report.findings, {})),
-      metrics: object3(parseJson(report.metrics, {}))
-    })),
-    prompts: list(input.prompts || input["prompts/current"]).filter(Boolean),
-    playbooks: list(input.playbooks).filter(Boolean).map((playbook2) => ({ ...playbook2, rules: rules(playbook2.rules) }))
-  };
-}
-function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
-  const result = /* @__PURE__ */ new Map();
-  for (const snapshot of list(snapshots2)) {
-    const date = day4(snapshot.snapshot_date);
-    if (!date || date > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
-    const key = String(snapshot.article_id);
-    const previous = result.get(key);
-    if (!previous || date > day4(previous.snapshot_date) || date === day4(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
-  }
-  return result;
-}
-function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
-  const result = /* @__PURE__ */ new Map();
-  const ordered2 = list(reports).filter((report) => (!periodType || report.period_type === periodType) && day4(report.period_end) && day4(report.period_end) <= end).sort((a, b) => day4(a.period_end).localeCompare(day4(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
-  for (const report of ordered2) {
-    for (const [id2, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
-      const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
-      if (!["爆", "中", "扑"].includes(entry.verdict)) continue;
-      result.set(String(id2), { verdict: entry.verdict, reason: typeof entry.reason === "string" ? entry.reason : "", report_id: report.id });
-    }
-  }
-  return result;
-}
-function articleRows2(data3 = {}, { start = "", end = "9999-12-31", periodType } = {}) {
-  const snapshots2 = latestSnapshots(data3.snapshots, end);
-  const verdicts = verdictMap(data3.reports, { end, periodType });
-  return list(data3.articles).filter((article) => {
-    const published = day4(article.published_at);
-    return published && (!start || published >= start) && published <= end;
-  }).map((article) => ({
-    ...article,
-    snapshot: snapshots2.get(String(article.id)) || null,
-    verdict: verdicts.get(String(article.id))?.verdict || "",
-    reason: verdicts.get(String(article.id))?.reason || ""
-  })).sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)) || String(a.id).localeCompare(String(b.id)));
-}
-function aggregate(rows = []) {
-  const result = { count: rows.length, hits: 0, flops: 0, judged_count: 0, hit_rate: null, coverage: {}, partial: {} };
-  for (const field2 of [...SUM_FIELDS, ...AVG_FIELDS]) {
-    const values = rows.map((row) => finiteNumber(row.snapshot?.[field2])).filter((value) => value !== null);
-    result.coverage[field2] = values.length;
-    result.partial[field2] = values.length > 0 && values.length < rows.length;
-    result[field2] = values.length ? values.reduce((sum, value) => sum + value, 0) / (AVG_FIELDS.includes(field2) ? values.length : 1) : null;
-  }
-  for (const row of rows) {
-    if (["爆", "中", "扑"].includes(row.verdict)) result.judged_count += 1;
-    if (row.verdict === "爆") result.hits += 1;
-    if (row.verdict === "扑") result.flops += 1;
-  }
-  if (!result.judged_count) {
-    result.hits = null;
-    result.flops = null;
-  } else result.hit_rate = result.hits / result.judged_count * 100;
-  result.coverage.verdict = result.judged_count;
-  result.partial.verdict = result.judged_count > 0 && result.judged_count < rows.length;
-  return result;
-}
-function compareMetrics(current3 = {}, previous = {}) {
-  const result = {};
-  for (const field2 of ["count", ...SUM_FIELDS, ...AVG_FIELDS, "hits", "flops", "hit_rate", "published_count", "total_reads", "average_ctr", "recent_hits"]) {
-    const now = finiteNumber(current3[field2]);
-    const before = finiteNumber(previous[field2]);
-    result[field2] = {
-      current: now,
-      previous: before,
-      delta: now !== null && before !== null ? now - before : null,
-      percent: now !== null && before !== null && before !== 0 ? (now - before) / Math.abs(before) * 100 : null
-    };
-  }
-  return result;
-}
-function periodSummary(data3, { start, end, periodType } = {}) {
-  const duration3 = day4(start) && day4(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
-  const previousEnd = duration3 > 0 ? shiftDay(start, -1) : "";
-  const previousStart = duration3 > 0 ? shiftDay(start, -duration3) : "";
-  const rows = articleRows2(data3, { start, end, periodType });
-  const previousRows = duration3 > 0 ? articleRows2(data3, { start: previousStart, end: previousEnd, periodType }) : [];
-  const current3 = aggregate(rows), previous = aggregate(previousRows);
-  return { start, end, previousStart, previousEnd, rows, previousRows, current: current3, previous, changes: compareMetrics(current3, previous) };
-}
-function dailySummary(data3, date) {
-  const previousDate = shiftDay(date, -1);
-  const result = periodSummary(data3, { start: date, end: date, periodType: "daily" });
-  const recentRows = articleRows2(data3, { start: shiftDay(date, -2), end: date });
-  const previousRecentRows = articleRows2(data3, { start: shiftDay(date, -3), end: previousDate });
-  const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
-  const stats = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
-  const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
-  return { ...result, date, previousDate, recentRows, stats, previousStats, statChanges: compareMetrics(stats, previousStats) };
-}
-function groupPerformance(rows = [], field2 = "topic_category") {
-  const groups = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const key = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(row);
-  }
-  return [...groups].map(([name, members]) => {
-    const summary = aggregate(members);
-    return { name, ...summary, average_reads: summary.coverage.reads ? summary.reads / summary.coverage.reads : null, rows: members };
-  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-}
-function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
-  const dates = [...new Set(list(data3.snapshots).map((snapshot) => day4(snapshot.snapshot_date)).filter((date) => date && date >= start && date <= end))].sort();
-  const articles = new Map(list(data3.articles).map((article) => [String(article.id), article]));
-  return dates.map((date) => {
-    const sameDay = list(data3.snapshots).filter((snapshot) => day4(snapshot.snapshot_date) === date);
-    const snapshots2 = latestSnapshots(sameDay, date);
-    const rows = [...snapshots2.entries()].filter(([id2]) => articles.has(id2)).map(([id2, snapshot]) => ({ ...articles.get(id2), snapshot }));
-    return { date, ...aggregate(rows) };
-  });
-}
-function diffRules(previous, current3) {
-  const before = new Map(rules(previous?.rules ?? previous).map((rule) => [rule.rule_id, rule]));
-  const after = new Map(rules(current3?.rules ?? current3).map((rule) => [rule.rule_id, rule]));
-  const added = [], removed4 = [], unchanged2 = [], changed4 = [];
-  for (const [id2, rule] of before) {
-    const next = after.get(id2);
-    if (!next) removed4.push(rule);
-    else if (String(rule.text || "") !== String(next.text || "") || String(rule.section || "") !== String(next.section || "")) {
-      removed4.push(rule);
-      added.push(next);
-      changed4.push({ before: rule, after: next });
-    } else unchanged2.push(next);
-  }
-  for (const [id2, rule] of after) if (!before.has(id2)) added.push(rule);
-  return { added, removed: removed4, unchanged: unchanged2, changed: changed4 };
-}
-function metricDiscrepancies(report = {}, computed = {}) {
-  const metrics2 = object3(parseJson(report.metrics, {}));
-  const aliases3 = {
-    total_reads: "reads",
-    average_ctr: "ctr",
-    avg_ctr: "ctr",
-    total_impressions: "impressions",
-    average_completion_rate: "completion_rate",
-    avg_completion_rate: "completion_rate",
-    total_revenue: "revenue",
-    article_count: "count",
-    published_count: "count",
-    hit_count: "hits",
-    flop_count: "flops"
-  };
-  return Object.entries(metrics2).map(([key, value]) => {
-    const field2 = aliases3[key] || key;
-    const authorValue = finiteNumber(value), calculated = finiteNumber(computed[field2]);
-    const comparable = authorValue !== null && calculated !== null;
-    return {
-      key,
-      field: field2,
-      authorValue,
-      computedValue: calculated,
-      comparable,
-      mismatch: comparable ? Math.abs(authorValue - calculated) > Math.max(5e-3, Math.abs(calculated) * 1e-6) : false,
-      partial: Boolean(computed.partial?.[field2])
-    };
-  });
-}
-function periodsFor(data3 = {}, type = "daily") {
-  const periods = /* @__PURE__ */ new Map();
-  for (const report of list(data3.reports)) {
-    if (report.period_type !== type) continue;
-    const start = day4(report.period_start), end = day4(report.period_end);
-    if (!start || !end || start > end) continue;
-    periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
-  }
-  if (!periods.size) {
-    const dates = [...new Set([...list(data3.snapshots).map((snapshot) => day4(snapshot.snapshot_date)), ...list(data3.articles).map((article) => day4(article.published_at))].filter(Boolean))].sort().reverse();
-    const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
-    for (const end of dates) {
-      const start = shiftDay(end, -(duration3 - 1));
-      periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
-    }
-  }
-  return [...periods.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
-}
-
-// web/core/review-rule-scopes.mjs
-var aliases = /* @__PURE__ */ new Map([
-  ["整体", "global"],
-  ["global", "global"],
-  ["头条", "toutiao"],
-  ["toutiao", "toutiao"],
-  ["V字", "vzi"],
-  ["vzi", "vzi"],
-  ["鱼见", "yujian"],
-  ["yujian", "yujian"],
-  ["公众号", "wechat"],
-  ["wechat", "wechat"]
-]);
-var scopeOf = (value) => aliases.get(String(value || "")) || String(value || "");
-var labels2 = /* @__PURE__ */ new Map([
-  ["global", "整体规则"],
-  ["toutiao", "头条平台规则"],
-  ["vzi", "V字账号规则"],
-  ["yujian", "鱼见账号规则"],
-  ["wechat", "公众号平台规则"]
-]);
-var scopeLabel = (scope) => labels2.get(scope) || scope;
-function applicableScopes(account3) {
-  const scope = scopeOf(account3);
-  if (["vzi", "yujian"].includes(scope)) return ["global", "toutiao", scope];
-  if (scope === "wechat") return ["wechat"];
-  return scope === "global" ? ["global"] : ["global", scope];
-}
-function newest(a, b) {
-  return String(b.version ?? "").localeCompare(String(a.version ?? ""), void 0, { numeric: true }) || String(b.published_on || b.updated_at || "").localeCompare(String(a.published_on || a.updated_at || "")) || String(b.id).localeCompare(String(a.id));
-}
-function currentPlaybooks(books = [], account3) {
-  const latest = /* @__PURE__ */ new Map(), scopes = applicableScopes(account3);
-  for (const book of [...books].filter((book2) => book2.status === "active").sort(newest)) {
-    const scope = scopeOf(book.account);
-    if (!latest.has(scope)) latest.set(scope, book);
-  }
-  const current3 = [...latest.values()].map((book) => ({
-    ...book,
-    rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
-  })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
-  return resolveRuleOverrides(current3, account3);
-}
-function resolveRuleOverrides(books, account3) {
-  const scopes = applicableScopes(account3), occurrences = /* @__PURE__ */ new Map();
-  for (const book of books) for (const rule of book.rules) {
-    const scope = scopeOf(rule.scope ?? book.account);
-    if (typeof rule.rule_id !== "string" || !rule.rule_id || !scopes.includes(scope)) continue;
-    if (!occurrences.has(rule.rule_id)) occurrences.set(rule.rule_id, /* @__PURE__ */ new Set());
-    occurrences.get(rule.rule_id).add(scope);
-  }
-  return books.map((book) => ({ ...book, rules: book.rules.map((rule) => {
-    const scope = scopeOf(rule.scope ?? book.account);
-    const seen = occurrences.get(rule.rule_id) || /* @__PURE__ */ new Set();
-    const winner = scopes.findLast((layer) => seen.has(layer));
-    const overriddenByScope = scopes.indexOf(winner) > scopes.indexOf(scope) ? winner : "";
-    const overridesScopes = overriddenByScope ? [] : scopes.filter((layer) => seen.has(layer) && scopes.indexOf(layer) < scopes.indexOf(scope));
-    return { ...rule, overriddenByScope, overridesScopes };
-  }) }));
-}
-function ruleCountLabel(rules2) {
-  const overridden = rules2.filter((rule) => rule.overriddenByScope).length;
-  return `${rules2.length} 条规则 · ${rules2.length - overridden} 条当前生效${overridden ? ` · ${overridden} 条被覆盖` : ""}`;
-}
-function currentPrompts(prompts = [], account3) {
-  const scopes = applicableScopes(account3), latest = /* @__PURE__ */ new Map();
-  for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
-    const key = `${prompt.scope}:${prompt.prompt_key}`;
-    if (!latest.has(key)) latest.set(key, prompt);
-  }
-  return [...latest.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
-}
-
-// web/review-ai-controller.mjs
-init_api();
-var ai = { status: "idle", messages: {} }, account = "", ticket = 0;
-var listeners = /* @__PURE__ */ new Set();
-var emit = () => {
-  for (const listener of listeners) listener();
-};
-var request = (path, options4 = {}) => apiNetwork(path, { ...options4, suppressAuthRedirect: true });
-var reviewAiView = () => ai;
-function watchReviewAi(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-function resetReviewAi() {
-  ticket++;
-  ai = { status: "idle", messages: {} };
-  account = "";
-}
-async function loadReviewAi(nextAccount = "V字", { force = false } = {}) {
-  if (!force && account === nextAccount && ["ready", "loading"].includes(ai.status)) return;
-  account = nextAccount;
-  const current3 = ++ticket, quiet = ai.status === "ready";
-  if (!quiet) {
-    ai = { ...ai, status: "loading" };
-    emit();
-  }
-  try {
-    const data3 = await request("/review/ai?account=" + encodeURIComponent(nextAccount));
-    if (current3 !== ticket) return;
-    ai = { ...ai, status: "ready", data: data3, error: "", ...ai.dirty ? {} : { draft: structuredClone(data3.settings) } };
-  } catch (error) {
-    if (current3 !== ticket) return;
-    ai = quiet ? ai : { ...ai, status: "error", error: error.message || "AI 结果读取失败" };
-  }
-  emit();
-}
-async function loadModels() {
-  if (ai.models?.length || ai.modelsLoading) return;
-  ai = { ...ai, modelsLoading: true, modelsError: "" };
-  emit();
-  try {
-    const data3 = await request("/review/ai/models");
-    ai = { ...ai, models: data3.models || [], modelsLoading: false };
-  } catch (error) {
-    ai = { ...ai, models: [], modelsLoading: false, modelsError: error.message || "模型列表读取失败，可稍后再试" };
-  }
-  emit();
-}
-function loadReviewAiModels() {
-  return loadModels();
-}
-var say = (key, text, error = false) => {
-  ai = { ...ai, messages: { ...ai.messages, [key]: text ? { text, error } : null } };
-};
-var done = {
-  titles: (data3) => data3.labelled ? `已归类 ${data3.labelled} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要归类的标题。",
-  benchmarks: (data3) => data3.done ? `已拆解 ${data3.done} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要拆解的爆文。"
-};
-async function runFeature(feature, once = {}) {
-  if (ai.busy || !done[feature]) return;
-  ai = { ...ai, busy: feature, options: "" };
-  say(feature, "");
-  emit();
-  try {
-    const body2 = { account, ...once.model ? { model: once.model } : {}, ...once.effort ? { effort: once.effort } : {} };
-    const result = await request("/review/ai/" + feature, { method: "POST", body: body2 });
-    say(feature, done[feature](result));
-  } catch (error) {
-    say(feature, error.message || "没有完成，请稍后重试。", true);
-  }
-  ai = { ...ai, busy: "", once: {} };
-  await loadReviewAi(account, { force: true });
-}
-async function changeRule(target, context) {
-  const id2 = target.dataset.ruleId, status = target.dataset.status;
-  const playbook2 = context.playbooks().find((item) => String(item.id) === target.dataset.playbookId);
-  if (!playbook2?.content_hash || ai.busy) return;
-  ai = { ...ai, busy: "rule:" + id2 };
-  say("rules", "");
-  emit();
-  try {
-    const saved = await request("/review/rules/" + encodeURIComponent(id2), {
-      method: "PATCH",
-      body: { account: playbook2.account, playbook_id: playbook2.id, expected_hash: playbook2.content_hash, save_id: crypto.randomUUID(), status }
-    });
-    context.applyPlaybook(saved);
-    say("rules", status === "trial" ? "已进入试验。之后用了这条的文章会自动对比。" : status === "kept" ? "已采纳，记入规则。" : "已放弃这条。");
-  } catch (error) {
-    say("rules", error.status === 409 ? "规则刚刚被更新过，已重新读取，请再点一次。" : error.message || "没有保存，请重试。", true);
-    if (error.status === 409) context.reload?.();
-  }
-  ai = { ...ai, busy: "" };
-  emit();
-}
-function reviewAiClick(target, context = {}) {
-  const action = target.dataset.aiAction, feature = target.dataset.aiFeature;
-  if (action === "reload") {
-    void loadReviewAi(account || context.account, { force: true });
-    return true;
-  }
-  if (action === "options") {
-    ai = { ...ai, options: ai.options === feature ? "" : feature, once: {} };
-    emit();
-    void loadModels();
-    return true;
-  }
-  if (action === "run") {
-    void runFeature(feature, ai.options === feature ? ai.once : {});
-    return true;
-  }
-  if (action === "rule-status") {
-    void changeRule(target, context);
-    return true;
-  }
-  return false;
-}
-function reviewAiInput(target) {
-  if (target.dataset.aiOnce) {
-    ai = { ...ai, once: { ...ai.once, [target.dataset.aiOnce]: target.value } };
-    return true;
-  }
-  const key = target.dataset.aiSetting;
-  if (!key || !ai.data) return false;
-  const draft = structuredClone(ai.draft || ai.data.settings);
-  if (key === "daily_limit") draft.daily_limit = Number(target.value);
-  else draft.features[target.dataset.aiFeature][key] = target.value;
-  ai = { ...ai, draft, dirty: true };
-  say("settings", "");
-  return true;
-}
-async function saveReviewAiSettings() {
-  if (!ai.draft || ai.busy) return;
-  if (!Number.isInteger(ai.draft.daily_limit) || ai.draft.daily_limit < 0 || ai.draft.daily_limit > 200) {
-    say("settings", "每日上限请填 0 到 200 的整数", true);
-    emit();
-    return;
-  }
-  ai = { ...ai, busy: "settings" };
-  say("settings", "");
-  emit();
-  try {
-    const saved = await request("/review/ai/settings", { method: "PUT", body: ai.draft });
-    ai = { ...ai, dirty: false, draft: structuredClone(saved.settings), data: { ...ai.data, settings: saved.settings, usage: {
-      ...ai.data.usage,
-      limit: saved.settings.daily_limit
-    } } };
-    say("settings", "已保存");
-  } catch (error) {
-    say("settings", error.message || "保存失败，请重试", true);
-  }
-  ai = { ...ai, busy: "" };
-  emit();
-}
-
 // shared/review-analytics.mjs
 var array = (value) => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 var id = (value) => String(value ?? "");
@@ -14532,12 +14031,12 @@ function parsed(value, fallback) {
     return fallback;
   }
 }
-function finiteNumber2(value) {
+function finiteNumber(value) {
   if (!["number", "string"].includes(typeof value) || typeof value === "string" && !value.trim()) return null;
   const number3 = Number(value);
   return Number.isFinite(number3) ? number3 : null;
 }
-function calendarDate2(value) {
+function calendarDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
   const stamp3 = Date.parse(`${value}T00:00:00Z`);
   return Number.isFinite(stamp3) && new Date(stamp3).toISOString().slice(0, 10) === value ? value : "";
@@ -14546,31 +14045,31 @@ var clock2 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year:
 function parts(value) {
   if (typeof value !== "string") return null;
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
-  if (!match || !calendarDate2(match[1]) || +match[2] > 23 || +match[3] > 59 || +match[4] > 59 || match[5] !== "Z" && (+match[5].slice(1, 3) > 23 || +match[5].slice(4, 6) > 59)) return null;
+  if (!match || !calendarDate(match[1]) || +match[2] > 23 || +match[3] > 59 || +match[4] > 59 || match[5] !== "Z" && (+match[5].slice(1, 3) > 23 || +match[5].slice(4, 6) > 59)) return null;
   const stamp3 = Date.parse(value);
   return Number.isFinite(stamp3) ? Object.fromEntries(clock2.formatToParts(stamp3).map((part) => [part.type, part.value])) : null;
 }
-function day5(value) {
-  if (calendarDate2(value)) return value;
+function day4(value) {
+  if (calendarDate(value)) return value;
   const p = parts(value);
-  return p ? calendarDate2(`${p.year.padStart(4, "0")}-${p.month}-${p.day}`) : "";
+  return p ? calendarDate(`${p.year.padStart(4, "0")}-${p.month}-${p.day}`) : "";
 }
-function reviewDateTime2(value) {
-  if (calendarDate2(value)) return value;
+function reviewDateTime(value) {
+  if (calendarDate(value)) return value;
   const p = parts(value);
-  return p ? `${day5(value)} ${p.hour}:${p.minute}` : "";
+  return p ? `${day4(value)} ${p.hour}:${p.minute}` : "";
 }
-function shiftDay2(value, amount) {
-  const date = day5(value);
+function shiftDay(value, amount) {
+  const date = day4(value);
   return date && Number.isInteger(amount) ? new Date(Date.parse(`${date}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10) : "";
 }
 function median(values = []) {
-  const sorted = values.map(finiteNumber2).filter((value) => value !== null).sort((a, b) => a - b);
+  const sorted = values.map(finiteNumber).filter((value) => value !== null).sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length ? sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2 : null;
 }
 var nonnegative = (value) => {
-  const n = finiteNumber2(value);
+  const n = finiteNumber(value);
   return n !== null && n >= 0 ? n : null;
 };
 var rate = (value) => {
@@ -14578,7 +14077,7 @@ var rate = (value) => {
   return n !== null && n <= 100 ? n : null;
 };
 var validAge = (snapshot) => {
-  const n = finiteNumber2(snapshot.age_hours);
+  const n = finiteNumber(snapshot.age_hours);
   return n !== null && Number.isInteger(n) && n >= 12 && n <= 72;
 };
 function select24hSnapshot(snapshots2 = [], articleId) {
@@ -14595,16 +14094,16 @@ function normalizePlaybook(playbook2) {
   return { ...playbook2, rules: normalizeRules(playbook2?.rules ?? playbook2?.rules_json) };
 }
 function appliedRules(article, playbooks = []) {
-  const version2 = finiteNumber2(article?.playbook_version_used);
+  const version2 = finiteNumber(article?.playbook_version_used);
   const specified = parsed(article?.applied_rule_ids, null);
   if (version2 === null || !Array.isArray(specified)) return [];
-  const playbook2 = array(playbooks).filter((item) => item.account === article.account && finiteNumber2(item.version) === version2).sort((a, b) => compare(id(a.id), id(b.id)))[0];
+  const playbook2 = array(playbooks).filter((item) => item.account === article.account && finiteNumber(item.version) === version2).sort((a, b) => compare(id(a.id), id(b.id)))[0];
   if (!playbook2) return [];
   const rules2 = normalizeRules(playbook2.rules ?? playbook2.rules_json);
   return rules2.filter((rule) => specified.includes(rule.rule_id));
 }
 function recentArticles(a, b) {
-  const dateOrder = compare(day5(b.published_at), day5(a.published_at));
+  const dateOrder = compare(day4(b.published_at), day4(a.published_at));
   if (dateOrder) return dateOrder;
   const aTimed = Boolean(parts(a.published_at)), bTimed = Boolean(parts(b.published_at));
   return (aTimed && bTimed ? Date.parse(b.published_at) - Date.parse(a.published_at) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
@@ -14655,12 +14154,12 @@ function enrichArticle(article, snapshots2 = [], playbooks = [], reports = [], a
   return enrichArticles({ articles: cohort, snapshots: snapshots2, playbooks, reports }).find((item) => id(item.id) === id(article.id));
 }
 function weekBounds(now = (/* @__PURE__ */ new Date()).toISOString(), week = "this") {
-  const today2 = day5(now instanceof Date ? now.toISOString() : now);
+  const today2 = day4(now instanceof Date ? now.toISOString() : now);
   if (!today2) throw new TypeError("now must be a valid date or explicit ISO timestamp");
   if (!["this", "last"].includes(week)) throw new TypeError("week must be this or last");
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  const start = shiftDay2(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
-  return { today: today2, start, end: shiftDay2(start, 6), previousStart: shiftDay2(start, -7), previousEnd: shiftDay2(start, -1) };
+  const start = shiftDay(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
+  return { today: today2, start, end: shiftDay(start, 6), previousStart: shiftDay(start, -7), previousEnd: shiftDay(start, -1) };
 }
 function summarizeArticles(rows = []) {
   const judged = rows.filter((row) => nonnegative(row.reads_24h) !== null && ["爆", "中", "扑"].includes(row.verdict));
@@ -14695,7 +14194,7 @@ function firstSentence(markdown) {
   return ending ? text.slice(0, ending.index + ending[0].length) : text;
 }
 function weeklyConclusion(reports, account3, bounds, week) {
-  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day5(item.period_start) === bounds.start && day5(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
+  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day4(item.period_start) === bounds.start && day4(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
   return firstSentence(report?.summary_md) || `${week === "last" ? "上周" : "本周"}尚未生成周报`;
 }
 function buildOverview(data3 = {}, options4 = {}) {
@@ -14703,7 +14202,7 @@ function buildOverview(data3 = {}, options4 = {}) {
   if (!["7d", "30d"].includes(range)) throw new TypeError("range must be 7d or 30d");
   const bounds = weekBounds(now, week), allRows = enrichArticles(data3, { account: account3 });
   const cohort = (start, end) => allRows.filter((row) => {
-    const published = day5(row.published_at);
+    const published = day4(row.published_at);
     return published && published >= start && published <= end;
   });
   const rows = cohort(bounds.start, bounds.end), previousRows = cohort(bounds.previousStart, bounds.previousEnd);
@@ -14718,7 +14217,7 @@ function buildOverview(data3 = {}, options4 = {}) {
   }
   const trendDays = range === "30d" ? 30 : 7;
   const trend = Array.from({ length: trendDays }, (_, index) => {
-    const date = shiftDay2(bounds.today, index - trendDays + 1), daily = cohort(date, date), result = { date, count: daily.length, published_count: daily.length };
+    const date = shiftDay(bounds.today, index - trendDays + 1), daily = cohort(date, date), result = { date, count: daily.length, published_count: daily.length };
     for (const field2 of ["reads_24h", "ctr_24h", "completion_24h"]) {
       const values = daily.map((row) => row[field2]).filter((value) => value !== null);
       result[field2] = median(values);
@@ -14735,7 +14234,7 @@ function buildOverview(data3 = {}, options4 = {}) {
     message: `${current3.missing_24h_count} 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。`
   });
   const articleIds = new Set(allRows.map((row) => id(row.id)));
-  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day5(snapshot.snapshot_date)).filter(Boolean).sort();
+  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day4(snapshot.snapshot_date)).filter(Boolean).sort();
   const latest = dates.at(-1) ?? null;
   const elapsed = latest ? Math.round((Date.parse(`${bounds.today}T00:00:00Z`) - Date.parse(`${latest}T00:00:00Z`)) / 864e5) : null;
   if (allRows.length && (latest === null || elapsed > 2)) alerts.push({
@@ -14750,76 +14249,6 @@ function buildOverview(data3 = {}, options4 = {}) {
   return { account: account3 ?? null, week, range, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary, conclusion };
 }
 
-// shared/article-diagnosis.mjs
-var ARTICLE_DIAGNOSIS_KEY = "article_diagnosis";
-var ARTICLE_DIAGNOSIS_PROMPT = [
-  "你是头条图文数据复盘助手。只根据我给你的这一篇数据，和同账号最近30篇的平均值做对比，写且只写三句话，不要标题、不要列表、不要开头客套。",
-  "第一句：这篇好在哪，必须点出明显高于均值的指标，并带上这篇的数字和均值。",
-  "第二句：这篇差在哪，必须点出明显低于均值的指标，并带上这篇的数字和均值。如果没有明显短板，就写最接近均值、提升空间最大的一项。",
-  "第三句：下一篇同类稿的标题或开头怎么改，只给一个具体改法，不要空话。",
-  "只谈标题、展现、阅读、点击率、完读率，不要编造未提供的数据，不要评价正文内容。"
-].join("\n");
-var aliases2 = /* @__PURE__ */ new Map([
-  ["整体", "global"],
-  ["global", "global"],
-  ["头条", "toutiao"],
-  ["toutiao", "toutiao"],
-  ["V字", "vzi"],
-  ["vzi", "vzi"],
-  ["鱼见", "yujian"],
-  ["yujian", "yujian"],
-  ["公众号", "wechat"],
-  ["wechat", "wechat"]
-]);
-var scopeOf2 = (value) => aliases2.get(String(value || "")) || String(value || "");
-function diagnosisScopes(account3) {
-  const scope = scopeOf2(account3);
-  if (scope === "vzi" || scope === "yujian") return ["global", "toutiao", scope];
-  if (scope === "wechat") return ["wechat"];
-  return scope === "global" ? ["global"] : ["global", scope];
-}
-function versionOf(row) {
-  const value = Number(row?.version);
-  return Number.isSafeInteger(value) ? value : 0;
-}
-function selectDiagnosisPrompt(prompts, account3) {
-  const scopes = diagnosisScopes(account3);
-  const rows = (Array.isArray(prompts) ? prompts : []).filter((row) => row && row.prompt_key === ARTICLE_DIAGNOSIS_KEY && row.status === "active" && scopes.includes(row.scope) && String(row.content_md || "").trim());
-  rows.sort((a, b) => scopes.indexOf(b.scope) - scopes.indexOf(a.scope) || versionOf(b) - versionOf(a) || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
-  return rows[0] || null;
-}
-function diagnosisPromptText(prompts, account3) {
-  return selectDiagnosisPrompt(prompts, account3)?.content_md?.trim() || ARTICLE_DIAGNOSIS_PROMPT;
-}
-function latestDiagnosisSnapshot(snapshots2, articleId) {
-  const rows = (snapshots2 || []).filter((row) => row && String(row.article_id) === String(articleId));
-  rows.sort((a, b) => String(b.snapshot_date || "").localeCompare(String(a.snapshot_date || "")) || (Number(b.age_hours) || 0) - (Number(a.age_hours) || 0) || String(b.id || "").localeCompare(String(a.id || "")));
-  return rows[0] || null;
-}
-function metricValue(snapshot, key) {
-  if (!snapshot) return null;
-  const value = finiteNumber2(snapshot[key]);
-  return value === null || value < 0 ? null : value;
-}
-function formatFact(value) {
-  return value === null ? "未提供" : String(Math.round(value * 100) / 100);
-}
-var FIELDS = [["展现", "impressions"], ["阅读", "reads"], ["点击率", "ctr"], ["完读率", "completion_rate"]];
-function articleDiagnosisFacts(data3, article) {
-  const peers = (data3.articles || []).filter((row) => row && row.account === article.account && String(row.id) !== String(article.id)).sort(recentArticles).slice(0, 30);
-  const current3 = latestDiagnosisSnapshot(data3.snapshots, article.id);
-  const metrics2 = {};
-  const lines = ["标题：" + (String(article.title || "").trim() || "（无标题）")];
-  for (const [label3, key] of FIELDS) {
-    const samples = peers.map((row) => metricValue(latestDiagnosisSnapshot(data3.snapshots, row.id), key)).filter((value2) => value2 !== null);
-    const average2 = samples.length ? samples.reduce((sum, value2) => sum + value2, 0) / samples.length : null;
-    const value = metricValue(current3, key);
-    metrics2[key] = { value, average: average2, samples: samples.length };
-    lines.push(`${label3}：${formatFact(value)}；同账号最近30篇平均：${formatFact(average2)}（有效样本 ${samples.length}）`);
-  }
-  return { title: article.title || "", metrics: metrics2, text: lines.join("\n") };
-}
-
 // shared/review-experiments.mjs
 var EXPERIMENT_SAMPLES = 6;
 var RULE_STATUS_LABELS = { candidate: "待确认", trial: "试验中", kept: "已采纳", dropped: "已放弃", hold: "暂缓" };
@@ -14830,9 +14259,9 @@ var mid = (values) => {
 };
 function experimentEvidence(ruleId, rows = []) {
   const using = rows.filter((row) => (row.applied_rule_ids || []).includes(ruleId));
-  const first = using.map((row) => day5(row.published_at)).filter(Boolean).sort()[0] || null;
+  const first = using.map((row) => day4(row.published_at)).filter(Boolean).sort()[0] || null;
   const withRows = using.filter(measured);
-  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day5(row.published_at) >= first) : [];
+  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day4(row.published_at) >= first) : [];
   return {
     rule_id: ruleId,
     first_day: first,
@@ -15131,7 +14560,7 @@ function patternSection(data3, vm3) {
     ${gate || (pending ? runControls(ai2, "titles", `归类 ${Math.min(pending, 60)} 篇`) : "")}${notice(ai2, "titles")}${table2}</section>`;
 }
 function renderReportReview(data3, vm3) {
-  return `<div class="review-weekly-page">${renderExperiments(data3, vm3)}${patternSection(data3, vm3)}${weeklySection(vm3)}</div>`;
+  return `<div class="review-weekly-page">${weeklySection(vm3)}</div>`;
 }
 function benchmarkAiBar(vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), pending = ai2?.data?.pending?.benchmarks || 0;
@@ -15186,7 +14615,7 @@ function renderAiSettings(ai2) {
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id2, label3]) => `<option value="${id2}"${id2 === value ? " selected" : ""}>${label3}</option>`).join("")}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature !== "weekly").map(([feature, label3]) => `<tr><th scope="row">${label3}</th>
+  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature === "diagnosis").map(([feature, label3]) => `<tr><th scope="row">${label3}</th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(
     feature,
     draft.features[feature].effort
@@ -15220,10 +14649,669 @@ function renderAiSettings(ai2) {
     <p class="muted">这里显示 token 用量；折合金额请以 OpenAI 后台账单为准。</p>` : '<p class="muted">最近三天没有运行记录。</p>'}</section>`;
 }
 
+// web/review-ai-controller.mjs
+init_api();
+var ai = { status: "idle", messages: {} }, account = "", ticket = 0;
+var listeners = /* @__PURE__ */ new Set();
+var emit = () => {
+  for (const listener of listeners) listener();
+};
+var request = (path, options4 = {}) => apiNetwork(path, { ...options4, suppressAuthRedirect: true });
+var reviewAiView = () => ai;
+function watchReviewAi(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+function resetReviewAi() {
+  ticket++;
+  ai = { status: "idle", messages: {} };
+  account = "";
+}
+async function loadReviewAi(nextAccount = "V字", { force = false } = {}) {
+  if (!force && account === nextAccount && ["ready", "loading"].includes(ai.status)) return;
+  account = nextAccount;
+  const current3 = ++ticket, quiet = ai.status === "ready";
+  if (!quiet) {
+    ai = { ...ai, status: "loading" };
+    emit();
+  }
+  try {
+    const data3 = await request("/review/ai?account=" + encodeURIComponent(nextAccount));
+    if (current3 !== ticket) return;
+    ai = { ...ai, status: "ready", data: data3, error: "", ...ai.dirty ? {} : { draft: structuredClone(data3.settings) } };
+  } catch (error) {
+    if (current3 !== ticket) return;
+    ai = quiet ? ai : { ...ai, status: "error", error: error.message || "AI 结果读取失败" };
+  }
+  emit();
+}
+async function loadModels() {
+  if (ai.models?.length || ai.modelsLoading) return;
+  ai = { ...ai, modelsLoading: true, modelsError: "" };
+  emit();
+  try {
+    const data3 = await request("/review/ai/models");
+    ai = { ...ai, models: data3.models || [], modelsLoading: false };
+  } catch (error) {
+    ai = { ...ai, models: [], modelsLoading: false, modelsError: error.message || "模型列表读取失败，可稍后再试" };
+  }
+  emit();
+}
+function loadReviewAiModels() {
+  return loadModels();
+}
+var say = (key, text, error = false) => {
+  ai = { ...ai, messages: { ...ai.messages, [key]: text ? { text, error } : null } };
+};
+var done = {
+  titles: (data3) => data3.labelled ? `已归类 ${data3.labelled} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要归类的标题。",
+  benchmarks: (data3) => data3.done ? `已拆解 ${data3.done} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要拆解的爆文。"
+};
+async function runFeature(feature, once = {}) {
+  if (ai.busy || !done[feature]) return;
+  ai = { ...ai, busy: feature, options: "" };
+  say(feature, "");
+  emit();
+  try {
+    const body2 = { account, ...once.model ? { model: once.model } : {}, ...once.effort ? { effort: once.effort } : {} };
+    const result = await request("/review/ai/" + feature, { method: "POST", body: body2 });
+    say(feature, done[feature](result));
+  } catch (error) {
+    say(feature, error.message || "没有完成，请稍后重试。", true);
+  }
+  ai = { ...ai, busy: "", once: {} };
+  await loadReviewAi(account, { force: true });
+}
+async function changeRule(target, context) {
+  const id2 = target.dataset.ruleId, status = target.dataset.status;
+  const playbook2 = context.playbooks().find((item) => String(item.id) === target.dataset.playbookId);
+  if (!playbook2?.content_hash || ai.busy) return;
+  ai = { ...ai, busy: "rule:" + id2 };
+  say("rules", "");
+  emit();
+  try {
+    const saved = await request("/review/rules/" + encodeURIComponent(id2), {
+      method: "PATCH",
+      body: { account: playbook2.account, playbook_id: playbook2.id, expected_hash: playbook2.content_hash, save_id: crypto.randomUUID(), status }
+    });
+    context.applyPlaybook(saved);
+    say("rules", status === "trial" ? "已进入试验。之后用了这条的文章会自动对比。" : status === "kept" ? "已采纳，记入规则。" : "已放弃这条。");
+  } catch (error) {
+    say("rules", error.status === 409 ? "规则刚刚被更新过，已重新读取，请再点一次。" : error.message || "没有保存，请重试。", true);
+    if (error.status === 409) context.reload?.();
+  }
+  ai = { ...ai, busy: "" };
+  emit();
+}
+function reviewAiClick(target, context = {}) {
+  const action = target.dataset.aiAction, feature = target.dataset.aiFeature;
+  if (action === "reload") {
+    void loadReviewAi(account || context.account, { force: true });
+    return true;
+  }
+  if (action === "options") {
+    ai = { ...ai, options: ai.options === feature ? "" : feature, once: {} };
+    emit();
+    void loadModels();
+    return true;
+  }
+  if (action === "run") {
+    void runFeature(feature, ai.options === feature ? ai.once : {});
+    return true;
+  }
+  if (action === "rule-status") {
+    void changeRule(target, context);
+    return true;
+  }
+  return false;
+}
+function reviewAiInput(target) {
+  if (target.dataset.aiOnce) {
+    ai = { ...ai, once: { ...ai.once, [target.dataset.aiOnce]: target.value } };
+    return true;
+  }
+  const key = target.dataset.aiSetting;
+  if (!key || !ai.data) return false;
+  const draft = structuredClone(ai.draft || ai.data.settings);
+  if (key === "daily_limit") draft.daily_limit = Number(target.value);
+  else draft.features[target.dataset.aiFeature][key] = target.value;
+  ai = { ...ai, draft, dirty: true };
+  say("settings", "");
+  return true;
+}
+async function saveReviewAiSettings() {
+  if (!ai.draft || ai.busy) return;
+  if (!Number.isInteger(ai.draft.daily_limit) || ai.draft.daily_limit < 0 || ai.draft.daily_limit > 200) {
+    say("settings", "每日上限请填 0 到 200 的整数", true);
+    emit();
+    return;
+  }
+  ai = { ...ai, busy: "settings" };
+  say("settings", "");
+  emit();
+  try {
+    const saved = await request("/review/ai/settings", { method: "PUT", body: ai.draft });
+    ai = { ...ai, dirty: false, draft: structuredClone(saved.settings), data: { ...ai.data, settings: saved.settings, usage: {
+      ...ai.data.usage,
+      limit: saved.settings.daily_limit
+    } } };
+    say("settings", "已保存");
+  } catch (error) {
+    say("settings", error.message || "保存失败，请重试", true);
+  }
+  ai = { ...ai, busy: "" };
+  emit();
+}
+
+// web/experiments-panel-controller.mjs
+init_state();
+var data = null, sequence2 = 0, registered2 = false, panelError = false;
+var account2 = () => state.account || "V字";
+var root = () => document.querySelector("#ai-experiments");
+function paint() {
+  const node2 = root();
+  if (!node2 || state.page !== "ai-reports") return;
+  node2.innerHTML = data ? renderReportReview(data, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
+}
+function register2() {
+  if (registered2) return;
+  registered2 = true;
+  watchReviewAi(paint);
+  document.addEventListener("change", (event) => {
+    if (state.page === "ai-reports" && event.target.closest?.("#ai-experiments")) reviewAiInput(event.target);
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest?.("#ai-experiments [data-retry-review]")) {
+      void loadExperimentsPanel();
+      return;
+    }
+    const target = event.target.closest?.("#ai-experiments [data-ai-action]");
+    if (!target || state.page !== "ai-reports" || !data) return;
+    reviewAiClick(target, {
+      account: account2(),
+      playbooks: () => data.playbooks,
+      reload: () => void loadExperimentsPanel(),
+      applyPlaybook: (saved) => {
+        data = { ...data, playbooks: data.playbooks.map((item) => String(item.id) === String(saved.id) ? { ...item, ...saved } : item) };
+      }
+    });
+  });
+}
+async function loadExperimentsPanel() {
+  register2();
+  const ticket2 = ++sequence2, session2 = runtime.sessionEpoch;
+  data = null;
+  panelError = false;
+  paint();
+  void loadReviewAi(account2());
+  const current3 = () => ticket2 === sequence2 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
+  data = {};
+  if (current3()) paint();
+}
+
+// web/ai-reports-controller.mjs
+init_api();
+init_state();
+init_daily_notes_state();
+var sequence3 = 0, registered3 = false, selectedDate = "", visibleMonth = "", pageSession = null;
+function selectDailyTab(name) {
+  if (!OPENAI_TABS.includes(name)) return;
+  state.aiDailyTab = name;
+  const root3 = document.querySelector("#ai-reports");
+  if (!root3) return;
+  for (const button3 of root3.querySelectorAll("[data-ai-daily-tab]"))
+    button3.setAttribute("aria-pressed", String(button3.dataset.aiDailyTab === name));
+  for (const panel2 of root3.querySelectorAll("[data-ai-daily-panel]"))
+    panel2.hidden = panel2.dataset.aiDailyPanel !== name;
+}
+function aiReportsYesterday(today2 = dailyNotesToday()) {
+  const date = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+function reportRank(author) {
+  const value = String(author ?? "");
+  if (/gpt/i.test(value)) return 0;
+  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
+  if (/gemini/i.test(value)) return 2;
+  return 3;
+}
+var compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+function sortAiReports(items) {
+  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) || compareText(String(a.author ?? "").toLowerCase(), String(b.author ?? "").toLowerCase()) || compareText(String(a.created_at ?? ""), String(b.created_at ?? "")) || compareText(String(a.id ?? ""), String(b.id ?? "")));
+}
+function reportsForDailyDate(items, date) {
+  return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date)));
+}
+async function readAllAiReports(read2, current3 = () => true) {
+  const items = [], seen = /* @__PURE__ */ new Set();
+  for (let offset = 0; ; offset += 100) {
+    const data3 = await read2("/ai-reports?offset=" + offset);
+    if (!current3()) return null;
+    if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
+      throw new Error("汇报读取不完整，请稍后重试。");
+    for (const row of data3.items) if (!seen.has(row.id)) {
+      seen.add(row.id);
+      items.push(row);
+    }
+    if (!data3.has_more) return items;
+  }
+}
+async function loadAiReports({ resetDate = false } = {}) {
+  registerAiReportEvents();
+  const session2 = runtime.sessionEpoch;
+  if (pageSession !== session2 || resetDate) {
+    pageSession = session2;
+    selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
+    visibleMonth = selectedDate.slice(0, 7);
+  }
+  if (!selectedDate) selectedDate = dailyNotesToday();
+  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
+  const ticket2 = ++sequence3, date = selectedDate;
+  const current3 = () => ticket2 === sequence3 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
+  paintAiReports([], "", true, date, visibleMonth);
+  paintAiDailyReminders(null, "", true);
+  selectDailyTab(state.aiDailyTab || "reports");
+  const report = readAllAiReports(api, current3).then((items) => {
+    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth);
+  }).catch((error) => {
+    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth);
+  });
+  const reminders = api("/work-reminders?date=" + encodeURIComponent(date)).then((data3) => {
+    if (current3()) paintAiDailyReminders(data3);
+  }).catch((error) => {
+    if (current3()) paintAiDailyReminders(null, error.message || "提醒读取失败，请稍后重试");
+  });
+  void loadExperimentsPanel();
+  await Promise.all([report, reminders]);
+}
+function moveMonth(offset) {
+  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + offset);
+  if (!Number.isFinite(d.getTime())) return;
+  const next = d.toISOString().slice(0, 7);
+  if (validDailyNotesDate(next + "-01")) {
+    visibleMonth = next;
+    paintAiCalendar(selectedDate, visibleMonth);
+  }
+}
+function registerAiReportEvents() {
+  if (registered3) return;
+  registered3 = true;
+  document.addEventListener("click", (event) => {
+    if (state.page !== "ai-reports") return;
+    const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
+    if (tab) {
+      selectDailyTab(tab);
+      updateRoute();
+      if (tab === "openai") void loadAiReports();
+    } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
+    else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
+    else {
+      const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+      if (day6 && validDailyNotesDate(day6)) {
+        selectedDate = day6;
+        visibleMonth = day6.slice(0, 7);
+        state.aiDailyDate = day6;
+        state.openAiRun = "";
+        updateRoute();
+        void loadAiReports();
+      }
+    }
+  });
+}
+
+// web/core/review-rule-scopes.mjs
+var aliases = /* @__PURE__ */ new Map([
+  ["整体", "global"],
+  ["global", "global"],
+  ["头条", "toutiao"],
+  ["toutiao", "toutiao"],
+  ["V字", "vzi"],
+  ["vzi", "vzi"],
+  ["鱼见", "yujian"],
+  ["yujian", "yujian"],
+  ["公众号", "wechat"],
+  ["wechat", "wechat"]
+]);
+var scopeOf = (value) => aliases.get(String(value || "")) || String(value || "");
+var labels2 = /* @__PURE__ */ new Map([
+  ["global", "整体规则"],
+  ["toutiao", "头条平台规则"],
+  ["vzi", "V字账号规则"],
+  ["yujian", "鱼见账号规则"],
+  ["wechat", "公众号平台规则"]
+]);
+var scopeLabel = (scope) => labels2.get(scope) || scope;
+function applicableScopes(account3) {
+  const scope = scopeOf(account3);
+  if (["vzi", "yujian"].includes(scope)) return ["global", "toutiao", scope];
+  if (scope === "wechat") return ["wechat"];
+  return scope === "global" ? ["global"] : ["global", scope];
+}
+function newest(a, b) {
+  return String(b.version ?? "").localeCompare(String(a.version ?? ""), void 0, { numeric: true }) || String(b.published_on || b.updated_at || "").localeCompare(String(a.published_on || a.updated_at || "")) || String(b.id).localeCompare(String(a.id));
+}
+function currentPlaybooks(books = [], account3) {
+  const latest = /* @__PURE__ */ new Map(), scopes = applicableScopes(account3);
+  for (const book of [...books].filter((book2) => book2.status === "active").sort(newest)) {
+    const scope = scopeOf(book.account);
+    if (!latest.has(scope)) latest.set(scope, book);
+  }
+  const current3 = [...latest.values()].map((book) => ({
+    ...book,
+    rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
+  })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
+  return resolveRuleOverrides(current3, account3);
+}
+function resolveRuleOverrides(books, account3) {
+  const scopes = applicableScopes(account3), occurrences = /* @__PURE__ */ new Map();
+  for (const book of books) for (const rule of book.rules) {
+    const scope = scopeOf(rule.scope ?? book.account);
+    if (typeof rule.rule_id !== "string" || !rule.rule_id || !scopes.includes(scope)) continue;
+    if (!occurrences.has(rule.rule_id)) occurrences.set(rule.rule_id, /* @__PURE__ */ new Set());
+    occurrences.get(rule.rule_id).add(scope);
+  }
+  return books.map((book) => ({ ...book, rules: book.rules.map((rule) => {
+    const scope = scopeOf(rule.scope ?? book.account);
+    const seen = occurrences.get(rule.rule_id) || /* @__PURE__ */ new Set();
+    const winner = scopes.findLast((layer) => seen.has(layer));
+    const overriddenByScope = scopes.indexOf(winner) > scopes.indexOf(scope) ? winner : "";
+    const overridesScopes = overriddenByScope ? [] : scopes.filter((layer) => seen.has(layer) && scopes.indexOf(layer) < scopes.indexOf(scope));
+    return { ...rule, overriddenByScope, overridesScopes };
+  }) }));
+}
+function ruleCountLabel(rules2) {
+  const overridden = rules2.filter((rule) => rule.overriddenByScope).length;
+  return `${rules2.length} 条规则 · ${rules2.length - overridden} 条当前生效${overridden ? ` · ${overridden} 条被覆盖` : ""}`;
+}
+function currentPrompts(prompts = [], account3) {
+  const scopes = applicableScopes(account3), latest = /* @__PURE__ */ new Map();
+  for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
+    const key = `${prompt.scope}:${prompt.prompt_key}`;
+    if (!latest.has(key)) latest.set(key, prompt);
+  }
+  return [...latest.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
+}
+
+// web/core/review-data.mjs
+var SNAPSHOT_NUMBERS = [
+  "impressions",
+  "fan_impressions",
+  "reads",
+  "fan_reads",
+  "ctr",
+  "completion_rate",
+  "avg_read_seconds",
+  "likes",
+  "comments",
+  "reposts",
+  "shares",
+  "favorites",
+  "revenue"
+];
+var SNAPSHOT_JSON = ["traffic_sources", "completion_curve", "audience"];
+var SUM_FIELDS = ["impressions", "fan_impressions", "reads", "fan_reads", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
+var AVG_FIELDS = ["ctr", "completion_rate", "avg_read_seconds"];
+function parseJson(value, fallback = null) {
+  if (value === null || value === void 0 || value === "") return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+function finiteNumber2(value) {
+  if (typeof value !== "number" && typeof value !== "string" || value === "") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const number3 = Number(value);
+  return Number.isFinite(number3) ? number3 : null;
+}
+function calendarDate2(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+  const stamp3 = Date.parse(`${date}T00:00:00Z`);
+  return Number.isFinite(stamp3) && new Date(stamp3).toISOString().slice(0, 10) === date ? date : "";
+}
+var shanghaiClock = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function shanghaiParts(value) {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match || !calendarDate2(match[1]) || Number(match[2]) > 23 || Number(match[3]) > 59 || Number(match[4] || 0) > 59 || match[6] !== "Z" && (Number(match[6].slice(1, 3)) > 23 || Number(match[6].slice(4, 6)) > 59)) return null;
+  const stamp3 = Date.parse(value);
+  if (!Number.isFinite(stamp3)) return null;
+  return Object.fromEntries(shanghaiClock.formatToParts(stamp3).map((part) => [part.type, part.value]));
+}
+function day5(value) {
+  if (typeof value !== "string") return "";
+  if (calendarDate2(value)) return value;
+  const parts2 = shanghaiParts(value);
+  return parts2 ? calendarDate2(`${parts2.year.padStart(4, "0")}-${parts2.month}-${parts2.day}`) : "";
+}
+function reviewDateTime2(value) {
+  if (typeof value !== "string") return "";
+  if (calendarDate2(value)) return value;
+  const parts2 = shanghaiParts(value), date = day5(value);
+  return parts2 && date ? `${date} ${parts2.hour}:${parts2.minute}` : "";
+}
+function shiftDay2(value, amount) {
+  const date = day5(value);
+  if (!date || !Number.isFinite(amount)) return "";
+  return new Date(Date.parse(`${date}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
+}
+function list(value) {
+  return Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
+}
+function object3(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function rules(value) {
+  return list(parseJson(value, [])).filter((rule) => rule && typeof rule === "object" && typeof rule.rule_id === "string");
+}
+function normalizeReviewData(input = {}) {
+  return {
+    benchmarkAccounts: list(input.benchmarkAccounts || input["benchmark-accounts"]).filter(Boolean),
+    benchmarkArticles: list(input.benchmarkArticles || input["benchmark-articles"]).filter(Boolean),
+    notes: list(input.notes).filter(Boolean),
+    accountHealth: list(input.accountHealth || input["account-health"]).filter(Boolean),
+    articles: list(input.articles).filter(Boolean).map((article) => ({ ...article, image_count: finiteNumber2(article.image_count) })),
+    snapshots: list(input.snapshots).filter(Boolean).map((snapshot) => {
+      const normalized = { ...snapshot };
+      for (const field2 of SNAPSHOT_NUMBERS) normalized[field2] = finiteNumber2(snapshot[field2]);
+      for (const field2 of SNAPSHOT_JSON) normalized[field2] = parseJson(snapshot[field2]);
+      return normalized;
+    }),
+    reports: list(input.reports).filter(Boolean).map((report) => ({
+      ...report,
+      verdicts: object3(parseJson(report.verdicts, {})),
+      findings: object3(parseJson(report.findings, {})),
+      metrics: object3(parseJson(report.metrics, {}))
+    })),
+    prompts: list(input.prompts || input["prompts/current"]).filter(Boolean),
+    playbooks: list(input.playbooks).filter(Boolean).map((playbook2) => ({ ...playbook2, rules: rules(playbook2.rules) }))
+  };
+}
+function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
+  const result = /* @__PURE__ */ new Map();
+  for (const snapshot of list(snapshots2)) {
+    const date = day5(snapshot.snapshot_date);
+    if (!date || date > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
+    const key = String(snapshot.article_id);
+    const previous = result.get(key);
+    if (!previous || date > day5(previous.snapshot_date) || date === day5(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
+  }
+  return result;
+}
+function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
+  const result = /* @__PURE__ */ new Map();
+  const ordered2 = list(reports).filter((report) => (!periodType || report.period_type === periodType) && day5(report.period_end) && day5(report.period_end) <= end).sort((a, b) => day5(a.period_end).localeCompare(day5(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
+  for (const report of ordered2) {
+    for (const [id2, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
+      const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
+      if (!["爆", "中", "扑"].includes(entry.verdict)) continue;
+      result.set(String(id2), { verdict: entry.verdict, reason: typeof entry.reason === "string" ? entry.reason : "", report_id: report.id });
+    }
+  }
+  return result;
+}
+function articleRows2(data3 = {}, { start = "", end = "9999-12-31", periodType } = {}) {
+  const snapshots2 = latestSnapshots(data3.snapshots, end);
+  const verdicts = verdictMap(data3.reports, { end, periodType });
+  return list(data3.articles).filter((article) => {
+    const published = day5(article.published_at);
+    return published && (!start || published >= start) && published <= end;
+  }).map((article) => ({
+    ...article,
+    snapshot: snapshots2.get(String(article.id)) || null,
+    verdict: verdicts.get(String(article.id))?.verdict || "",
+    reason: verdicts.get(String(article.id))?.reason || ""
+  })).sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)) || String(a.id).localeCompare(String(b.id)));
+}
+function aggregate(rows = []) {
+  const result = { count: rows.length, hits: 0, flops: 0, judged_count: 0, hit_rate: null, coverage: {}, partial: {} };
+  for (const field2 of [...SUM_FIELDS, ...AVG_FIELDS]) {
+    const values = rows.map((row) => finiteNumber2(row.snapshot?.[field2])).filter((value) => value !== null);
+    result.coverage[field2] = values.length;
+    result.partial[field2] = values.length > 0 && values.length < rows.length;
+    result[field2] = values.length ? values.reduce((sum, value) => sum + value, 0) / (AVG_FIELDS.includes(field2) ? values.length : 1) : null;
+  }
+  for (const row of rows) {
+    if (["爆", "中", "扑"].includes(row.verdict)) result.judged_count += 1;
+    if (row.verdict === "爆") result.hits += 1;
+    if (row.verdict === "扑") result.flops += 1;
+  }
+  if (!result.judged_count) {
+    result.hits = null;
+    result.flops = null;
+  } else result.hit_rate = result.hits / result.judged_count * 100;
+  result.coverage.verdict = result.judged_count;
+  result.partial.verdict = result.judged_count > 0 && result.judged_count < rows.length;
+  return result;
+}
+function compareMetrics(current3 = {}, previous = {}) {
+  const result = {};
+  for (const field2 of ["count", ...SUM_FIELDS, ...AVG_FIELDS, "hits", "flops", "hit_rate", "published_count", "total_reads", "average_ctr", "recent_hits"]) {
+    const now = finiteNumber2(current3[field2]);
+    const before = finiteNumber2(previous[field2]);
+    result[field2] = {
+      current: now,
+      previous: before,
+      delta: now !== null && before !== null ? now - before : null,
+      percent: now !== null && before !== null && before !== 0 ? (now - before) / Math.abs(before) * 100 : null
+    };
+  }
+  return result;
+}
+function periodSummary(data3, { start, end, periodType } = {}) {
+  const duration3 = day5(start) && day5(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
+  const previousEnd = duration3 > 0 ? shiftDay2(start, -1) : "";
+  const previousStart = duration3 > 0 ? shiftDay2(start, -duration3) : "";
+  const rows = articleRows2(data3, { start, end, periodType });
+  const previousRows = duration3 > 0 ? articleRows2(data3, { start: previousStart, end: previousEnd, periodType }) : [];
+  const current3 = aggregate(rows), previous = aggregate(previousRows);
+  return { start, end, previousStart, previousEnd, rows, previousRows, current: current3, previous, changes: compareMetrics(current3, previous) };
+}
+function dailySummary(data3, date) {
+  const previousDate = shiftDay2(date, -1);
+  const result = periodSummary(data3, { start: date, end: date, periodType: "daily" });
+  const recentRows = articleRows2(data3, { start: shiftDay2(date, -2), end: date });
+  const previousRecentRows = articleRows2(data3, { start: shiftDay2(date, -3), end: previousDate });
+  const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
+  const stats = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
+  const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
+  return { ...result, date, previousDate, recentRows, stats, previousStats, statChanges: compareMetrics(stats, previousStats) };
+}
+function groupPerformance(rows = [], field2 = "topic_category") {
+  const groups = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const key = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  return [...groups].map(([name, members]) => {
+    const summary = aggregate(members);
+    return { name, ...summary, average_reads: summary.coverage.reads ? summary.reads / summary.coverage.reads : null, rows: members };
+  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
+  const dates = [...new Set(list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)).filter((date) => date && date >= start && date <= end))].sort();
+  const articles = new Map(list(data3.articles).map((article) => [String(article.id), article]));
+  return dates.map((date) => {
+    const sameDay = list(data3.snapshots).filter((snapshot) => day5(snapshot.snapshot_date) === date);
+    const snapshots2 = latestSnapshots(sameDay, date);
+    const rows = [...snapshots2.entries()].filter(([id2]) => articles.has(id2)).map(([id2, snapshot]) => ({ ...articles.get(id2), snapshot }));
+    return { date, ...aggregate(rows) };
+  });
+}
+function diffRules(previous, current3) {
+  const before = new Map(rules(previous?.rules ?? previous).map((rule) => [rule.rule_id, rule]));
+  const after = new Map(rules(current3?.rules ?? current3).map((rule) => [rule.rule_id, rule]));
+  const added = [], removed4 = [], unchanged2 = [], changed4 = [];
+  for (const [id2, rule] of before) {
+    const next = after.get(id2);
+    if (!next) removed4.push(rule);
+    else if (String(rule.text || "") !== String(next.text || "") || String(rule.section || "") !== String(next.section || "")) {
+      removed4.push(rule);
+      added.push(next);
+      changed4.push({ before: rule, after: next });
+    } else unchanged2.push(next);
+  }
+  for (const [id2, rule] of after) if (!before.has(id2)) added.push(rule);
+  return { added, removed: removed4, unchanged: unchanged2, changed: changed4 };
+}
+function metricDiscrepancies(report = {}, computed = {}) {
+  const metrics2 = object3(parseJson(report.metrics, {}));
+  const aliases3 = {
+    total_reads: "reads",
+    average_ctr: "ctr",
+    avg_ctr: "ctr",
+    total_impressions: "impressions",
+    average_completion_rate: "completion_rate",
+    avg_completion_rate: "completion_rate",
+    total_revenue: "revenue",
+    article_count: "count",
+    published_count: "count",
+    hit_count: "hits",
+    flop_count: "flops"
+  };
+  return Object.entries(metrics2).map(([key, value]) => {
+    const field2 = aliases3[key] || key;
+    const authorValue = finiteNumber2(value), calculated = finiteNumber2(computed[field2]);
+    const comparable = authorValue !== null && calculated !== null;
+    return {
+      key,
+      field: field2,
+      authorValue,
+      computedValue: calculated,
+      comparable,
+      mismatch: comparable ? Math.abs(authorValue - calculated) > Math.max(5e-3, Math.abs(calculated) * 1e-6) : false,
+      partial: Boolean(computed.partial?.[field2])
+    };
+  });
+}
+function periodsFor(data3 = {}, type = "daily") {
+  const periods = /* @__PURE__ */ new Map();
+  for (const report of list(data3.reports)) {
+    if (report.period_type !== type) continue;
+    const start = day5(report.period_start), end = day5(report.period_end);
+    if (!start || !end || start > end) continue;
+    periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
+  }
+  if (!periods.size) {
+    const dates = [...new Set([...list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
+    const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
+    for (const end of dates) {
+      const start = shiftDay2(end, -(duration3 - 1));
+      periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
+    }
+  }
+  return [...periods.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
+}
+
 // web/pages/review-traffic-card.mjs
 init_dom();
 var valid = (value, max = Infinity) => {
-  const n = finiteNumber(value);
+  const n = finiteNumber2(value);
   return n !== null && n >= 0 && n <= max ? n : null;
 };
 var count = (value) => {
@@ -15271,10 +15359,10 @@ function renderArticleDiagnosis(row, vm3) {
 var ROLLING_DAYS = 7;
 var ROLLING_MIN_SAMPLES = 3;
 var DAY_MS = 864e5, BEIJING_OFFSET_MS = 8 * 36e5;
-var instant = (value) => typeof value === "string" && value.includes("T") && day4(value) ? Date.parse(value) : null;
+var instant = (value) => typeof value === "string" && value.includes("T") && day5(value) ? Date.parse(value) : null;
 var stamp2 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
 var number = (value, max = Infinity) => {
-  const n = finiteNumber(value);
+  const n = finiteNumber2(value);
   return n !== null && n >= 0 && n <= max ? n : null;
 };
 var statusOf = (row) => row.publication_status ?? row.publish_status ?? row.status;
@@ -15282,12 +15370,12 @@ var unpublishedStatuses = ["draft", "drafting", "illustrated", "draft_saved", "s
 var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
 function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
-  const today2 = day4(now);
+  const today2 = day5(now);
   if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
-  const start = range === "custom" ? from : shiftDay(today2, range === "30d" ? -29 : -6);
+  const start = range === "custom" ? from : shiftDay2(today2, range === "30d" ? -29 : -6);
   const end = range === "custom" ? to : today2;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day4(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day4(end) !== end)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day5(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day5(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
   const days = (Date.parse(end) - Date.parse(start)) / DAY_MS + 1;
   if (days < 1) throw new TypeError("结束日期不能早于开始日期。");
@@ -15302,7 +15390,7 @@ function summarize(rows) {
   const judged = rows.filter((row) => row.verdict), verdicts = (name) => judged.filter((row) => row.verdict === name).length;
   const hits = verdicts("爆");
   const unknown2 = rows.filter((row) => !confirmed(row)).length;
-  const dates = rows.map((row) => day4(row.sample24h?.snapshot_date)).filter(Boolean).sort();
+  const dates = rows.map((row) => day5(row.sample24h?.snapshot_date)).filter(Boolean).sort();
   const ages = rows.map((row) => number(row.sample24h?.age_hours)).filter((value) => value !== null);
   return {
     record_count: rows.length,
@@ -15363,12 +15451,12 @@ function reviewTrends(data3 = {}, options4 = {}) {
   const { account: account3 = "V字", verdict = "", now = (/* @__PURE__ */ new Date()).toISOString() } = options4;
   const bounds = trendBounds({ ...options4, now }), nowMs = stamp2(now);
   const source = (data3.articles || []).filter((row) => row.account === account3);
-  const past = (row) => day4(row.published_at) && day4(row.published_at) <= bounds.today && (stamp2(row.published_at) === null || stamp2(row.published_at) <= nowMs);
+  const past = (row) => day5(row.published_at) && day5(row.published_at) <= bounds.today && (stamp2(row.published_at) === null || stamp2(row.published_at) <= nowMs);
   const articles = source.filter((row) => !unpublished(row) && past(row));
   const byId = new Map(articles.map((row) => [String(row.id), row]));
   const snapshots2 = (data3.snapshots || []).filter((snapshot) => {
-    const row = byId.get(String(snapshot.article_id)), date = day4(snapshot.snapshot_date);
-    if (!row || !date || date > bounds.today || date < day4(row.published_at)) return false;
+    const row = byId.get(String(snapshot.article_id)), date = day5(snapshot.snapshot_date);
+    if (!row || !date || date > bounds.today || date < day5(row.published_at)) return false;
     const published = stamp2(row.published_at), hours = number(snapshot.age_hours);
     return published === null || hours === null || hours <= (nowMs - published) / 36e5 + 1;
   });
@@ -15378,23 +15466,23 @@ function reviewTrends(data3 = {}, options4 = {}) {
     return {
       ...row,
       trend_provisional: elapsed !== null && elapsed < 24 || age !== null && age < 24,
-      trend_unknown_age: published === null && age === null && day4(row.published_at) >= shiftDay(bounds.today, -1)
+      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay2(bounds.today, -1)
     };
   });
   const pool = rows.filter((row) => !verdict || row.verdict === verdict);
-  const between = (start, end) => pool.filter((row) => day4(row.published_at) >= start && day4(row.published_at) <= end);
+  const between = (start, end) => pool.filter((row) => day5(row.published_at) >= start && day5(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
-  const previous = { start: shiftDay(bounds.start, -bounds.days), end: shiftDay(bounds.start, -1) };
+  const previous = { start: shiftDay2(bounds.start, -bounds.days), end: shiftDay2(bounds.start, -1) };
   const rolling = (date, key) => {
-    const values = between(shiftDay(date, 1 - ROLLING_DAYS), date).map((row) => row[key]).filter((value) => value !== null);
+    const values = between(shiftDay2(date, 1 - ROLLING_DAYS), date).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
-  const first = selected.map((row) => day4(row.published_at)).sort()[0];
+  const first = selected.map((row) => day5(row.published_at)).sort()[0];
   const plot = { start: first || bounds.start, end: bounds.end };
   const startMs = Date.parse(`${plot.start}T00:00:00Z`);
   plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
   const series = Array.from({ length: bounds.days }, (_, index) => {
-    const date = shiftDay(bounds.start, index);
+    const date = shiftDay2(bounds.start, index);
     return {
       date,
       position: date < plot.start ? null : ((Date.parse(`${date}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days,
@@ -15404,7 +15492,7 @@ function reviewTrends(data3 = {}, options4 = {}) {
     };
   });
   const points = selected.map((row) => {
-    const date = day4(row.published_at), published = stamp2(row.published_at);
+    const date = day5(row.published_at), published = stamp2(row.published_at);
     const position = published === null ? ((Date.parse(`${date}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days : (published + BEIJING_OFFSET_MS - startMs) / (plot.days * DAY_MS);
     return {
       id: row.id,
@@ -15437,8 +15525,8 @@ function reviewTrends(data3 = {}, options4 = {}) {
     summary,
     excluded: {
       unpublished: source.filter(unpublished).length,
-      undated: source.filter((row) => !unpublished(row) && !day4(row.published_at)).length,
-      future: source.filter((row) => !unpublished(row) && day4(row.published_at) && !past(row)).length
+      undated: source.filter((row) => !unpublished(row) && !day5(row.published_at)).length,
+      future: source.filter((row) => !unpublished(row) && day5(row.published_at) && !past(row)).length
     },
     loaded_at: data3.loadedAt || null,
     generated_at: now
@@ -15501,7 +15589,7 @@ function dateLabels(series) {
 }
 function readout(point) {
   if (!point) return "";
-  const when = point.timed ? reviewDateTime(point.published_at) : point.date;
+  const when = point.timed ? reviewDateTime2(point.published_at) : point.date;
   return `${when}《${point.title || "未命名"}》阅读 ${reads2(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
 function figure(result, { key, rolling, kind, title, hint, format, tick, height, threshold, daily = true }) {
@@ -15558,7 +15646,7 @@ function method(result) {
     <p>爆款沿用账号最近 30 篇有效阅读样本：至少 10 篇时高于 80% 分位数判爆；不足 10 篇时暂用阅读 ≥ 1000。
     爆款率分母为可判定篇数：可判定 ${s.coverage.hits} 篇，未判定 ${s.unjudged_count} 篇，其中暂定判定 ${s.provisional_judged_count} 篇。
     “较上期”对比 ${result.previous.start} 至 ${result.previous.end}。${status}</p>
-    <p>所用快照日期：${dates}。${ages}资料读取时间：${e(reviewDateTime(result.loaded_at) || "未记录")}（北京时间）。
+    <p>所用快照日期：${dates}。${ages}资料读取时间：${e(reviewDateTime2(result.loaded_at) || "未记录")}（北京时间）。
     已排除：明确未发布 ${result.excluded.unpublished} 篇，发布时间缺失 ${result.excluded.undated} 篇，未来发布时间 ${result.excluded.future} 篇。</p></details>`;
 }
 function dailyTable(result) {
@@ -15579,7 +15667,7 @@ function renderCockpitTrends(data3, vm3, window2) {
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString();
   const result = reviewTrends(data3, { account: vm3.account, range: "custom", from: window2.start, to: window2.end, now });
   const pending = result.points.filter((point) => point.provisional && (known2(point.reads) || known2(point.ctr))).length;
-  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${result.end === day4(now) ? "今天尚未结束。" : ""}缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`;
+  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${result.end === day5(now) ? "今天尚未结束。" : ""}缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`;
   return `<section class="review-trends review-cockpit-trends" aria-label="文章阅读与点击率走势">${legend(result)}
     ${figure(result, {
     key: "reads",
@@ -15607,9 +15695,9 @@ function renderCockpitTrends(data3, vm3, window2) {
     <p class="review-note review-trend-note">${e(note)}</p></section>`;
 }
 function renderReviewTrends(data3, vm3) {
-  const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day4(now), t = vm3.trends || {};
+  const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day5(now), t = vm3.trends || {};
   const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
-  const from = range === "custom" ? t.from || "" : shiftDay(today2, range === "30d" ? -29 : -6);
+  const from = range === "custom" ? t.from || "" : shiftDay2(today2, range === "30d" ? -29 : -6);
   const to = range === "custom" ? t.to || "" : today2;
   const filters = controls({ range, from, to, today: today2 });
   let result;
@@ -15646,6 +15734,76 @@ function renderReviewTrends(data3, vm3) {
     hint: "标题和封面吸不吸引人"
   })}
     <p class="review-note review-trend-note">${e(note)}</p>${dailyTable(result)}${method(result)}</section>`;
+}
+
+// shared/article-diagnosis.mjs
+var ARTICLE_DIAGNOSIS_KEY = "article_diagnosis";
+var ARTICLE_DIAGNOSIS_PROMPT = [
+  "你是头条图文数据复盘助手。只根据我给你的这一篇数据，和同账号最近30篇的平均值做对比，写且只写三句话，不要标题、不要列表、不要开头客套。",
+  "第一句：这篇好在哪，必须点出明显高于均值的指标，并带上这篇的数字和均值。",
+  "第二句：这篇差在哪，必须点出明显低于均值的指标，并带上这篇的数字和均值。如果没有明显短板，就写最接近均值、提升空间最大的一项。",
+  "第三句：下一篇同类稿的标题或开头怎么改，只给一个具体改法，不要空话。",
+  "只谈标题、展现、阅读、点击率、完读率，不要编造未提供的数据，不要评价正文内容。"
+].join("\n");
+var aliases2 = /* @__PURE__ */ new Map([
+  ["整体", "global"],
+  ["global", "global"],
+  ["头条", "toutiao"],
+  ["toutiao", "toutiao"],
+  ["V字", "vzi"],
+  ["vzi", "vzi"],
+  ["鱼见", "yujian"],
+  ["yujian", "yujian"],
+  ["公众号", "wechat"],
+  ["wechat", "wechat"]
+]);
+var scopeOf2 = (value) => aliases2.get(String(value || "")) || String(value || "");
+function diagnosisScopes(account3) {
+  const scope = scopeOf2(account3);
+  if (scope === "vzi" || scope === "yujian") return ["global", "toutiao", scope];
+  if (scope === "wechat") return ["wechat"];
+  return scope === "global" ? ["global"] : ["global", scope];
+}
+function versionOf(row) {
+  const value = Number(row?.version);
+  return Number.isSafeInteger(value) ? value : 0;
+}
+function selectDiagnosisPrompt(prompts, account3) {
+  const scopes = diagnosisScopes(account3);
+  const rows = (Array.isArray(prompts) ? prompts : []).filter((row) => row && row.prompt_key === ARTICLE_DIAGNOSIS_KEY && row.status === "active" && scopes.includes(row.scope) && String(row.content_md || "").trim());
+  rows.sort((a, b) => scopes.indexOf(b.scope) - scopes.indexOf(a.scope) || versionOf(b) - versionOf(a) || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+  return rows[0] || null;
+}
+function diagnosisPromptText(prompts, account3) {
+  return selectDiagnosisPrompt(prompts, account3)?.content_md?.trim() || ARTICLE_DIAGNOSIS_PROMPT;
+}
+function latestDiagnosisSnapshot(snapshots2, articleId) {
+  const rows = (snapshots2 || []).filter((row) => row && String(row.article_id) === String(articleId));
+  rows.sort((a, b) => String(b.snapshot_date || "").localeCompare(String(a.snapshot_date || "")) || (Number(b.age_hours) || 0) - (Number(a.age_hours) || 0) || String(b.id || "").localeCompare(String(a.id || "")));
+  return rows[0] || null;
+}
+function metricValue(snapshot, key) {
+  if (!snapshot) return null;
+  const value = finiteNumber(snapshot[key]);
+  return value === null || value < 0 ? null : value;
+}
+function formatFact(value) {
+  return value === null ? "未提供" : String(Math.round(value * 100) / 100);
+}
+var FIELDS = [["展现", "impressions"], ["阅读", "reads"], ["点击率", "ctr"], ["完读率", "completion_rate"]];
+function articleDiagnosisFacts(data3, article) {
+  const peers = (data3.articles || []).filter((row) => row && row.account === article.account && String(row.id) !== String(article.id)).sort(recentArticles).slice(0, 30);
+  const current3 = latestDiagnosisSnapshot(data3.snapshots, article.id);
+  const metrics2 = {};
+  const lines = ["标题：" + (String(article.title || "").trim() || "（无标题）")];
+  for (const [label3, key] of FIELDS) {
+    const samples = peers.map((row) => metricValue(latestDiagnosisSnapshot(data3.snapshots, row.id), key)).filter((value2) => value2 !== null);
+    const average2 = samples.length ? samples.reduce((sum, value2) => sum + value2, 0) / samples.length : null;
+    const value = metricValue(current3, key);
+    metrics2[key] = { value, average: average2, samples: samples.length };
+    lines.push(`${label3}：${formatFact(value)}；同账号最近30篇平均：${formatFact(average2)}（有效样本 ${samples.length}）`);
+  }
+  return { title: article.title || "", metrics: metrics2, text: lines.join("\n") };
 }
 
 // web/pages/review-prompt-page.mjs
@@ -15702,24 +15860,24 @@ function renderPromptPage(data3, vm3) {
   const cards = prompts.map((prompt) => card(
     labels3[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "),
-    reviewDateTime(prompt.updated_at) || "未记录",
+    reviewDateTime2(prompt.updated_at) || "未记录",
     prompt.content_md || "",
     copyButton("copy-prompt", prompt.id)
   ));
   const diagnosisNote = selected ? [selected.title, "v" + selected.version, scopeLabel(selected.scope)].filter(Boolean).join(" · ") : "默认提示词";
-  cards.push(card("AI诊断", diagnosisNote, selected ? reviewDateTime(selected.updated_at) || "未记录" : "", diagnosis, copyButton("copy-diagnosis-prompt")));
+  cards.push(card("AI诊断", diagnosisNote, selected ? reviewDateTime2(selected.updated_at) || "未记录" : "", diagnosis, copyButton("copy-diagnosis-prompt")));
   for (const block of extras) cards.push(card(block.title, "规则手册中的提示词", "", block.content, copyButton("copy-prompt-block")));
   return `<div class="review-prompt-page">${cards.join("")}</div>`;
 }
 
 // web/core/review-overview-metrics.mjs
 function instant2(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day4(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
   const stamp3 = Date.parse(value);
   return Number.isFinite(stamp3) ? stamp3 : null;
 }
 function metricSample(rows, valueOf, maximum = Infinity) {
-  const entries = rows.map((row) => ({ value: finiteNumber(valueOf(row)), hours: finiteNumber(row.sample24h?.age_hours) })).filter(({ value, hours: hours2 }) => value !== null && value >= 0 && value <= maximum && hours2 !== null);
+  const entries = rows.map((row) => ({ value: finiteNumber2(valueOf(row)), hours: finiteNumber2(row.sample24h?.age_hours) })).filter(({ value, hours: hours2 }) => value !== null && value >= 0 && value <= maximum && hours2 !== null);
   const hours = entries.map((entry) => entry.hours);
   return { values: entries.map((entry) => entry.value), sample: {
     count: entries.length,
@@ -15732,28 +15890,28 @@ function average(values) {
 }
 function mondayOf(today2) {
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  return shiftDay(today2, -((weekday + 6) % 7));
+  return shiftDay2(today2, -((weekday + 6) % 7));
 }
 function metricWindow(range, today2) {
   const monday = mondayOf(today2);
   if (range === "24h") return { rolling: true };
   if (range === "30d") return {
-    start: shiftDay(today2, -29),
+    start: shiftDay2(today2, -29),
     end: today2,
     label: "较前30天",
-    previous: { start: shiftDay(today2, -59), end: shiftDay(today2, -30), closed: true }
+    previous: { start: shiftDay2(today2, -59), end: shiftDay2(today2, -30), closed: true }
   };
   if (range === "last") return {
-    start: shiftDay(monday, -7),
-    end: shiftDay(monday, -1),
+    start: shiftDay2(monday, -7),
+    end: shiftDay2(monday, -1),
     closed: true,
     label: "较上上周",
-    previous: { start: shiftDay(monday, -14), end: shiftDay(monday, -8), closed: true }
+    previous: { start: shiftDay2(monday, -14), end: shiftDay2(monday, -8), closed: true }
   };
-  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay(monday, -7), end: shiftDay(monday, -1), closed: true } };
+  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay2(monday, -7), end: shiftDay2(monday, -1), closed: true } };
 }
 function publishedIn(row, bounds, nowMs) {
-  const publishedDay = day4(row.published_at);
+  const publishedDay = day5(row.published_at);
   const publishedMs = instant2(row.published_at);
   if (bounds.rolling) return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
   return Boolean(publishedDay && publishedDay >= bounds.start && publishedDay <= bounds.end && (bounds.closed || publishedMs === null || publishedMs <= nowMs));
@@ -15791,7 +15949,7 @@ function metricDelta(current3, previous) {
 function dailySeries2(rows, bounds, nowMs) {
   if (!bounds.start || !bounds.end) return [];
   const days = [];
-  for (let date = bounds.start; date <= bounds.end; date = shiftDay(date, 1)) {
+  for (let date = bounds.start; date <= bounds.end; date = shiftDay2(date, 1)) {
     const dayRows = rows.filter((row) => publishedIn(row, { start: date, end: date, closed: true }, nowMs));
     days.push({ date, ...summarize2(dayRows) });
   }
@@ -15800,7 +15958,7 @@ function dailySeries2(rows, bounds, nowMs) {
 function reviewOverviewMetrics(data3, { account: account3, range = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const nowMs = instant2(now);
   if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
-  const bounds = metricWindow(range, day4(now));
+  const bounds = metricWindow(range, day5(now));
   const rows = enrichArticles(data3, { account: account3 });
   const current3 = summarize2(rows.filter((row) => publishedIn(row, bounds, nowMs)));
   if (!bounds.previous) return current3;
@@ -15814,7 +15972,7 @@ function reviewOverviewMetrics(data3, { account: account3, range = "24h", now = 
   };
 }
 function reviewDuration(value) {
-  const n = finiteNumber(value);
+  const n = finiteNumber2(value);
   if (n === null || n < 0) return "—";
   const seconds = Math.round(n);
   return `${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
@@ -15833,7 +15991,7 @@ var REVIEW_LIST_METRICS = Object.freeze([
 function formatReviewListMetric(observation, key) {
   if (!REVIEW_LIST_METRICS.some((metric) => metric.key === key)) return "—";
   if (observation?.kind === "immature" && key === "reads") return "未满24h";
-  const number3 = finiteNumber(observation?.snapshot?.[key]);
+  const number3 = finiteNumber2(observation?.snapshot?.[key]);
   if (number3 === null || number3 < 0) return "—";
   if (key === "ctr" || key === "completion_rate") return number3 <= 100 ? `${number3.toFixed(1)}%` : "—";
   if (key === "avg_read_seconds") return reviewDuration(number3);
@@ -15879,7 +16037,7 @@ function safeUrl2(value) {
   }
 }
 function number2(value) {
-  const n = finiteNumber(value);
+  const n = finiteNumber2(value);
   if (n === null || n < 0) return "";
   return n >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
@@ -15898,7 +16056,7 @@ function metricText(snapshot) {
     const text = number2(snapshot[key]);
     if (text) parts2.push(`${label3} ${text}`);
   }
-  const ctr = finiteNumber(snapshot.ctr);
+  const ctr = finiteNumber2(snapshot.ctr);
   if (ctr !== null && ctr >= 0) parts2.push(`点击率 ${ctr.toFixed(1)}%`);
   return parts2.length ? parts2.join(" · ") : "—";
 }
@@ -15907,7 +16065,7 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
   const ownArticles = (data3.articles || []).filter((item) => item.account === account3);
   const samples = (data3.benchmarkArticles || []).filter((item) => item.account === account3 && accounts.has(String(item.benchmark_account_id))).map((item) => ({
     item,
-    published: reviewDateTime(item.published_at),
+    published: reviewDateTime2(item.published_at),
     used: ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id))
   })).filter((row) => row.used.length).sort((a, b) => {
     const dayOrder = b.published.slice(0, 10).localeCompare(a.published.slice(0, 10));
@@ -15937,20 +16095,20 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
 
 // web/core/review-list-observation.mjs
 function instant3(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day4(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
   const stamp3 = Date.parse(value);
   return Number.isFinite(stamp3) ? stamp3 : null;
 }
 var compare2 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new Date()).toISOString()) {
-  if (row.sample24h) return { kind: "sample", snapshot: row.sample24h, reads: row.reads_24h, hours: finiteNumber(row.sample24h.age_hours) };
+  if (row.sample24h) return { kind: "sample", snapshot: row.sample24h, reads: row.reads_24h, hours: finiteNumber2(row.sample24h.age_hours) };
   const published = instant3(row.published_at);
   const candidates = (Array.isArray(snapshots2) ? snapshots2 : []).filter((snapshot) => String(snapshot?.article_id) === String(row.id)).map((snapshot) => {
-    const explicitAge = finiteNumber(snapshot.age_hours);
+    const explicitAge = finiteNumber2(snapshot.age_hours);
     const observed2 = instant3(snapshot.observed_at) ?? instant3(snapshot.snapshot_date);
     const computedAge = published !== null && observed2 !== null ? (observed2 - published) / 36e5 : null;
     const hours = explicitAge !== null && Number.isInteger(explicitAge) && explicitAge >= 0 ? explicitAge : explicitAge === null ? computedAge : null;
-    const reads3 = finiteNumber(snapshot.reads);
+    const reads3 = finiteNumber2(snapshot.reads);
     return { snapshot, hours, observed: observed2, reads: reads3 !== null && reads3 >= 0 ? reads3 : null };
   }).filter((candidate) => candidate.hours !== null && candidate.hours > 72).sort((a, b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare2(String(a.snapshot.id ?? ""), String(b.snapshot.id ?? "")));
   const first = candidates.find((candidate) => candidate.reads !== null) || candidates[0];
@@ -15965,7 +16123,7 @@ function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new 
   return { kind: "missing", snapshot: null, reads: null, hours: null };
 }
 function reviewObservationHours(value) {
-  const hours = finiteNumber(value);
+  const hours = finiteNumber2(value);
   return hours === null ? "" : String(Number(hours.toFixed(4)));
 }
 
@@ -15974,7 +16132,7 @@ init_dom();
 var REVIEW_VIEWS = [["overview", "总览"], ["articles", "文章库"], ["playbook", "手册"]];
 var percentageKeys = /* @__PURE__ */ new Set(["ctr", "completion_rate", "ctr_24h", "completion_24h", "hit_rate", "flop_rate", "median_ctr"]);
 function reviewNumber(value, key = "") {
-  const n = finiteNumber(value);
+  const n = finiteNumber2(value);
   if (n === null) return "—";
   if (percentageKeys.has(key)) return `${n.toFixed(1)}%`;
   return Math.abs(n) >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
@@ -15993,14 +16151,14 @@ function tag(verdict) {
   return `<span class="review-tag ${css}">${e(verdict)}</span>`;
 }
 function delta(value, key) {
-  const n = finiteNumber(typeof value === "object" && value ? value.delta : value);
+  const n = finiteNumber2(typeof value === "object" && value ? value.delta : value);
   return n === null ? '<span class="review-change">较前一周 —</span>' : `<span class="review-change">较前一周 ${n > 0 ? "+" : n < 0 ? "−" : ""}${e(percentageKeys.has(key) ? Math.abs(n).toFixed(1) : reviewNumber(Math.abs(n)))}${percentageKeys.has(key) ? " 个百分点" : ""}</span>`;
 }
 function chart(points, { small = false } = {}) {
-  if (!points.some((p) => finiteNumber(p.ctr_24h) !== null || finiteNumber(p.reads_24h) !== null)) return empty2("暂无趋势数据", "采集后显示阅读与 CTR 中位数。");
+  if (!points.some((p) => finiteNumber2(p.ctr_24h) !== null || finiteNumber2(p.reads_24h) !== null)) return empty2("暂无趋势数据", "采集后显示阅读与 CTR 中位数。");
   const width = 720, height = small ? 120 : 180, left = 28, right = 692, top = 18, bottom = top + height;
   const x = (i) => left + (points.length < 2 ? (right - left) / 2 : i / (points.length - 1) * (right - left));
-  const max = (key) => Math.max(1, ...points.map((p) => finiteNumber(p[key]) ?? 0));
+  const max = (key) => Math.max(1, ...points.map((p) => finiteNumber2(p[key]) ?? 0));
   let lines = "", dots = "";
   for (const [key, css, label3] of [["reads_24h", "reads", "阅读"], ["ctr_24h", "ctr", "CTR"]]) {
     let segment = [];
@@ -16009,7 +16167,7 @@ function chart(points, { small = false } = {}) {
       segment = [];
     };
     points.forEach((p, i) => {
-      const n = finiteNumber(p[key]);
+      const n = finiteNumber2(p[key]);
       if (n === null) {
         flush();
         return;
@@ -16032,7 +16190,7 @@ function sampleFor(row, data3) {
   const reference = row.reference_article_id == null ? null : (data3.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
   const title = reference?.title || row.sample_title || "";
   const url = safeReviewUrl(reference?.url) || safeReviewUrl(row.sample_url);
-  const reads3 = finiteNumber(reference?.reads);
+  const reads3 = finiteNumber2(reference?.reads);
   return title || url ? { title, url, reads: reads3 !== null && reads3 >= 0 ? reads3 : null } : null;
 }
 function sampleLabel(row, data3) {
@@ -16095,7 +16253,7 @@ function sectionBody(selected, data3, vm3, rows) {
   if (selected === "benchmarks") return v13Accounts(data3);
   if (selected === "rules") return playbook(data3, vm3);
   if (selected === "prompts") return promptPage(data3, vm3);
-  if (selected === "library") return renderBenchmarkBreakdown(data3, vm3) + renderBenchmarkLibrary(data3, vm3.account);
+  if (selected === "library") return renderBenchmarkLibrary(data3, vm3.account);
   return overview(data3, vm3);
 }
 function archives(data3, vm3, rows, override) {
@@ -16142,8 +16300,8 @@ function articleListPanel(rows, vm3, data3) {
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows, vm3, data3)}</div></section>`;
 }
 function articleLibrary(rows, vm3, data3 = {}) {
-  const f = vm3.filters || {}, range = f.range || "30d", today2 = day4(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
-  const selected = rows.filter((r) => (!from || day4(r.published_at) && day4(r.published_at) >= from && day4(r.published_at) <= today2) && (!f.from || day4(r.published_at) >= f.from && day4(r.published_at)) && (!f.to || day4(r.published_at) <= f.to && day4(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
+  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay2(today2, range === "7d" ? -6 : -29);
+  const selected = rows.filter((r) => (!from || day5(r.published_at) && day5(r.published_at) >= from && day5(r.published_at) <= today2) && (!f.from || day5(r.published_at) >= f.from && day5(r.published_at)) && (!f.to || day5(r.published_at) <= f.to && day5(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
   const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
   const picker = `<details class="review-columns-picker" data-review-columns-picker${vm3.metricPickerOpen ? " open" : ""}><summary data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map((metric) => `<label><input type="checkbox" data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? " checked" : ""}>${e(metric.label)}</label>`).join("")}</div></details>`;
@@ -16162,8 +16320,8 @@ function articleLibrary(rows, vm3, data3 = {}) {
     const judgement = observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
     const supplement = chosen.includes("reads") ? "" : observation.kind === "immature" ? "未满24h" : age;
     return [
-      ["发布时间", e(reviewDateTime(row.published_at) || "—")],
-      ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${titlePattern(vm3, row, data3)}${sampleLabel(row, data3)}`],
+      ["发布时间", e(reviewDateTime2(row.published_at) || "—")],
+      ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data3)}`],
       ...metrics2,
       ["判定", `${judgement}${supplement}`]
     ];
@@ -16249,7 +16407,7 @@ function renderRuleBook(book, scope) {
     ${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>` : "";
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note">生效于 ${e(ownLayer ? day4(book.published_on) || "—" : "—")}</span>
+    <span class="review-note">生效于 ${e(ownLayer ? day5(book.published_on) || "—" : "—")}</span>
     <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
     ${intro}${groups}${other}</section>`;
 }
@@ -16280,7 +16438,7 @@ function drawer(data3, rows, vm3) {
   const row = rows.find((r) => String(r.id) === String(vm3.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
-  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(
+  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime2(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(
     data3.snapshots,
     row.id
   )}${renderArticleDiagnosis(row, vm3)}${renderImitation(row, data3, vm3.account)}</aside></div>`;
@@ -16311,6 +16469,47 @@ function renderContentReviewContent(data3, vm3) {
   return `<div class="review-body"${vm3.article ? " inert" : ""}>${body2}</div>${drawer(data3, rows, vm3)}`;
 }
 
+// web/ai-settings-controller.mjs
+init_state();
+var registered4 = false;
+var visible3 = () => state.page === "settings" && state.settingsTab === "ai";
+function paint2() {
+  const node2 = document.querySelector("#ai-settings");
+  if (!visible3() || !node2) return;
+  const active5 = document.activeElement, focus = node2.contains(active5) && active5.dataset.aiSetting ? [
+    active5.dataset.aiSetting,
+    active5.dataset.aiFeature || ""
+  ] : null;
+  node2.outerHTML = renderAiSettings(reviewAiView());
+  if (focus) document.querySelector(`#ai-settings [data-ai-setting="${focus[0]}"]${focus[1] ? `[data-ai-feature="${focus[1]}"]` : ""}`)?.focus({ preventScroll: true });
+}
+function register3() {
+  if (registered4) return;
+  registered4 = true;
+  watchReviewAi(paint2);
+  document.addEventListener("change", (event) => {
+    if (visible3() && event.target.closest?.("#ai-settings") && reviewAiInput(event.target)) paint2();
+  });
+  document.addEventListener("submit", (event) => {
+    if (event.target.id !== "ai-settings-form") return;
+    event.preventDefault();
+    if (visible3()) void saveReviewAiSettings();
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest?.("#ai-settings [data-ai-action]");
+    if (target && visible3()) reviewAiClick(target, { account: state.account || "V字" });
+  });
+}
+function aiSettingsPage() {
+  register3();
+  return renderAiSettings(reviewAiView().status === "idle" ? { status: "loading" } : reviewAiView());
+}
+async function loadAiSettings() {
+  register3();
+  await loadReviewAi(state.account || "V字", { force: true });
+  if (reviewAiView().data?.configured) void loadReviewAiModels();
+}
+
 // web/review-controller.mjs
 var columnStorageKey = "haoduoyu.review.columns.v1";
 var REVIEW_METRIC_COLUMNS = Object.freeze(["reads", "impressions", "fan_impressions", "fan_reads", "ctr", "avg_read_seconds", "completion_rate"]);
@@ -16325,7 +16524,7 @@ function readReviewColumnPreference(raw) {
   }
 }
 var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health", "prompts/current"];
-var data = normalizeReviewData(), sequence2 = 0, registered2 = false, identity5 = "", pageContext2;
+var data2 = normalizeReviewData(), sequence4 = 0, registered5 = false, identity5 = "", pageContext2;
 var vm2 = {
   account: "V字",
   view: "overview",
@@ -16346,7 +16545,7 @@ var vm2 = {
   loading: true,
   error: ""
 };
-var root = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
+var root2 = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
 }
@@ -16445,12 +16644,12 @@ function syncViewFromRoute() {
 function focusBenchmark(id2) {
   if (!id2) return;
   const node2 = document.getElementById(`review-benchmark-${encodeURIComponent(id2)}`);
-  if (!node2 || !root()?.contains(node2)) return;
+  if (!node2 || !root2()?.contains(node2)) return;
   node2.scrollIntoView({ block: "start" });
   node2.focus({ preventScroll: true });
 }
 function positionReviewColumnsPicker() {
-  const picker = root()?.querySelector("[data-review-columns-picker]");
+  const picker = root2()?.querySelector("[data-review-columns-picker]");
   if (!picker?.open) return;
   const trigger = picker.querySelector("[data-review-columns-trigger]");
   const menu = picker.querySelector(".review-columns-menu");
@@ -16473,7 +16672,7 @@ function positionReviewColumnsPicker() {
 }
 var columnPositionFrame = 0;
 function scheduleReviewColumnsPosition() {
-  if (columnPositionFrame || !root()?.querySelector("[data-review-columns-picker][open]")) return;
+  if (columnPositionFrame || !root2()?.querySelector("[data-review-columns-picker][open]")) return;
   columnPositionFrame = requestAnimationFrame(() => {
     columnPositionFrame = 0;
     positionReviewColumnsPicker();
@@ -16481,14 +16680,14 @@ function scheduleReviewColumnsPosition() {
 }
 var returnFocusId = "", returnScroll = 0;
 function syncReviewFullscreen() {
-  const node2 = root(), button3 = node2?.querySelector('[data-review-action="toggle-fullscreen"]');
+  const node2 = root2(), button3 = node2?.querySelector('[data-review-action="toggle-fullscreen"]');
   if (!button3) return;
   const active5 = node2.classList.contains("review-list-fullscreen");
   button3.textContent = active5 ? "退出全屏" : "全屏展示";
   button3.setAttribute("aria-pressed", String(active5));
 }
 async function toggleReviewFullscreen() {
-  const node2 = root();
+  const node2 = root2();
   if (!node2) return;
   if (node2.classList.contains("review-list-fullscreen")) {
     node2.classList.remove("review-list-fullscreen");
@@ -16504,31 +16703,31 @@ async function toggleReviewFullscreen() {
   syncReviewFullscreen();
 }
 async function toggleArticleList() {
-  const node2 = root();
+  const node2 = root2();
   if (!node2 || vm2.loading || vm2.error) return;
   const expanded = !vm2.articlesExpanded;
   if (!expanded && node2.classList.contains("review-list-fullscreen")) await toggleReviewFullscreen();
   vm2.articlesExpanded = expanded;
   vm2.metricPickerOpen = false;
   paintContentReviewPage();
-  const button3 = root()?.querySelector(".review-articles-toggle");
+  const button3 = root2()?.querySelector(".review-articles-toggle");
   button3?.focus({ preventScroll: true });
-  if (!expanded) root()?.querySelector(".review-articles-panel")?.scrollIntoView({ block: "start", behavior: "instant" });
+  if (!expanded) root2()?.querySelector(".review-articles-panel")?.scrollIntoView({ block: "start", behavior: "instant" });
 }
 var aiContext = () => ({
   account: vm2.account,
-  playbooks: () => data.playbooks,
+  playbooks: () => data2.playbooks,
   reload: () => void loadContentReview(pageContext2),
   applyPlaybook: (saved) => {
-    data = { ...data, playbooks: data.playbooks.map((item) => String(item.id) === String(saved.id) ? { ...item, ...saved } : item) };
+    data2 = { ...data2, playbooks: data2.playbooks.map((item) => String(item.id) === String(saved.id) ? { ...item, ...saved } : item) };
   }
 });
 function paintContentReviewPage() {
-  const node2 = root();
+  const node2 = root2();
   if (!node2) return;
   vm2.ai = reviewAiView();
   const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : "";
-  node2.innerHTML = renderContentReviewContent(data, vm2);
+  node2.innerHTML = renderContentReviewContent(data2, vm2);
   if (focused) node2.querySelector(`[data-ai-once="${focused}"]`)?.focus({ preventScroll: true });
   syncReviewFullscreen();
   const dialog = node2.querySelector('[role="dialog"]');
@@ -16542,7 +16741,7 @@ async function loadContentReview(context) {
   const [{ apiNetwork: apiNetwork2 }, { state: state2, runtime: runtime2 }] = await Promise.all([Promise.resolve().then(() => (init_api(), api_exports)), Promise.resolve().then(() => (init_state(), state_exports))]);
   const requested = route(), currentIdentity2 = `${runtime2.sessionEpoch}:${state2.me?.id || ""}:${requested.account}`;
   if (identity5 !== currentIdentity2) {
-    data = normalizeReviewData();
+    data2 = normalizeReviewData();
     vm2.filters = {};
     vm2.articlesExpanded = true;
     vm2.diagnoses = {};
@@ -16550,13 +16749,13 @@ async function loadContentReview(context) {
   }
   vm2 = { ...vm2, ...requested, loading: true, error: "" };
   paintContentReviewPage();
-  const ticket2 = ++sequence2, epoch = runtime2.sessionEpoch;
-  const current3 = () => ticket2 === sequence2 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
+  const ticket2 = ++sequence4, epoch = runtime2.sessionEpoch;
+  const current3 = () => ticket2 === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root2());
   const read2 = (path) => apiNetwork2(path, context ? { context } : {});
   try {
     const result = await readContentReviewDataWithRetry(read2, requested.account, current3);
     if (!current3() || !result) return;
-    data = result;
+    data2 = result;
     syncViewFromRoute();
     paintContentReviewPage();
     focusBenchmark(vm2.benchmark);
@@ -16573,7 +16772,7 @@ function closeArticle() {
   vm2.article = "";
   writeRoute({ article: "" });
   paintContentReviewPage();
-  const node2 = [...root()?.querySelectorAll("[data-review-article]") || []].find((el) => el.dataset.reviewArticle === returnFocusId);
+  const node2 = [...root2()?.querySelectorAll("[data-review-article]") || []].find((el) => el.dataset.reviewArticle === returnFocusId);
   node2?.focus({ preventScroll: true });
   window.scrollTo({ top: returnScroll, behavior: "instant" });
 }
@@ -16583,20 +16782,20 @@ function selectTab(view, focus = false) {
   vm2.benchmark = "";
   writeRoute({ view, article: "", benchmark: "" });
   paintContentReviewPage();
-  if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({ preventScroll: true });
+  if (focus) root2()?.querySelector(`#review-tab-${view}`)?.focus({ preventScroll: true });
 }
 function changeTrend(target) {
   const key = target.dataset.reviewTrend;
   if (!["range", "from", "to"].includes(key)) return;
-  const today2 = day4((/* @__PURE__ */ new Date()).toISOString());
+  const today2 = day5((/* @__PURE__ */ new Date()).toISOString());
   vm2.trends = { ...vm2.trends, [key]: target.value };
   if (key === "range" && vm2.trends.range === "custom") {
-    vm2.trends.from ||= shiftDay(today2, -6);
+    vm2.trends.from ||= shiftDay2(today2, -6);
     vm2.trends.to ||= today2;
   }
   writeRoute({ ...Object.fromEntries(Object.entries(vm2.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
   paintContentReviewPage();
-  root()?.querySelector(`[data-review-trend="${key}"]`)?.focus({ preventScroll: true });
+  root2()?.querySelector(`[data-review-trend="${key}"]`)?.focus({ preventScroll: true });
 }
 async function copyReviewPrompt(prompts, account3, id2, clipboard = globalThis.navigator?.clipboard) {
   const prompt = currentPrompts(prompts, account3).find((row) => String(row.id) === String(id2));
@@ -16663,7 +16862,7 @@ async function copyPromptButton(button3) {
   button3.disabled = true;
   if (status) status.textContent = "正在复制…";
   try {
-    await copyReviewPrompt(data.prompts, vm2.account, button3.dataset.promptId);
+    await copyReviewPrompt(data2.prompts, vm2.account, button3.dataset.promptId);
     if (status?.isConnected) status.textContent = "已复制完整提示词。";
   } catch (error) {
     if (status?.isConnected) status.textContent = error.message;
@@ -16674,10 +16873,10 @@ async function copyPromptButton(button3) {
 function describeTrendPoint(event, leaving) {
   const point = event.target.closest?.("[data-trend-readout]");
   const target = point?.closest(".review-trend-figure")?.querySelector("[data-trend-readout-target]");
-  if (target && root()?.contains(target)) target.textContent = leaving ? target.dataset.default : point.dataset.trendReadout;
+  if (target && root2()?.contains(target)) target.textContent = leaving ? target.dataset.default : point.dataset.trendReadout;
 }
 function onReviewClick(event) {
-  const node2 = root();
+  const node2 = root2();
   const picker = node2?.querySelector("[data-review-columns-picker]");
   if (picker?.open && !picker.contains(event.target)) {
     picker.open = false;
@@ -16736,7 +16935,7 @@ function onReviewClick(event) {
     return;
   }
   if (target.dataset.reviewAction === "copy-diagnosis-prompt") {
-    void copyPromptText(target, diagnosisPromptText(data.prompts, vm2.account));
+    void copyPromptText(target, diagnosisPromptText(data2.prompts, vm2.account));
     return;
   }
   if (target.dataset.reviewAction === "copy-prompt-block") {
@@ -16752,7 +16951,7 @@ function onReviewClick(event) {
     vm2.benchmark = "";
     writeRoute({ section: vm2.secondary, benchmark: "" });
     paintContentReviewPage();
-    root()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
+    root2()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
     return;
   }
   if (target.dataset.reviewView) {
@@ -16763,7 +16962,7 @@ function onReviewClick(event) {
     vm2.week = target.dataset.reviewWeek;
     writeRoute({ week: vm2.week });
     paintContentReviewPage();
-    root()?.querySelector(`[data-review-week="${vm2.week}"]`)?.focus({ preventScroll: true });
+    root2()?.querySelector(`[data-review-week="${vm2.week}"]`)?.focus({ preventScroll: true });
     return;
   }
   if (target.dataset.reviewAction === "close-article") {
@@ -16782,7 +16981,7 @@ function onReviewClick(event) {
   }
 }
 function onReviewKeydown(event) {
-  const node2 = root();
+  const node2 = root2();
   if (!node2?.contains(event.target)) return;
   const dialog = node2.querySelector('[role="dialog"]');
   if (dialog) {
@@ -16827,7 +17026,7 @@ function onReviewKeydown(event) {
     vm2.benchmark = "";
     writeRoute({ section: vm2.secondary, benchmark: "" });
     paintContentReviewPage();
-    root()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
+    root2()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
     return;
   }
   if (event.target.matches("[data-review-view]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
@@ -16837,13 +17036,13 @@ function onReviewKeydown(event) {
   }
 }
 function registerEvents2() {
-  if (registered2 || typeof document === "undefined") return;
-  registered2 = true;
+  if (registered5 || typeof document === "undefined") return;
+  registered5 = true;
   watchReviewAi(() => {
-    if (root() && !vm2.loading) paintContentReviewPage();
+    if (root2() && !vm2.loading) paintContentReviewPage();
   });
   document.addEventListener("fullscreenchange", () => {
-    const node2 = root();
+    const node2 = root2();
     if (node2?.classList.contains("review-list-fullscreen") && !document.fullscreenElement && node2.dataset.nativeFullscreen === "true") {
       node2.classList.remove("review-list-fullscreen");
       node2.dataset.nativeFullscreen = "";
@@ -16852,7 +17051,7 @@ function registerEvents2() {
   });
   document.addEventListener("toggle", (event) => {
     const picker = event.target;
-    if (picker.matches?.("[data-review-columns-picker]") && root()?.contains(picker)) {
+    if (picker.matches?.("[data-review-columns-picker]") && root2()?.contains(picker)) {
       vm2.metricPickerOpen = picker.open;
       if (picker.open) positionReviewColumnsPicker();
     }
@@ -16866,7 +17065,7 @@ function registerEvents2() {
   document.addEventListener("mouseout", (event) => describeTrendPoint(event, true));
   document.addEventListener("change", (event) => {
     const target = event.target;
-    const node2 = root();
+    const node2 = root2();
     if (!node2?.contains(target) || vm2.loading || vm2.error) return;
     if (reviewAiInput(target)) return;
     if (target.dataset.reviewTrend) {
@@ -16885,7 +17084,7 @@ function registerEvents2() {
       const scrollLeft = node2.querySelector(".review-table-wrap")?.scrollLeft || 0;
       const scrollY = window.scrollY;
       paintContentReviewPage();
-      const current3 = root();
+      const current3 = root2();
       const picker = current3?.querySelector("[data-review-columns-picker]");
       if (picker) picker.open = true;
       const table2 = current3?.querySelector(".review-table-wrap");
@@ -16899,12 +17098,12 @@ function registerEvents2() {
     const key = target.dataset.reviewFilter;
     vm2.filters[key] = target.value;
     paintContentReviewPage();
-    const filterRoot = target.closest(".review-trends") ? root()?.querySelector(".review-trends") : root();
+    const filterRoot = target.closest(".review-trends") ? root2()?.querySelector(".review-trends") : root2();
     filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({ preventScroll: true });
   });
   document.addEventListener("keydown", onReviewKeydown);
   window.addEventListener("popstate", () => {
-    if (!root()) return;
+    if (!root2()) return;
     const next = route();
     if (next.account !== vm2.account) void loadContentReview(pageContext2);
     else {
@@ -16913,227 +17112,6 @@ function registerEvents2() {
       focusBenchmark(vm2.benchmark);
     }
   });
-}
-
-// web/experiments-panel-controller.mjs
-init_api();
-init_state();
-var data2 = null, sequence3 = 0, registered3 = false, panelError = false;
-var account2 = () => state.account || "V字";
-var root2 = () => document.querySelector("#ai-experiments");
-function paint() {
-  const node2 = root2();
-  if (!node2 || state.page !== "ai-reports") return;
-  node2.innerHTML = data2 ? renderReportReview(data2, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
-}
-function register2() {
-  if (registered3) return;
-  registered3 = true;
-  watchReviewAi(paint);
-  document.addEventListener("change", (event) => {
-    if (state.page === "ai-reports" && event.target.closest?.("#ai-experiments")) reviewAiInput(event.target);
-  });
-  document.addEventListener("click", (event) => {
-    if (event.target.closest?.("#ai-experiments [data-retry-review]")) {
-      void loadExperimentsPanel();
-      return;
-    }
-    const target = event.target.closest?.("#ai-experiments [data-ai-action]");
-    if (!target || state.page !== "ai-reports" || !data2) return;
-    reviewAiClick(target, {
-      account: account2(),
-      playbooks: () => data2.playbooks,
-      reload: () => void loadExperimentsPanel(),
-      applyPlaybook: (saved) => {
-        data2 = { ...data2, playbooks: data2.playbooks.map((item) => String(item.id) === String(saved.id) ? { ...item, ...saved } : item) };
-      }
-    });
-  });
-}
-async function loadExperimentsPanel() {
-  register2();
-  const ticket2 = ++sequence3, session2 = runtime.sessionEpoch, name = account2();
-  data2 = null;
-  panelError = false;
-  paint();
-  void loadReviewAi(name);
-  const current3 = () => ticket2 === sequence3 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
-  const read2 = (path) => apiNetwork(path, { suppressAuthRedirect: true });
-  try {
-    const [articles, snapshots2, reports, playbooks] = await Promise.all(["articles", "snapshots", "reports", "playbooks"].map((kind) => readReviewCollection(
-      read2,
-      kind,
-      name,
-      current3
-    )));
-    if (!current3() || !articles || !snapshots2 || !reports || !playbooks) return;
-    const ids = new Set(articles.items.map((row) => String(row.id)));
-    data2 = normalizeReviewData({
-      articles: articles.items,
-      snapshots: snapshots2.items.filter((row) => ids.has(String(row.article_id))),
-      reports: reports.items,
-      playbooks: currentPlaybooks(playbooks.items, name)
-    });
-  } catch {
-    if (current3()) {
-      data2 = null;
-      panelError = true;
-    }
-  }
-  if (current3()) paint();
-}
-
-// web/ai-reports-controller.mjs
-init_api();
-init_state();
-init_daily_notes_state();
-var sequence4 = 0, registered4 = false, selectedDate = "", visibleMonth = "", pageSession = null;
-function selectDailyTab(name) {
-  if (!OPENAI_TABS.includes(name)) return;
-  state.aiDailyTab = name;
-  const root3 = document.querySelector("#ai-reports");
-  if (!root3) return;
-  for (const button3 of root3.querySelectorAll("[data-ai-daily-tab]"))
-    button3.setAttribute("aria-pressed", String(button3.dataset.aiDailyTab === name));
-  for (const panel2 of root3.querySelectorAll("[data-ai-daily-panel]"))
-    panel2.hidden = panel2.dataset.aiDailyPanel !== name;
-}
-function aiReportsYesterday(today2 = dailyNotesToday()) {
-  const date = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-}
-function reportRank(author) {
-  const value = String(author ?? "");
-  if (/gpt/i.test(value)) return 0;
-  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
-  if (/gemini/i.test(value)) return 2;
-  return 3;
-}
-var compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
-function sortAiReports(items) {
-  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) || compareText(String(a.author ?? "").toLowerCase(), String(b.author ?? "").toLowerCase()) || compareText(String(a.created_at ?? ""), String(b.created_at ?? "")) || compareText(String(a.id ?? ""), String(b.id ?? "")));
-}
-function reportsForDailyDate(items, date) {
-  return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date)));
-}
-async function readAllAiReports(read2, current3 = () => true) {
-  const items = [], seen = /* @__PURE__ */ new Set();
-  for (let offset = 0; ; offset += 100) {
-    const data3 = await read2("/ai-reports?offset=" + offset);
-    if (!current3()) return null;
-    if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
-      throw new Error("汇报读取不完整，请稍后重试。");
-    for (const row of data3.items) if (!seen.has(row.id)) {
-      seen.add(row.id);
-      items.push(row);
-    }
-    if (!data3.has_more) return items;
-  }
-}
-async function loadAiReports({ resetDate = false } = {}) {
-  registerAiReportEvents();
-  const session2 = runtime.sessionEpoch;
-  if (pageSession !== session2 || resetDate) {
-    pageSession = session2;
-    selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
-    visibleMonth = selectedDate.slice(0, 7);
-  }
-  if (!selectedDate) selectedDate = dailyNotesToday();
-  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
-  const ticket2 = ++sequence4, date = selectedDate;
-  const current3 = () => ticket2 === sequence4 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
-  paintAiReports([], "", true, date, visibleMonth);
-  paintAiDailyReminders(null, "", true);
-  selectDailyTab(state.aiDailyTab || "reports");
-  const report = readAllAiReports(api, current3).then((items) => {
-    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth);
-  }).catch((error) => {
-    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth);
-  });
-  const reminders = api("/work-reminders?date=" + encodeURIComponent(date)).then((data3) => {
-    if (current3()) paintAiDailyReminders(data3);
-  }).catch((error) => {
-    if (current3()) paintAiDailyReminders(null, error.message || "提醒读取失败，请稍后重试");
-  });
-  void loadExperimentsPanel();
-  await Promise.all([report, reminders]);
-}
-function moveMonth(offset) {
-  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
-  d.setUTCMonth(d.getUTCMonth() + offset);
-  if (!Number.isFinite(d.getTime())) return;
-  const next = d.toISOString().slice(0, 7);
-  if (validDailyNotesDate(next + "-01")) {
-    visibleMonth = next;
-    paintAiCalendar(selectedDate, visibleMonth);
-  }
-}
-function registerAiReportEvents() {
-  if (registered4) return;
-  registered4 = true;
-  document.addEventListener("click", (event) => {
-    if (state.page !== "ai-reports") return;
-    const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
-    if (tab) {
-      selectDailyTab(tab);
-      updateRoute();
-      if (tab === "openai") void loadAiReports();
-    } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
-    else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
-    else {
-      const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-      if (day6 && validDailyNotesDate(day6)) {
-        selectedDate = day6;
-        visibleMonth = day6.slice(0, 7);
-        state.aiDailyDate = day6;
-        state.openAiRun = "";
-        updateRoute();
-        void loadAiReports();
-      }
-    }
-  });
-}
-
-// web/ai-settings-controller.mjs
-init_state();
-var registered5 = false;
-var visible3 = () => state.page === "settings" && state.settingsTab === "ai";
-function paint2() {
-  const node2 = document.querySelector("#ai-settings");
-  if (!visible3() || !node2) return;
-  const active5 = document.activeElement, focus = node2.contains(active5) && active5.dataset.aiSetting ? [
-    active5.dataset.aiSetting,
-    active5.dataset.aiFeature || ""
-  ] : null;
-  node2.outerHTML = renderAiSettings(reviewAiView());
-  if (focus) document.querySelector(`#ai-settings [data-ai-setting="${focus[0]}"]${focus[1] ? `[data-ai-feature="${focus[1]}"]` : ""}`)?.focus({ preventScroll: true });
-}
-function register3() {
-  if (registered5) return;
-  registered5 = true;
-  watchReviewAi(paint2);
-  document.addEventListener("change", (event) => {
-    if (visible3() && event.target.closest?.("#ai-settings") && reviewAiInput(event.target)) paint2();
-  });
-  document.addEventListener("submit", (event) => {
-    if (event.target.id !== "ai-settings-form") return;
-    event.preventDefault();
-    if (visible3()) void saveReviewAiSettings();
-  });
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest?.("#ai-settings [data-ai-action]");
-    if (target && visible3()) reviewAiClick(target, { account: state.account || "V字" });
-  });
-}
-function aiSettingsPage() {
-  register3();
-  return renderAiSettings(reviewAiView().status === "idle" ? { status: "loading" } : reviewAiView());
-}
-async function loadAiSettings() {
-  register3();
-  await loadReviewAi(state.account || "V字", { force: true });
-  if (reviewAiView().data?.configured) void loadReviewAiModels();
 }
 
 // web/controller.mjs

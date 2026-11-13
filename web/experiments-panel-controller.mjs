@@ -1,8 +1,4 @@
-import {apiNetwork} from './core/api.mjs';
 import {state, runtime} from './core/state.mjs';
-import {normalizeReviewData} from './core/review-data.mjs';
-import {currentPlaybooks} from './core/review-rule-scopes.mjs';
-import {readReviewCollection} from './review-controller.mjs';
 import {renderReportReview} from './pages/review-ai.mjs';
 import {loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
 
@@ -34,18 +30,11 @@ function register() {
 }
 export async function loadExperimentsPanel() {
   register();
-  const ticket = ++sequence, session = runtime.sessionEpoch, name = account();
+  const ticket = ++sequence, session = runtime.sessionEpoch;
   data = null; panelError = false; paint();
-  void loadReviewAi(name);
+  void loadReviewAi(account());
   const current = () => ticket === sequence && session === runtime.sessionEpoch && state.page === 'ai-reports';
-  const read = path => apiNetwork(path, {suppressAuthRedirect:true});
-  try {
-    const [articles, snapshots, reports, playbooks] = await Promise.all(['articles','snapshots','reports','playbooks'].map(kind => readReviewCollection(read, kind, name,
-      current)));
-    if (!current() || !articles || !snapshots || !reports || !playbooks) return;
-    const ids = new Set(articles.items.map(row => String(row.id)));
-    data = normalizeReviewData({articles:articles.items, snapshots:snapshots.items.filter(row => ids.has(String(row.article_id))),
-      reports:reports.items, playbooks:currentPlaybooks(playbooks.items, name)});
-  } catch { if (current()) { data = null; panelError = true; } }
+  // Only the weekly-report archive is shown, and it comes with the AI state; no review collections are read.
+  data = {};
   if (current()) paint();
 }
