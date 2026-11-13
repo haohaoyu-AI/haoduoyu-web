@@ -163,7 +163,15 @@ export const articlePatternViewsRelease=Object.freeze({
   baseline:'fb1090ac-0dd6-41a7-826a-0470d7088f51',
   bytes:3055102,sha256:'d2efe52da19576e3d3b07d7b3a59ca7caff4b126fc631ec0ac9564e757547c47',
   label:'production-article-pattern-views-20261113'});
-const acceptedRelease=commit=>commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
+// Click and review-load speed-up on top of the deployed 003f01e. Baseline: run 43382705028's upload.
+export const speedUpRelease=Object.freeze({
+  commit:'e7499bd4d1b1f537636b2fb00b0dcf1199ab70cc',
+  tree:'f5f9f53c1706d6e4ef3daa1b0a4ca57539d52127',
+  baseline:'73703900-9614-4349-822b-cae862287fef',
+  bytes:3058520,sha256:'f44da1a42999d3e16a54ae6ddf3bcfe56422c9f17f1e4340ef06b682a5a55faf',
+  label:'production-speed-up-20261113'});
+const acceptedRelease=commit=>commit===speedUpRelease.commit?speedUpRelease:
+  commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
   commit===todoCountFixesRelease.commit?todoCountFixesRelease:
   commit===removeAnalysisRelease.commit?removeAnalysisRelease:
   commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
