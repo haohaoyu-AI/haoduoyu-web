@@ -11,6 +11,7 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {handleTodoCarry} from './todo-carry.mjs';
 import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
@@ -19,7 +20,7 @@ import {requireBusinessCsrf} from './business-access.mjs';
 import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
-import {handleDailyNotes} from './daily-notes.mjs';
+import {handleDailyNotes,dailyNotesOwner} from './daily-notes.mjs';
 import {handleDailyScores} from './daily-scores.mjs';
 import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
@@ -27,6 +28,7 @@ import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
 import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 import {handleSnapshot} from './snapshot.mjs';
 import {handleNoteEntries} from './note-entries.mjs';
+import {handleBodySummary,BODY_SUMMARY_ROUTES} from './body-summary.mjs';
 import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
 import {handleAiReports} from './ai-reports.mjs';
@@ -271,6 +273,7 @@ async function handle(request,env,trace) {
       return handleDailyNotes(db,request,route,env,origin,state.revision);
     if(route==='/daily-scores'||route.startsWith('/daily-scores/'))
       return handleDailyScores(db,request,route,env,origin,state.revision);
+    if(BODY_SUMMARY_ROUTES.includes(route))return handleBodySummary(db,request,route,dailyNotesOwner(env),env,origin);
     if(route==='/note-entries'||route.startsWith('/note-entries/'))
       return handleNoteEntries(db,request,route,env,origin,state.revision);
     if(route==='/ai-reports'||route.startsWith('/ai-reports/'))
@@ -297,6 +300,7 @@ async function handle(request,env,trace) {
       if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
       if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
       if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
+      if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
       if(method==='GET') return publicBusinessResult(protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,access.actor));
       return publicBusinessResult(protectedWrite(db,request,route,env,origin,trace,access.actor));
@@ -306,6 +310,7 @@ async function handle(request,env,trace) {
     if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
     if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
+    if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
     if(method==='GET') {
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
     }

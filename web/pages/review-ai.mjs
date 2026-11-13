@@ -3,7 +3,7 @@ import {enrichArticles} from '../../shared/review-analytics.mjs';
 import {experiments, patternStats, ruleNames} from '../../shared/review-experiments.mjs';
 import {renderReviewMarkdown} from '../core/review-markdown.mjs';
 
-export const AI_FEATURE_LABELS = {weekly:'周报', titles:'标题归类', benchmarks:'爆文拆解', diagnosis:'单篇诊断'};
+export const AI_FEATURE_LABELS = {weekly:'周报', titles:'标题归类', benchmarks:'爆文拆解', diagnosis:'单篇诊断', body:'大小便小结'};
 export const AI_EFFORT_LABELS = [['','模型默认'],['low','低'],['medium','中'],['high','高']];
 const known = value => value !== null && value !== undefined && Number.isFinite(value);
 const reads = value => !known(value) ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : Math.round(value).toLocaleString('zh-CN');

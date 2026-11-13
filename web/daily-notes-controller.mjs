@@ -8,6 +8,7 @@ import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-
 import {checkedNoteMonth, coalesceNoteMonthFlight, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
 import {createNotesEditorView, noteDraftNeedsAttention} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
+import {paintBodySummary} from './body-summary-controller.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
@@ -684,6 +685,7 @@ function makeMonthCard(date, items, selected) {
 }
 function paintHistoryRows(root) {
   const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
+  paintBodySummary(root, label);
   const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector('#notes-history-date').value;
   historyDate = selected;
   const grid = root.querySelector('#notes-history-grid'), list = root.querySelector('#notes-history-list');

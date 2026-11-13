@@ -386,6 +386,7 @@ async function loadTodos(context) {
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day.items = data.items;
     day.loaded = true; monthDayOwners.set(day, {owner: monthOwner(), at: Date.now(), revision: day.revision});
+    if (date === bjtDate()) void carryUnfinishedTodos(day, owner);
     if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date, data.items);
       const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
@@ -401,6 +402,23 @@ async function loadTodos(context) {
       if (visible && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
       if (!visible && todoObservers.size && date === bjtDate()) void loadFloatingToday();
     }
+  }
+}
+// Once a day, unfinished one-off to-dos from the past week are brought to today by the server, which decides
+// what moves so every device agrees. Deleting a carried copy keeps it from coming back.
+const carriedDays = new Map();
+async function carryUnfinishedTodos(day, owner) {
+  if (carriedDays.get(owner) === day.date) return;
+  carriedDays.set(owner, day.date);
+  try {
+    const result = await api("/todo-carry", { method: "POST", body: {} });
+    if (!todoSessionActive(owner) || !result?.carried?.length || day.date !== bjtDate()) return;
+    day.revision++;
+    setTodoNotice(day, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
+    void loadTodos();
+  } catch (error) {
+    // Offline or a passing error: try again on the next visit instead of skipping the day.
+    if (carriedDays.get(owner) === day.date && !error?.staleSession) carriedDays.delete(owner);
   }
 }
 function inputTodo(target) {

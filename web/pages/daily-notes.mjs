@@ -45,7 +45,8 @@ export function renderDailyNotes() {
     '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" ' +
       'data-history-display="calendar" ' +
       'aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" ' +
-        'class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" ' +
+        'class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div>' +
+    '<section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" ' +
           'class="notes-calendar-summary"></p>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
     '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
