@@ -88,9 +88,9 @@ function checkedBody(route, options, uuid) {
 }
 function runtimeContext(options) {
   const {db, request, now = Date.now, uuid = () => crypto.randomUUID(), online = () => globalThis.navigator?.onLine !== false,
-    onIdentity = () => {}, features = OFFLINE_FEATURES, scopeProbe = false, scopeReuseMs = 0} = options;
+    onIdentity = () => {}, features = OFFLINE_FEATURES, scopeProbe = false, scopeReuseMs = 0, progressiveSnapshot = false} = options;
   const state = {scope: null, verifiedScope: null, identity: null, online: online(), phase: 'idle', pending: 0,
-    conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, errorStage: null, ready: true};
+    conflicts: 0, unsupported: 0, lastSuccess: null, historyRemaining: 0, cachedAt: null, error: null, errorStage: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
   const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
@@ -133,8 +133,9 @@ function runtimeContext(options) {
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
     supportedProtocols: features.memos ? [1, 2, 3, 4, 5] : [1, 3, 4, 5], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
-  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
-  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: 2}) : null;
+  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now, progressive:progressiveSnapshot});
+  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now,
+    version: 2, progressive:progressiveSnapshot}) : null;
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
   return context;
@@ -162,6 +163,7 @@ function identityActions(context) {
   const {cache, state, emit, request, onIdentity} = context;
   async function invalidate({forget = false} = {}) {
     context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;
+    clearTimeout(context.historyTimer); context.historyRetry=false; state.historyRemaining = 0;
     context.authFlight = null;
     context.scopeFlight = null;
     context.cooldownUntil = 0;
@@ -248,7 +250,7 @@ function stateActions(context) {
     state.pending = pending.length; state.conflicts = conflicts.length; state.online = online() && state.online;
     state.unsupported = pending.filter(row => !outbox.canDispatch(row)).length;
     if (state.phase !== 'syncing') state.phase = state.unsupported ? 'upgrade-required' : conflicts.length ? 'conflict' : state.online ?
-      pending.length ? 'pending' : 'synced' : 'offline';
+      pending.length ? 'pending' : state.historyRemaining ? 'partial' : 'synced' : 'offline';
     emit(); return {...state};
   }
   async function queue() {
@@ -288,7 +290,11 @@ async function runSync(context) {
   try {
     if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
     if (!active()) return {...state};
-    if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
+    if (context.cooldownUntil > now()) {
+      context.scheduleRetry();
+      if(state.historyRemaining||context.historyRetry)context.scheduleHistory();
+      return context.refresh();
+    }
     // The scope identity covers the signed-in account too, so a check from moments ago spares a second sign-in round trip.
     if (!recentScope(context)) await context.verify();
     if (generation !== context.generation || owner && owner !== state.scope) return {...state};
@@ -307,11 +313,13 @@ async function runSync(context) {
     if (!active()) return {...state};
     // Saves answer with the stored record, so a burst of quick edits needs one full refresh, not one per click.
     const pulled = now() - context.pulledAt;
-    if (state.verifiedScope && !(context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
+    if (state.verifiedScope && !(state.historyRemaining===0&&context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = 'snapshot';
-      await (context.snapshotV2 || snapshot).pull({date: today(now)});
+      const result=await (context.snapshotV2 || snapshot).pull({date: today(now)});
       if (!active()) return {...state};
-      context.pulledAt = now();
+      state.historyRemaining=result.remaining_dates||0;
+      context.historyRetry=false;
+      if(!state.historyRemaining)context.pulledAt = now();
       if (context.lastTodoPath) {
         stage = 'cache';
         const date = offlineReadRoute(context.lastTodoPath).date;
@@ -320,10 +328,12 @@ async function runSync(context) {
       }
     }
     if (!active()) return {...state};
-    state.lastSuccess = now(); state.error = null; state.errorStage = null;
+    if(!state.historyRemaining)state.lastSuccess = now();
+    state.error = null; state.errorStage = null;
   } catch (error) {
     if (!active()) return {...state};
     if (error.status === 429) {
+      if(stage==='snapshot')context.historyRetry=true;
       const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
       context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
       if (owner) {
@@ -342,11 +352,21 @@ async function runSync(context) {
   if (!active()) return {...state};
   context.broadcast();
   if (state.pending && state.online && !context.stopped) context.scheduleRetry();
+  if((state.historyRemaining||context.historyRetry)&&state.online&&(!state.error||context.cooldownUntil>now()))context.scheduleHistory();
   return {...state};
 }
 function syncActions(context) {
   const {state, emit, outbox, snapshot, now, online} = context;
   const run = () => runSync(context);
+  function scheduleHistory() {
+    clearTimeout(context.historyTimer);
+    if(context.stopped)return;
+    const owner=state.scope,generation=context.generation;
+    context.historyTimer=setTimeout(()=>{
+      if(!context.stopped&&owner===state.scope&&generation===context.generation&&online())void sync();
+    },Math.min(MAX_TIMER_DELAY,Math.max(500,(context.cooldownUntil||0)-now())));
+    context.historyTimer?.unref?.();
+  }
   function sync({rerun = false} = {}) {
     if (context.syncFlight) {
       // Overlapping sync() must survive in-flight failures, not only timer reruns.
@@ -376,7 +396,7 @@ function syncActions(context) {
       context.timer?.unref?.();
     }).catch(error => { if (!context.stopped && state.scope === owner && context.generation === generation) { state.error = error.message; emit(); } });
   }
-  return {sync, scheduleRetry};
+  return {sync, scheduleRetry, scheduleHistory};
 }
 async function unmanaged(context, path, options, guard) {
   try { guard(); return await context.request(path, options); }
@@ -512,14 +532,17 @@ function lifecycleActions(context) {
       };
     }
     stop = () => {
-      context.stopped = true; clearTimeout(context.timer); clearInterval(timer); context.channel?.close(); context.channel = null;
+      context.stopped = true; clearTimeout(context.timer); clearTimeout(context.historyTimer);
+      clearInterval(timer); context.channel?.close(); context.channel = null;
       window?.removeEventListener('online', sync); window?.removeEventListener('focus', sync);
       window?.removeEventListener('haoduoyu:sync-request', sync); window?.removeEventListener('offline', offline);
       document?.removeEventListener('visibilitychange', sync);
     };
     sync(); return stop;
   }
-  return {start, stop: () => stop(), broadcast};
+  return {start, stop: () => {
+    context.stopped=true;clearTimeout(context.historyTimer);stop();
+  }, broadcast};
 }
 async function readTodoMonthSnapshot(context, month) {
   if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith('0000')) return null;
@@ -533,7 +556,13 @@ async function readTodoMonthSnapshot(context, month) {
   const owner = context.state.scope, generation = context.generation;
   if (!owner || context.state.verifiedScope !== owner) return null;
   const result = await context.db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const snapshot = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
+    let snapshot = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
+    const progress=await tx.get('meta',entityKey(owner,'snapshot-v2-progress'));
+    if(progress?.value?.partial&&progress.value.index?.scope_id===owner&&
+      (progress.value.verified_at||0)>=(snapshot?.value?.verified_at||0)) {
+      if(!progress.value.index.dates.filter(row=>row.date.startsWith(month+'-')).every(row=>progress.value.covered_dates.includes(row.date)))return null;
+      snapshot=progress;
+    }
     const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
     if (index?.complete !== true || index.scope_id !== owner || !Array.isArray(index.entities) ||
         !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 60000) return null;
@@ -662,7 +691,7 @@ export function onOfflineRuntime(callback) {
 }
 export async function offlineRequest(path, options, request, onIdentity, assertActive = () => {}) {
   if (!initialization) initialization = openOfflineDB().then(db => {
-    singleton = createOfflineRuntime({db, request, onIdentity, scopeProbe: true, scopeReuseMs: 30000});
+    singleton = createOfflineRuntime({db, request, onIdentity, scopeProbe: true, scopeReuseMs: 30000, progressiveSnapshot:true});
     for (const callback of readyListeners) callback(singleton);
     return singleton;
   });

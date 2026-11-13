@@ -1,6 +1,6 @@
 import {entityKey, offlineValue} from './db.mjs';
 import {createNotesCache, noteReadRoute} from './notes.mjs';
-import {readOnlyRoute, readOnlySnapshot} from './read-only.mjs';
+import {readOnlyRoute, readOnlySnapshot, latestCompleteSnapshot} from './read-only.mjs';
 
 const dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -94,18 +94,40 @@ function identityMethods(db, now) {
 }
 async function legacySnapshot(db, owner, route) {
   return db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const v1 = await tx.get('meta', entityKey(owner, 'snapshot'));
-    const v2 = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
-    const snapshot = (v2?.value?.verified_at || 0) >= (v1?.value?.verified_at || 0) ? v2 || v1 : v1;
+    const snapshot = await latestCompleteSnapshot(tx,owner,route.date);
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing();
     const entity = await tx.get('entities', entityKey(owner, 'legacy-' + route.category + ':' + route.date));
-    const row = !entity?.remote_missing && entity?.server;
+    const represented=snapshot.value.index.entities?.find(value=>value.entity_id==='legacy-'+route.category+':'+route.date);
+    const row = !entity?.remote_missing && (!snapshot.value.partial||represented?.content_hash===entity?.snapshot_hash&&
+      represented?.date===route.date&&represented?.deleted_at===entity?.server?.deleted_at) && entity?.server;
     if (!row && snapshot.value.index.entities?.some(value => value.entity_id === 'legacy-' + route.category + ':' + route.date)) throw missing();
     if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== 'string')) throw missing();
     const data = {date: route.date, text: row?.text || '', version: row?.version || 0, updated_at: row?.updated_at || null,
       deleted: Boolean(row?.deleted_at), can_edit: false, snapshot_complete: true};
     return {data, saved_at: snapshot.value.verified_at || null};
   });
+}
+async function todoSnapshot(db,owner,route,now) {
+  return db.transaction(['entities','meta'],'readonly',async tx=>{
+    const snapshot=await latestCompleteSnapshot(tx,owner,route.date),index=snapshot?.value?.index;
+    if(!index)throw missing();
+    const rows=(await tx.getAll('entities')).filter(row=>row.scope===owner),byId=new Map(rows.map(row=>[row.entity_id,row]));
+    const items=index.entities.filter(row=>row.entity_type==='todo'&&row.date===route.date&&!row.deleted_at).map(expected=>{
+      const entity=byId.get(expected.entity_id);
+      if(!entity?.server||entity.remote_missing||entity.snapshot_hash!==expected.content_hash||
+        entity.server.date!==route.date||entity.server.deleted_at)throw missing();
+      return {...entity.server,id:entity.server.id||entity.server.source_id,completed:Boolean(entity.server.completed)};
+    });
+    const data={date:route.date,today:new Date(now()+8*3600000).toISOString().slice(0,10),
+      completed_mode:'strike',preferences_version:0,items,snapshot_complete:true};
+    return {data:overlay(data,route,rows,true),saved_at:snapshot.value.verified_at||null};
+  });
+}
+async function availableSnapshot(db,owner,route,now) {
+  if(route.kind==='legacy')return legacySnapshot(db,owner,route);
+  if(route.kind!=='todo')return null;
+  try {return await todoSnapshot(db,owner,route,now);}
+  catch(error){if(error.code!=='OFFLINE_CACHE_MISS')throw error;return null;}
 }
 export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false}) {
   const notes = createNotesCache({db, getScope, now, getGeneration, labelsV1});
@@ -160,10 +182,10 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
       catch (error) { if (error.code !== 'OFFLINE_CACHE_MISS' || !cached) throw error; }
     }
     if (!cached || cached.data === undefined) {
-      if (route.kind === 'legacy') {
-        const result = await legacySnapshot(db, owner, route);
-        if (scope() !== owner || getGeneration() !== generation) throw missing();
-        return result;
+      const saved=await availableSnapshot(db,owner,route,now);
+      if(saved) {
+        if(scope()!==owner||getGeneration()!==generation)throw missing();
+        return saved;
       }
       const local = ['todo', 'unscheduled_todo'].includes(route.kind) ? (await entities(owner)).filter(row => row.dirty && belongs(row, route)) : [];
       if (!local.length) throw missing();

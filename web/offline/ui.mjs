@@ -7,6 +7,7 @@ export function offlineStatusLabel(state) {
   if (!state.online) return `离线（${state.pending || 0} 条待同步）`;
   if (state.error) return '同步检查失败';
   if (state.phase === 'syncing') return '正在同步…';
+  if (state.historyRemaining) return `历史同步中（剩 ${state.historyRemaining} 天）`;
   if (state.pending) return `待同步（${state.pending} 条）`;
   return '查看同步状态';
 }
@@ -141,6 +142,8 @@ function mountRuntimeUI(runtime, {document, window}) {
     if (sequence !== rendering || !expanded) return;
     const title = textNode(document, 'h2', '同步状态');
     const details = document.createDocumentFragment();
+    if(state.historyRemaining)details.append(textNode(document,'p',
+      `已保存的日期可离线读取，另有 ${state.historyRemaining} 天历史正在分批补齐；历史尚未全部同步完成。`));
     if (state.error) {
       const stages = {identity: '身份核验', outbox: '提交队列', cache: '本地缓存', snapshot: '服务器快照'};
       details.append(textNode(document, 'p', `${stages[state.errorStage] || '同步检查'}失败：${state.error}`, 'offline-sync-error'));

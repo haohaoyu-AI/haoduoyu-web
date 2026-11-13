@@ -124,11 +124,16 @@ async function detailFor(value,date,index,limits,readBudget,version) {
   return records;
 }
 
-async function applySnapshot({db,getScope,scope,key,index,initial,cached,records,now,version}) {
+async function applySnapshot({db,getScope,scope,key,index,initial,cached,records,now,version,
+  progressKey,otherKey,covered=[],pending=[],complete=true}) {
   await db.transaction(['entities','meta'],'readwrite',async tx=>{
     identity(scope,getScope);
     const current=await tx.get('meta',key);
     if(!equal(current??null,initial.meta??null))fail('OFFLINE_SNAPSHOT_CHANGED','其他页面已更新本地快照，请重新核对。');
+    if(progressKey&&!equal(await tx.get('meta',progressKey)??null,initial.progress??null))
+      fail('OFFLINE_SNAPSHOT_CHANGED','其他页面已更新同步进度，请重新核对。');
+    if(otherKey&&!equal(await tx.get('meta',otherKey)??null,initial.otherMeta??null))
+      fail('OFFLINE_SNAPSHOT_CHANGED','其他版本页面已更新完整快照，请重新核对。');
     const all=(await tx.getAll('entities')).filter(row=>row.scope===scope),manifest=new Set(index.entities.map(row=>row.entity_id));
     for(const record of records.values()) {
       const storageKey=entityKey(scope,record.entity_id),old=await tx.get('entities',storageKey);
@@ -154,20 +159,121 @@ async function applySnapshot({db,getScope,scope,key,index,initial,cached,records
         snapshot_hash:record.content_hash,remote_missing:false,synced_at:now(),
         ...(record.entity_type==='todo'?{needs_api_refresh:!sameVersion||old?.needs_api_refresh===true}:{})});
     }
-    for(const row of all)if(row.server&&(version===2?supportedId2:supportedId).test(row.entity_id)&&!manifest.has(row.entity_id)) {
+    for(const row of all)if(complete&&row.server&&(version===2?supportedId2:supportedId).test(row.entity_id)&&!manifest.has(row.entity_id)) {
       if(!equal(row.server,cached.get(row.entity_id)?.server??null))
         fail('OFFLINE_SNAPSHOT_CHANGED','其他页面刚确认了记录，未把它判为线上缺失。');
       await tx.put('entities',{...row,server:null,snapshot_hash:null,remote_missing:true,synced_at:now()});
     }
     identity(scope,getScope);
-    await tx.put('meta',{key,value:{index,verified_at:now()}});
+    if(complete) {
+      await tx.put('meta',{key,value:{index,verified_at:now()}});
+      if(progressKey)await tx.delete('meta',progressKey);
+    }else {
+      // Older open tabs do not understand progress metadata. Remove only their
+      // completeness evidence so they cannot certify the mixed entity cache.
+      await tx.delete('meta',key);await tx.delete('meta',otherKey);
+      await tx.put('meta',{key:progressKey,value:{index,verified_at:now(),covered_dates:covered,pending_dates:pending,partial:true}});
+    }
   });
+}
+
+// Workers stop taking dates after any failure, but all issued requests settle
+// before pull() can be entered again. Budget counters remain shared per batch.
+async function readDates(dates,read,concurrency) {
+  let next=0,error=null;
+  await Promise.all(Array.from({length:Math.min(concurrency,dates.length)},async()=>{
+    while(!error&&next<dates.length) {
+      const date=dates[next++];
+      try {await read(date);}
+      catch(failure) {
+        if(!error||failure.code==='OFFLINE_SCOPE_CHANGED'||failure.status===429&&error.code!=='OFFLINE_SCOPE_CHANGED')error=failure;
+      }
+    }
+  }));
+  if(error)throw error;
+}
+
+async function pullSnapshotBatch({db,request,getScope,now,crypto,limits,version,progressive,state},{date:probeDate}={}) {
+  const scope=getScope();
+  if(typeof scope!=='string'||!hashPattern.test(scope))fail('OFFLINE_SCOPE_REQUIRED','请先联网核实当前身份范围。');
+  const key=JSON.stringify([scope,version===2?'snapshot-v2':'snapshot']),progressKey=progressive?entityKey(scope,
+    version===2?'snapshot-v2-progress':'snapshot-progress'):null,readBudget=budget(limits,crypto);
+  const otherKey=progressive?entityKey(scope,version===2?'snapshot':'snapshot-v2'):null;
+  const initial=await db.transaction(['entities','meta'],'readonly',async tx=>({
+    meta:await tx.get('meta',key),progress:progressKey?await tx.get('meta',progressKey):null,
+    otherMeta:otherKey?await tx.get('meta',otherKey):null,
+    entities:(await tx.getAll('entities')).filter(row=>row.scope===scope),
+  }));
+  identity(scope,getScope);
+  async function get(path) {
+    identity(scope,getScope);readBudget.request();const value=await request(path);
+    identity(scope,getScope);readBudget.response(value);return value;
+  }
+  const indexPath='/workbench-snapshot/index'+(version===2?'?version=2':'');
+  const index=await indexFor(await get(indexPath),scope,limits,readBudget,version);
+  const previous=initial.meta?.value?.index;
+  const oldDates=new Map(previous?.scope_id===scope?previous.dates.map(row=>[row.date,row.content_hash]):[]);
+  const progress=initial.progress?.value,covered=new Set();
+  if(progress?.partial===true&&progress.index?.scope_id===scope)
+    for(const row of progress.index.dates)oldDates.set(row.date,row.content_hash);
+  const dates=new Map(index.dates.map(row=>[row.date,row.content_hash]));
+  const changed=new Set([...new Set([...oldDates.keys(),...dates.keys()])].filter(date=>oldDates.get(date)!==dates.get(date)));
+  if(progress?.partial===true&&progress.index?.scope_id===scope)
+    for(const date of progress.pending_dates||[])changed.add(date);
+  if(progress?.partial===true&&progress.index?.scope_id===scope&&Array.isArray(progress.covered_dates)) {
+    const priorDates=new Map(progress.index.dates.map(row=>[row.date,row.content_hash]));
+    for(const date of progress.covered_dates)if(priorDates.get(date)===dates.get(date)) {changed.delete(date);covered.add(date);}
+  }
+  const cached=new Map(initial.entities.map(row=>[row.entity_id,row]));
+  let needGlobal=!(progress?.index?.scope_id===scope&&progress.index.global_content_hash===index.global_content_hash)&&
+    (!previous||previous.global_content_hash!==index.global_content_hash);
+  for(const entity of index.entities) {
+    const row=cached.get(entity.entity_id);
+    if(!row?.server||row.snapshot_hash!==entity.content_hash) {
+      if(entity.date===null)needGlobal=true;else changed.add(entity.date);
+    }
+  }
+  const preferred=probeDate===undefined?new Date(now()+8*3600000).toISOString().slice(0,10):day(probeDate);
+  if(!changed.size&&needGlobal&&index.entities.some(row=>row.date===null))changed.add(preferred);
+  if((!progressive&&changed.size+2>limits.maxRequests)||(changed.size&&limits.maxRequests<3))
+    fail('OFFLINE_SNAPSHOT_LIMIT','变化日期过多，未返回部分同步结果。',413);
+  for(const date of [...oldDates.keys(),...dates.keys()])if(!changed.has(date))covered.add(date);
+  for(const date of changed)covered.delete(date);
+  // The complete index also proves an unlisted selected day empty, without
+  // fetching every calendar day back to the earliest stored record.
+  if(progressive&&!dates.has(preferred))covered.add(preferred);
+  const ordered=[...changed].sort().reverse();
+  if(ordered.includes(preferred)) {ordered.splice(ordered.indexOf(preferred),1);ordered.unshift(preferred);}
+  const selected=progressive?ordered.slice(0,Math.min(6,limits.maxRequests-2)):[...changed].sort();
+  const remaining=changed.size-selected.length;
+  const records=new Map();
+  await readDates(selected,async date=>{
+    const path='/workbench-snapshot?date='+encodeURIComponent(date)+(version===2?'&version=2':'')+
+      (progressive?'&manifest_hash='+index.manifest_hash:'');
+    const value=await get(path);
+    // A compact detail is bound to the independently verified index by its
+    // manifest hash; record and date hashes are still verified in full.
+    const rows=await detailFor(progressive&&!Object.hasOwn(value,'entities')?{...value,entities:index.entities}:value,
+      date,index,limits,readBudget,version);
+    for(const row of rows) {
+      if(records.has(row.entity_id))requireValue(equal(records.get(row.entity_id),row));
+      records.set(row.entity_id,row);
+    }
+  },progressive?3:1);
+  const verified=await indexFor(await get(indexPath),scope,limits,readBudget,version);
+  if(!sameIndex(index,verified))fail('OFFLINE_SNAPSHOT_CHANGED','读取期间线上内容已变化，请稍后重新核对；本地内容已保留。');
+  identity(scope,getScope);
+  for(const date of selected)covered.add(date);
+  await applySnapshot({db,getScope,scope,key,index,initial,cached,records,now,version,progressKey,otherKey,
+    covered:[...covered].sort(),pending:ordered.slice(selected.length),complete:remaining===0});
+  if(!remaining)state.last_success=now();
+  return {status:remaining?'partial':'synced',scope,changed_dates:selected,remaining_dates:remaining,entities:index.entities.length};
 }
 
 // request is the existing unwrapped-data GET transport. getScope must return
 // a previously verified scope_id; snapshots never rebind an old queue or grant
 // editing capability. All network work precedes the one local write transaction.
-export function createSnapshotSync({db,request,getScope,now=Date.now,crypto=globalThis.crypto,limits={},version=1}) {
+export function createSnapshotSync({db,request,getScope,now=Date.now,crypto=globalThis.crypto,limits={},version=1,progressive=false}) {
   if(!db?.transaction||typeof request!=='function'||typeof getScope!=='function')throw new TypeError('Snapshot sync dependencies required');
   if(![1,2].includes(version))throw new TypeError('Unsupported snapshot version');
   limits={...SNAPSHOT_PULL_LIMITS,...limits};
@@ -176,53 +282,12 @@ export function createSnapshotSync({db,request,getScope,now=Date.now,crypto=glob
       throw new TypeError('Invalid snapshot pull limit');
   }
   const state={status:'idle',last_success:null,error:null};let inFlight=null;
-  async function run({date:probeDate}={}) {
-    const scope=getScope();
-    if(typeof scope!=='string'||!hashPattern.test(scope))fail('OFFLINE_SCOPE_REQUIRED','请先联网核实当前身份范围。');
-    const key=JSON.stringify([scope,version===2?'snapshot-v2':'snapshot']),readBudget=budget(limits,crypto);
-    const initial=await db.transaction(['entities','meta'],'readonly',async tx=>({
-      meta:await tx.get('meta',key),entities:(await tx.getAll('entities')).filter(row=>row.scope===scope),
-    }));
-    identity(scope,getScope);
-    async function get(path) {
-      identity(scope,getScope);readBudget.request();const value=await request(path);
-      identity(scope,getScope);readBudget.response(value);return value;
-    }
-    const indexPath='/workbench-snapshot/index'+(version===2?'?version=2':'');
-    const index=await indexFor(await get(indexPath),scope,limits,readBudget,version);
-    const previous=initial.meta?.value?.index;
-    const oldDates=new Map(previous?.scope_id===scope?previous.dates.map(row=>[row.date,row.content_hash]):[]);
-    const dates=new Map(index.dates.map(row=>[row.date,row.content_hash]));
-    const changed=new Set([...new Set([...oldDates.keys(),...dates.keys()])].filter(date=>oldDates.get(date)!==dates.get(date)));
-    const cached=new Map(initial.entities.map(row=>[row.entity_id,row]));let needGlobal=!previous||previous.global_content_hash!==index.global_content_hash;
-    for(const entity of index.entities) {
-      const row=cached.get(entity.entity_id);
-      if(!row?.server||row.snapshot_hash!==entity.content_hash) {
-        if(entity.date===null)needGlobal=true;else changed.add(entity.date);
-      }
-    }
-    if(!changed.size&&needGlobal&&index.entities.some(row=>row.date===null))
-      changed.add(probeDate===undefined?new Date(now()+8*3600000).toISOString().slice(0,10):day(probeDate));
-    if(changed.size+2>limits.maxRequests)fail('OFFLINE_SNAPSHOT_LIMIT','变化日期过多，未返回部分同步结果。',413);
-    const records=new Map();
-    for(const date of [...changed].sort()) {
-      const path='/workbench-snapshot?date='+encodeURIComponent(date)+(version===2?'&version=2':'');
-      const rows=await detailFor(await get(path),date,index,limits,readBudget,version);
-      for(const row of rows) {
-        if(records.has(row.entity_id))requireValue(equal(records.get(row.entity_id),row));
-        records.set(row.entity_id,row);
-      }
-    }
-    const verified=await indexFor(await get(indexPath),scope,limits,readBudget,version);
-    if(!sameIndex(index,verified))fail('OFFLINE_SNAPSHOT_CHANGED','读取期间线上内容已变化，请稍后重新核对；本地内容已保留。');
-    identity(scope,getScope);
-    await applySnapshot({db,getScope,scope,key,index,initial,cached,records,now,version});
-    state.last_success=now();return {status:'synced',scope,changed_dates:[...changed].sort(),entities:index.entities.length};
-  }
+
   function pull(options) {
     if(inFlight)return inFlight;
     state.status='pulling';state.error=null;
-    inFlight=run(options).then(result=>{state.status='synced';return result;},error=>{
+    inFlight=pullSnapshotBatch({db,request,getScope,now,crypto,limits,version,progressive,state},options)
+      .then(result=>{state.status=result.status;return result;},error=>{
       state.status=error.code==='OFFLINE_SCOPE_CHANGED'?'scope-changed':'error';
       state.error={code:error.code||'OFFLINE_SNAPSHOT_NETWORK',status:error.status||null,message:error.message};throw error;
     }).finally(()=>{inFlight=null;});
