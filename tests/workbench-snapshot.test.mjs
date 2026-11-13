@@ -261,3 +261,22 @@ test('malformed source dates and timestamps fail rather than silently excluding 
     await assert.rejects(f.read(),error(503,'SNAPSHOT_DATA'));
   }
 });
+
+test('scope route returns the same identity as the index without reading workbench data',async t=>{
+  const f=fixture(t);f.todo('t');f.group('g');f.memo('m','g');
+  for(const headers of [{},{Cookie:'matrix_session='+TOKEN}]) {
+    const index=await f.request('/workbench-snapshot/index',{headers}),scope=await f.request('/workbench-snapshot/scope',{headers});
+    assert.equal(scope.value.scope_id,index.value.scope_id);
+    assert.equal(scope.value.complete,true);assert.equal(scope.value.projection,'current');
+    assert.equal(scope.value.entities,undefined,'no workbench records in the scope reply');
+    assert.ok(scope.adapter.calls.length<=10,'scope check stays a handful of queries');
+    assert.ok(!scope.adapter.calls.some(sql=>/todos|note_entries|memo_notes|work_reminders/.test(sql)));
+    assert.equal(scope.response.headers.get('Cache-Control'),'private, no-store');
+  }
+  await assert.rejects(f.request('/workbench-snapshot/scope?date='+DATE),error(400,'VALIDATION_ERROR'));
+  await assert.rejects(f.request('/workbench-snapshot/scope',{headers:{Cookie:'matrix_session='+OTHER_TOKEN}}),error(403,'FORBIDDEN'));
+  await assert.rejects(f.request('/workbench-snapshot/scope',{environment:{...f.env,MEMOS_OWNER_ID:OTHER.replace('4','5')}}),
+    error(503,'SNAPSHOT_CONFIG'));
+  await assert.rejects(handleWorkbenchSnapshot({},new Request('http://localhost/workbench-snapshot/scope',{method:'POST'}),
+    '/workbench-snapshot/scope',f.env),error(404));
+});

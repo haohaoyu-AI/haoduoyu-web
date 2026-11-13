@@ -165,6 +165,7 @@ export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null,v
 // Existing snapshot auth supplies business/account scope. Notes and memos retain
 // their own explicit owners, and all owner checks share the consistent read.
 export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={}) {
+  if(route==='/workbench-snapshot/scope')return workbenchScope(db,request,env,limits);
   if(!['/workbench-snapshot','/workbench-snapshot/index'].includes(route)||request.method!=='GET')
     fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
   const query=new URL(request.url).searchParams,index=route==='/workbench-snapshot/index';
@@ -191,6 +192,26 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     const serialized=budget.serialize(value);
     await access.recheck(store);
     return serialized;
+  });
+  return new Response(text,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie, Authorization'}});
+}
+
+// The client checks its offline scope before reads and writes. It needs only the scope identity, which the index
+// derives from the same access rules; this answers that without reading or projecting any workbench data.
+async function workbenchScope(db,request,env,limits) {
+  if(request.method!=='GET')fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
+  if([...new URL(request.url).searchParams.keys()].length)fail(400,'VALIDATION_ERROR','身份范围接口不接受查询参数');
+  const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
+  const budget=snapshotBudget({maxQueries:20,...limits}),database=snapshotDatabase(db,budget);
+  const text=await consistentRead(database,async store=>{
+    const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');
+    if(control?.initialized!==1)fail(503,'SETUP_REQUIRED','数据库尚未就绪，工作台快照未读取');
+    const scope=await access.resolve(store);
+    if(!await store.get('SELECT id FROM matrix_users WHERE id=?',memosOwnerId))
+      fail(503,'SNAPSHOT_CONFIG','备忘录数据归属无法核实');
+    const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
+    await access.recheck(store);
+    return budget.serialize({projection:'current',scope_id,complete:true,scope_only:true,generated_at:new Date().toISOString()});
   });
   return new Response(text,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie, Authorization'}});
 }

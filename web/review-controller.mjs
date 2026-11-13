@@ -29,16 +29,17 @@ function staleRead(message = '复盘资料在读取时发生变化，请重新�
   return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
 }
 
+/** Pages fetched together once a collection has more than one page; each answer still pins the first page's revision. */
+export const REVIEW_PAGE_AHEAD = 3;
 /** Read-only, offset pagination. An invalid page is an error, never a partial success. */
 export async function readReviewCollection(read, resource, selectedAccount, current = () => true) {
   if (!resources.includes(resource)) throw new Error('未知的复盘资料类型。');
   const items = [], seen = new Set(), foreignIds = new Set();
+  const accountQuery = resource === 'playbooks' ? '' : `account=${encodeURIComponent(selectedAccount)}&`;
   let revision;
-  for (let offset = 0; ; offset += 100) {
-    const accountQuery = resource === 'playbooks' ? '' : `account=${encodeURIComponent(selectedAccount)}&`;
-    const revisionQuery = revision === undefined ? '' : `&read_revision=${encodeURIComponent(revision)}`;
-    const page = await read(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
-    if (!current()) return null;
+  const fetchPage = offset => read(`/review/${resource}?${accountQuery}offset=${offset}` +
+    (revision === undefined ? '' : `&read_revision=${encodeURIComponent(revision)}`));
+  const accept = page => {
     if (!Array.isArray(page?.items) || typeof page.has_more !== 'boolean' || page.items.length > 100 ||
       (page.has_more && page.items.length !== 100)) throw new Error('复盘分页资料不完整，请重新读取。');
     if (page.read_revision !== undefined) {
@@ -46,13 +47,26 @@ export async function readReviewCollection(read, resource, selectedAccount, curr
       revision = page.read_revision;
     }
     for (const row of page.items) {
-      if (!row || typeof row !== 'object' || row.id === null || row.id === undefined || seen.has(String(row.id))) throw staleRead('复盘资料存在重复或无效记录，请重新读取。');
+      if (!row || typeof row !== 'object' || row.id === null || row.id === undefined || seen.has(String(row.id)))
+        throw staleRead('复盘资料存在重复或无效记录，请重新读取。');
       seen.add(String(row.id));
-      if (!['snapshots','playbooks','prompts/current'].includes(resource) && row.account !== selectedAccount) { foreignIds.add(String(row.id)); continue; }
+      if (!['snapshots','playbooks','prompts/current'].includes(resource) && row.account !== selectedAccount) {
+        foreignIds.add(String(row.id)); continue;
+      }
       items.push(row);
     }
-    if (!page.has_more) return {items,read_revision:revision,foreignIds};
+    return page.has_more;
+  };
+  const first = await fetchPage(0);
+  if (!current()) return null;
+  // Later pages are requested a few at a time instead of one after another; they are accepted strictly in order
+  // and anything after the last page is ignored, so the result is the same as reading page by page.
+  for (let offset = 100, more = accept(first); more; offset += 100 * REVIEW_PAGE_AHEAD) {
+    const pages = await Promise.all(Array.from({length:REVIEW_PAGE_AHEAD},(_,index) => fetchPage(offset + index * 100)));
+    if (!current()) return null;
+    for (const page of pages) if (more) more = accept(page);
   }
+  return {items,read_revision:revision,foreignIds};
 }
 export async function readContentReviewData(read, selectedAccount, current = () => true) {
   const results = await Promise.all(resources.map(name => readReviewCollection(read,name,selectedAccount,current)));

@@ -15,6 +15,20 @@ const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.
 const fail = (message, code) => Object.assign(new Error(message), {code});
 const today = now => new Date(now() + 8 * 3600000).toISOString().slice(0, 10);
 const offlineError = () => fail('当前离线，此操作需联网；输入内容已保留。', 'OFFLINE_NETWORK');
+const SCOPE_INDEX = '/workbench-snapshot/index', SCOPE_ONLY = '/workbench-snapshot/scope';
+/* The page only needs the scope identity, so the production runtime asks the small scope endpoint instead of downloading
+ * the whole index (seconds on a slow link). A server without that endpoint answers 404 and the full index is used. */
+async function scopeProbe(context, options = {}) {
+  if (!context.scopeProbe) return identityProbe(context, SCOPE_INDEX, options);
+  try { return await identityProbe(context, SCOPE_ONLY, options); }
+  catch (error) { if (error?.status !== 404) throw error; return identityProbe(context, SCOPE_INDEX, options); }
+}
+// A check that succeeded moments ago still holds: identity changes go through invalidate(), which clears it at once.
+function recentScope({scopeReuseMs, scopeCheckedAt, now, state}) {
+  const age = now() - scopeCheckedAt;
+  return Boolean(scopeReuseMs && state.identity && state.verifiedScope && state.verifiedScope === state.scope &&
+    scopeCheckedAt && age >= 0 && age < scopeReuseMs);
+}
 async function identityProbe(context, path, options = {}) {
   const scope = context.state.scope, generation = context.generation;
   if (scope) {
@@ -74,7 +88,7 @@ function checkedBody(route, options, uuid) {
 }
 function runtimeContext(options) {
   const {db, request, now = Date.now, uuid = () => crypto.randomUUID(), online = () => globalThis.navigator?.onLine !== false,
-    onIdentity = () => {}, features = OFFLINE_FEATURES} = options;
+    onIdentity = () => {}, features = OFFLINE_FEATURES, scopeProbe = false, scopeReuseMs = 0} = options;
   const state = {scope: null, verifiedScope: null, identity: null, online: online(), phase: 'idle', pending: 0,
     conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, errorStage: null, ready: true};
   const listeners = new Set();
@@ -82,7 +96,8 @@ function runtimeContext(options) {
   const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
     labelsV1: features.labelsV1 === true});
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
-    generation: 0, authFlight: null, scopeFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
+    generation: 0, authFlight: null, scopeFlight: null, syncFlight: null, timer: null, channel: null, stopped: false,
+    scopeProbe: scopeProbe === true, scopeReuseMs: Math.max(0, Math.min(Number(scopeReuseMs) || 0, 60000)), scopeCheckedAt: 0, pulledAt: 0};
   const send = async (path, opts) => {
     if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) &&
         !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features) &&
@@ -139,13 +154,14 @@ async function adoptIdentity(context, me, index, generation, invalidate) {
     await invalidate({forget: true}); throw fail('身份核实已过期，原本机数据已保留。', 'OFFLINE_SCOPE_CHANGED');
   }
   state.scope = index.scope_id; state.verifiedScope = index.scope_id; state.identity = identity;
+  context.scopeCheckedAt = context.now();
   state.online = true; onIdentity(me); emit();
   return me;
 }
 function identityActions(context) {
   const {cache, state, emit, request, onIdentity} = context;
   async function invalidate({forget = false} = {}) {
-    context.generation++;
+    context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;
     context.authFlight = null;
     context.scopeFlight = null;
     context.cooldownUntil = 0;
@@ -163,7 +179,7 @@ function identityActions(context) {
       liveIdentity = safeIdentity(me);
       let index;
       try {
-        index = await identityProbe(context, '/workbench-snapshot/index', {suppressAuthRedirect: true});
+        index = await scopeProbe(context, {suppressAuthRedirect: true});
       } catch (error) {
         // An index failure is not proof that /auth/me requires a password.
         // Still invalidate the verified scope below and require a fresh check.
@@ -197,11 +213,12 @@ function identityActions(context) {
     if (!state.identity || !state.verifiedScope) return verify();
     const generation = context.generation, owner = state.scope;
     try {
-      const index = await identityProbe(context, '/workbench-snapshot/index');
+      const index = await scopeProbe(context);
       if (generation !== context.generation || state.scope !== owner || index?.scope_id !== owner ||
           index.complete !== true || index.projection !== 'current') {
         await invalidate({forget: true}); throw fail('身份范围已变化，本机内容与队列已保留。', 'OFFLINE_SCOPE_CHANGED');
       }
+      context.scopeCheckedAt = context.now();
       return state.identity;
     } catch (error) {
       if (generation !== context.generation || state.scope !== owner) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
@@ -211,6 +228,7 @@ function identityActions(context) {
     }
   }
   function verifyScope() {
+    if (recentScope(context)) return Promise.resolve(state.identity);
     if (!context.scopeFlight) {
       const flight = verifyScopeOnce().finally(() => { if (context.scopeFlight === flight) context.scopeFlight = null; });
       context.scopeFlight = flight;
@@ -271,7 +289,8 @@ async function runSync(context) {
     if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
     if (!active()) return {...state};
     if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
-    await context.verify();
+    // The scope identity covers the signed-in account too, so a check from moments ago spares a second sign-in round trip.
+    if (!recentScope(context)) await context.verify();
     if (generation !== context.generation || owner && owner !== state.scope) return {...state};
     if (!state.verifiedScope) return context.refresh();
     owner = state.scope; generation = context.generation;
@@ -286,10 +305,13 @@ async function runSync(context) {
     stage = 'cache';
     if (state.verifiedScope) await context.cache.captureDocuments();
     if (!active()) return {...state};
-    if (state.verifiedScope) {
+    // Saves answer with the stored record, so a burst of quick edits needs one full refresh, not one per click.
+    const pulled = now() - context.pulledAt;
+    if (state.verifiedScope && !(context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = 'snapshot';
       await (context.snapshotV2 || snapshot).pull({date: today(now)});
       if (!active()) return {...state};
+      context.pulledAt = now();
       if (context.lastTodoPath) {
         stage = 'cache';
         const date = offlineReadRoute(context.lastTodoPath).date;
@@ -640,7 +662,7 @@ export function onOfflineRuntime(callback) {
 }
 export async function offlineRequest(path, options, request, onIdentity, assertActive = () => {}) {
   if (!initialization) initialization = openOfflineDB().then(db => {
-    singleton = createOfflineRuntime({db, request, onIdentity});
+    singleton = createOfflineRuntime({db, request, onIdentity, scopeProbe: true, scopeReuseMs: 30000});
     for (const callback of readyListeners) callback(singleton);
     return singleton;
   });

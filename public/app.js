@@ -4164,6 +4164,19 @@ var init_memos = __esm({
 });
 
 // web/offline/runtime.mjs
+async function scopeProbe(context, options4 = {}) {
+  if (!context.scopeProbe) return identityProbe(context, SCOPE_INDEX, options4);
+  try {
+    return await identityProbe(context, SCOPE_ONLY, options4);
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+    return identityProbe(context, SCOPE_INDEX, options4);
+  }
+}
+function recentScope({ scopeReuseMs, scopeCheckedAt, now, state: state2 }) {
+  const age = now() - scopeCheckedAt;
+  return Boolean(scopeReuseMs && state2.identity && state2.verifiedScope && state2.verifiedScope === state2.scope && scopeCheckedAt && age >= 0 && age < scopeReuseMs);
+}
 async function identityProbe(context, path, options4 = {}) {
   const scope = context.state.scope, generation = context.generation;
   if (scope) {
@@ -4234,7 +4247,9 @@ function runtimeContext(options4) {
     online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {
     },
-    features = OFFLINE_FEATURES
+    features = OFFLINE_FEATURES,
+    scopeProbe: scopeProbe2 = false,
+    scopeReuseMs = 0
   } = options4;
   const state2 = {
     scope: null,
@@ -4280,7 +4295,11 @@ function runtimeContext(options4) {
     syncFlight: null,
     timer: null,
     channel: null,
-    stopped: false
+    stopped: false,
+    scopeProbe: scopeProbe2 === true,
+    scopeReuseMs: Math.max(0, Math.min(Number(scopeReuseMs) || 0, 6e4)),
+    scopeCheckedAt: 0,
+    pulledAt: 0
   };
   const send = async (path, opts) => {
     if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features) && !(features.memos && memoRoute(path) && opts.method.toUpperCase() === "PUT"))
@@ -4358,6 +4377,7 @@ async function adoptIdentity(context, me, index, generation, invalidate) {
   state2.scope = index.scope_id;
   state2.verifiedScope = index.scope_id;
   state2.identity = identity6;
+  context.scopeCheckedAt = context.now();
   state2.online = true;
   onIdentity(me);
   emit2();
@@ -4367,6 +4387,8 @@ function identityActions(context) {
   const { cache: cache2, state: state2, emit: emit2, request: request2, onIdentity } = context;
   async function invalidate({ forget = false } = {}) {
     context.generation++;
+    context.scopeCheckedAt = 0;
+    context.pulledAt = 0;
     context.authFlight = null;
     context.scopeFlight = null;
     context.cooldownUntil = 0;
@@ -4389,7 +4411,7 @@ function identityActions(context) {
       liveIdentity = safeIdentity(me);
       let index;
       try {
-        index = await identityProbe(context, "/workbench-snapshot/index", { suppressAuthRedirect: true });
+        index = await scopeProbe(context, { suppressAuthRedirect: true });
       } catch (error) {
         error.offlineScopeFailure = true;
         throw error;
@@ -4430,11 +4452,12 @@ function identityActions(context) {
     if (!state2.identity || !state2.verifiedScope) return verify();
     const generation = context.generation, owner2 = state2.scope;
     try {
-      const index = await identityProbe(context, "/workbench-snapshot/index");
+      const index = await scopeProbe(context);
       if (generation !== context.generation || state2.scope !== owner2 || index?.scope_id !== owner2 || index.complete !== true || index.projection !== "current") {
         await invalidate({ forget: true });
         throw fail4("身份范围已变化，本机内容与队列已保留。", "OFFLINE_SCOPE_CHANGED");
       }
+      context.scopeCheckedAt = context.now();
       return state2.identity;
     } catch (error) {
       if (generation !== context.generation || state2.scope !== owner2) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
@@ -4444,6 +4467,7 @@ function identityActions(context) {
     }
   }
   function verifyScope() {
+    if (recentScope(context)) return Promise.resolve(state2.identity);
     if (!context.scopeFlight) {
       const flight = verifyScopeOnce().finally(() => {
         if (context.scopeFlight === flight) context.scopeFlight = null;
@@ -4524,7 +4548,7 @@ async function runSync(context) {
       context.scheduleRetry();
       return context.refresh();
     }
-    await context.verify();
+    if (!recentScope(context)) await context.verify();
     if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
     if (!state2.verifiedScope) return context.refresh();
     owner2 = state2.scope;
@@ -4543,10 +4567,12 @@ async function runSync(context) {
     stage = "cache";
     if (state2.verifiedScope) await context.cache.captureDocuments();
     if (!active5()) return { ...state2 };
-    if (state2.verifiedScope) {
+    const pulled = now() - context.pulledAt;
+    if (state2.verifiedScope && !(context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = "snapshot";
       await (context.snapshotV2 || snapshot).pull({ date: today(now) });
       if (!active5()) return { ...state2 };
+      context.pulledAt = now();
       if (context.lastTodoPath) {
         stage = "cache";
         const date = offlineReadRoute(context.lastTodoPath).date;
@@ -4987,7 +5013,7 @@ function onOfflineRuntime(callback) {
 async function offlineRequest(path, options4, request2, onIdentity, assertActive = () => {
 }) {
   if (!initialization) initialization = openOfflineDB().then((db) => {
-    singleton = createOfflineRuntime({ db, request: request2, onIdentity });
+    singleton = createOfflineRuntime({ db, request: request2, onIdentity, scopeProbe: true, scopeReuseMs: 3e4 });
     for (const callback of readyListeners) callback(singleton);
     return singleton;
   });
@@ -5007,7 +5033,7 @@ async function offlineRequest(path, options4, request2, onIdentity, assertActive
   const value = await runtime2.call(path, { ...opts, offlineGuard: assertActive });
   return envelope2 ? { data: value } : value;
 }
-var OFFLINE_FEATURES, scopePattern, uuidPattern5, networkFailure, fail4, today, offlineError, singleton, initialization, readyListeners;
+var OFFLINE_FEATURES, scopePattern, uuidPattern5, networkFailure, fail4, today, offlineError, SCOPE_INDEX, SCOPE_ONLY, singleton, initialization, readyListeners;
 var init_runtime = __esm({
   "web/offline/runtime.mjs"() {
     init_db();
@@ -5026,6 +5052,7 @@ var init_runtime = __esm({
     fail4 = (message, code) => Object.assign(new Error(message), { code });
     today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
     offlineError = () => fail4("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
+    SCOPE_INDEX = "/workbench-snapshot/index", SCOPE_ONLY = "/workbench-snapshot/scope";
     singleton = null, initialization = null;
     readyListeners = /* @__PURE__ */ new Set();
   }
@@ -16602,22 +16629,22 @@ var root2 = () => typeof document === "undefined" ? null : document.querySelecto
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
 }
+var REVIEW_PAGE_AHEAD = 3;
 async function readReviewCollection(read3, resource, selectedAccount, current3 = () => true) {
   if (!resources.includes(resource)) throw new Error("未知的复盘资料类型。");
   const items = [], seen = /* @__PURE__ */ new Set(), foreignIds = /* @__PURE__ */ new Set();
+  const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
   let revision2;
-  for (let offset = 0; ; offset += 100) {
-    const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
-    const revisionQuery = revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`;
-    const page = await read3(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
-    if (!current3()) return null;
+  const fetchPage = (offset) => read3(`/review/${resource}?${accountQuery}offset=${offset}` + (revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`));
+  const accept = (page) => {
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.items.length > 100 || page.has_more && page.items.length !== 100) throw new Error("复盘分页资料不完整，请重新读取。");
     if (page.read_revision !== void 0) {
       if (revision2 !== void 0 && revision2 !== page.read_revision) throw staleRead();
       revision2 = page.read_revision;
     }
     for (const row of page.items) {
-      if (!row || typeof row !== "object" || row.id === null || row.id === void 0 || seen.has(String(row.id))) throw staleRead("复盘资料存在重复或无效记录，请重新读取。");
+      if (!row || typeof row !== "object" || row.id === null || row.id === void 0 || seen.has(String(row.id)))
+        throw staleRead("复盘资料存在重复或无效记录，请重新读取。");
       seen.add(String(row.id));
       if (!["snapshots", "playbooks", "prompts/current"].includes(resource) && row.account !== selectedAccount) {
         foreignIds.add(String(row.id));
@@ -16625,8 +16652,16 @@ async function readReviewCollection(read3, resource, selectedAccount, current3 =
       }
       items.push(row);
     }
-    if (!page.has_more) return { items, read_revision: revision2, foreignIds };
+    return page.has_more;
+  };
+  const first = await fetchPage(0);
+  if (!current3()) return null;
+  for (let offset = 100, more = accept(first); more; offset += 100 * REVIEW_PAGE_AHEAD) {
+    const pages = await Promise.all(Array.from({ length: REVIEW_PAGE_AHEAD }, (_, index) => fetchPage(offset + index * 100)));
+    if (!current3()) return null;
+    for (const page of pages) if (more) more = accept(page);
   }
+  return { items, read_revision: revision2, foreignIds };
 }
 async function readContentReviewData(read3, selectedAccount, current3 = () => true) {
   const results = await Promise.all(resources.map((name) => readReviewCollection(read3, name, selectedAccount, current3)));
