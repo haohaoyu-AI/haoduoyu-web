@@ -5,6 +5,7 @@ import {snapshotAccess} from './snapshot-access.mjs';
 import {snapshotBudget,snapshotDatabase} from './snapshot-budget.mjs';
 import {memosOwner} from './memos-validation.mjs';
 import {labelsFor} from './note-entries.mjs';
+import {workbenchWindow,cachedWorkbenchWindow,consistentWindowRead,windowLimitResponse} from './workbench-snapshot-window.mjs';
 
 const format='haoduoyu-workbench-snapshot-v1',timezone='Asia/Shanghai';
 const invalid=()=>fail(503,'SNAPSHOT_DATA','工作台数据无法完整投影，未返回部分内容');
@@ -43,11 +44,16 @@ function record(row,{prefix,type,source,category=null,date=row.date??null,delete
   return value;
 }
 
-// Every source is loaded completely even for a selected date. This permits an
-// identical full manifest on both endpoints, including old edits, date moves,
-// and tombstones. A budget failure is an error, never a partial success.
-export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memosOwnerId},budget,{version=1}={}) {
+// Pure callers retain the full historical projection by default. Network
+// windows restrict dated sources in SQL, while globals remain complete.
+// A budget failure is an error, never a silently truncated projection.
+export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memosOwnerId},budget,{version=1,coverage=null}={}) {
   async function all(sql,args,order='id') {
+    if(coverage) {
+      // A window is one bounded materialization, not OFFSET scans of its prefix.
+      const rows=await store.all(sql+' ORDER BY '+order+' LIMIT ?',...args,budget.limits.maxRows-budget.used.rows+1);
+      budget.addRows(rows);return rows;
+    }
     const rows=[];
     for(let offset=0;;offset+=200) {
       const page=await store.all(sql+' ORDER BY '+order+' LIMIT 200 OFFSET ?',...args,offset);
@@ -55,18 +61,23 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
       if(page.length<200)return rows;
     }
   }
+  const range=coverage?' AND date BETWEEN ? AND ?':'',args=owner=>coverage?[owner,coverage.from,coverage.to]:[owner];
   const dated='date,text,version,change_seq,created_at,updated_at,deleted_at';
-  const todos=await all('SELECT id,date,text,completed,version,created_at,updated_at,deleted_at,note FROM matrix_todos WHERE user_id=?',[ownerId]);
-  const life=await all('SELECT '+dated+' FROM matrix_daily_notes WHERE user_id=?',[notesOwnerId],'date');
-  const work=await all('SELECT '+dated+' FROM matrix_daily_work_notes WHERE user_id=?',[notesOwnerId],'date');
-  const entries=await all('SELECT id,category,'+dated+' FROM matrix_note_entries WHERE user_id=?',[notesOwnerId]);
-  const reminders=await all('SELECT id,date,source_key,summary,version,change_seq,created_at,updated_at,deleted_at FROM matrix_work_reminders WHERE user_id=?',[notesOwnerId]);
+  const todos=await all('SELECT id,date,text,completed,version,created_at,updated_at,deleted_at,note FROM matrix_todos WHERE user_id=?'+range,args(ownerId),coverage?'date,created_at':'id');
+  const life=await all('SELECT '+dated+' FROM matrix_daily_notes WHERE user_id=?'+range,args(notesOwnerId),'date');
+  const work=await all('SELECT '+dated+' FROM matrix_daily_work_notes WHERE user_id=?'+range,args(notesOwnerId),'date');
+  // The existing entry index begins user/category/date. Both explicit categories
+  // keep the date predicate usable without a schema or index migration.
+  const entries=await all('SELECT id,category,'+dated+' FROM matrix_note_entries WHERE user_id=?'+
+    (coverage?" AND category IN ('life','work')":'')+range,args(notesOwnerId),coverage?'category,date,created_at,id':'id');
+  const reminders=await all('SELECT id,date,source_key,summary,version,change_seq,created_at,updated_at,deleted_at FROM matrix_work_reminders WHERE user_id=?'+range,args(notesOwnerId),coverage?'date,source_key':'id');
   const memoFields='id,title,position,version,change_seq,created_at,updated_at,deleted_at';
   const groups=await all('SELECT '+memoFields+' FROM matrix_memo_groups WHERE user_id=?',[memosOwnerId]);
   const memos=await all('SELECT '+memoFields+',group_id,body FROM matrix_memo_notes WHERE user_id=?',[memosOwnerId]);
   const undated=version===2?await all('SELECT id,text,completed,version,created_at,updated_at,deleted_at FROM matrix_unscheduled_todos WHERE user_id=?',[ownerId]):[];
   const labels=version===2?await all('SELECT name,created_at FROM matrix_note_labels WHERE user_id=?',[notesOwnerId],'name'):[];
-  const entryLabels=version===2?await labelsFor(store,notesOwnerId,entries):new Map();
+  const labelStore=coverage?{all:async(sql,...args)=>{const rows=await store.all(sql,...args);budget.addRows(rows);return rows;}}:store;
+  const entryLabels=version===2?await labelsFor(labelStore,notesOwnerId,entries):new Map();
   const data=Object.fromEntries((version===2?v2Collections:collections).map(key=>[key,[]]));
   for(const row of todos) {
     if(row.completed!==0&&row.completed!==1||typeof row.text!=='string')invalid();
@@ -161,26 +172,24 @@ export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null,v
   return value;
 }
 
-// Additive opt-in API: this never changes /snapshot v1/v2 or sends to Notion.
+// Bounded workbench windows leave /snapshot v1/v2 and Notion unchanged.
 // Existing snapshot auth supplies business/account scope. Notes and memos retain
-// their own explicit owners, and all owner checks share the consistent read.
-export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={}) {
+// their explicit owners; every response has a fresh consistent identity proof.
+export async function handleWorkbenchSnapshot(db,request,route,env,{limits={},now=Date.now}={}) {
   if(route==='/workbench-snapshot/scope')return workbenchScope(db,request,env,limits);
   if(!['/workbench-snapshot','/workbench-snapshot/index'].includes(route)||request.method!=='GET')
     fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
-  const query=new URL(request.url).searchParams,index=route==='/workbench-snapshot/index';
-  const versionValues=query.getAll('version'),version=versionValues.length===0?1:versionValues.length===1&&versionValues[0]==='2'?2:0;
-  const manifestValues=query.getAll('manifest_hash'),manifestHash=manifestValues[0];
-  if(!version||[...query.keys()].some(key=>!['date','version','manifest_hash'].includes(key))||
-    (index?query.has('date')||manifestValues.length:query.getAll('date').length!==1)||
-    manifestValues.length&&(manifestValues.length!==1||!/^[a-f0-9]{64}$/.test(manifestHash)))
-    fail(400,'VALIDATION_ERROR','工作台快照只接受一个明确日期，完整索引不接受查询参数');
-  const date=index?null:snapshotDate(query.get('date'));
+  // Old bundles otherwise keep re-reading all history in the background. Retire
+  // that network protocol before auth, revision checks or any other D1 access.
+  if(route==='/workbench-snapshot/index'||!new URL(request.url).searchParams.has('window'))
+    fail(426,'SNAPSHOT_UPGRADE_REQUIRED','离线同步已升级为最近60天，请更新页面；历史日期可按需读取');
+  const coverage=workbenchWindow(new URL(request.url).searchParams,now());
   const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
-  // One aggregate budget covers every retry; larger query allowance permits
-  // bounded retries while the existing row and byte limits remain unchanged.
-  const budget=snapshotBudget({maxQueries:135,...limits}),database=snapshotDatabase(db,budget),generated_at=new Date().toISOString();
-  const text=await consistentRead(database,async store=>{
+  // Retries share a budget and the per-scope cold-build allowance. Cache hits
+  // still resolve access and pass both revision bookends on every request.
+  const budget=snapshotBudget({maxQueries:135,...limits}),database=snapshotDatabase(db,budget);
+  let text;
+  try {text=await consistentWindowRead(database,async (store,revision)=>{
     const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');
     if(control?.initialized!==1)fail(503,'SETUP_REQUIRED','数据库尚未就绪，工作台快照未读取');
     const scope=await access.resolve(store);
@@ -189,19 +198,14 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     // Scope is an identity boundary shared with durable queues and drafts;
     // upgrading projection formats must never move existing local data.
     const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
-    const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version});
-    const value=projectWorkbenchSnapshot(data,{scope_id,generated_at,date,version},budget);
-    if(manifestHash!==undefined) {
-      if(value.manifest_hash!==manifestHash) {
-        await access.recheck(store);
-        fail(409,'SNAPSHOT_CHANGED','工作台快照已变化，请重新读取完整索引');
-      }
-      delete value.entities;
-    }
-    const serialized=budget.serialize(value);
+    const serialized=await cachedWorkbenchWindow(db,{scope_id,version:2,coverage,revision},budget,now,async()=>{
+      const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version:2,coverage});
+      const index=projectWorkbenchSnapshot(data,{scope_id,generated_at:new Date(now()).toISOString(),version:2},budget);
+      return {text:budget.serialize({batch_format:'haoduoyu-workbench-window-v1',coverage,index,data}),dates:index.dates.length};
+    });
     await access.recheck(store);
     return serialized;
-  });
+  });}catch(error) {if(error.code==='SNAPSHOT_RATE_LIMIT')return windowLimitResponse(error);throw error;}
   return new Response(text,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie, Authorization'}});
 }
 

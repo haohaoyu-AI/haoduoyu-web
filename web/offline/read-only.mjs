@@ -1,27 +1,92 @@
-import {entityKey} from './db.mjs';
-
 const day = value => typeof value === 'string' && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) &&
   Number.isFinite(Date.parse(value + 'T00:00:00Z')) && new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
 const missing = () => Object.assign(new Error('此内容尚未完整缓存在本机，请联网读取。'), {code: 'OFFLINE_CACHE_MISS'});
+const hash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const legacyNames = ['snapshot', 'snapshot-v2', 'snapshot-progress', 'snapshot-v2-progress'];
+const valid = (row, scope) => row?.value?.index?.complete === true && row.value.index.scope_id === scope;
+const latest = rows => rows.sort((a,b)=>(b.value.verified_at||0)-(a.value.verified_at||0))[0]||null;
+async function snapshotEvidence(tx, scope) {
+  const rows = new Map();
+  for (const row of await tx.getAll('meta')) {
+    let key; try { key = JSON.parse(row.key); } catch { continue; }
+    if (!Array.isArray(key) || key.length !== 2 || key[0] !== scope || typeof key[1] !== 'string') continue;
+    if (legacyNames.includes(key[1]) || legacyNames.some(name => key[1] === name + '-archive') ||
+        key[1] === 'snapshot-v2-window' || key[1].startsWith('snapshot-v2-date:')) rows.set(key[1], row);
+  }
+  return rows;
+}
+function windowProof(name, row, scope) {
+  const value = row?.value, coverage = value?.coverage;
+  if (!valid(row,scope) || value.partial !== true || !Array.isArray(value.index.entities) ||
+      value.index.snapshot_format !== 'haoduoyu-workbench-snapshot-v2' || value.index.projection !== 'current' ||
+      value.index.timezone !== 'Asia/Shanghai' || !hash(value.index.manifest_hash) || !hash(value.index.global_content_hash) ||
+      !Number.isFinite(value.verified_at) || value.verified_at < 0 || !coverage ||
+      Object.keys(coverage).sort().join(',') !== 'from,to' || !day(coverage.from) || !day(coverage.to) ||
+      coverage.from > coverage.to) return false;
+  if (name === 'snapshot-v2-window')
+    return (Date.parse(coverage.to)-Date.parse(coverage.from))/86400000 < 60;
+  return name === 'snapshot-v2-date:' + coverage.from && coverage.from === coverage.to;
+}
+function limitedProof(row, date) {
+  return {...row,value:{...row.value,partial:true,limited:true,
+    ...(row.value.coverage?{}:{coverage:{from:date,to:date}})}};
+}
+function legacyProof(rows, scope, date) {
+  const complete = latest(legacyNames.slice(0,2).map(name=>rows.get(name)).filter(row=>valid(row,scope)));
+  const partial = latest(legacyNames.slice(2).map(name=>rows.get(name)).filter(row=>valid(row,scope)&&row.value.partial===true));
+  if (partial && (partial.value.verified_at||0)>=(complete?.value?.verified_at||0))
+    return date && partial.value.covered_dates?.includes(date) ? partial : null;
+  return complete;
+}
 // Both snapshot versions contain the common note and reminder projection. Only
 // use complete metadata belonging to this scope; prefer the newest evidence.
 export async function latestCompleteSnapshot(tx, scope, date) {
-  const v1 = await tx.get('meta', entityKey(scope, 'snapshot'));
-  const v2 = await tx.get('meta', entityKey(scope, 'snapshot-v2'));
-  const valid = value => value?.value?.index?.complete === true && value.value.index.scope_id === scope;
-  const candidates=[v1,v2].filter(valid);
-  const complete=candidates.sort((a,b)=>(b.value.verified_at||0)-(a.value.verified_at||0))[0]||null;
-  // Partial sync evidence proves only dates already verified and committed;
-  // callers asking for the complete history never receive this evidence.
-  const partials=[];
-  for(const key of ['snapshot-progress','snapshot-v2-progress']) {
-    const partial=await tx.get('meta',entityKey(scope,key));
-    if(valid(partial)&&partial.value.partial===true)partials.push(partial);
+  const rows = await snapshotEvidence(tx,scope);
+  const limited = [...rows.keys()].some(name=>!legacyNames.includes(name));
+  if (!limited) return legacyProof(rows,scope,date);
+  if (!day(date)) return null;
+  const candidates = [];
+  for (const [name,row] of rows) {
+    if (windowProof(name,row,scope)) {
+      if (date>=row.value.coverage.from && date<=row.value.coverage.to) candidates.push(limitedProof(row,date));
+    } else if ((legacyNames.includes(name) || name.endsWith('-archive')) && valid(row,scope) &&
+        Array.isArray(row.value.index.entities) && Number.isFinite(row.value.verified_at) &&
+        hash(row.value.index.manifest_hash) && hash(row.value.index.global_content_hash) &&
+        (!name.includes('progress')&&row.value.partial!==true || row.value.covered_dates?.includes(date)))
+      candidates.push(limitedProof(row,date));
   }
-  const partial=partials.sort((a,b)=>(b.value.verified_at||0)-(a.value.verified_at||0))[0];
-  if(partial&&(partial.value.verified_at||0)>=(complete?.value?.verified_at||0))
-    return date&&partial.value.covered_dates?.includes(date)?partial:null;
-  return complete;
+  return latest(candidates);
+}
+// A window includes every undated entity. This proof is deliberately separate
+// from date/history completeness and cannot certify a historical date list.
+export async function latestGlobalSnapshot(tx, scope) {
+  const rows = await snapshotEvidence(tx,scope);
+  const candidates = [...rows].filter(([name,row])=>windowProof(name,row,scope)&&hash(row.value.index.global_content_hash))
+    .map(([,row])=>({...row,value:{...row.value,partial:true,limited:true,global_complete:true}}));
+  if (candidates.length) return latest(candidates);
+  const full = [...rows.keys()].every(name=>legacyNames.includes(name)) ? legacyProof(rows,scope) : null;
+  return full?.value?.index?.snapshot_format==='haoduoyu-workbench-snapshot-v2' &&
+    Array.isArray(full.value.index.entities) && hash(full.value.index.global_content_hash) ? full : null;
+}
+export function snapshotExcludesEntity(snapshot, row) {
+  const marker = row?.window_exclusion, value = snapshot?.value;
+  return Boolean(value?.index && marker && row.server && !row.dirty && hash(marker.manifest_hash) &&
+    marker.manifest_hash === value.index.manifest_hash &&
+    marker.version === row.server.version && marker.updated_at === row.server.updated_at && marker.date === row.server.date &&
+    marker.snapshot_hash === (row.snapshot_hash??null));
+}
+export function matchesSnapshotEntity(expected, row, date) {
+  const server = row?.server, actualDate = server?.entity_type === 'unscheduled_todo' ? null : server?.date;
+  return Boolean(expected && server && !row.remote_missing && expected.date === date && actualDate === date &&
+    hash(expected.content_hash) && row.snapshot_hash === expected.content_hash && server.content_hash === expected.content_hash &&
+    server.entity_id === row.entity_id && server.updated_at === expected.updated_at && server.deleted_at === expected.deleted_at);
+}
+export function snapshotHasUnverifiedRows(snapshot, rows, date) {
+  if (!snapshot?.value?.limited) return false;
+  const expected = new Set(snapshot.value.index.entities.map(row=>row.entity_id));
+  return rows.some(row=>!row.dirty && !row.remote_missing && row.server &&
+    (row.server.entity_type==='unscheduled_todo'?null:row.server.date)===date &&
+    !expected.has(row.entity_id) && !snapshotExcludesEntity(snapshot,row));
 }
 export function readOnlyRoute(path) {
   const url = new URL(path, 'https://offline.invalid'), query = url.searchParams;
@@ -48,9 +113,10 @@ export async function readOnlySnapshot({db, scope, route, getScope, getGeneratio
     const snapshot = await latestCompleteSnapshot(tx, scope, route.kind==='reminders'?route.date:undefined), index = snapshot?.value?.index;
     if (index?.complete !== true || index.scope_id !== scope) throw missing();
     const expectedById=new Map(index.entities.map(row=>[row.entity_id,row]));
-    const rows = (await tx.getAll('entities')).filter(row => row.scope === scope && matches(row, route)&&
-      (!snapshot.value.partial||row.dirty||expectedById.get(row.entity_id)?.date===route.date&&
-        expectedById.get(row.entity_id)?.content_hash===row.snapshot_hash&&!expectedById.get(row.entity_id)?.deleted_at));
+    const available = (await tx.getAll('entities')).filter(row => row.scope === scope && matches(row,route));
+    if (snapshotHasUnverifiedRows(snapshot,available,route.date)) throw missing();
+    const rows = available.filter(row=>!snapshot.value.partial || row.dirty ||
+      matchesSnapshotEntity(expectedById.get(row.entity_id),row,route.date)&&!expectedById.get(row.entity_id)?.deleted_at);
     for (const expected of index.entities.filter(row => matches(row, route) && !row.deleted_at&&
       (route.kind!=='reminders'||row.date===route.date))) {
       if (!rows.some(row => row.entity_id === expected.entity_id && row.server)) throw missing();

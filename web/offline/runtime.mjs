@@ -2,6 +2,7 @@ import {openOfflineDB, offlineValue, entityKey} from './db.mjs';
 import {createOfflineCache, identityFingerprint, offlineReadRoute, safeIdentity} from './cache.mjs';
 import {createOutbox} from './outbox.mjs';
 import {createSnapshotSync} from './sync.mjs';
+import {createWindowSnapshotSync,WINDOW_REFRESH_MS} from './window-sync.mjs';
 import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
 import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
@@ -88,15 +89,18 @@ function checkedBody(route, options, uuid) {
 }
 function runtimeContext(options) {
   const {db, request, now = Date.now, uuid = () => crypto.randomUUID(), online = () => globalThis.navigator?.onLine !== false,
-    onIdentity = () => {}, features = OFFLINE_FEATURES, scopeProbe = false, scopeReuseMs = 0, progressiveSnapshot = false} = options;
+    onIdentity = () => {}, features = OFFLINE_FEATURES, scopeProbe = false, scopeReuseMs = 0,
+    progressiveSnapshot = false,windowedSnapshot=false} = options;
   const state = {scope: null, verifiedScope: null, identity: null, online: online(), phase: 'idle', pending: 0,
-    conflicts: 0, unsupported: 0, lastSuccess: null, historyRemaining: 0, cachedAt: null, error: null, errorStage: null, ready: true};
+    conflicts: 0, unsupported: 0, lastSuccess: null, historyRemaining: 0,historyIncomplete:windowedSnapshot,
+    cachedAt: null, error: null, errorStage: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
   const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
     labelsV1: features.labelsV1 === true});
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
     generation: 0, authFlight: null, scopeFlight: null, syncFlight: null, timer: null, channel: null, stopped: false,
+    windowedSnapshot,syncNotBefore:0,
     scopeProbe: scopeProbe === true, scopeReuseMs: Math.max(0, Math.min(Number(scopeReuseMs) || 0, 60000)), scopeCheckedAt: 0, pulledAt: 0};
   const send = async (path, opts) => {
     if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) &&
@@ -134,8 +138,9 @@ function runtimeContext(options) {
     supportedProtocols: features.memos ? [1, 2, 3, 4, 5] : [1, 3, 4, 5], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now, progressive:progressiveSnapshot});
-  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now,
-    version: 2, progressive:progressiveSnapshot}) : null;
+  context.snapshotV2 = windowedSnapshot?createWindowSnapshotSync({db,request:send,getScope:()=>state.scope,
+    getGeneration:()=>context.generation,now,uuid}):features.snapshotV2 === true ?
+    createSnapshotSync({db, request: send, getScope: () => state.scope, now,version: 2, progressive:progressiveSnapshot}) : null;
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
   return context;
@@ -162,7 +167,7 @@ async function adoptIdentity(context, me, index, generation, invalidate) {
 function identityActions(context) {
   const {cache, state, emit, request, onIdentity} = context;
   async function invalidate({forget = false} = {}) {
-    context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;
+    context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;context.syncNotBefore=0;context.readFailures=0;
     clearTimeout(context.historyTimer); context.historyRetry=false; state.historyRemaining = 0;
     context.authFlight = null;
     context.scopeFlight = null;
@@ -281,6 +286,16 @@ function stateActions(context) {
   }
   return {refresh, queue, resolve};
 }
+async function pauseFailedRead(context,stage,error,owner,active) {
+  if(!context.windowedSnapshot||!['identity','cache','snapshot'].includes(stage)||[401,403].includes(error.status))return;
+  context.readFailures=Math.min(5,(context.readFailures||0)+1);
+  const delay=Math.min(3600000,300000*2**(context.readFailures-1));
+  context.cooldownUntil=Math.max(context.cooldownUntil||0,context.now()+delay,error.rateLimitedUntil||0);
+  if(owner)try {
+    const assertActive=()=>{if(!active())throw fail('身份范围已变化。','OFFLINE_SCOPE_CHANGED');};
+    await context.outbox.setCooldown(owner,context.cooldownUntil,assertActive);
+  }catch{ /* The in-memory pause still stops timer retries if persistence fails. */ }
+}
 async function runSync(context) {
   const {state, emit, outbox, snapshot, now, online} = context;
   if (!online()) { state.verifiedScope = null; return context.refresh(); }
@@ -318,8 +333,9 @@ async function runSync(context) {
       const result=await (context.snapshotV2 || snapshot).pull({date: today(now)});
       if (!active()) return {...state};
       state.historyRemaining=result.remaining_dates||0;
+      if(context.windowedSnapshot)state.historyIncomplete=true;
       context.historyRetry=false;
-      if(!state.historyRemaining)context.pulledAt = now();
+      if(!state.historyRemaining&&(!context.windowedSnapshot||result.status==='synced'))context.pulledAt = now();
       if (context.lastTodoPath) {
         stage = 'cache';
         const date = offlineReadRoute(context.lastTodoPath).date;
@@ -328,10 +344,13 @@ async function runSync(context) {
       }
     }
     if (!active()) return {...state};
-    if(!state.historyRemaining)state.lastSuccess = now();
+    if(!state.historyRemaining&&(!context.windowedSnapshot||context.pulledAt))
+      state.lastSuccess=context.windowedSnapshot?context.pulledAt:now();
     state.error = null; state.errorStage = null;
+    context.readFailures=0;
   } catch (error) {
     if (!active()) return {...state};
+    await pauseFailedRead(context,stage,error,owner,active);
     if (error.status === 429) {
       if(stage==='snapshot')context.historyRetry=true;
       const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
@@ -360,7 +379,7 @@ function syncActions(context) {
   const run = () => runSync(context);
   function scheduleHistory() {
     clearTimeout(context.historyTimer);
-    if(context.stopped)return;
+    if(context.stopped||context.windowedSnapshot)return;
     const owner=state.scope,generation=context.generation;
     context.historyTimer=setTimeout(()=>{
       if(!context.stopped&&owner===state.scope&&generation===context.generation&&online())void sync();
@@ -370,9 +389,11 @@ function syncActions(context) {
   function sync({rerun = false} = {}) {
     if (context.syncFlight) {
       // Overlapping sync() must survive in-flight failures, not only timer reruns.
-      context.syncAgain = true;
+      if(!context.windowedSnapshot||rerun)context.syncAgain = true;
       return context.syncFlight;
     }
+    if(context.windowedSnapshot&&!rerun&&context.syncNotBefore>now())return context.refresh();
+    if(context.windowedSnapshot)context.syncNotBefore=now()+WINDOW_REFRESH_MS;
     context.syncFlight = run().finally(() => {
       context.syncFlight = null;
       const again = context.syncAgain; context.syncAgain = false;
@@ -524,7 +545,7 @@ function lifecycleActions(context) {
     window?.addEventListener('online', sync); window?.addEventListener('focus', sync);
     window?.addEventListener('haoduoyu:sync-request', sync); window?.addEventListener('offline', offline);
     document?.addEventListener('visibilitychange', sync);
-    const timer = setInterval(sync, 300000); timer?.unref?.();
+    const timer = setInterval(sync,context.windowedSnapshot?WINDOW_REFRESH_MS:300000); timer?.unref?.();
     if (BroadcastChannel) {
       context.channel = new BroadcastChannel('haoduoyu-offline-status-v1');
       context.channel.onmessage = event => {
@@ -654,6 +675,12 @@ export function createOfflineRuntime(options) {
     }
   }
   return {call: callWithRateLimit, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
+    async downloadDate(date) {
+      if(!context.windowedSnapshot)throw fail('请更新页面后下载历史日期。','OFFLINE_UPGRADE_REQUIRED');
+      await context.verifyScope();
+      const result=await context.snapshotV2.pull({historyDate:date});
+      await context.refresh();return result;
+    },
     captureRateLimitContext, recordRateLimit,
     readMemo: path => context.memos.project(path),
     readTodoMonthSnapshot: month => readTodoMonthSnapshot(context, month),
@@ -691,7 +718,7 @@ export function onOfflineRuntime(callback) {
 }
 export async function offlineRequest(path, options, request, onIdentity, assertActive = () => {}) {
   if (!initialization) initialization = openOfflineDB().then(db => {
-    singleton = createOfflineRuntime({db, request, onIdentity, scopeProbe: true, scopeReuseMs: 30000, progressiveSnapshot:true});
+    singleton = createOfflineRuntime({db, request, onIdentity, scopeProbe: true, scopeReuseMs: 30000,windowedSnapshot:true});
     for (const callback of readyListeners) callback(singleton);
     return singleton;
   });
