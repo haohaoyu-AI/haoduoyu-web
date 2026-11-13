@@ -998,7 +998,7 @@ function readingMethods(context) {
     owner2.active();
     return record?.scope === owner2.scope && typeof record.can_edit === "boolean" ? record.can_edit : null;
   }
-  async function read2(path, route2 = noteReadRoute(path)) {
+  async function read3(path, route2 = noteReadRoute(path)) {
     if (!route2) throw missing2();
     const owner2 = capture();
     const result = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
@@ -1048,7 +1048,7 @@ function readingMethods(context) {
     owner2.active();
     return result;
   }
-  return { read: read2, capability, fence };
+  return { read: read3, capability, fence };
 }
 function writingMethods(context) {
   const { db, capture, capabilityKey, now } = context;
@@ -1303,7 +1303,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     return result;
   }
   const entities = (owner2) => db.transaction(["entities"], "readonly", async (tx) => (await tx.getAll("entities")).filter((row) => row.scope === owner2));
-  async function read2(path) {
+  async function read3(path) {
     const route2 = offlineReadRoute(path);
     if (!route2) throw missing3();
     if (["note_entries", "note_entry"].includes(route2.kind)) return notes.read(path, route2);
@@ -1345,7 +1345,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     return ["note_entries", "note_entry"].includes(route2?.kind) ? notes.fence(route2) : serverFence2(await entities(scope()), route2, scope());
   };
   return {
-    read: read2,
+    read: read3,
     write,
     entity,
     fence,
@@ -1552,15 +1552,15 @@ function content(local, type) {
 function contextFor({ conflict, remote, choice: choice2, uuid: uuid5 }) {
   const type = conflict?.operation?.entity_type, scope = conflict?.scope, prefix = prefixes[type];
   if (!prefix || !["use-server", "use-local", "keep-both"].includes(choice2) || typeof scope !== "string" || !scope) invalid();
-  const entity = conflict.entity_id, pattern2 = ["todo", "template", "unscheduled_todo"].includes(type) ? clientIdPattern : uuidPattern3;
-  if (typeof entity !== "string" || !entity.startsWith(prefix) || !pattern2.test(entity.slice(prefix.length)) || conflict.operation.scope !== void 0 && conflict.operation.scope !== scope || conflict.operation.entity_id !== void 0 && conflict.operation.entity_id !== entity) invalid();
+  const entity = conflict.entity_id, pattern = ["todo", "template", "unscheduled_todo"].includes(type) ? clientIdPattern : uuidPattern3;
+  if (typeof entity !== "string" || !entity.startsWith(prefix) || !pattern.test(entity.slice(prefix.length)) || conflict.operation.scope !== void 0 && conflict.operation.scope !== scope || conflict.operation.entity_id !== void 0 && conflict.operation.entity_id !== entity) invalid();
   const id2 = entity.slice(prefix.length).toLowerCase(), local = conflict.local;
   if (local?.id !== void 0 && local.id.toLowerCase?.() !== id2 || conflict.operation.source_id !== void 0 && conflict.operation.source_id.toLowerCase?.() !== id2) invalid();
   if (remote && (typeof remote !== "object" || remote.id?.toLowerCase?.() !== id2 || !revision(remote.version))) invalid();
   const used = /* @__PURE__ */ new Set([id2, conflict.operation.save_id?.toLowerCase?.(), local?.group_id?.toLowerCase?.()]);
   const fresh = () => {
     const value = uuid5();
-    if (typeof value !== "string" || !pattern2.test(value) || used.has(value.toLowerCase())) invalid();
+    if (typeof value !== "string" || !pattern.test(value) || used.has(value.toLowerCase())) invalid();
     used.add(value.toLowerCase());
     return value.toLowerCase();
   };
@@ -2002,9 +2002,9 @@ function conflictIdentity(conflict) {
   return { operation: operation2, type, id: id2, scope: conflict.scope };
 }
 function createConflictPreparation({ readRemote, network }) {
-  async function guarded(read2, assertActive) {
+  async function guarded(read3, assertActive) {
     assertActive();
-    const value = await read2();
+    const value = await read3();
     assertActive();
     return value;
   }
@@ -3228,7 +3228,7 @@ function createDailyNotesContext({
 function createReadingActions(context) {
   const { page, emit: emit2, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
-  async function read2(date) {
+  async function read3(date) {
     const item = page(date), sequence5 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit2();
@@ -3279,7 +3279,7 @@ function createReadingActions(context) {
     emit2();
     if (!composing) schedule(item);
   }
-  return { read: read2, edit };
+  return { read: read3, edit };
 }
 function createWritingActions(context) {
   const { page, emit: emit2, stopTimer, matches: matches2, accepted } = context;
@@ -3413,8 +3413,8 @@ function createResolutionActions(context) {
 function createDailyNotesStore(options4) {
   const context = createDailyNotesContext(options4);
   Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read: read2, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read: read2, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
+  const { page, pages, read: read3, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read: read3, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
 }
 var DAILY_NOTES_MAX_BYTES, routeDate, routeCategory, dailyNotesRouteCategory;
 var init_daily_notes_state = __esm({
@@ -5770,12 +5770,12 @@ function openAiDiaryLink(run2) {
 function openAiRunsForDate(items, date) {
   return items.filter((run2) => openAiRunDay(run2) === date).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(b.id).localeCompare(String(a.id)));
 }
-async function readOpenAiRuns(read2, date = "", current3 = () => true) {
+async function readOpenAiRuns(read3, date = "", current3 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; ) {
     const query = new URLSearchParams({ offset: String(offset) });
     if (date) query.set("date", date);
-    const page = await read2("/openai-review/runs?" + query);
+    const page = await read3("/openai-review/runs?" + query);
     if (!current3()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.has_more && !page.items.length)
       throw new Error("分析记录读取不完整，请重新读取。");
@@ -7496,27 +7496,37 @@ function keyModal() {
 }
 
 // web/core/todo-count.mjs
-var pattern = /^(\d{1,3})\/(\d{1,3}) 次(?: · ([\s\S]*))?$/;
+var tally = /^\s*(\d{1,3})\/(\d{1,3}|∞) ?次[\s·]*/;
 var TODO_COUNT_MAX = 99;
-function todoCount(note) {
-  const match = pattern.exec(String(note ?? ""));
+var TODO_COUNT_OPEN_MAX = 999;
+function read2(text) {
+  const match = tally.exec(text);
   if (!match) return null;
-  const done2 = Number(match[1]), target = Number(match[2]);
-  if (target < 1 || target > TODO_COUNT_MAX || done2 > target) return null;
-  return { done: done2, target, rest: match[3] || "" };
+  const done2 = Number(match[1]), target = match[2] === "∞" ? null : Number(match[2]);
+  if (target !== null && (target < 1 || target > TODO_COUNT_MAX || done2 > target)) return null;
+  return { done: done2, target, length: match[0].length };
+}
+function todoCount(note) {
+  const text = String(note ?? ""), first = read2(text);
+  if (!first) return null;
+  let rest = text.slice(first.length);
+  for (let stale = read2(rest); stale; stale = read2(rest)) rest = rest.slice(stale.length);
+  return { done: first.done, target: first.target, rest: rest.trim() };
 }
 function todoCountNote(done2, target, rest = "") {
-  return `${done2}/${target} 次${rest ? ` · ${rest}` : ""}`;
+  return `${done2}/${target ?? "∞"} 次${rest ? ` · ${rest}` : ""}`;
 }
 function todoCountChange(note, action, target = 0) {
-  const current3 = todoCount(note), text = String(note ?? "");
+  const current3 = todoCount(note), text = String(note ?? "").trim();
   if (action === "set") {
-    if (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX) return null;
-    return todoCountNote(Math.min(current3?.done ?? 0, target), target, current3 ? current3.rest : text);
+    if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) return null;
+    const done2 = current3?.done ?? 0;
+    return todoCountNote(target === null ? done2 : Math.min(done2, target), target, current3 ? current3.rest : text);
   }
   if (!current3) return null;
   if (action === "clear") return current3.rest;
-  if (action === "add") return current3.done < current3.target ? todoCountNote(current3.done + 1, current3.target, current3.rest) : null;
+  const limit = current3.target ?? TODO_COUNT_OPEN_MAX;
+  if (action === "add") return current3.done < limit ? todoCountNote(current3.done + 1, current3.target, current3.rest) : null;
   if (action === "undo") return current3.done > 0 ? todoCountNote(current3.done - 1, current3.target, current3.rest) : null;
   return null;
 }
@@ -7602,7 +7612,7 @@ async function loadTodoMonth(snapshot, controller, expired, deps) {
     }
   }
 }
-function createTodoMonthLoader({ read: read2, seed, active: active5, changed: changed4 = () => {
+function createTodoMonthLoader({ read: read3, seed, active: active5, changed: changed4 = () => {
 }, now = Date.now }) {
   let owner2 = "", current3 = null;
   const limits = { cooldown: 0 };
@@ -7648,7 +7658,7 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
       snapshot.promise = loadTodoMonth(snapshot, controller, expired, {
         monthDays,
         seed,
-        read: read2,
+        read: read3,
         active: active5,
         now,
         limits,
@@ -8032,7 +8042,8 @@ function openTodoMenu({ target, id: id2, date, anchor }) {
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
   const count3 = todoCount(item.note);
-  const counting = count3 ? `<button data-action="todo-count-set" ${attributes}>修改次数（${count3.target} 次）</button>
+  const limit = count3?.target === null ? "不限" : `${count3?.target} 次`;
+  const counting = count3 ? `<button data-action="todo-count-set" ${attributes}>修改次数（${limit}）</button>
 ${count3.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一次</button>` : ""}
 <button data-action="todo-count-clear" ${attributes}>取消计次</button>` : `<button data-action="todo-count-set" ${attributes}>设置次数</button>`;
   popover(trigger, `${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
@@ -8065,17 +8076,20 @@ function openTodoCount({ id: id2, date, owner: owner2 }) {
   const count3 = todoCount(context.item.note);
   openModal("设置次数", `<form id="todo-count-form" data-id="${e(id2)}" data-date="${e(date)}" data-owner="${e(context.owner)}">
 <p class="muted">${e(context.item.text)}</p>
+<label class="todo-count-open"><input type="checkbox" name="open" value="1"${count3 && count3.target === null ? " checked" : ""}>
+  不限次数，只记做了几次</label>
 <label for="todo-count-target">一共要做几次</label>
-<input class="input" id="todo-count-target" name="target" type="number" inputmode="numeric" min="1" max="${TODO_COUNT_MAX}" step="1" required
+<input class="input" id="todo-count-target" name="target" type="number" inputmode="numeric" min="1" max="${TODO_COUNT_MAX}" step="1"
   value="${count3?.target ?? ""}">
-<p class="muted">设置后每做一次点“+1”，备注会自动显示“2/5 次”。次数满了仍由你点左边的圆圈完成。</p>
+<p class="muted">每做一次点“+1”，备注自动显示“2/5 次”；不限次数时显示“3/∞ 次”。完成仍由你点左边的圆圈。</p>
 <p class="form-message" role="alert"></p>
 <div class="form-actions"><button class="btn primary" type="submit">确定</button></div></form>`);
 }
 async function submitTodoCount({ form, data: data3 }) {
-  const target = Number(data3.target), message = form.querySelector(".form-message"), button3 = form.querySelector("button[type=submit]");
-  if (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX) {
-    message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数`;
+  const target = data3.open ? null : Number(data3.target);
+  const message = form.querySelector(".form-message"), button3 = form.querySelector("button[type=submit]");
+  if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) {
+    message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数，或勾选“不限次数”`;
     return;
   }
   if (button3.disabled) return;
@@ -8686,9 +8700,10 @@ function todoNoteField2(item, day6, pending) {
 function todoCountButton(item, day6, pending) {
   const count3 = todoCount(item.note);
   if (!count3 || day6.noteEdit?.id === item.id) return "";
-  const full = count3.done >= count3.target;
+  const full = count3.target !== null && count3.done >= count3.target;
+  const so = count3.target === null ? `${count3.done} 次` : `${count3.done}/${count3.target} 次`;
   return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day6.date)}"
-aria-label="${full ? `已记满 ${count3.target} 次` : `记一次，目前 ${count3.done}/${count3.target} 次`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
+aria-label="${full ? `已记满 ${count3.target} 次` : `记一次，目前 ${so}`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
 }
 function todoRow(item, day6) {
   const pending = todoBusy(day6, item.id);
@@ -9465,7 +9480,7 @@ function createEntryLocalActions(context) {
 function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit: emit2, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
-  async function read2(date, options4 = {}) {
+  async function read3(date, options4 = {}) {
     const current3 = page(date), sequence5 = ++current3.sequence;
     const epochs = new Map(current3.ids.map((id2) => [id2, entry(id2)?.writeEpoch]));
     current3.loading = true;
@@ -9527,7 +9542,7 @@ function createEntryReadingActions(context) {
       }
     }
   }
-  return { read: read2, readOne };
+  return { read: read3, readOne };
 }
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit: emit2, stopTimer, schedule, makeEntry } = context;
@@ -9987,7 +10002,7 @@ function createNoteEntriesStore(options4) {
     page,
     entry,
     start,
-    read: read2,
+    read: read3,
     readOne,
     edit,
     relabelDraft,
@@ -10016,7 +10031,7 @@ function createNoteEntriesStore(options4) {
     page,
     entry,
     start,
-    read: read2,
+    read: read3,
     readOne,
     edit,
     relabelDraft,
@@ -14315,8 +14330,8 @@ function patternStats(rows = [], labels4 = {}) {
     target.code ||= group.code;
     groups.delete(name);
   }
-  return [...groups.entries()].map(([pattern2, { code, items }]) => ({
-    pattern: pattern2,
+  return [...groups.entries()].map(([pattern, { code, items }]) => ({
+    pattern,
     code,
     count: items.length,
     reads: mid(items.map((row) => row.reads_24h)),
@@ -14346,7 +14361,7 @@ function ruleNames(playbooks = []) {
   }
   return names;
 }
-var namedPattern = (pattern2, names) => names?.has(pattern2) ? `${names.get(pattern2)}（${pattern2}）` : pattern2;
+var namedPattern = (pattern, names) => names?.has(pattern) ? `${names.get(pattern)}（${pattern}）` : pattern;
 
 // web/core/review-markdown.mjs
 init_dom();
@@ -14454,8 +14469,8 @@ function namesOf(data3) {
   if (!nameCache.has(books)) nameCache.set(books, ruleNames(books));
   return nameCache.get(books);
 }
-function patternHtml(pattern2, names) {
-  return names.has(pattern2) ? `${e(names.get(pattern2))} <small class="review-pattern-code">${e(pattern2)}</small>` : e(pattern2);
+function patternHtml(pattern, names) {
+  return names.has(pattern) ? `${e(names.get(pattern))} <small class="review-pattern-code">${e(pattern)}</small>` : e(pattern);
 }
 var button2 = (label3, action, attrs = "", kind = "btn small") => `<button class="${kind}" type="button" data-ai-action="${action}" ${attrs}>${e(label3)}</button>`;
 function onceOptions(ai2, feature) {
@@ -14883,10 +14898,10 @@ function sortAiReports(items) {
 function reportsForDailyDate(items, date) {
   return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date)));
 }
-async function readAllAiReports(read2, current3 = () => true) {
+async function readAllAiReports(read3, current3 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; offset += 100) {
-    const data3 = await read2("/ai-reports?offset=" + offset);
+    const data3 = await read3("/ai-reports?offset=" + offset);
     if (!current3()) return null;
     if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
       throw new Error("汇报读取不完整，请稍后重试。");
@@ -16549,14 +16564,14 @@ var root2 = () => typeof document === "undefined" ? null : document.querySelecto
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
 }
-async function readReviewCollection(read2, resource, selectedAccount, current3 = () => true) {
+async function readReviewCollection(read3, resource, selectedAccount, current3 = () => true) {
   if (!resources.includes(resource)) throw new Error("未知的复盘资料类型。");
   const items = [], seen = /* @__PURE__ */ new Set(), foreignIds = /* @__PURE__ */ new Set();
   let revision2;
   for (let offset = 0; ; offset += 100) {
     const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
     const revisionQuery = revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`;
-    const page = await read2(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
+    const page = await read3(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
     if (!current3()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.items.length > 100 || page.has_more && page.items.length !== 100) throw new Error("复盘分页资料不完整，请重新读取。");
     if (page.read_revision !== void 0) {
@@ -16575,8 +16590,8 @@ async function readReviewCollection(read2, resource, selectedAccount, current3 =
     if (!page.has_more) return { items, read_revision: revision2, foreignIds };
   }
 }
-async function readContentReviewData(read2, selectedAccount, current3 = () => true) {
-  const results = await Promise.all(resources.map((name) => readReviewCollection(read2, name, selectedAccount, current3)));
+async function readContentReviewData(read3, selectedAccount, current3 = () => true) {
+  const results = await Promise.all(resources.map((name) => readReviewCollection(read3, name, selectedAccount, current3)));
   if (!current3() || results.some((result2) => result2 === null)) return null;
   const revisions = results.map((result2) => result2.read_revision).filter((value) => value !== void 0);
   if (revisions.length && revisions.some((value) => value !== revisions[0])) throw staleRead();
@@ -16591,10 +16606,10 @@ async function readContentReviewData(read2, selectedAccount, current3 = () => tr
   result.loadedAt = (/* @__PURE__ */ new Date()).toISOString();
   return result;
 }
-async function readContentReviewDataWithRetry(read2, selectedAccount, current3 = () => true) {
+async function readContentReviewDataWithRetry(read3, selectedAccount, current3 = () => true) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await readContentReviewData(read2, selectedAccount, current3);
+      return await readContentReviewData(read3, selectedAccount, current3);
     } catch (error) {
       if (!current3()) return null;
       if (error.code !== "READ_REVISION_CHANGED" || attempt) throw error;
@@ -16751,9 +16766,9 @@ async function loadContentReview(context) {
   paintContentReviewPage();
   const ticket2 = ++sequence4, epoch = runtime2.sessionEpoch;
   const current3 = () => ticket2 === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root2());
-  const read2 = (path) => apiNetwork2(path, context ? { context } : {});
+  const read3 = (path) => apiNetwork2(path, context ? { context } : {});
   try {
-    const result = await readContentReviewDataWithRetry(read2, requested.account, current3);
+    const result = await readContentReviewDataWithRetry(read3, requested.account, current3);
     if (!current3() || !result) return;
     data2 = result;
     syncViewFromRoute();

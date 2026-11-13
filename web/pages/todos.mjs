@@ -188,9 +188,10 @@ function todoNoteField(item, day, pending) {
 function todoCountButton(item, day, pending) {
   const count = todoCount(item.note);
   if (!count || day.noteEdit?.id === item.id) return "";
-  const full = count.done >= count.target;
+  const full = count.target !== null && count.done >= count.target;
+  const so = count.target === null ? `${count.done} 次` : `${count.done}/${count.target} 次`;
   return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day.date)}"
-aria-label="${full ? `已记满 ${count.target} 次` : `记一次，目前 ${count.done}/${count.target} 次`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
+aria-label="${full ? `已记满 ${count.target} 次` : `记一次，目前 ${so}`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
 }
 function todoRow(item, day) {
   const pending = todoBusy(day, item.id);

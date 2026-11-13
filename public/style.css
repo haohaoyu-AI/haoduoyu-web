@@ -632,3 +632,5 @@ progress::-moz-progress-bar { background:var(--ink-2); }
   #daily-score .daily-score-chip { min-height:40px; }
 }
 #daily-score.is-open .daily-score-trend { display:none; }
+#todo-count-form .todo-count-open { display:flex; align-items:center; gap:var(--s2); cursor:pointer; }
+#todo-count-form:has([name="open"]:checked) [for="todo-count-target"],#todo-count-form:has([name="open"]:checked) #todo-count-target { display:none; }

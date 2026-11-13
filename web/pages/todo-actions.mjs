@@ -33,7 +33,8 @@ function openTodoMenu({ target, id, date, anchor }) {
   const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
   const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
   const count = todoCount(item.note);
-  const counting = count ? `<button data-action="todo-count-set" ${attributes}>修改次数（${count.target} 次）</button>
+  const limit = count?.target === null ? "不限" : `${count?.target} 次`;
+  const counting = count ? `<button data-action="todo-count-set" ${attributes}>修改次数（${limit}）</button>
 ${count.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一次</button>` : ""}
 <button data-action="todo-count-clear" ${attributes}>取消计次</button>` : `<button data-action="todo-count-set" ${attributes}>设置次数</button>`;
   popover(trigger, `${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
@@ -66,16 +67,21 @@ function openTodoCount({ id, date, owner }) {
   const count = todoCount(context.item.note);
   openModal("设置次数", `<form id="todo-count-form" data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(context.owner)}">
 <p class="muted">${e(context.item.text)}</p>
+<label class="todo-count-open"><input type="checkbox" name="open" value="1"${count && count.target === null ? " checked" : ""}>
+  不限次数，只记做了几次</label>
 <label for="todo-count-target">一共要做几次</label>
-<input class="input" id="todo-count-target" name="target" type="number" inputmode="numeric" min="1" max="${TODO_COUNT_MAX}" step="1" required
+<input class="input" id="todo-count-target" name="target" type="number" inputmode="numeric" min="1" max="${TODO_COUNT_MAX}" step="1"
   value="${count?.target ?? ""}">
-<p class="muted">设置后每做一次点“+1”，备注会自动显示“2/5 次”。次数满了仍由你点左边的圆圈完成。</p>
+<p class="muted">每做一次点“+1”，备注自动显示“2/5 次”；不限次数时显示“3/∞ 次”。完成仍由你点左边的圆圈。</p>
 <p class="form-message" role="alert"></p>
 <div class="form-actions"><button class="btn primary" type="submit">确定</button></div></form>`);
 }
 async function submitTodoCount({ form, data }) {
-  const target = Number(data.target), message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");
-  if (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX) { message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数`; return; }
+  const target = data.open ? null : Number(data.target);
+  const message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");
+  if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) {
+    message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数，或勾选“不限次数”`; return;
+  }
   if (button.disabled) return;
   button.disabled = true; message.textContent = "";
   const saved = await changeTodoCount({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner }, "set", target);
