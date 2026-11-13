@@ -148,6 +148,32 @@ test('current smart placement is retained when the older version omits its optio
   assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
   assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
 });
+test('the observed script placement alias preserves the same explicitly inherited smart mode',async()=>{
+  const mock=mockCloudflare();
+  for(const item of mock.state.versions.values())item.resources.script.placement={mode:'smart'};
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('script placement aliases reject unknown fields, modes and missing legacy confirmation',async()=>{
+  for(const placement of [{},{mode:'targeted'},{mode:'smart',status:'SUCCESS'},
+    {mode:'smart',last_analyzed_at:'2026-11-13T10:00:00Z'},null,[],{mode:'smart',region:'aws:us-east-1'}]) {
+    const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script.placement=placement;
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(writes(mock).length,0);privateFree(report);
+  }
+  const mock=mockCloudflare(),script=mock.state.versions.get(OLD).resources.script;
+  script.placement={mode:'smart'};delete script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.check,'script.placement.alias');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+test('an inconsistent uploaded placement alias never receives traffic',async()=>{
+  const mock=mockCloudflare();mock.state.versions.get(NEW).resources.script.placement={mode:'targeted'};
+  const report=await run(mock);
+  assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,1);
+  assert.equal(mock.state.active,OLD);privateFree(report);
+});
 test('documented placement analysis status is validated but never uploaded or treated as configuration',async()=>{
   const mock=mockCloudflare(({path,state})=>{
     if(path==='/settings')state.versions.get(OLD).resources.script.placement_status='INSUFFICIENT_INVOCATIONS';
@@ -426,7 +452,8 @@ test('diagnostics identify placement source and empty-list equivalence without e
   mock.state.settings.tags=[];delete mock.state.versions.get(OLD).resources.script.placement_mode;
   const report=await diagnoseExistingWorker(config,{request:mock.request});
   assert.equal(report.code,'PREFLIGHT_VALID');
-  assert.deepEqual(report.configuration.placement,{version_mode:'missing',version_status:'missing',combined_mode:'smart'});
+  assert.deepEqual(report.configuration.placement,{version_mode:'missing',version_object_mode:'missing',
+    version_status:'missing',combined_mode:'smart'});
   for(const key of ['tags','tail_consumers'])assert.deepEqual(report.configuration.setting_lists[key],
     {script_count:0,combined_count:0,normalized_equal:true});
   assert.equal(writes(mock).length,0);privateFree(report);
@@ -436,12 +463,14 @@ test('diagnostics prove current content matches a commit-annotated reference usi
   reference.resources.script.etag=mock.state.versions.get(OLD).resources.script.etag;
   reference.annotations={'workers/commit_sha':commit};mock.state.versions.set(OTHER,reference);
   mock.state.versions.get(OLD).resources.script.placement_status='SUCCESS';
+  mock.state.versions.get(OLD).resources.script.placement={mode:'smart'};
   const report=await diagnoseExistingWorker({...config,sourceReferenceVersion:OTHER,expectedSourceCommit:commit},
     {request:mock.request});
   assert.equal(report.code,'PREFLIGHT_VALID');
   assert.deepEqual(report.current,{deployment_id:DEPLOYMENT,active_version_id:OLD,latest_version_id:OLD});
   assert.deepEqual(report.source,{reference_version_id:OTHER,reference_commit:commit,content_etag_equal:true});
   assert.equal(report.configuration.placement.version_status,'SUCCESS');
+  assert.equal(report.configuration.placement.version_object_mode,'smart');
   assert.equal(report.shapes.version.resources.script.unrecognized_field_count,0);
   assert.equal(mock.calls.length,7);assert.ok(mock.calls.every(call=>call.method==='GET'));privateFree(report);
 });
