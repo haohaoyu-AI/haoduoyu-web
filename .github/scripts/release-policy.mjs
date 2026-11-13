@@ -193,7 +193,15 @@ export const summaryAverageRelease=Object.freeze({
   baseline:'c3b18ec2-ca4f-474c-9e23-829e33e55d56',
   bytes:3099366,sha256:'5b131c4334e2a55d43b9b2aa7b84bdcf28f07486ae3560f10634661ccb5386f7',
   label:'production-summary-average-20261114'});
-const acceptedRelease=commit=>commit===summaryAverageRelease.commit?summaryAverageRelease:
+// Bounded offline reads preserve all deployed c0df37d features and Smart Placement.
+export const boundedOfflineRelease=Object.freeze({
+  commit:'8fa6cc781f5765deb01da12b47f53b00b302d6ce',
+  tree:'cfa43720bbcd724c347792ea276e410b79d042e0',
+  baseline:'9637f764-633c-4a89-89e8-7a3296477d21',
+  bytes:3128436,sha256:'56ba0df89bbbd5b1509e7c0f6439035179f6e59564e6a0c69da62d6fd1bc7136',
+  label:'production-bounded-offline-reads-20261114'});
+const acceptedRelease=commit=>commit===boundedOfflineRelease.commit?boundedOfflineRelease:
+  commit===summaryAverageRelease.commit?summaryAverageRelease:
   commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
   commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
   commit===speedUpRelease.commit?speedUpRelease:

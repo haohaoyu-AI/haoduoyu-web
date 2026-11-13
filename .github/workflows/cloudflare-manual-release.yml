@@ -9,6 +9,7 @@ on:
         default: 5044ed66af80f9593879453d23c88c3851a06f12
         options:
           # Exact source and Worker bytes verified before registration.
+          - 8fa6cc781f5765deb01da12b47f53b00b302d6ce
           - c0df37d8a691820a1598e1a55a72af2a932ae9a3
           - c776a8816861605f9d43bdc91fbc0a79cbec67b6
           - b05613792693d88a1b081e511eaf95cca08d5459
@@ -97,7 +98,7 @@ jobs:
         working-directory: source
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify committed data trends frontend before regeneration
-        if: inputs.target_commit == 'c0df37d8a691820a1598e1a55a72af2a932ae9a3' || inputs.target_commit == 'c776a8816861605f9d43bdc91fbc0a79cbec67b6' || inputs.target_commit == 'b05613792693d88a1b081e511eaf95cca08d5459' || inputs.target_commit == 'e7499bd4d1b1f537636b2fb00b0dcf1199ab70cc' || inputs.target_commit == '003f01e77fe7572a1b38161e59503ac7c9d477d0' || inputs.target_commit == 'e407cabf98f8b3e5ad1215fc7c8d915204443b10' || inputs.target_commit == '9ec99b201ae1438684b5b79e5caa9b13fc2988f9' || inputs.target_commit == 'b6f8af9dfeac65f34e40388c356a850a226a2a51' || inputs.target_commit == '9835ad1308b75656c29d234a82fb046d61934817' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd'
+        if: inputs.target_commit == '8fa6cc781f5765deb01da12b47f53b00b302d6ce' || inputs.target_commit == 'c0df37d8a691820a1598e1a55a72af2a932ae9a3' || inputs.target_commit == 'c776a8816861605f9d43bdc91fbc0a79cbec67b6' || inputs.target_commit == 'b05613792693d88a1b081e511eaf95cca08d5459' || inputs.target_commit == 'e7499bd4d1b1f537636b2fb00b0dcf1199ab70cc' || inputs.target_commit == '003f01e77fe7572a1b38161e59503ac7c9d477d0' || inputs.target_commit == 'e407cabf98f8b3e5ad1215fc7c8d915204443b10' || inputs.target_commit == '9ec99b201ae1438684b5b79e5caa9b13fc2988f9' || inputs.target_commit == 'b6f8af9dfeac65f34e40388c356a850a226a2a51' || inputs.target_commit == '9835ad1308b75656c29d234a82fb046d61934817' || inputs.target_commit == '334e00d676452cc47e044cb4f88f8209b1c411b0' || inputs.target_commit == '52f5f32f29526b302e0f58bf3272f2d636f782a4' || inputs.target_commit == 'e993885c752e97532214ef14a2fcf32b324bc08c' || inputs.target_commit == 'bc8449887e6b88f11b05ccbed13613f2f34e9b57' || inputs.target_commit == 'd715770a7753ea70931b330ce297fd566af6f0dd'
         working-directory: source
         run: node scripts/frontend-build.mjs --check
       - name: Build accepted Worker without migrations or deployment
