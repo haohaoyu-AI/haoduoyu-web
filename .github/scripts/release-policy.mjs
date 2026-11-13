@@ -141,7 +141,16 @@ export const aiReportModelOptionsRelease=Object.freeze({
   baseline:'25c4c7ae-6e9e-4646-9896-74d5b47cfa30',
   bytes:3055386,sha256:'f3cd419d69aa87a8166f6ffe0f3917efefd73b0eaa3cc1ebc9803bba776bbb49',
   label:'production-ai-report-model-options-20261112'});
-const acceptedRelease=commit=>commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
+// Removes the experiment cards, title patterns and headline breakdown on top of the deployed b6f8af9.
+// Baseline is the version uploaded by successful run 43268792694 (DEPLOYMENT_CONFIRMED for b6f8af9).
+export const removeAnalysisRelease=Object.freeze({
+  commit:'9ec99b201ae1438684b5b79e5caa9b13fc2988f9',
+  tree:'494d6707df005f1dd1efa928e0c303526be9d421',
+  baseline:'c7a663ad-c502-4ede-b068-bffda6d2d617',
+  bytes:3045533,sha256:'4340a7525ab703475063b0215331d9eb255af061f6768bd43be1df2fbf84cf9d',
+  label:'production-remove-analysis-20261113'});
+const acceptedRelease=commit=>commit===removeAnalysisRelease.commit?removeAnalysisRelease:
+  commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
   commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
   commit===patternExamplesRelease.commit?patternExamplesRelease:
   commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
