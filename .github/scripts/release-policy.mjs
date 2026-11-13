@@ -170,7 +170,15 @@ export const speedUpRelease=Object.freeze({
   baseline:'73703900-9614-4349-822b-cae862287fef',
   bytes:3058520,sha256:'f44da1a42999d3e16a54ae6ddf3bcfe56422c9f17f1e4340ef06b682a5a55faf',
   label:'production-speed-up-20261113'});
-const acceptedRelease=commit=>commit===speedUpRelease.commit?speedUpRelease:
+// Recent-first resumable pulls on the deployed speed-up source; no migration or binding changes.
+export const progressiveOfflineRelease=Object.freeze({
+  commit:'b05613792693d88a1b081e511eaf95cca08d5459',
+  tree:'1b0924e5deaf7d89ca7ba6f449d560d817e159fb',
+  baseline:'ba1d5743-9c09-42c8-9528-39000830d365',
+  bytes:3068718,sha256:'bdb24edc4e53f0cf3437e75f0b6b3cef652fb0ca5a4cbe48166f95a86f3b7864',
+  label:'production-progressive-offline-sync-20261113'});
+const acceptedRelease=commit=>commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
+  commit===speedUpRelease.commit?speedUpRelease:
   commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
   commit===todoCountFixesRelease.commit?todoCountFixesRelease:
   commit===removeAnalysisRelease.commit?removeAnalysisRelease:

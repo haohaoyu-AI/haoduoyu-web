@@ -142,6 +142,53 @@ test('empty placement metadata preserves an existing worker without smart placem
   const report=await run(mock);assert.equal(report.status,'deployed');
   assert.ok(!Object.hasOwn(mock.metadata,'placement'));
 });
+test('current smart placement is retained when the older version omits its optional placement mode',async()=>{
+  const mock=mockCloudflare();delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('an uploaded version must independently confirm inherited smart placement before deployment',async()=>{
+  const mock=mockCloudflare();
+  for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'uploaded_not_deployed');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,1);assert.equal(mock.state.active,OLD);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('explicit smart placement still conflicts with absent or empty current placement',async()=>{
+  for(const placement of [undefined,{}]) {
+    const mock=mockCloudflare(({path,state})=>{
+      if(path!=='/settings')return;
+      return Response.json({success:true,result:{bindings:version().resources.bindings,
+        ...version().resources.script_runtime,...state.settings,...(placement?{placement}:{})}});
+    });
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+for(const read of [2,3])test(`a real placement change on state read ${read} remains blocked`,async()=>{
+  let settingsReads=0;
+  const mock=mockCloudflare(({path,state})=>{
+    if(path!=='/settings'||++settingsReads<read)return;
+    const current=state.versions.get(OLD).resources;
+    return Response.json({success:true,result:{bindings:current.bindings,...current.script_runtime,
+      placement:{},...state.settings}});
+  });
+  delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,read===2?'blocked':'uploaded_not_deployed');
+  assert.equal(report.code,'CONFIGURATION_CHANGED');assert.equal(writes(mock).length,read-2);
+  assert.equal(mock.state.active,OLD);privateFree(report);
+});
+test('null nonversioned lists cannot conceal a nonempty current list',async()=>{
+  const mock=mockCloudflare(({path,state})=>path==='/script-settings'?
+    Response.json({success:true,result:{...state.settings,tags:null}}):undefined);
+  const report=await run(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
 
 test('native assets without a binding, or missing assets metadata, prevent a code-only upload',async()=>{
   for(const flag of [true,undefined]) {
@@ -353,6 +400,17 @@ test('diagnostics inspect a valid production shape using GET only and never publ
   assert.equal(mock.calls.length,6);assert.ok(mock.calls.every(call=>call.method==='GET'));
   assert.equal(writes(mock).length,0);assert.equal(mock.state.active,OLD);assert.equal(mock.state.latest,OLD);
   privateFree(report);
+});
+test('diagnostics identify placement source and empty-list equivalence without exposing values',async()=>{
+  const mock=mockCloudflare(({path,state})=>path==='/script-settings'?
+    Response.json({success:true,result:{...state.settings,tags:null,tail_consumers:null}}):undefined);
+  mock.state.settings.tags=[];delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.deepEqual(report.configuration.placement,{version_mode:'missing',combined_mode:'smart'});
+  for(const key of ['tags','tail_consumers'])assert.deepEqual(report.configuration.setting_lists[key],
+    {script_count:0,combined_count:0,normalized_equal:true});
+  assert.equal(writes(mock).length,0);privateFree(report);
 });
 
 test('diagnostics expose documented-field types and the exact failed check, without API names or values',async()=>{
