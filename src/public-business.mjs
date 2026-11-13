@@ -7,7 +7,7 @@ const reads=new Set(['/auth/me','/accounts','/account-profiles','/articles','/ob
   '/article-reconciliation','/todos','/todo-templates','/todo-preferences','/export']);
 export function publicBusinessRoute(route,method) {
   if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route)||/^\/unscheduled-todos(?:\/[^/]+)?$/.test(route);
-  if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates'].includes(route)||
+  if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates','/todo-carry'].includes(route)||
     /^\/todos\/[^/]+\/(restore|template)$/.test(route)||/^\/todo-templates\/[^/]+\/(archive|restore)$/.test(route)||route==='/unscheduled-todos'||/^\/unscheduled-todos\/[^/]+\/(restore|move|complete-today)$/.test(route);
   if(method==='PUT') return /^\/(accounts|articles)\/[^/]+$/.test(route);
   if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/todos\/[^/]+\/note$/.test(route)||/^\/(todos|todo-templates|unscheduled-todos)\/[^/]+$/.test(route);

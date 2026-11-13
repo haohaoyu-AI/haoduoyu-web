@@ -790,3 +790,24 @@ body.floating-workbench {
   .openai-review-heading { align-items:flex-start; }
   .ai-daily-tabs .btn { min-height:44px; white-space:nowrap; }
 }
+
+/* Weekly bowel/bladder summary, shown above the history list for its label. */
+.body-summary { margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); }
+.body-summary-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px; }
+.body-summary-head h3 { margin:0; font-size:var(--fs-md); }
+.body-summary-meta, .body-summary-foot, .body-summary-note { color:var(--ink-3); font-size:var(--fs-xs); }
+.body-summary-foot { margin:8px 0 0; }
+.body-summary-headline { margin:8px 0; font-weight:var(--font-weight-semibold); }
+.body-summary-stats { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+.body-summary-stat { display:inline-flex; align-items:baseline; gap:4px; padding:2px 8px; border-radius:var(--r-sm); background:var(--surface-2); font-size:var(--fs-sm); }
+.body-summary-stat small { color:var(--ink-3); font-size:var(--fs-xs); }
+.body-summary-section h4 { margin:8px 0 2px; font-size:var(--fs-sm); color:var(--ink-2); }
+.body-summary-section ul { margin:0; padding-left:1.2em; }
+.body-summary-section li { margin:2px 0; overflow-wrap:anywhere; }
+.body-summary-alert { margin:8px 0; padding:8px 10px; border-radius:var(--r-sm); background:var(--warn-bg); color:var(--ink); }
+.body-summary-alert p { margin:4px 0 0; }
+.body-summary-error { color:var(--danger); font-size:var(--fs-sm); }
+.body-summary-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
+.body-summary-context { margin-top:6px; font-size:var(--fs-sm); }
+.body-summary-context summary { cursor:pointer; color:var(--ink-2); }
+.body-summary-context textarea { display:block; width:100%; box-sizing:border-box; margin:6px 0; font-size:16px; }

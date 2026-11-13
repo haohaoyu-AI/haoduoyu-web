@@ -10,7 +10,7 @@ import {experiments,namedPattern,patternStats,ruleNames,weeklyPeriod,RULE_STATUS
 // AI output lives in the audit log under fixed entity ids. It never rewrites articles, snapshots,
 // rules or benchmark records, so no schema change is needed and bot-owned data keeps its hashes.
 const base='/review/ai';
-export const REVIEW_AI_FEATURES=['weekly','titles','benchmarks','diagnosis'];
+export const REVIEW_AI_FEATURES=['weekly','titles','benchmarks','diagnosis','body'];
 const EFFORTS=['','low','medium','high'];
 const modelPattern=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Control':'no-store'}});
@@ -102,6 +102,7 @@ export async function askOpenAi({env,key,model,effort,system,user,maxTokens,time
   return {text,effortIgnored,input_tokens:Number(data.usage?.input_tokens)||null,output_tokens:Number(data.usage?.output_tokens)||null};
 }
 /** Wrap one model call with the daily limit and a start/finish pair in the run log. */
+export {run as runReviewAi};
 async function run(db,owner,env,feature,override,call) {
   const choice=await reviewAiChoice(db,owner,env,feature,override);
   if(!choice.key||!choice.model)throw fail(503,'OPENAI_REVIEW_NOT_CONFIGURED','服务器尚未配置有效 API 密钥和模型，未调用 API');
