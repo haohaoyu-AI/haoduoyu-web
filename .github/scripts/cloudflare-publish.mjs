@@ -140,7 +140,11 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
     if(Object.keys(settings.placement).length===0)check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
     else {
       check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','combined_settings.placement.mode');
-      check(snapshot.script.placement_mode==='smart','CONFIGURATION_CHANGED');
+      // A dashboard update can enable per-Worker placement without rewriting
+      // this older version's optional placement_mode. Preserve the validated
+      // current /settings value in upload metadata and every state comparison.
+      // Newly uploaded versions still require an independent explicit match.
+      if(!own(snapshot.script,'placement_mode'))snapshot.script.placement_mode='smart';
     }
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
@@ -247,6 +251,19 @@ function diagnosticShapes(raw) {
       placement:{mode:true},...settingsShape})
   };
 }
+function diagnosticConfiguration(raw) {
+  const mode=value=>value===undefined?'missing':value==='smart'?'smart':'unsupported';
+  const count=value=>value===null?0:Array.isArray(value)?value.length:null;
+  const placement=raw.combined?.placement;
+  const settingLists=Object.fromEntries(['tags','tail_consumers','streaming_tail_consumers'].map(key=>{
+    const script=raw.settings?.[key],combined=raw.combined?.[key];
+    return [key,{script_count:count(script),combined_count:count(combined),
+      normalized_equal:canonical(emptySettingList(key,script))===canonical(emptySettingList(key,combined))}];
+  }));
+  return {placement:{version_mode:mode(raw.version?.resources?.script?.placement_mode),
+    combined_mode:object(placement)&&Object.keys(placement).length===0?'empty':mode(placement?.mode)},
+    setting_lists:settingLists};
+}
 export async function diagnoseExistingWorker(config,{request=fetch,timeoutMs=30000}={}) {
   const report={status:'blocked',code:'PREFLIGHT_FAILED'};
   try {
@@ -254,6 +271,8 @@ export async function diagnoseExistingWorker(config,{request=fetch,timeoutMs=300
     check(Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=60000,'INVALID_TIMEOUT');
     const api=client(config,request,timeoutMs,true),raw=await readState(api,config.expectedCurrentVersion);
     report.shapes=diagnosticShapes(raw);
+    // Only fixed mode enums, counts and equality; no setting contents or hashes.
+    report.configuration=diagnosticConfiguration(raw);
     // Successful GET inspection is not a successful publish. The publisher is
     // never called in this mode, even when every preflight check passes.
     report.status='diagnosed';
