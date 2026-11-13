@@ -174,7 +174,7 @@ export const speedUpRelease=Object.freeze({
 export const progressiveOfflineRelease=Object.freeze({
   commit:'b05613792693d88a1b081e511eaf95cca08d5459',
   tree:'1b0924e5deaf7d89ca7ba6f449d560d817e159fb',
-  baseline:'ba1d5743-9c09-42c8-9528-39000830d365',
+  baseline:'ab1beb48-453c-4d06-84b8-62d3c5fad69b',
   bytes:3068718,sha256:'bdb24edc4e53f0cf3437e75f0b6b3cef652fb0ca5a4cbe48166f95a86f3b7864',
   label:'production-progressive-offline-sync-20261113'});
 const acceptedRelease=commit=>commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:

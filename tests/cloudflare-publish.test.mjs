@@ -148,6 +148,25 @@ test('current smart placement is retained when the older version omits its optio
   assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
   assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
 });
+test('documented placement analysis status is validated but never uploaded or treated as configuration',async()=>{
+  const mock=mockCloudflare(({path,state})=>{
+    if(path==='/settings')state.versions.get(OLD).resources.script.placement_status='INSUFFICIENT_INVOCATIONS';
+  });
+  mock.state.versions.get(OLD).resources.script.placement_status='SUCCESS';
+  mock.state.versions.get(NEW).resources.script.placement_status='UNSUPPORTED_APPLICATION';
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.deepEqual(mock.metadata.placement,{mode:'smart'});
+  assert.ok(!Object.hasOwn(mock.metadata,'placement_status'));privateFree(report);
+});
+test('unknown placement status values and other script fields remain blocked',async()=>{
+  for(const patch of [{placement_status:SENTINEL},{placement_status:null},{placement_status:[]},
+    {placement_status:'SUCCESS',unreviewed_setting:true}]) {
+    const mock=mockCloudflare();Object.assign(mock.state.versions.get(OLD).resources.script,patch);
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
 test('an uploaded version must independently confirm inherited smart placement before deployment',async()=>{
   const mock=mockCloudflare();
   for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
@@ -407,10 +426,41 @@ test('diagnostics identify placement source and empty-list equivalence without e
   mock.state.settings.tags=[];delete mock.state.versions.get(OLD).resources.script.placement_mode;
   const report=await diagnoseExistingWorker(config,{request:mock.request});
   assert.equal(report.code,'PREFLIGHT_VALID');
-  assert.deepEqual(report.configuration.placement,{version_mode:'missing',combined_mode:'smart'});
+  assert.deepEqual(report.configuration.placement,{version_mode:'missing',version_status:'missing',combined_mode:'smart'});
   for(const key of ['tags','tail_consumers'])assert.deepEqual(report.configuration.setting_lists[key],
     {script_count:0,combined_count:0,normalized_equal:true});
   assert.equal(writes(mock).length,0);privateFree(report);
+});
+test('diagnostics prove current content matches a commit-annotated reference using GET only',async()=>{
+  const mock=mockCloudflare(),reference=version(OTHER),commit='c'.repeat(40);
+  reference.resources.script.etag=mock.state.versions.get(OLD).resources.script.etag;
+  reference.annotations={'workers/commit_sha':commit};mock.state.versions.set(OTHER,reference);
+  mock.state.versions.get(OLD).resources.script.placement_status='SUCCESS';
+  const report=await diagnoseExistingWorker({...config,sourceReferenceVersion:OTHER,expectedSourceCommit:commit},
+    {request:mock.request});
+  assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.deepEqual(report.current,{deployment_id:DEPLOYMENT,active_version_id:OLD,latest_version_id:OLD});
+  assert.deepEqual(report.source,{reference_version_id:OTHER,reference_commit:commit,content_etag_equal:true});
+  assert.equal(report.configuration.placement.version_status,'SUCCESS');
+  assert.equal(report.shapes.version.resources.script.unrecognized_field_count,0);
+  assert.equal(mock.calls.length,7);assert.ok(mock.calls.every(call=>call.method==='GET'));privateFree(report);
+});
+test('source inspection rejects different content, wrong annotations and incomplete inputs',async()=>{
+  for(const mismatch of ['content','commit']) {
+    const mock=mockCloudflare(),reference=version(OTHER),commit='c'.repeat(40);
+    reference.annotations={'workers/commit_sha':mismatch==='commit'?'d'.repeat(40):commit};
+    if(mismatch==='commit')reference.resources.script.etag=mock.state.versions.get(OLD).resources.script.etag;
+    mock.state.versions.set(OTHER,reference);
+    const report=await diagnoseExistingWorker({...config,sourceReferenceVersion:OTHER,expectedSourceCommit:commit},
+      {request:mock.request});
+    assert.equal(report.code,mismatch==='commit'?'SOURCE_REFERENCE_COMMIT_MISMATCH':'SOURCE_CONTENT_MISMATCH');
+    assert.ok(mock.calls.every(call=>call.method==='GET'));privateFree(report);
+  }
+  for(const patch of [{sourceReferenceVersion:OTHER},{expectedSourceCommit:'c'.repeat(40)},
+    {sourceReferenceVersion:'latest',expectedSourceCommit:'c'.repeat(40)}]) {
+    const report=await diagnoseExistingWorker({...config,...patch},{request:()=>assert.fail('No API request allowed')});
+    assert.equal(report.code,'INVALID_SOURCE_REFERENCE');privateFree(report);
+  }
 });
 
 test('diagnostics expose documented-field types and the exact failed check, without API names or values',async()=>{
