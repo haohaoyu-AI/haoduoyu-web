@@ -351,6 +351,8 @@ function validateTarget(config) {
 }
 function validateConfig(config) {
   validateTarget(config);
+  if(config.uploadedVersionId!==undefined)check(identifier(config.uploadedVersionId)&&
+    config.uploadedVersionId!==config.expectedCurrentVersion,'INVALID_UPLOADED_VERSION');
   check(/^[0-9a-f]{40}$/.test(config.targetCommit??''),'INVALID_COMMIT');
   check(Buffer.isBuffer(config.workerBytes)&&config.workerBytes.length>0&&config.workerBytes.length<=10*1024*1024,
     'INVALID_WORKER_BYTES');
@@ -368,26 +370,33 @@ export async function publishExistingWorker(config,{request=fetch,timeoutMs=3000
       expected_version_id:config.expectedCurrentVersion});
     api=client(config,request,timeoutMs);
     const baseline=await state(api,config.expectedCurrentVersion);
-    check(baseline.active.versionId===config.expectedCurrentVersion&&baseline.latest===config.expectedCurrentVersion,
+    const expectedLatest=config.uploadedVersionId??config.expectedCurrentVersion;
+    check(baseline.active.versionId===config.expectedCurrentVersion&&baseline.latest===expectedLatest,
       'CURRENT_VERSION_MISMATCH');
-    const form=uploadForm(config.workerBytes,baseline.version,baseline.combined,config.targetCommit);
     // No CAS exists across Cloudflare's two APIs. Require stopped external
     // uploads, workflow concurrency, and another full read immediately before POST.
-    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,config.expectedCurrentVersion);
-    stage='upload';
-    const uploaded=await api('/versions?bindings_inherit=strict',{method:'POST',body:form});
-    check(identifier(uploaded?.id)&&uploaded.id!==config.expectedCurrentVersion,'API_RESPONSE_INVALID');
-    report.uploaded_version_id=uploaded.id;stage='verify_upload';
-    same(versionSnapshot(await api(`/versions/${uploaded.id}`),uploaded.id),baseline.version);
-    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,uploaded.id);
+    let uploadedId=config.uploadedVersionId;
+    if(!uploadedId) {
+      const form=uploadForm(config.workerBytes,baseline.version,baseline.combined,config.targetCommit);
+      confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,config.expectedCurrentVersion);
+      stage='upload';
+      const uploaded=await api('/versions?bindings_inherit=strict',{method:'POST',body:form});
+      check(identifier(uploaded?.id)&&uploaded.id!==config.expectedCurrentVersion,'API_RESPONSE_INVALID');
+      uploadedId=uploaded.id;
+    }
+    report.uploaded_version_id=uploadedId;stage='verify_upload';
+    const candidate=await api(`/versions/${uploadedId}`);
+    if(config.uploadedVersionId)check(candidate.annotations?.['workers/commit_sha']===config.targetCommit,'CANDIDATE_COMMIT_MISMATCH');
+    same(versionSnapshot(candidate,uploadedId),baseline.version);
+    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,uploadedId);
     stage='deploy';
     const deployed=await api('/deployments',{method:'POST',body:JSON.stringify({strategy:'percentage',
-      versions:[{version_id:uploaded.id,percentage:100}]})});
+      versions:[{version_id:uploadedId,percentage:100}]})});
     check(identifier(deployed?.id),'DEPLOYMENT_RESPONSE_MISMATCH');
-    const deployment={id:deployed.id,versionId:uploaded.id};
+    const deployment={id:deployed.id,versionId:uploadedId};
     report.deployment_id=deployment.id;
-    const after=await state(api,uploaded.id);
-    same(after.active,deployment,'DEPLOYMENT_NOT_CONFIRMED');check(after.latest===uploaded.id,'LATEST_VERSION_CHANGED');
+    const after=await state(api,uploadedId);
+    same(after.active,deployment,'DEPLOYMENT_NOT_CONFIRMED');check(after.latest===uploadedId,'LATEST_VERSION_CHANGED');
     same(after.version,baseline.version);same(after.settings,baseline.settings);same(after.combined,baseline.combined);
     report.status='deployed';report.code='DEPLOYMENT_CONFIRMED';
   }catch(error) {
@@ -421,6 +430,7 @@ export async function main(env=process.env,{request=fetch,read=readFile,output=c
       const workerBytes=await read(env.WORKER_PATH);verifyWorker(workerBytes,env.TARGET_COMMIT);
       report=await publishExistingWorker({...target,workerBytes,
         expectedWorkerSha256:env.EXPECTED_WORKER_SHA256,expectedWorkerBytes:Number(env.EXPECTED_WORKER_BYTES),
+        ...(env.UPLOADED_VERSION?{uploadedVersionId:env.UPLOADED_VERSION}:{}),
         targetCommit:env.TARGET_COMMIT},{request});
     }
   }catch {report={status:'blocked',code:'RELEASE_INPUT_REJECTED'};}
