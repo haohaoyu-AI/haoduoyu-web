@@ -55,7 +55,8 @@ const SYSTEM = [
   '如果记录里出现便血、黑便、尿血、发烧并且排尿疼痛、新出现的会阴或腿部麻木无力、尿不出来，放进 alerts，建议尽快联系医生；没有就让 alerts 为空。',
   '语气平实、具体，引用日期（如 11/8）。不要寒暄，不要说教。',
   '只输出一个 JSON 对象，不要其他文字：{"headline":"一句话概括本周","stats":{"bowel":排便次数,"normal":正常或成形,"loose":偏稀,"hard":偏硬或偏干,' +
-    '"accidents":大小便意外次数,"discomfort":腹痛或排尿不适次数},"previous":前几周的每周平均（同样六项，可带小数；没有更早记录时为 null）,' +
+    '"accidents":大小便意外次数,"discomfort":腹痛或排尿不适次数},"previous":前几周中“有记录的那几周”的每周平均（同样六项，可带小数；' +
+    '没有记录的周不算进去，不要按 0 平均；没有更早记录时为 null）,' +
     '"sections":[{"title":"小标题","points":["要点"]}],"alerts":["需要联系医生的情况"]}',
   'sections 最多 4 个，建议依次为：排便情况、意外和不适、可能有关的因素（饮食、酒、烟、作息、你自己记下的有效做法）、和前几周比。每个最多 4 条，每条不超过 60 字。'
 ].join('\n');
@@ -79,16 +80,22 @@ async function generate(db,owner,env,week,context) {
   const from = shift(week.start,-7 * LOOKBACK_WEEKS);
   const rows = await consistentRead(db,store => entriesFor(store,owner,from,week.end));
   const inWeek = rows.filter(row => row.date >= week.start), earlier = rows.filter(row => row.date < week.start);
+  // Weeks before the first note are not zero weeks; only weeks that have notes are averaged.
+  const recorded = Array.from({length:LOOKBACK_WEEKS},(_,index) => shift(week.start,-7 * (index + 1)))
+    .filter(start => earlier.some(row => row.date >= start && row.date <= shift(start,6))).sort();
   const base = {week_start:week.start,week_end:week.end,complete:week.complete,entry_count:inWeek.length,generated_at:new Date().toISOString()};
   if (!inWeek.length) return {...base,empty:true};
   const user = [`背景说明：${context || '（无）'}`,
     `本周：${week.start} 至 ${week.end}${week.complete ? '' : '（本周还没过完）'}`,'本周记录：',...inWeek.map(line),
-    `前 ${LOOKBACK_WEEKS} 周记录（${from} 起，只用于比较）：`,...(earlier.length ? earlier.map(line) : ['（没有）'])].join('\n');
+    `前 ${LOOKBACK_WEEKS} 周记录（${from} 起，只用于比较；其中有记录的周：${recorded.length ? recorded.map(start => start + ' 起').join('、') : '无'}，` +
+      `previous 只按这 ${recorded.length} 周平均）：`,...(earlier.length ? earlier.map(line) : ['（没有）'])].join('\n');
   const result = await runReviewAi(db,owner,env,'body',{},choice => askOpenAi({env,key:choice.key,model:choice.model,effort:choice.effort,
     system:SYSTEM,user,maxTokens:choice.effort ? 8000 : 2500}));
-  return {...base,...parse(result.text),model:result.model};
+  return {...base,...parse(result.text),previous_weeks:recorded.length,model:result.model};
 }
 
+// Summaries written before empty weeks were left out of the averages are rewritten once, on the next open.
+const fresh = saved => saved && (saved.empty || saved.previous_weeks !== undefined) ? saved : null;
 export async function handleBodySummary(db,request,route,owner,env,origin) {
   const method = request.method, url = new URL(request.url), store = storeFor(db);
   if (url.search) invalid('小结接口不接受查询参数');
@@ -97,7 +104,7 @@ export async function handleBodySummary(db,request,route,owner,env,origin) {
     const weeks = bodySummaryWeeks(), [last,current,context] = await Promise.all([latest(db,owner,entity.week(weeks.last.start)),
       latest(db,owner,entity.week(weeks.current.start)),latest(db,owner,entity.context())]);
     const choice = await reviewAiChoice(db,owner,env,'body');
-    return json({weeks,last,current,context:context?.text || '',configured:Boolean(choice.key && choice.model)});
+    return json({weeks,last:fresh(last),current:fresh(current),context:context?.text || '',configured:Boolean(choice.key && choice.model)});
   }
   if (!['POST','PUT'].includes(method)) throw fail(404,'NOT_FOUND','小结接口不存在');
   await noteEditor(store,request,owner,env,'notes',origin,{write:true});
@@ -117,7 +124,7 @@ export async function handleBodySummary(db,request,route,owner,env,origin) {
   const week = bodySummaryWeeks()[input.week], id = entity.week(week.start);
   const saved = await latest(db,owner,id);
   // Opening the page on two devices at once should not pay twice; only an explicit redo replaces a summary.
-  if (saved && !input.redo && (week.complete || saved.week_end === week.end)) return json(saved);
+  if (fresh(saved) && !input.redo && (week.complete || saved.week_end === week.end)) return json(saved);
   const context = (await latest(db,owner,entity.context()))?.text || '';
   const summary = await generate(db,owner,env,week,context);
   await record(db,owner,'saved',id,summary);

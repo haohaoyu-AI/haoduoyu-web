@@ -30,13 +30,13 @@ function setup(t,{reply,mode='1'}={}) {
       .run(owner,id,date,text,date+'T02:00:00.000Z',date+'T02:00:00.000Z');
     if(label)sql.prepare('INSERT OR IGNORE INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(owner,label,stamp);
     if(label)sql.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').run(owner,id,label);};
-  return {call,note,calls,env};
+  return {call,note,calls,env,sql,owner};
 }
 const good=()=>JSON.stringify({headline:'本周大体平稳',stats:{bowel:5,normal:3,loose:1,hard:1,accidents:1,discomfort:2},previous:null,
   sections:[{title:'排便情况',points:['5 次，3 次成形']},{title:'可能有关的因素',points:['周三吃辣后偏稀']}],alerts:[]});
 
 test('last week is summarized once from tagged and related untagged notes, with the owner background',async t=>{
-  const {call,note,calls}=setup(t,{reply:good});
+  const {call,note,calls,sql,owner}=setup(t,{reply:good});
   const {last}=bodySummaryWeeks();
   note(last.start,'合成记录：早上一次，成形',BODY_SUMMARY_LABEL);
   note(last.end,'合成记录：肚子有点胀');
@@ -50,10 +50,16 @@ test('last week is summarized once from tagged and related untagged notes, with 
   const prompt=calls[0].input[1].content;
   assert.match(prompt,/合成背景/);assert.match(prompt,/成形/);assert.match(prompt,/肚子有点胀（?/);assert.match(prompt,/上上周偏稀/);
   assert.doesNotMatch(prompt,/买菜/,'unrelated notes stay out');
+  assert.match(prompt,/其中有记录的周：[^，]+ 起，previous 只按这 1 周平均/,'empty weeks are not averaged as zero');
+  assert.equal(saved.previous_weeks,1);
   assert.deepEqual((await call('/body-summary','POST',{week:'last'})).headline,saved.headline);
   assert.equal(calls.length,1,'a second device does not pay again');
   await call('/body-summary','POST',{week:'last',redo:true});assert.equal(calls.length,2);
   assert.equal((await call('/body-summary')).last.headline,'本周大体平稳');
+  sql.prepare("INSERT INTO matrix_audit(id,actor,action,entity_id,detail_json,created_at) VALUES(?,?,?,?,?,?)").run(randomUUID(),'body-summary:'+owner,'body-summary.saved',
+    'body-summary:week:'+last.start,JSON.stringify({headline:'旧版小结',week_start:last.start,week_end:last.end,complete:true}),new Date(Date.now()+1000).toISOString());
+  assert.equal((await call('/body-summary')).last,null,'an older summary is offered for one rewrite');
+  await call('/body-summary','POST',{week:'last'});assert.equal(calls.length,3);
 });
 
 test('an empty week is saved without calling the model; bad replies and inputs are rejected',async t=>{

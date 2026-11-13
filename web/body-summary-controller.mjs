@@ -72,7 +72,10 @@ function stats(summary) {
     const chip = el('span', 'body-summary-stat');
     chip.append(el('b', '', String(value)), el('span', '', name));
     const before = summary.previous?.[key];
-    if (before !== null && before !== undefined) chip.title = `前几周平均 ${before}`, chip.append(el('small', '', `均 ${before}`));
+    if (before !== null && before !== undefined) {
+      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周（有记录的周）` : '前几周'}平均 ${before}`;
+      chip.append(el('small', '', `均 ${before}`));
+    }
     row.append(chip);
   }
   return row;
