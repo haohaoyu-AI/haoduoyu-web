@@ -825,13 +825,21 @@ var init_document = __esm({
 });
 
 // web/offline/read-only.mjs
-async function latestCompleteSnapshot(tx, scope) {
+async function latestCompleteSnapshot(tx, scope, date) {
   const v1 = await tx.get("meta", entityKey(scope, "snapshot"));
   const v2 = await tx.get("meta", entityKey(scope, "snapshot-v2"));
   const valid2 = (value) => value?.value?.index?.complete === true && value.value.index.scope_id === scope;
-  if (!valid2(v1)) return valid2(v2) ? v2 : null;
-  if (!valid2(v2)) return v1;
-  return (v2.value.verified_at || 0) >= (v1.value.verified_at || 0) ? v2 : v1;
+  const candidates = [v1, v2].filter(valid2);
+  const complete = candidates.sort((a, b) => (b.value.verified_at || 0) - (a.value.verified_at || 0))[0] || null;
+  const partials = [];
+  for (const key of ["snapshot-progress", "snapshot-v2-progress"]) {
+    const partial2 = await tx.get("meta", entityKey(scope, key));
+    if (valid2(partial2) && partial2.value.partial === true) partials.push(partial2);
+  }
+  const partial = partials.sort((a, b) => (b.value.verified_at || 0) - (a.value.verified_at || 0))[0];
+  if (partial && (partial.value.verified_at || 0) >= (complete?.value?.verified_at || 0))
+    return date && partial.value.covered_dates?.includes(date) ? partial : null;
+  return complete;
 }
 function readOnlyRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
@@ -855,10 +863,11 @@ function matches(entity, route2) {
 async function readOnlySnapshot({ db, scope, route: route2, getScope, getGeneration }) {
   const generation = getGeneration();
   const result = await db.transaction(["entities", "meta"], "readonly", async (tx) => {
-    const snapshot = await latestCompleteSnapshot(tx, scope), index = snapshot?.value?.index;
+    const snapshot = await latestCompleteSnapshot(tx, scope, route2.kind === "reminders" ? route2.date : void 0), index = snapshot?.value?.index;
     if (index?.complete !== true || index.scope_id !== scope) throw missing();
-    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route2));
-    for (const expected of index.entities.filter((row) => matches(row, route2) && !row.deleted_at)) {
+    const expectedById = new Map(index.entities.map((row) => [row.entity_id, row]));
+    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route2) && (!snapshot.value.partial || row.dirty || expectedById.get(row.entity_id)?.date === route2.date && expectedById.get(row.entity_id)?.content_hash === row.snapshot_hash && !expectedById.get(row.entity_id)?.deleted_at));
+    for (const expected of index.entities.filter((row) => matches(row, route2) && !row.deleted_at && (route2.kind !== "reminders" || row.date === route2.date))) {
       if (!rows.some((row) => row.entity_id === expected.entity_id && row.server)) throw missing();
     }
     const active5 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route2.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
@@ -1006,9 +1015,10 @@ function readingMethods(context) {
       const rows = await load(tx, owner2.scope), cap = await tx.get("meta", capabilityKey(owner2.scope));
       const capability2 = cap?.scope === owner2.scope ? cap.can_edit : null;
       const cached = await tx.get("meta", entityKey(owner2.scope, "get:" + path));
-      const snapshot = await latestCompleteSnapshot(tx, owner2.scope);
+      const snapshot = await latestCompleteSnapshot(tx, owner2.scope, route2.date);
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner2.scope;
-      const entities = rows.entities.filter((row) => inRoute(row, route2) && (row.dirty || !row.remote_missing && row.server));
+      const expectedById = new Map(snapshot?.value?.index?.entities?.map((row) => [row.entity_id, row]) || []);
+      const entities = rows.entities.filter((row) => inRoute(row, route2) && (row.dirty || !row.remote_missing && row.server) && (!snapshot?.value?.partial || row.dirty || expectedById.get(row.entity_id)?.date === route2.date && expectedById.get(row.entity_id)?.content_hash === row.snapshot_hash && !expectedById.get(row.entity_id)?.deleted_at));
       if (route2.kind === "note_entry") {
         if (!entities.length) throw missing2();
         owner2.active();
@@ -1230,12 +1240,11 @@ function identityMethods(db, now) {
 }
 async function legacySnapshot(db, owner2, route2) {
   return db.transaction(["entities", "meta"], "readonly", async (tx) => {
-    const v1 = await tx.get("meta", entityKey(owner2, "snapshot"));
-    const v2 = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
-    const snapshot = (v2?.value?.verified_at || 0) >= (v1?.value?.verified_at || 0) ? v2 || v1 : v1;
+    const snapshot = await latestCompleteSnapshot(tx, owner2, route2.date);
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner2) throw missing3();
     const entity = await tx.get("entities", entityKey(owner2, "legacy-" + route2.category + ":" + route2.date));
-    const row = !entity?.remote_missing && entity?.server;
+    const represented = snapshot.value.index.entities?.find((value) => value.entity_id === "legacy-" + route2.category + ":" + route2.date);
+    const row = !entity?.remote_missing && (!snapshot.value.partial || represented?.content_hash === entity?.snapshot_hash && represented?.date === route2.date && represented?.deleted_at === entity?.server?.deleted_at) && entity?.server;
     if (!row && snapshot.value.index.entities?.some((value) => value.entity_id === "legacy-" + route2.category + ":" + route2.date)) throw missing3();
     if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== "string")) throw missing3();
     const data3 = {
@@ -1249,6 +1258,37 @@ async function legacySnapshot(db, owner2, route2) {
     };
     return { data: data3, saved_at: snapshot.value.verified_at || null };
   });
+}
+async function todoSnapshot(db, owner2, route2, now) {
+  return db.transaction(["entities", "meta"], "readonly", async (tx) => {
+    const snapshot = await latestCompleteSnapshot(tx, owner2, route2.date), index = snapshot?.value?.index;
+    if (!index) throw missing3();
+    const rows = (await tx.getAll("entities")).filter((row) => row.scope === owner2), byId = new Map(rows.map((row) => [row.entity_id, row]));
+    const items = index.entities.filter((row) => row.entity_type === "todo" && row.date === route2.date && !row.deleted_at).map((expected) => {
+      const entity = byId.get(expected.entity_id);
+      if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== route2.date || entity.server.deleted_at) throw missing3();
+      return { ...entity.server, id: entity.server.id || entity.server.source_id, completed: Boolean(entity.server.completed) };
+    });
+    const data3 = {
+      date: route2.date,
+      today: new Date(now() + 8 * 36e5).toISOString().slice(0, 10),
+      completed_mode: "strike",
+      preferences_version: 0,
+      items,
+      snapshot_complete: true
+    };
+    return { data: overlay(data3, route2, rows, true), saved_at: snapshot.value.verified_at || null };
+  });
+}
+async function availableSnapshot(db, owner2, route2, now) {
+  if (route2.kind === "legacy") return legacySnapshot(db, owner2, route2);
+  if (route2.kind !== "todo") return null;
+  try {
+    return await todoSnapshot(db, owner2, route2, now);
+  } catch (error) {
+    if (error.code !== "OFFLINE_CACHE_MISS") throw error;
+    return null;
+  }
 }
 function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false }) {
   const notes = createNotesCache({ db, getScope, now, getGeneration, labelsV1 });
@@ -1317,10 +1357,10 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
       }
     }
     if (!cached || cached.data === void 0) {
-      if (route2.kind === "legacy") {
-        const result2 = await legacySnapshot(db, owner2, route2);
+      const saved = await availableSnapshot(db, owner2, route2, now);
+      if (saved) {
         if (scope() !== owner2 || getGeneration() !== generation) throw missing3();
-        return result2;
+        return saved;
       }
       const local = ["todo", "unscheduled_todo"].includes(route2.kind) ? (await entities(owner2)).filter((row) => row.dirty && belongs(row, route2)) : [];
       if (!local.length) throw missing3();
@@ -2899,11 +2939,31 @@ async function detailFor(value, date, index, limits, readBudget, version2) {
   }));
   return records;
 }
-async function applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now, version: version2 }) {
+async function applySnapshot({
+  db,
+  getScope,
+  scope,
+  key,
+  index,
+  initial,
+  cached,
+  records,
+  now,
+  version: version2,
+  progressKey,
+  otherKey,
+  covered = [],
+  pending = [],
+  complete = true
+}) {
   await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
     identity3(scope, getScope);
     const current3 = await tx.get("meta", key);
     if (!equal(current3 ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
+    if (progressKey && !equal(await tx.get("meta", progressKey) ?? null, initial.progress ?? null))
+      fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新同步进度，请重新核对。");
+    if (otherKey && !equal(await tx.get("meta", otherKey) ?? null, initial.otherMeta ?? null))
+      fail2("OFFLINE_SNAPSHOT_CHANGED", "其他版本页面已更新完整快照，请重新核对。");
     const all = (await tx.getAll("entities")).filter((row) => row.scope === scope), manifest = new Set(index.entities.map((row) => row.entity_id));
     for (const record of records.values()) {
       const storageKey = entityKey(scope, record.entity_id), old = await tx.get("entities", storageKey);
@@ -2945,16 +3005,142 @@ async function applySnapshot({ db, getScope, scope, key, index, initial, cached,
         ...record.entity_type === "todo" ? { needs_api_refresh: !sameVersion || old?.needs_api_refresh === true } : {}
       });
     }
-    for (const row of all) if (row.server && (version2 === 2 ? supportedId2 : supportedId).test(row.entity_id) && !manifest.has(row.entity_id)) {
+    for (const row of all) if (complete && row.server && (version2 === 2 ? supportedId2 : supportedId).test(row.entity_id) && !manifest.has(row.entity_id)) {
       if (!equal(row.server, cached.get(row.entity_id)?.server ?? null))
         fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面刚确认了记录，未把它判为线上缺失。");
       await tx.put("entities", { ...row, server: null, snapshot_hash: null, remote_missing: true, synced_at: now() });
     }
     identity3(scope, getScope);
-    await tx.put("meta", { key, value: { index, verified_at: now() } });
+    if (complete) {
+      await tx.put("meta", { key, value: { index, verified_at: now() } });
+      if (progressKey) await tx.delete("meta", progressKey);
+    } else {
+      await tx.delete("meta", key);
+      await tx.delete("meta", otherKey);
+      await tx.put("meta", { key: progressKey, value: { index, verified_at: now(), covered_dates: covered, pending_dates: pending, partial: true } });
+    }
   });
 }
-function createSnapshotSync({ db, request: request2, getScope, now = Date.now, crypto: crypto2 = globalThis.crypto, limits = {}, version: version2 = 1 }) {
+async function readDates(dates, read3, concurrency) {
+  let next = 0, error = null;
+  await Promise.all(Array.from({ length: Math.min(concurrency, dates.length) }, async () => {
+    while (!error && next < dates.length) {
+      const date = dates[next++];
+      try {
+        await read3(date);
+      } catch (failure3) {
+        if (!error || failure3.code === "OFFLINE_SCOPE_CHANGED" || failure3.status === 429 && error.code !== "OFFLINE_SCOPE_CHANGED") error = failure3;
+      }
+    }
+  }));
+  if (error) throw error;
+}
+async function pullSnapshotBatch({ db, request: request2, getScope, now, crypto: crypto2, limits, version: version2, progressive, state: state2 }, { date: probeDate } = {}) {
+  const scope = getScope();
+  if (typeof scope !== "string" || !hashPattern2.test(scope)) fail2("OFFLINE_SCOPE_REQUIRED", "请先联网核实当前身份范围。");
+  const key = JSON.stringify([scope, version2 === 2 ? "snapshot-v2" : "snapshot"]), progressKey = progressive ? entityKey(
+    scope,
+    version2 === 2 ? "snapshot-v2-progress" : "snapshot-progress"
+  ) : null, readBudget = budget(limits, crypto2);
+  const otherKey = progressive ? entityKey(scope, version2 === 2 ? "snapshot" : "snapshot-v2") : null;
+  const initial = await db.transaction(["entities", "meta"], "readonly", async (tx) => ({
+    meta: await tx.get("meta", key),
+    progress: progressKey ? await tx.get("meta", progressKey) : null,
+    otherMeta: otherKey ? await tx.get("meta", otherKey) : null,
+    entities: (await tx.getAll("entities")).filter((row) => row.scope === scope)
+  }));
+  identity3(scope, getScope);
+  async function get(path) {
+    identity3(scope, getScope);
+    readBudget.request();
+    const value = await request2(path);
+    identity3(scope, getScope);
+    readBudget.response(value);
+    return value;
+  }
+  const indexPath = "/workbench-snapshot/index" + (version2 === 2 ? "?version=2" : "");
+  const index = await indexFor(await get(indexPath), scope, limits, readBudget, version2);
+  const previous = initial.meta?.value?.index;
+  const oldDates = new Map(previous?.scope_id === scope ? previous.dates.map((row) => [row.date, row.content_hash]) : []);
+  const progress = initial.progress?.value, covered = /* @__PURE__ */ new Set();
+  if (progress?.partial === true && progress.index?.scope_id === scope)
+    for (const row of progress.index.dates) oldDates.set(row.date, row.content_hash);
+  const dates = new Map(index.dates.map((row) => [row.date, row.content_hash]));
+  const changed4 = new Set([.../* @__PURE__ */ new Set([...oldDates.keys(), ...dates.keys()])].filter((date) => oldDates.get(date) !== dates.get(date)));
+  if (progress?.partial === true && progress.index?.scope_id === scope)
+    for (const date of progress.pending_dates || []) changed4.add(date);
+  if (progress?.partial === true && progress.index?.scope_id === scope && Array.isArray(progress.covered_dates)) {
+    const priorDates = new Map(progress.index.dates.map((row) => [row.date, row.content_hash]));
+    for (const date of progress.covered_dates) if (priorDates.get(date) === dates.get(date)) {
+      changed4.delete(date);
+      covered.add(date);
+    }
+  }
+  const cached = new Map(initial.entities.map((row) => [row.entity_id, row]));
+  let needGlobal = !(progress?.index?.scope_id === scope && progress.index.global_content_hash === index.global_content_hash) && (!previous || previous.global_content_hash !== index.global_content_hash);
+  for (const entity of index.entities) {
+    const row = cached.get(entity.entity_id);
+    if (!row?.server || row.snapshot_hash !== entity.content_hash) {
+      if (entity.date === null) needGlobal = true;
+      else changed4.add(entity.date);
+    }
+  }
+  const preferred = probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day3(probeDate);
+  if (!changed4.size && needGlobal && index.entities.some((row) => row.date === null)) changed4.add(preferred);
+  if (!progressive && changed4.size + 2 > limits.maxRequests || changed4.size && limits.maxRequests < 3)
+    fail2("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
+  for (const date of [...oldDates.keys(), ...dates.keys()]) if (!changed4.has(date)) covered.add(date);
+  for (const date of changed4) covered.delete(date);
+  if (progressive && !dates.has(preferred)) covered.add(preferred);
+  const ordered2 = [...changed4].sort().reverse();
+  if (ordered2.includes(preferred)) {
+    ordered2.splice(ordered2.indexOf(preferred), 1);
+    ordered2.unshift(preferred);
+  }
+  const selected = progressive ? ordered2.slice(0, Math.min(6, limits.maxRequests - 2)) : [...changed4].sort();
+  const remaining = changed4.size - selected.length;
+  const records = /* @__PURE__ */ new Map();
+  await readDates(selected, async (date) => {
+    const path = "/workbench-snapshot?date=" + encodeURIComponent(date) + (version2 === 2 ? "&version=2" : "") + (progressive ? "&manifest_hash=" + index.manifest_hash : "");
+    const value = await get(path);
+    const rows = await detailFor(
+      progressive && !Object.hasOwn(value, "entities") ? { ...value, entities: index.entities } : value,
+      date,
+      index,
+      limits,
+      readBudget,
+      version2
+    );
+    for (const row of rows) {
+      if (records.has(row.entity_id)) requireValue(equal(records.get(row.entity_id), row));
+      records.set(row.entity_id, row);
+    }
+  }, progressive ? 3 : 1);
+  const verified = await indexFor(await get(indexPath), scope, limits, readBudget, version2);
+  if (!sameIndex(index, verified)) fail2("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
+  identity3(scope, getScope);
+  for (const date of selected) covered.add(date);
+  await applySnapshot({
+    db,
+    getScope,
+    scope,
+    key,
+    index,
+    initial,
+    cached,
+    records,
+    now,
+    version: version2,
+    progressKey,
+    otherKey,
+    covered: [...covered].sort(),
+    pending: ordered2.slice(selected.length),
+    complete: remaining === 0
+  });
+  if (!remaining) state2.last_success = now();
+  return { status: remaining ? "partial" : "synced", scope, changed_dates: selected, remaining_dates: remaining, entities: index.entities.length };
+}
+function createSnapshotSync({ db, request: request2, getScope, now = Date.now, crypto: crypto2 = globalThis.crypto, limits = {}, version: version2 = 1, progressive = false }) {
   if (!db?.transaction || typeof request2 !== "function" || typeof getScope !== "function") throw new TypeError("Snapshot sync dependencies required");
   if (![1, 2].includes(version2)) throw new TypeError("Unsupported snapshot version");
   limits = { ...SNAPSHOT_PULL_LIMITS, ...limits };
@@ -2964,63 +3150,12 @@ function createSnapshotSync({ db, request: request2, getScope, now = Date.now, c
   }
   const state2 = { status: "idle", last_success: null, error: null };
   let inFlight = null;
-  async function run2({ date: probeDate } = {}) {
-    const scope = getScope();
-    if (typeof scope !== "string" || !hashPattern2.test(scope)) fail2("OFFLINE_SCOPE_REQUIRED", "请先联网核实当前身份范围。");
-    const key = JSON.stringify([scope, version2 === 2 ? "snapshot-v2" : "snapshot"]), readBudget = budget(limits, crypto2);
-    const initial = await db.transaction(["entities", "meta"], "readonly", async (tx) => ({
-      meta: await tx.get("meta", key),
-      entities: (await tx.getAll("entities")).filter((row) => row.scope === scope)
-    }));
-    identity3(scope, getScope);
-    async function get(path) {
-      identity3(scope, getScope);
-      readBudget.request();
-      const value = await request2(path);
-      identity3(scope, getScope);
-      readBudget.response(value);
-      return value;
-    }
-    const indexPath = "/workbench-snapshot/index" + (version2 === 2 ? "?version=2" : "");
-    const index = await indexFor(await get(indexPath), scope, limits, readBudget, version2);
-    const previous = initial.meta?.value?.index;
-    const oldDates = new Map(previous?.scope_id === scope ? previous.dates.map((row) => [row.date, row.content_hash]) : []);
-    const dates = new Map(index.dates.map((row) => [row.date, row.content_hash]));
-    const changed4 = new Set([.../* @__PURE__ */ new Set([...oldDates.keys(), ...dates.keys()])].filter((date) => oldDates.get(date) !== dates.get(date)));
-    const cached = new Map(initial.entities.map((row) => [row.entity_id, row]));
-    let needGlobal = !previous || previous.global_content_hash !== index.global_content_hash;
-    for (const entity of index.entities) {
-      const row = cached.get(entity.entity_id);
-      if (!row?.server || row.snapshot_hash !== entity.content_hash) {
-        if (entity.date === null) needGlobal = true;
-        else changed4.add(entity.date);
-      }
-    }
-    if (!changed4.size && needGlobal && index.entities.some((row) => row.date === null))
-      changed4.add(probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day3(probeDate));
-    if (changed4.size + 2 > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
-    const records = /* @__PURE__ */ new Map();
-    for (const date of [...changed4].sort()) {
-      const path = "/workbench-snapshot?date=" + encodeURIComponent(date) + (version2 === 2 ? "&version=2" : "");
-      const rows = await detailFor(await get(path), date, index, limits, readBudget, version2);
-      for (const row of rows) {
-        if (records.has(row.entity_id)) requireValue(equal(records.get(row.entity_id), row));
-        records.set(row.entity_id, row);
-      }
-    }
-    const verified = await indexFor(await get(indexPath), scope, limits, readBudget, version2);
-    if (!sameIndex(index, verified)) fail2("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
-    identity3(scope, getScope);
-    await applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now, version: version2 });
-    state2.last_success = now();
-    return { status: "synced", scope, changed_dates: [...changed4].sort(), entities: index.entities.length };
-  }
   function pull(options4) {
     if (inFlight) return inFlight;
     state2.status = "pulling";
     state2.error = null;
-    inFlight = run2(options4).then((result) => {
-      state2.status = "synced";
+    inFlight = pullSnapshotBatch({ db, request: request2, getScope, now, crypto: crypto2, limits, version: version2, progressive, state: state2 }, options4).then((result) => {
+      state2.status = result.status;
       return result;
     }, (error) => {
       state2.status = error.code === "OFFLINE_SCOPE_CHANGED" ? "scope-changed" : "error";
@@ -4249,7 +4384,8 @@ function runtimeContext(options4) {
     },
     features = OFFLINE_FEATURES,
     scopeProbe: scopeProbe2 = false,
-    scopeReuseMs = 0
+    scopeReuseMs = 0,
+    progressiveSnapshot = false
   } = options4;
   const state2 = {
     scope: null,
@@ -4261,6 +4397,7 @@ function runtimeContext(options4) {
     conflicts: 0,
     unsupported: 0,
     lastSuccess: null,
+    historyRemaining: 0,
     cachedAt: null,
     error: null,
     errorStage: null,
@@ -4346,8 +4483,15 @@ function runtimeContext(options4) {
     supportedDependencies: features.memos === true,
     resolutionReceipts: true
   });
-  context.snapshot = createSnapshotSync({ db, request: send, getScope: () => state2.scope, now });
-  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({ db, request: send, getScope: () => state2.scope, now, version: 2 }) : null;
+  context.snapshot = createSnapshotSync({ db, request: send, getScope: () => state2.scope, now, progressive: progressiveSnapshot });
+  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({
+    db,
+    request: send,
+    getScope: () => state2.scope,
+    now,
+    version: 2,
+    progressive: progressiveSnapshot
+  }) : null;
   context.memos = createMemoOfflineAdapter({
     db,
     cache: cache2,
@@ -4389,6 +4533,9 @@ function identityActions(context) {
     context.generation++;
     context.scopeCheckedAt = 0;
     context.pulledAt = 0;
+    clearTimeout(context.historyTimer);
+    context.historyRetry = false;
+    state2.historyRemaining = 0;
     context.authFlight = null;
     context.scopeFlight = null;
     context.cooldownUntil = 0;
@@ -4493,7 +4640,7 @@ function stateActions(context) {
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
     state2.unsupported = pending.filter((row) => !outbox.canDispatch(row)).length;
-    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : "synced" : "offline";
+    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : state2.historyRemaining ? "partial" : "synced" : "offline";
     emit2();
     return { ...state2 };
   }
@@ -4546,6 +4693,7 @@ async function runSync(context) {
     if (!active5()) return { ...state2 };
     if (context.cooldownUntil > now()) {
       context.scheduleRetry();
+      if (state2.historyRemaining || context.historyRetry) context.scheduleHistory();
       return context.refresh();
     }
     if (!recentScope(context)) await context.verify();
@@ -4568,11 +4716,13 @@ async function runSync(context) {
     if (state2.verifiedScope) await context.cache.captureDocuments();
     if (!active5()) return { ...state2 };
     const pulled = now() - context.pulledAt;
-    if (state2.verifiedScope && !(context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
+    if (state2.verifiedScope && !(state2.historyRemaining === 0 && context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = "snapshot";
-      await (context.snapshotV2 || snapshot).pull({ date: today(now) });
+      const result = await (context.snapshotV2 || snapshot).pull({ date: today(now) });
       if (!active5()) return { ...state2 };
-      context.pulledAt = now();
+      state2.historyRemaining = result.remaining_dates || 0;
+      context.historyRetry = false;
+      if (!state2.historyRemaining) context.pulledAt = now();
       if (context.lastTodoPath) {
         stage = "cache";
         const date = offlineReadRoute(context.lastTodoPath).date;
@@ -4581,12 +4731,13 @@ async function runSync(context) {
       }
     }
     if (!active5()) return { ...state2 };
-    state2.lastSuccess = now();
+    if (!state2.historyRemaining) state2.lastSuccess = now();
     state2.error = null;
     state2.errorStage = null;
   } catch (error) {
     if (!active5()) return { ...state2 };
     if (error.status === 429) {
+      if (stage === "snapshot") context.historyRetry = true;
       const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
       context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
       if (owner2) {
@@ -4610,11 +4761,21 @@ async function runSync(context) {
   if (!active5()) return { ...state2 };
   context.broadcast();
   if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
+  if ((state2.historyRemaining || context.historyRetry) && state2.online && (!state2.error || context.cooldownUntil > now())) context.scheduleHistory();
   return { ...state2 };
 }
 function syncActions(context) {
   const { state: state2, emit: emit2, outbox, snapshot, now, online } = context;
   const run2 = () => runSync(context);
+  function scheduleHistory() {
+    clearTimeout(context.historyTimer);
+    if (context.stopped) return;
+    const owner2 = state2.scope, generation = context.generation;
+    context.historyTimer = setTimeout(() => {
+      if (!context.stopped && owner2 === state2.scope && generation === context.generation && online()) void sync();
+    }, Math.min(MAX_TIMER_DELAY, Math.max(500, (context.cooldownUntil || 0) - now())));
+    context.historyTimer?.unref?.();
+  }
   function sync({ rerun = false } = {}) {
     if (context.syncFlight) {
       context.syncAgain = true;
@@ -4653,7 +4814,7 @@ function syncActions(context) {
       }
     });
   }
-  return { sync, scheduleRetry };
+  return { sync, scheduleRetry, scheduleHistory };
 }
 async function unmanaged(context, path, options4, guard) {
   try {
@@ -4834,6 +4995,7 @@ function lifecycleActions(context) {
     stop = () => {
       context.stopped = true;
       clearTimeout(context.timer);
+      clearTimeout(context.historyTimer);
       clearInterval(timer2);
       context.channel?.close();
       context.channel = null;
@@ -4846,7 +5008,11 @@ function lifecycleActions(context) {
     sync();
     return stop;
   }
-  return { start, stop: () => stop(), broadcast };
+  return { start, stop: () => {
+    context.stopped = true;
+    clearTimeout(context.historyTimer);
+    stop();
+  }, broadcast };
 }
 async function readTodoMonthSnapshot(context, month) {
   if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
@@ -4864,7 +5030,12 @@ async function readTodoMonthSnapshot(context, month) {
   const owner2 = context.state.scope, generation = context.generation;
   if (!owner2 || context.state.verifiedScope !== owner2) return null;
   const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
-    const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
+    let snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
+    const progress = await tx.get("meta", entityKey(owner2, "snapshot-v2-progress"));
+    if (progress?.value?.partial && progress.value.index?.scope_id === owner2 && (progress.value.verified_at || 0) >= (snapshot?.value?.verified_at || 0)) {
+      if (!progress.value.index.dates.filter((row) => row.date.startsWith(month + "-")).every((row) => progress.value.covered_dates.includes(row.date))) return null;
+      snapshot = progress;
+    }
     const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
     if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
     const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
@@ -5013,7 +5184,7 @@ function onOfflineRuntime(callback) {
 async function offlineRequest(path, options4, request2, onIdentity, assertActive = () => {
 }) {
   if (!initialization) initialization = openOfflineDB().then((db) => {
-    singleton = createOfflineRuntime({ db, request: request2, onIdentity, scopeProbe: true, scopeReuseMs: 3e4 });
+    singleton = createOfflineRuntime({ db, request: request2, onIdentity, scopeProbe: true, scopeReuseMs: 3e4, progressiveSnapshot: true });
     for (const callback of readyListeners) callback(singleton);
     return singleton;
   });
@@ -17787,6 +17958,7 @@ function offlineStatusLabel(state2) {
   if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
   if (state2.error) return "同步检查失败";
   if (state2.phase === "syncing") return "正在同步…";
+  if (state2.historyRemaining) return `历史同步中（剩 ${state2.historyRemaining} 天）`;
   if (state2.pending) return `待同步（${state2.pending} 条）`;
   return "查看同步状态";
 }
@@ -17975,6 +18147,11 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
     if (sequence5 !== rendering || !expanded) return;
     const title = textNode(document2, "h2", "同步状态");
     const details = document2.createDocumentFragment();
+    if (state2.historyRemaining) details.append(textNode(
+      document2,
+      "p",
+      `已保存的日期可离线读取，另有 ${state2.historyRemaining} 天历史正在分批补齐；历史尚未全部同步完成。`
+    ));
     if (state2.error) {
       const stages = { identity: "身份核验", outbox: "提交队列", cache: "本地缓存", snapshot: "服务器快照" };
       details.append(textNode(document2, "p", `${stages[state2.errorStage] || "同步检查"}失败：${state2.error}`, "offline-sync-error"));

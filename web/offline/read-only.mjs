@@ -5,13 +5,23 @@ const day = value => typeof value === 'string' && /^(?!0000)\d{4}-\d{2}-\d{2}$/.
 const missing = () => Object.assign(new Error('此内容尚未完整缓存在本机，请联网读取。'), {code: 'OFFLINE_CACHE_MISS'});
 // Both snapshot versions contain the common note and reminder projection. Only
 // use complete metadata belonging to this scope; prefer the newest evidence.
-export async function latestCompleteSnapshot(tx, scope) {
+export async function latestCompleteSnapshot(tx, scope, date) {
   const v1 = await tx.get('meta', entityKey(scope, 'snapshot'));
   const v2 = await tx.get('meta', entityKey(scope, 'snapshot-v2'));
   const valid = value => value?.value?.index?.complete === true && value.value.index.scope_id === scope;
-  if (!valid(v1)) return valid(v2) ? v2 : null;
-  if (!valid(v2)) return v1;
-  return (v2.value.verified_at || 0) >= (v1.value.verified_at || 0) ? v2 : v1;
+  const candidates=[v1,v2].filter(valid);
+  const complete=candidates.sort((a,b)=>(b.value.verified_at||0)-(a.value.verified_at||0))[0]||null;
+  // Partial sync evidence proves only dates already verified and committed;
+  // callers asking for the complete history never receive this evidence.
+  const partials=[];
+  for(const key of ['snapshot-progress','snapshot-v2-progress']) {
+    const partial=await tx.get('meta',entityKey(scope,key));
+    if(valid(partial)&&partial.value.partial===true)partials.push(partial);
+  }
+  const partial=partials.sort((a,b)=>(b.value.verified_at||0)-(a.value.verified_at||0))[0];
+  if(partial&&(partial.value.verified_at||0)>=(complete?.value?.verified_at||0))
+    return date&&partial.value.covered_dates?.includes(date)?partial:null;
+  return complete;
 }
 export function readOnlyRoute(path) {
   const url = new URL(path, 'https://offline.invalid'), query = url.searchParams;
@@ -35,10 +45,14 @@ function matches(entity, route) {
 export async function readOnlySnapshot({db, scope, route, getScope, getGeneration}) {
   const generation = getGeneration();
   const result = await db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const snapshot = await latestCompleteSnapshot(tx, scope), index = snapshot?.value?.index;
+    const snapshot = await latestCompleteSnapshot(tx, scope, route.kind==='reminders'?route.date:undefined), index = snapshot?.value?.index;
     if (index?.complete !== true || index.scope_id !== scope) throw missing();
-    const rows = (await tx.getAll('entities')).filter(row => row.scope === scope && matches(row, route));
-    for (const expected of index.entities.filter(row => matches(row, route) && !row.deleted_at)) {
+    const expectedById=new Map(index.entities.map(row=>[row.entity_id,row]));
+    const rows = (await tx.getAll('entities')).filter(row => row.scope === scope && matches(row, route)&&
+      (!snapshot.value.partial||row.dirty||expectedById.get(row.entity_id)?.date===route.date&&
+        expectedById.get(row.entity_id)?.content_hash===row.snapshot_hash&&!expectedById.get(row.entity_id)?.deleted_at));
+    for (const expected of index.entities.filter(row => matches(row, route) && !row.deleted_at&&
+      (route.kind!=='reminders'||row.date===route.date))) {
       if (!rows.some(row => row.entity_id === expected.entity_id && row.server)) throw missing();
     }
     const active = rows.filter(row => row.dirty || !row.remote_missing).map(row => route.source === 'note_entry' && row.dirty ? row.local : row.server)

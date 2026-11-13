@@ -126,9 +126,12 @@ function readingMethods(context) {
       const rows = await load(tx, owner.scope), cap = await tx.get('meta', capabilityKey(owner.scope));
       const capability = cap?.scope === owner.scope ? cap.can_edit : null;
       const cached = await tx.get('meta', entityKey(owner.scope, 'get:' + path));
-      const snapshot = await latestCompleteSnapshot(tx, owner.scope);
+      const snapshot = await latestCompleteSnapshot(tx, owner.scope, route.date);
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner.scope;
-      const entities = rows.entities.filter(row => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server));
+      const expectedById=new Map(snapshot?.value?.index?.entities?.map(row=>[row.entity_id,row])||[]);
+      const entities = rows.entities.filter(row => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server)&&
+        (!snapshot?.value?.partial||row.dirty||expectedById.get(row.entity_id)?.date===route.date&&
+          expectedById.get(row.entity_id)?.content_hash===row.snapshot_hash&&!expectedById.get(row.entity_id)?.deleted_at));
       if (route.kind === 'note_entry') {
         if (!entities.length) throw missing();
         owner.active();

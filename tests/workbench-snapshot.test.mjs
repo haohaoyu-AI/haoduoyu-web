@@ -97,6 +97,71 @@ test('v2 opt-in includes undated todos and label catalog without changing the v1
     '/workbench-snapshot?date='+DATE+'&version=3'])await assert.rejects(f.request(path),error(400,'VALIDATION_ERROR'));
 });
 
+test('matching compact details omit only the manifest entities for either snapshot version',async t=>{
+  const f=fixture(t);f.todo('today');f.todo('old','2021-01-02');f.entry('entry');f.group('g');f.memo('m','g');
+  f.insert('unscheduled_todos',{user_id:OWNER,id:'undated',text:'future',completed:0,version:1,created_at:STAMP,updated_at:STAMP});
+  const before=f.db.prepare('SELECT total_changes() AS count').get().count;
+  for(const version of ['', '&version=2']) {
+    const path='/workbench-snapshot?date='+DATE+version,ordinary=await f.request(path);
+    const compact=await f.request(path+'&manifest_hash='+ordinary.value.manifest_hash);
+    const {entities,generated_at,...expected}=ordinary.value;
+    const {generated_at:compactTime,...actual}=compact.value;
+    assert.ok(entities.length>0);assert.ok(compactTime);assert.equal(Object.hasOwn(compact.value,'entities'),false);
+    assert.deepEqual(actual,expected,'data, identity and every hash retain the ordinary projection');
+    assert.equal(compact.response.headers.get('Cache-Control'),'private, no-store');
+    assert.equal(compact.response.headers.get('Vary'),'Cookie, Authorization');
+    assert.ok(compact.adapter.calls.every(sql=>/^\s*SELECT\b/i.test(sql)));
+  }
+  assert.equal(f.db.prepare('SELECT total_changes() AS count').get().count,before,'compact reads never mutate D1');
+});
+
+test('compact manifest parameters reject duplicates, malformed hashes and index or scope use',async t=>{
+  const f=fixture(t),valid='a'.repeat(64),detail='/workbench-snapshot?date='+DATE+'&version=2';
+  for(const path of [detail+'&manifest_hash='+valid+'&manifest_hash='+valid,
+    ...['','a'.repeat(63),'a'.repeat(65),'A'.repeat(64),'g'.repeat(64)].map(value=>detail+'&manifest_hash='+value),
+    '/workbench-snapshot?manifest_hash='+valid,'/workbench-snapshot/index?manifest_hash='+valid,
+    '/workbench-snapshot/index?version=2&manifest_hash='+valid,'/workbench-snapshot/scope?manifest_hash='+valid])
+    await assert.rejects(f.request(path),error(400,'VALIDATION_ERROR'),path);
+});
+
+test('a stale compact manifest returns a conflict instead of any detail projection',async t=>{
+  const f=fixture(t);f.todo('t');
+  const path='/workbench-snapshot?date='+DATE+'&version=2',before=(await f.request(path)).value;
+  f.db.prepare('UPDATE matrix_todos SET text=?,version=2,updated_at=?').run('changed',LATER);
+  f.db.exec('UPDATE matrix_control SET revision=revision+1 WHERE id=1');
+  await assert.rejects(f.request(path+'&manifest_hash='+before.manifest_hash),error(409,'SNAPSHOT_CHANGED'));
+  const current=(await f.request(path)).value;
+  assert.notEqual(current.manifest_hash,before.manifest_hash);assert.equal(current.data.todos[0].text,'changed');
+});
+
+test('compact detail keeps anonymous and owner scope authorization and the GET-only boundary',async t=>{
+  const f=fixture(t);f.todo('t');const path='/workbench-snapshot?date='+DATE+'&version=2';
+  for(const headers of [{},{Cookie:'matrix_session='+TOKEN}]) {
+    const ordinary=(await f.request(path,{headers})).value;
+    const compact=(await f.request(path+'&manifest_hash='+ordinary.manifest_hash,{headers})).value;
+    assert.equal(compact.scope_id,ordinary.scope_id);assert.deepEqual(compact.data,ordinary.data);
+  }
+  const valid=(await f.request(path)).value.manifest_hash,compact=path+'&manifest_hash='+valid;
+  for(const Authorization of ['','Bearer hdy_'+'c'.repeat(64)])
+    await assert.rejects(f.request(compact,{headers:{Authorization}}),error(403,'SNAPSHOT_SESSION_REQUIRED'));
+  await assert.rejects(f.request(compact,{headers:{Cookie:'matrix_session='+OTHER_TOKEN}}),error(403,'FORBIDDEN'));
+  await assert.rejects(f.request(compact,{environment:{...f.env,PUBLIC_BUSINESS_MODE:'0'}}),error(401));
+  await assert.rejects(f.request(compact,{environment:{...f.env,MEMOS_OWNER_ID:undefined}}),error(503,'MEMOS_CONFIG'));
+  for(const method of ['POST','PUT','DELETE'])
+    await assert.rejects(handleWorkbenchSnapshot({},new Request('http://localhost'+compact,{method}),
+      '/workbench-snapshot',f.env),error(404));
+});
+
+test('session revocation during compact projection cannot return a snapshot or conflict',async t=>{
+  const f=fixture(t);f.todo('t');const headers={Cookie:'matrix_session='+TOKEN};
+  const path='/workbench-snapshot?date='+DATE+'&version=2',manifest=(await f.request(path,{headers})).value.manifest_hash;
+  let fired=false;
+  await assert.rejects(f.request(path+'&manifest_hash='+manifest,{headers,hooks:{after(sql) {
+    if(fired||!sql.includes('FROM matrix_note_entries'))return;fired=true;
+    f.db.exec('DELETE FROM matrix_sessions; UPDATE matrix_control SET revision=revision+1 WHERE id=1');
+  }}}),error(401,'UNAUTHORIZED'));
+});
+
 test('workbench projects complete selected-date records and independently scoped undated memos',async t=>{
   const f=fixture(t);
   f.todo('current');f.todo('old','2023-01-02');f.todo('other',DATE,{user_id:OTHER,text:'OTHER-TODO-CANARY'});

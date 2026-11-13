@@ -170,8 +170,10 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
   const query=new URL(request.url).searchParams,index=route==='/workbench-snapshot/index';
   const versionValues=query.getAll('version'),version=versionValues.length===0?1:versionValues.length===1&&versionValues[0]==='2'?2:0;
-  if(!version||[...query.keys()].some(key=>!['date','version'].includes(key))||
-    (index?query.has('date'):query.getAll('date').length!==1))
+  const manifestValues=query.getAll('manifest_hash'),manifestHash=manifestValues[0];
+  if(!version||[...query.keys()].some(key=>!['date','version','manifest_hash'].includes(key))||
+    (index?query.has('date')||manifestValues.length:query.getAll('date').length!==1)||
+    manifestValues.length&&(manifestValues.length!==1||!/^[a-f0-9]{64}$/.test(manifestHash)))
     fail(400,'VALIDATION_ERROR','工作台快照只接受一个明确日期，完整索引不接受查询参数');
   const date=index?null:snapshotDate(query.get('date'));
   const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
@@ -189,6 +191,13 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
     const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version});
     const value=projectWorkbenchSnapshot(data,{scope_id,generated_at,date,version},budget);
+    if(manifestHash!==undefined) {
+      if(value.manifest_hash!==manifestHash) {
+        await access.recheck(store);
+        fail(409,'SNAPSHOT_CHANGED','工作台快照已变化，请重新读取完整索引');
+      }
+      delete value.entities;
+    }
     const serialized=budget.serialize(value);
     await access.recheck(store);
     return serialized;
