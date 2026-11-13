@@ -7,6 +7,7 @@ export function offlineStatusLabel(state) {
   if (!state.online) return `离线（${state.pending || 0} 条待同步）`;
   if (state.error) return '同步检查失败';
   if (state.phase === 'syncing') return '正在同步…';
+  if(state.historyIncomplete)return '近期离线可用 · 历史按需';
   if (state.historyRemaining) return `历史同步中（剩 ${state.historyRemaining} 天）`;
   if (state.pending) return `待同步（${state.pending} 条）`;
   return '查看同步状态';
@@ -121,8 +122,27 @@ function pageAnnotation(document, state) {
     content.dataset.offlineHidden = String(unavailable);
   }
 }
+function historyControls(document,runtime,history,refresh) {
+  const root=document.createDocumentFragment();
+  root.append(textNode(document,'p','自动离线仅保存最近 60 天；较早历史按需下载。本机历史可能不完整，已有历史和待提交内容均保留。'));
+  const input=document.createElement('input');input.type='date';input.value=history.date;
+  input.setAttribute('aria-label','要离线保存的历史日期');input.addEventListener('change',()=>{history.date=input.value;});
+  const download=textNode(document,'button','保存这一天供离线查看','btn text');download.type='button';download.disabled=history.busy;
+  const message=textNode(document,'p',history.message);
+  download.addEventListener('click',async()=>{
+    if(!input.value||history.busy)return;
+    history.date=input.value;history.busy=true;history.message='正在保存所选日期…';void refresh();
+    try {
+      const result=await runtime.downloadDate(history.date);
+      history.message=result.status==='synced'?'所选日期已保存；其他历史仍需按需下载。':'同步已暂停或其他页面正在处理，请稍后再试。';
+    }catch(error){history.message=error.message;}
+    finally{history.busy=false;await refresh();}
+  });
+  root.append(input,download,message);return root;
+}
 function mountRuntimeUI(runtime, {document, window}) {
   let state = {...runtime.state}, expanded = false, rendering = 0;
+  const history={date:'',message:'',busy:false};
   const pending = new Map(), messages = new Map(), requests = {
     busy: key => pending.has(key),
     begin(key) { if (pending.has(key)) return null; const controller = new AbortController(); pending.set(key, controller); return controller; },
@@ -142,6 +162,7 @@ function mountRuntimeUI(runtime, {document, window}) {
     if (sequence !== rendering || !expanded) return;
     const title = textNode(document, 'h2', '同步状态');
     const details = document.createDocumentFragment();
+    if(state.historyIncomplete)details.append(historyControls(document,runtime,history,refreshQueue));
     if(state.historyRemaining)details.append(textNode(document,'p',
       `已保存的日期可离线读取，另有 ${state.historyRemaining} 天历史正在分批补齐；历史尚未全部同步完成。`));
     if (state.error) {

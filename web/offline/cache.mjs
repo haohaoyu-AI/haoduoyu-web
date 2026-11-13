@@ -1,6 +1,7 @@
 import {entityKey, offlineValue} from './db.mjs';
 import {createNotesCache, noteReadRoute} from './notes.mjs';
-import {readOnlyRoute, readOnlySnapshot, latestCompleteSnapshot} from './read-only.mjs';
+import {readOnlyRoute, readOnlySnapshot, latestCompleteSnapshot, latestGlobalSnapshot,
+  matchesSnapshotEntity, snapshotHasUnverifiedRows} from './read-only.mjs';
 
 const dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -98,8 +99,8 @@ async function legacySnapshot(db, owner, route) {
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing();
     const entity = await tx.get('entities', entityKey(owner, 'legacy-' + route.category + ':' + route.date));
     const represented=snapshot.value.index.entities?.find(value=>value.entity_id==='legacy-'+route.category+':'+route.date);
-    const row = !entity?.remote_missing && (!snapshot.value.partial||represented?.content_hash===entity?.snapshot_hash&&
-      represented?.date===route.date&&represented?.deleted_at===entity?.server?.deleted_at) && entity?.server;
+    if (snapshotHasUnverifiedRows(snapshot,entity?[entity]:[],route.date)) throw missing();
+    const row = !entity?.remote_missing && (!snapshot.value.partial||matchesSnapshotEntity(represented,entity,route.date)) && entity?.server;
     if (!row && snapshot.value.index.entities?.some(value => value.entity_id === 'legacy-' + route.category + ':' + route.date)) throw missing();
     if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== 'string')) throw missing();
     const data = {date: route.date, text: row?.text || '', version: row?.version || 0, updated_at: row?.updated_at || null,
@@ -112,10 +113,12 @@ async function todoSnapshot(db,owner,route,now) {
     const snapshot=await latestCompleteSnapshot(tx,owner,route.date),index=snapshot?.value?.index;
     if(!index)throw missing();
     const rows=(await tx.getAll('entities')).filter(row=>row.scope===owner),byId=new Map(rows.map(row=>[row.entity_id,row]));
+    if(snapshotHasUnverifiedRows(snapshot,rows.filter(row=>row.entity_id.startsWith('todo:')),route.date))throw missing();
     const items=index.entities.filter(row=>row.entity_type==='todo'&&row.date===route.date&&!row.deleted_at).map(expected=>{
       const entity=byId.get(expected.entity_id);
       if(!entity?.server||entity.remote_missing||entity.snapshot_hash!==expected.content_hash||
-        entity.server.date!==route.date||entity.server.deleted_at)throw missing();
+        entity.server.date!==route.date||entity.server.deleted_at||
+        snapshot.value.partial&&!matchesSnapshotEntity(expected,entity,route.date))throw missing();
       return {...entity.server,id:entity.server.id||entity.server.source_id,completed:Boolean(entity.server.completed)};
     });
     const data={date:route.date,today:new Date(now()+8*3600000).toISOString().slice(0,10),
@@ -123,10 +126,28 @@ async function todoSnapshot(db,owner,route,now) {
     return {data:overlay(data,route,rows,true),saved_at:snapshot.value.verified_at||null};
   });
 }
+async function undatedSnapshot(db,owner,route) {
+  return db.transaction(['entities','meta'],'readonly',async tx=>{
+    const snapshot=await latestGlobalSnapshot(tx,owner),index=snapshot?.value?.index;
+    if(!index)throw missing();
+    const rows=(await tx.getAll('entities')).filter(row=>row.scope===owner&&row.entity_id.startsWith('unscheduled_todo:'));
+    if(snapshotHasUnverifiedRows(snapshot,rows,null))throw missing();
+    const byId=new Map(rows.map(row=>[row.entity_id,row]));
+    const items=index.entities.filter(row=>row.entity_type==='unscheduled_todo'&&row.date===null&&!row.deleted_at).map(expected=>{
+      const entity=byId.get(expected.entity_id);
+      if(!matchesSnapshotEntity(expected,entity,null))throw missing();
+      return {...entity.server,id:entity.server.id||entity.server.source_id,completed:Boolean(entity.server.completed)};
+    });
+    return {data:overlay({items,snapshot_complete:true},route,rows,true),saved_at:snapshot.value.verified_at||null};
+  });
+}
 async function availableSnapshot(db,owner,route,now) {
-  if(route.kind==='legacy')return legacySnapshot(db,owner,route);
-  if(route.kind!=='todo')return null;
-  try {return await todoSnapshot(db,owner,route,now);}
+  try {
+    if(route.kind==='legacy')return await legacySnapshot(db,owner,route);
+    if(route.kind==='todo')return await todoSnapshot(db,owner,route,now);
+    if(route.kind==='unscheduled_todo')return await undatedSnapshot(db,owner,route);
+    return null;
+  }
   catch(error){if(error.code!=='OFFLINE_CACHE_MISS')throw error;return null;}
 }
 export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false}) {
@@ -163,7 +184,7 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
         if (old?.server?.version > row.version)
           throw Object.assign(new Error('读取结果早于本机已确认版本，请重新读取。'), {code: 'OFFLINE_CACHE_CHANGED'});
         await tx.put('entities', {...old, key: storageKey, scope: owner, entity_id, server: row,
-          remote_missing: false, ...(route.kind === 'todo' ? {needs_api_refresh: false} : {})});
+          remote_missing: false, snapshot_hash:null, window_exclusion:null, ...(route.kind === 'todo' ? {needs_api_refresh: false} : {})});
       }
       active();
     });
@@ -181,12 +202,12 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
       try { return await readOnlySnapshot({db, scope: owner, route, getScope, getGeneration}); }
       catch (error) { if (error.code !== 'OFFLINE_CACHE_MISS' || !cached) throw error; }
     }
+    const saved=await availableSnapshot(db,owner,route,now);
+    if(saved&&(!cached||!Number.isFinite(cached.saved_at)||saved.saved_at>=cached.saved_at)) {
+      if(scope()!==owner||getGeneration()!==generation)throw missing();
+      return saved;
+    }
     if (!cached || cached.data === undefined) {
-      const saved=await availableSnapshot(db,owner,route,now);
-      if(saved) {
-        if(scope()!==owner||getGeneration()!==generation)throw missing();
-        return saved;
-      }
       const local = ['todo', 'unscheduled_todo'].includes(route.kind) ? (await entities(owner)).filter(row => row.dirty && belongs(row, route)) : [];
       if (!local.length) throw missing();
       const data = route.kind === 'todo' ? {date: route.date, today: new Date(now() + 8 * 3600000).toISOString().slice(0, 10),
@@ -195,7 +216,8 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
       return {data: overlay(data, route, local, false), saved_at: null};
     }
     const result = route.kind === 'legacy' ? {...clone(cached.data), can_edit: false} :
-      overlay(clone(cached.data), route, await entities(owner), false);
+      route.kind === 'dates' ? {...clone(cached.data),snapshot_complete:false,offline_partial:true} :
+        overlay(clone(cached.data), route, await entities(owner), false);
     if (scope() !== owner || getGeneration() !== generation) throw missing();
     return {data: result, saved_at: cached.saved_at};
   }

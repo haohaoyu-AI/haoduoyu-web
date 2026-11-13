@@ -1,6 +1,6 @@
 import {entityKey} from './db.mjs';
 import {localDocument} from './document.mjs';
-import {latestCompleteSnapshot} from './read-only.mjs';
+import {latestCompleteSnapshot, matchesSnapshotEntity, snapshotHasUnverifiedRows} from './read-only.mjs';
 
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const hashPattern = /^[a-f0-9]{64}$/;
@@ -126,12 +126,15 @@ function readingMethods(context) {
       const rows = await load(tx, owner.scope), cap = await tx.get('meta', capabilityKey(owner.scope));
       const capability = cap?.scope === owner.scope ? cap.can_edit : null;
       const cached = await tx.get('meta', entityKey(owner.scope, 'get:' + path));
-      const snapshot = await latestCompleteSnapshot(tx, owner.scope, route.date);
+      const evidence = await latestCompleteSnapshot(tx, owner.scope, route.date);
+      const snapshot = evidence?.value?.partial && cached?.saved_at >= evidence.value.verified_at ? null : evidence;
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner.scope;
       const expectedById=new Map(snapshot?.value?.index?.entities?.map(row=>[row.entity_id,row])||[]);
+      if(route.kind==='note_entries'&&snapshotHasUnverifiedRows(snapshot,rows.entities.filter(row=>inRoute(row,route)),route.date))
+        throw missing();
       const entities = rows.entities.filter(row => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server)&&
-        (!snapshot?.value?.partial||row.dirty||expectedById.get(row.entity_id)?.date===route.date&&
-          expectedById.get(row.entity_id)?.content_hash===row.snapshot_hash&&!expectedById.get(row.entity_id)?.deleted_at));
+        (!snapshot?.value?.partial||row.dirty||matchesSnapshotEntity(expectedById.get(row.entity_id),row,route.date)&&
+          !expectedById.get(row.entity_id)?.deleted_at));
       if (route.kind === 'note_entry') {
         if (!entities.length) throw missing();
         owner.active();
@@ -192,7 +195,7 @@ function writingMethods(context) {
             old.label_evidence.version === proof.version && JSON.stringify(old.label_evidence) !== JSON.stringify(proof)))
           throw fail('标签证据已变化，请联网核对。', 'OFFLINE_CACHE_CHANGED');
         await tx.put('entities', {...old, key, scope: owner.scope, entity_id, server: row, api_server: row,
-          ...(proof ? {label_evidence: proof} : {}), remote_missing: false});
+          ...(proof ? {label_evidence: proof} : {}), remote_missing: false, snapshot_hash:null, window_exclusion:null});
       }
       await tx.put('meta', {key: entityKey(owner.scope, 'get:' + path), scope: owner.scope, path, data, saved_at: now()});
       await tx.put('meta', {key: capabilityKey(owner.scope), scope: owner.scope, can_edit: data.can_edit, verified_at: now()});

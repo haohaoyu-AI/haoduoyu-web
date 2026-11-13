@@ -6,7 +6,7 @@ const v2Collections=[...collections,'unscheduled_todos','note_labels'];
 const types=new Set(['todo','life_note','work_note','work_reminder','memo_group','memo_note']);
 const v2Types=new Set([...types,'unscheduled_todo','note_label']);
 const recordKeys=new Set(['entity_id','entity_type','source','source_id','date','category','version','change_seq',
-  'created_at','updated_at','deleted_at','content_hash','text','completed','summary','source_key','title','position','body','group_id','label','name']);
+  'created_at','updated_at','deleted_at','content_hash','text','completed','summary','source_key','title','position','body','group_id','label','name','note']);
 const hashPattern=/^[a-f0-9]{64}$/;
 const datePattern=/^(?!0000)\d{4}-\d{2}-\d{2}$/;
 const supportedId=/^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note):/;
@@ -102,9 +102,19 @@ async function detailFor(value,date,index,limits,readBudget,version) {
   requireValue(value.date===date&&value.manifest_hash===index.manifest_hash&&value.global_content_hash===index.global_content_hash&&
     equal(value.entities,index.entities)&&object(value.data)&&Object.keys(value.data).sort().join(',')===[...selected].sort().join(',')&&
     hashPattern.test(value.content_hash)&&hashPattern.test(value.date_content_hash));
-  const expected=new Map(index.entities.filter(row=>row.date===null||row.date===date).map(row=>[row.entity_id,row])),records=[];
+  const records=await snapshotRecords(value.data,index.entities.filter(row=>row.date===null||row.date===date),readBudget,version);
+  const dateEntities=index.entities.filter(row=>row.date===date);
+  requireValue(value.date_content_hash===await readBudget.hash({scope_id:index.scope_id,entities:dateEntities}));
+  requireValue(value.content_hash===await readBudget.hash({snapshot_format:version===2?FORMAT2:FORMAT,
+    scope_id:index.scope_id,date,timezone:'Asia/Shanghai',data:value.data}));
+  return records;
+}
+export async function snapshotRecords(data,entities,readBudget,version=2) {
+  const selected=version===2?v2Collections:collections;
+  requireValue(object(data)&&Object.keys(data).sort().join(',')===[...selected].sort().join(','));
+  const expected=new Map(entities.map(row=>[row.entity_id,row])),records=[];
   for(const name of selected) {
-    const rows=value.data[name];requireValue(Array.isArray(rows));let previous='';
+    const rows=data[name];requireValue(Array.isArray(rows));let previous='';
     for(const row of rows) {
       requireValue(object(row)&&Object.keys(row).every(key=>recordKeys.has(key))&&row.entity_id>previous&&
         expected.has(row.entity_id)&&equal(metadata(row),expected.get(row.entity_id))&&
@@ -117,12 +127,9 @@ async function detailFor(value,date,index,limits,readBudget,version) {
     }
   }
   requireValue(expected.size===0);
-  const dateEntities=index.entities.filter(row=>row.date===date);
-  requireValue(value.date_content_hash===await readBudget.hash({scope_id:index.scope_id,entities:dateEntities}));
-  requireValue(value.content_hash===await readBudget.hash({snapshot_format:version===2?FORMAT2:FORMAT,
-    scope_id:index.scope_id,date,timezone:'Asia/Shanghai',data:value.data}));
   return records;
 }
+export {budget as snapshotReadBudget,indexFor as snapshotIndex};
 
 async function applySnapshot({db,getScope,scope,key,index,initial,cached,records,now,version,
   progressKey,otherKey,covered=[],pending=[],complete=true}) {
