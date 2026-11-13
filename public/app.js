@@ -8974,7 +8974,7 @@ async function carryUnfinishedTodos(day6, owner2) {
   if (carriedDays.get(owner2) === day6.date) return;
   carriedDays.set(owner2, day6.date);
   try {
-    const result = await api("/todo-carry", { method: "POST", body: {} });
+    const result = await apiNetwork("/todo-carry", { method: "POST", body: {} });
     if (!todoSessionActive(owner2) || !result?.carried?.length || day6.date !== bjtDate()) return;
     day6.revision++;
     setTodoNotice(day6, `已把前几天没做完的 ${result.carried.length} 项移到今天`);

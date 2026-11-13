@@ -1,7 +1,7 @@
 import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
 import { todoCount } from "../core/todo-count.mjs";
-import { api } from "../core/api.mjs";
+import { api, apiNetwork } from "../core/api.mjs";
 import { createTodoMonthLoader, todoMonthScopeTransition, todoMonthSeed } from "../core/todo-month.mjs";
 import { getOfflineRuntime, onOfflineRuntime } from "../offline/runtime.mjs";
 import { $, e } from "../core/dom.mjs";
@@ -411,7 +411,7 @@ async function carryUnfinishedTodos(day, owner) {
   if (carriedDays.get(owner) === day.date) return;
   carriedDays.set(owner, day.date);
   try {
-    const result = await api("/todo-carry", { method: "POST", body: {} });
+    const result = await apiNetwork("/todo-carry", { method: "POST", body: {} });
     if (!todoSessionActive(owner) || !result?.carried?.length || day.date !== bjtDate()) return;
     day.revision++;
     setTodoNotice(day, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
