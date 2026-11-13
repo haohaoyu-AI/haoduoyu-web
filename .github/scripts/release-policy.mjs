@@ -179,7 +179,15 @@ export const progressiveOfflineRelease=Object.freeze({
   uploadedVersion:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
   bytes:3068718,sha256:'bdb24edc4e53f0cf3437e75f0b6b3cef652fb0ca5a4cbe48166f95a86f3b7864',
   label:'production-progressive-offline-sync-20261113'});
-const acceptedRelease=commit=>commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
+// To-do carry-forward and the weekly bowel/bladder summary, on top of the deployed b056137. Baseline: run 43412881992's deployed version.
+export const carryBodySummaryRelease=Object.freeze({
+  commit:'c776a8816861605f9d43bdc91fbc0a79cbec67b6',
+  tree:'1741ca0e8b4eb273563ffa2c26c81d5e321d4e3a',
+  baseline:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
+  bytes:3098471,sha256:'cc763b2239a094ea9599009541face43a2656693ae324217bc93c8d34ccfdb3b',
+  label:'production-carry-body-summary-20261113'});
+const acceptedRelease=commit=>commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
+  commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
   commit===speedUpRelease.commit?speedUpRelease:
   commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
   commit===todoCountFixesRelease.commit?todoCountFixesRelease:
