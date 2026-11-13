@@ -149,7 +149,15 @@ export const removeAnalysisRelease=Object.freeze({
   baseline:'c7a663ad-c502-4ede-b068-bffda6d2d617',
   bytes:3045533,sha256:'4340a7525ab703475063b0215331d9eb255af061f6768bd43be1df2fbf84cf9d',
   label:'production-remove-analysis-20261113'});
-const acceptedRelease=commit=>commit===removeAnalysisRelease.commit?removeAnalysisRelease:
+// To-do counter fixes on top of the deployed 9ec99b2. Baseline is the version uploaded by run 43379262582.
+export const todoCountFixesRelease=Object.freeze({
+  commit:'e407cabf98f8b3e5ad1215fc7c8d915204443b10',
+  tree:'bbaf06721b573c94387b8054a24248a650d4eba8',
+  baseline:'b8d744ce-94c5-4d14-8330-6ee45abeb52b',
+  bytes:3046801,sha256:'6ef13de15ca585f52187d02255fab4fbf91de960fd969c94ee4aadcfe8a23fda',
+  label:'production-todo-count-fixes-20261113'});
+const acceptedRelease=commit=>commit===todoCountFixesRelease.commit?todoCountFixesRelease:
+  commit===removeAnalysisRelease.commit?removeAnalysisRelease:
   commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
   commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
   commit===patternExamplesRelease.commit?patternExamplesRelease:
