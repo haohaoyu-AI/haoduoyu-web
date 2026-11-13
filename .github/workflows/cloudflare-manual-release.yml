@@ -47,6 +47,10 @@ on:
         required: true
         type: boolean
         default: false
+      uploaded_version:
+        description: Exact already-uploaded version registered for this release; leaves upload disabled
+        required: false
+        type: string
 permissions:
   contents: read
   actions: read
@@ -62,6 +66,7 @@ jobs:
       TARGET_COMMIT: ${{ inputs.target_commit }}
       EXPECTED_CURRENT_VERSION: ${{ inputs.expected_current_version }}
       LOCAL_UPLOAD_STOPPED: ${{ inputs.local_upload_stopped }}
+      UPLOADED_VERSION: ${{ inputs.uploaded_version }}
     steps:
       - name: Checkout release controls
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

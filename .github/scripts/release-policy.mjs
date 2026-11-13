@@ -175,6 +175,8 @@ export const progressiveOfflineRelease=Object.freeze({
   commit:'b05613792693d88a1b081e511eaf95cca08d5459',
   tree:'1b0924e5deaf7d89ca7ba6f449d560d817e159fb',
   baseline:'ab1beb48-453c-4d06-84b8-62d3c5fad69b',
+  // Exact upload from run 43412140798; GET briefly returned 404 before deployment.
+  uploadedVersion:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
   bytes:3068718,sha256:'bdb24edc4e53f0cf3437e75f0b6b3cef652fb0ca5a4cbe48166f95a86f3b7864',
   label:'production-progressive-offline-sync-20261113'});
 const acceptedRelease=commit=>commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
@@ -217,6 +219,8 @@ export function validateRequest(env) {
     deny('The exact production rollback baseline must be pinned before this release can run.');
   if(release.baseline&&env.EXPECTED_CURRENT_VERSION!==release.baseline)
     deny('The production restore requires its exact independently verified baseline version.');
+  if(release.uploadedVersion?env.UPLOADED_VERSION!==release.uploadedVersion:Boolean(env.UPLOADED_VERSION))
+    deny('Only the exact already-uploaded candidate registered for this release may be resumed.');
   return release;
 }
 export async function verifyCI(commit,{request=fetch,token}={}) {

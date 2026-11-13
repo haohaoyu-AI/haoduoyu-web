@@ -110,6 +110,54 @@ test('uploads exact approved bytes with named strict inherits, then confirms a s
   }
   privateFree(report);
 });
+function pendingUpload(hook) {
+  const mock=mockCloudflare(hook);mock.state.latest=NEW;
+  mock.state.versions.get(NEW).annotations={'workers/commit_sha':config.targetCommit};return mock;
+}
+const resume=mock=>publishExistingWorker({...config,uploadedVersionId:NEW},{request:mock.request});
+test('resumes the exact verified pending upload with one deployment and no second upload',async()=>{
+  const mock=pendingUpload(),report=await resume(mock);
+  assert.equal(report.status,'deployed');assert.equal(report.uploaded_version_id,NEW);
+  assert.equal(writes(mock).length,1);assert.equal(writes(mock)[0].path,'/deployments');
+  assert.equal(mock.metadata,undefined);assert.equal(mock.state.active,NEW);privateFree(report);
+});
+test('resume never falls back to upload after a candidate GET failure or identity mismatch',async()=>{
+  for(const change of ['404','commit','binding']) {
+    const mock=pendingUpload(({path})=>change==='404'&&path===`/versions/${NEW}`?
+      Response.json({success:false},{status:404}):undefined);
+    if(change==='commit')delete mock.state.versions.get(NEW).annotations;
+    if(change==='binding')mock.state.versions.get(NEW).resources.bindings[1].text='changed';
+    const report=await resume(mock);
+    assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,0);
+    assert.equal(mock.state.active,OLD);privateFree(report);
+  }
+});
+for(const field of ['latest','active'])test(`resume rejects a different ${field} or an already deployed candidate`,async()=>{
+  const mock=pendingUpload();mock.state[field]=field==='active'?NEW:OTHER;
+  const report=await resume(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.code,'CURRENT_VERSION_MISMATCH');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+for(const field of ['latest','active','deploymentId','settings','sourceBinding'])
+  test(`resume rechecks ${field} before its only production write`,async()=>{
+    const mock=pendingUpload(({path,state,calls})=>{
+      if(path.startsWith('/versions?')&&calls.filter(call=>call.method==='GET'&&call.path.startsWith('/versions?')).length===2) {
+        if(field==='settings')state.settings.tags.push('changed');
+        else if(field==='sourceBinding')state.versions.get(OLD).resources.bindings[1].text='changed';
+        else state[field]=OTHER;
+      }
+    });
+    const report=await resume(mock);
+    assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,0);privateFree(report);
+  });
+test('a lost resume deployment response stays uncertain and reconciles without another write',async()=>{
+  const mock=pendingUpload(({method,path,state})=>{
+    if(method==='POST'&&path==='/deployments'){state.active=NEW;state.deploymentId=NEXT_DEPLOYMENT;throw Error(SENTINEL);}
+  });
+  const report=await resume(mock);
+  assert.equal(report.status,'uncertain');assert.equal(report.write_stage,'deploy');
+  assert.equal(report.observed_active_version_id,NEW);assert.equal(writes(mock).length,1);privateFree(report);
+});
 
 test('binding order and JSON object key order are not changes; visible values still compare exactly',()=>{
   const a=version(),b=version();b.resources.bindings.reverse();
@@ -366,7 +414,8 @@ test('oversized or malformed API data blocks before writing without exposing bod
 });
 
 for(const patch of [{expectedWorkerSha256:'0'.repeat(64)},{expectedWorkerBytes:1},{workerName:'new-worker'},
-  {expectedCurrentVersion:'latest'},{accountId:'../../../other'},{token:'bad\nheader'}])
+  {expectedCurrentVersion:'latest'},{accountId:'../../../other'},{token:'bad\nheader'},
+  {uploadedVersionId:'latest'},{uploadedVersionId:OLD}])
   test(`invalid release input is rejected before contacting Cloudflare (${Object.keys(patch)[0]})`,async()=>{
     let contacted=false;
     const report=await publishExistingWorker({...config,...patch},{request:()=>{contacted=true;assert.fail('No request expected');}});
