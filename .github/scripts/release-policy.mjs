@@ -156,7 +156,15 @@ export const todoCountFixesRelease=Object.freeze({
   baseline:'b8d744ce-94c5-4d14-8330-6ee45abeb52b',
   bytes:3046801,sha256:'6ef13de15ca585f52187d02255fab4fbf91de960fd969c94ee4aadcfe8a23fda',
   label:'production-todo-count-fixes-20261113'});
-const acceptedRelease=commit=>commit===todoCountFixesRelease.commit?todoCountFixesRelease:
+// Article list grouped by bot-filled pattern tags, on top of the deployed e407cab. Baseline: run 43380718316's upload.
+export const articlePatternViewsRelease=Object.freeze({
+  commit:'003f01e77fe7572a1b38161e59503ac7c9d477d0',
+  tree:'fa50c4f20079e8b69e1de9869d024afbdbce884d',
+  baseline:'fb1090ac-0dd6-41a7-826a-0470d7088f51',
+  bytes:3055102,sha256:'d2efe52da19576e3d3b07d7b3a59ca7caff4b126fc631ec0ac9564e757547c47',
+  label:'production-article-pattern-views-20261113'});
+const acceptedRelease=commit=>commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
+  commit===todoCountFixesRelease.commit?todoCountFixesRelease:
   commit===removeAnalysisRelease.commit?removeAnalysisRelease:
   commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
   commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
