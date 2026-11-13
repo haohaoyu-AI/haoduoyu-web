@@ -186,7 +186,15 @@ export const carryBodySummaryRelease=Object.freeze({
   baseline:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
   bytes:3098471,sha256:'cc763b2239a094ea9599009541face43a2656693ae324217bc93c8d34ccfdb3b',
   label:'production-carry-body-summary-20261113'});
-const acceptedRelease=commit=>commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
+// Weekly summary averages only weeks with records, on top of the deployed c776a88. Baseline: run 43454849311's deployed version.
+export const summaryAverageRelease=Object.freeze({
+  commit:'c0df37d8a691820a1598e1a55a72af2a932ae9a3',
+  tree:'7146c491abf54ba2586f42396a1aed85438e8b26',
+  baseline:'c3b18ec2-ca4f-474c-9e23-829e33e55d56',
+  bytes:3099366,sha256:'5b131c4334e2a55d43b9b2aa7b84bdcf28f07486ae3560f10634661ccb5386f7',
+  label:'production-summary-average-20261114'});
+const acceptedRelease=commit=>commit===summaryAverageRelease.commit?summaryAverageRelease:
+  commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
   commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
   commit===speedUpRelease.commit?speedUpRelease:
   commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
