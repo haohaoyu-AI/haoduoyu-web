@@ -102,13 +102,19 @@ export function versionSnapshot(version,expectedId) {
   check(identifier(version.id)&&version.id===expectedId,'VERSION_MISMATCH');
   keys(version.resources,['bindings','script','script_runtime'],'version.resources.fields');
   const script=version.resources.script;
-  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode','placement_status'],'script.fields');
+  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode','placement_status','placement'],'script.fields');
   check(typeof script.etag==='string'&&script.etag.length>0,'UNSUPPORTED_CONFIGURATION','script.etag');
   check(stringList(script.handlers)&&script.handlers.length===1&&script.handlers[0]==='fetch',
     'UNSUPPORTED_CONFIGURATION','script.handlers');
   if(own(script,'named_handlers'))check(Array.isArray(script.named_handlers)&&script.named_handlers.length===0,
     'UNSUPPORTED_CONFIGURATION','script.named_handlers');
   if(own(script,'placement_mode'))check(script.placement_mode==='smart','UNSUPPORTED_CONFIGURATION','script.placement_mode');
+  if(own(script,'placement')) {
+    // Observed stable API alias; only the exact current smart shape is supported.
+    keys(script.placement,['mode'],'script.placement.fields');
+    check(script.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','script.placement.mode');
+    check(script.placement_mode===script.placement.mode,'CONFIGURATION_CHANGED','script.placement.alias');
+  }
   // Read-only Smart Placement analysis status, not an upload/configuration option.
   // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/list/
   if(own(script,'placement_status'))check(placementStatuses.includes(script.placement_status),
@@ -117,6 +123,7 @@ export function versionSnapshot(version,expectedId) {
   // Content etag and uploader attribution change when the accepted bytes change.
   delete invariantScript.etag;delete invariantScript.last_deployed_from;
   delete invariantScript.placement_status;
+  delete invariantScript.placement;
   return {bindings:bindingsSnapshot(version.resources.bindings),script:invariantScript,
     runtime:runtimeSnapshot(version.resources.script_runtime)};
 }
@@ -251,7 +258,7 @@ function diagnosticShapes(raw) {
   return {
     version:fieldShape(raw.version,{id:true,number:true,metadata:true,annotations:true,startup_time_ms:true,
       resources:{bindings:[bindingShape],script:{etag:true,handlers:[true],named_handlers:true,
-        last_deployed_from:true,placement_mode:true,placement_status:true},script_runtime:runtimeShape}}),
+        last_deployed_from:true,placement_mode:true,placement_status:true,placement:{mode:true}},script_runtime:runtimeShape}}),
     script_settings:fieldShape(raw.settings,settingsShape),
     combined_settings:fieldShape(raw.combined,{annotations:true,bindings:[bindingShape],...runtimeShape,
       placement:{mode:true},...settingsShape})
@@ -267,6 +274,7 @@ function diagnosticConfiguration(raw) {
       normalized_equal:canonical(emptySettingList(key,script))===canonical(emptySettingList(key,combined))}];
   }));
   return {placement:{version_mode:mode(raw.version?.resources?.script?.placement_mode),
+    version_object_mode:mode(raw.version?.resources?.script?.placement?.mode),
     version_status:placementStatuses.includes(raw.version?.resources?.script?.placement_status)?
       raw.version.resources.script.placement_status:raw.version?.resources?.script?.placement_status===undefined?'missing':'unsupported',
     combined_mode:object(placement)&&Object.keys(placement).length===0?'empty':mode(placement?.mode)},
