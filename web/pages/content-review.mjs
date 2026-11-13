@@ -203,7 +203,7 @@ function articleLibrary(rows,vm,data = {}) {
       `data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? ' checked' : ''}>${e(metric.label)}</label>`).join('')}</div></details>`;
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all',
     '全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],
-      f.verdict || '')}</select></label>${picker}<span class="review-note">${selected.length} 篇</span></div>`;
+      f.verdict || '')}</select></label>${groupPicker(vm)}${picker}<span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty('当前筛选下没有文章');
   const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString());
     const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} ` +
@@ -219,11 +219,46 @@ function articleLibrary(rows,vm,data = {}) {
     ['判定',`${judgement}${supplement}`]
   ]; };
   const wide = columns.length > 1;
-  return filters + `<div class="review-table-wrap${wide ? ' review-columns-wide' : ''}"${wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` 
-    : ''}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题',
-      ...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${selected.map(row => `<tr ` +
+  const minimum = wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : '';
+  const table = list => `<div class="review-table-wrap${wide ? ' review-columns-wide' : ''}"${minimum}>` +
+    `<table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题',
+      ...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${list.map(row => `<tr ` +
         `data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td ` +
           `data-label="${e(label)}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const dimension = activeGroup(vm);
+  return filters + (dimension ? groupedArticles(selected, vm, dimension, table) : table(selected));
+}
+// The same articles, viewed by time (default) or grouped by one of the bot's pattern dimensions.
+function activeGroup(vm) {
+  const group = vm.filters?.group || '';
+  return group && vm.tags?.dimensions?.includes(group) ? group : '';
+}
+function groupPicker(vm) {
+  const dimensions = vm.tags?.dimensions || [];
+  const choices = [['','按时间'], ...dimensions.map(name => [name, '按' + name])];
+  return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? '' : ' title="还没有套路标签"'}>${options(choices,
+    activeGroup(vm))}</select></label>`;
+}
+const middle = values => { const list = values.filter(value => value !== null && value !== undefined && Number.isFinite(value)).sort((a, b) => a - b);
+  return list.length ? list.length % 2 ? list[(list.length - 1) / 2] : (list[list.length / 2 - 1] + list[list.length / 2]) / 2 : null; };
+function groupedArticles(rows, vm, dimension, table) {
+  const groups = new Map(), tags = vm.tags?.tags || {};
+  for (const row of rows) {
+    const name = tags[row.id]?.[dimension] || '未分类';
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(row);
+  }
+  const ordered = [...groups.entries()].sort(([a, x], [b, y]) => (a === '未分类') - (b === '未分类') || y.length - x.length ||
+    (middle(y.map(row => row.reads_24h)) ?? 0) - (middle(x.map(row => row.reads_24h)) ?? 0));
+  const readsText = value => value === null ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : Math.round(value).toLocaleString('zh-CN');
+  return `<div class="review-article-groups">${ordered.map(([name, list]) => { const measured = list.filter(row => row.reads_24h !== null);
+    const ctr = middle(list.map(row => row.ctr_24h)), few = measured.length < 3;
+    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few
+      ? ' <small class="review-note">样本少</small>' : ''}</span><span class="review-article-group-figures"><span><b>${list.length}</b> 篇</span>
+      <span>阅读中位数 <b>${e(readsText(middle(measured.map(row => row.reads_24h))))}</b></span>
+      <span>点击率 <b>${ctr === null ? '—' : e(ctr.toFixed(1)) + '%'}</b></span><span>爆款 <b>${list.filter(row => row.verdict === '爆').length}</b></span></span>
+      </summary>${table(list)}</details>`; }).join('')}</div>
+    <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
 }
 const sections = [['keep_topic','保留选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','发布检查']];
 const statuses = [['candidate','待验证'],['trial','试用中'],['kept','有效'],['dropped','无效'],['hold','观察中']];

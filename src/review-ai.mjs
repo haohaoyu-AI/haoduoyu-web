@@ -16,7 +16,8 @@ const modelPattern=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Control':'no-store'}});
 const actorId=owner=>'review-ai:'+owner;
 const entity={settings:()=>'review-ai:settings',runs:date=>'review-ai:runs:'+date,weekly:account=>'review-ai:weekly:'+account,
-  titles:account=>'review-ai:titles:'+account,benchmarks:account=>'review-ai:benchmarks:'+account,baseline:()=>'review-ai:rule-baseline'};
+  titles:account=>'review-ai:titles:'+account,benchmarks:account=>'review-ai:benchmarks:'+account,baseline:()=>'review-ai:rule-baseline',
+  tags:account=>'review-tags:'+account};
 export const isReviewAiRoute=route=>route===base||route.startsWith(base+'/');
 const invalid=(message='AI 设置无效')=>{throw fail(400,'VALIDATION_ERROR',message);};
 
@@ -276,8 +277,53 @@ async function models(env) {
   } catch(error){if(error?.status)throw error;throw fail(504,'REVIEW_AI_TIMEOUT','读取模型列表超时');}
   finally{clearTimeout(timer);}
 }
+/* Article pattern tags: free dimensions ("标题套路", "文章套路", later "文风套路") filled by the bot, one value per article.
+ * Stored as the latest whole map in the audit log (backed up with it), so dimensions and categories can change without a migration. */
+export const TAG_LIMITS=Object.freeze({dimensions:8,name:12,value:20});
+const tagText=(value,max)=>typeof value==='string'&&value.trim()&&value.trim().length<=max&&!/[\u0000-\u001f]/.test(value)?value.trim():null;
+async function readTags(db,owner,account) {
+  const latest=(await events(db,owner,entity.tags(account),1))[0];
+  return {account,dimensions:Array.isArray(latest?.dimensions)?latest.dimensions:[],tags:latest?.tags&&typeof latest.tags==='object'?latest.tags:{},
+    updated_at:latest?.created_at||null};
+}
+async function writeTags(db,owner,account,input) {
+  if(Object.keys(input).some(key=>!['account','tags','dimensions'].includes(key)))invalid('请求字段无效');
+  if(!input.tags||typeof input.tags!=='object'||Array.isArray(input.tags))invalid('tags 必须是 {文章id: {维度: 分类}}');
+  const current=await readTags(db,owner,account),tags=structuredClone(current.tags);
+  const ids=new Set((await statement(db,'SELECT id FROM matrix_review_articles WHERE user_id=? AND account=?',owner,account).all()).results.map(row=>String(row.id)));
+  for(const [id,values] of Object.entries(input.tags)) {
+    if(!ids.has(id))invalid(`文章 ${id.slice(0,40)} 不存在或不属于 ${account}`);
+    if(!values||typeof values!=='object'||Array.isArray(values))invalid('每篇文章的值必须是 {维度: 分类}');
+    for(const [dimension,value] of Object.entries(values)) {
+      if(!tagText(dimension,TAG_LIMITS.name))invalid(`维度名须为 1 到 ${TAG_LIMITS.name} 个字`);
+      if(value===null||value===''){if(tags[id])delete tags[id][dimension];continue;}
+      const clean=tagText(value,TAG_LIMITS.value);if(!clean)invalid(`分类名须为 1 到 ${TAG_LIMITS.value} 个字`);
+      (tags[id]||={})[dimension.trim()]=clean;
+    }
+    if(tags[id]&&!Object.keys(tags[id]).length)delete tags[id];
+  }
+  for(const id of Object.keys(tags))if(!ids.has(id))delete tags[id];
+  const used=[...new Set(Object.values(tags).flatMap(values=>Object.keys(values)))];
+  if(input.dimensions!==undefined&&(!Array.isArray(input.dimensions)||input.dimensions.some(name=>!tagText(name,TAG_LIMITS.name))))invalid('dimensions 必须是维度名数组');
+  // The given order wins; dimensions still in use but not listed keep their old place, then new ones follow.
+  const order=[...new Set([...(input.dimensions||[]).map(name=>name.trim()),...current.dimensions,...used])].filter(name=>used.includes(name));
+  if(order.length>TAG_LIMITS.dimensions)invalid(`最多 ${TAG_LIMITS.dimensions} 个维度`);
+  await record(db,owner,'tags',entity.tags(account),{dimensions:order,tags});
+  return readTags(db,owner,account);
+}
 export async function handleReviewAi({db,request,route,env,origin,owner,actorFor,writeLimit,accountData,account:accountOf}) {
   const method=request.method,url=new URL(request.url),store=storeFor(db);
+  if(route===base+'/tags'&&method==='GET') {
+    if([...url.searchParams.keys()].some(key=>key!=='account'))invalid('查询参数无效');
+    await actorFor(store,request,owner,env,origin);
+    return json(await readTags(db,owner,accountOf(url.searchParams.get('account')||'V字')));
+  }
+  if(route===base+'/tags'&&method==='PUT'&&!url.search) {
+    const actor=await actorFor(store,request,owner,env,origin,true);writeLimit(actor,owner);
+    const input=await bodyFor(request);
+    if(!input||typeof input!=='object'||Array.isArray(input))invalid();
+    return json(await writeTags(db,owner,accountOf(input.account||'V字'),input));
+  }
   if(route===base&&method==='GET') {
     if([...url.searchParams.keys()].some(key=>key!=='account'))invalid('查询参数无效');
     await actorFor(store,request,owner,env,origin);

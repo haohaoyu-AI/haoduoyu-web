@@ -195,7 +195,7 @@ export async function loadContentReview(context) {
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
   if (identity !== currentIdentity) {
-    data = normalizeReviewData(); vm.filters = {}; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
+    data = normalizeReviewData(); vm.filters = {}; vm.tags = null; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
   }
   vm = {...vm,...requested,loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
@@ -207,11 +207,20 @@ export async function loadContentReview(context) {
     if (!current() || !result) return;
     data = result; syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark);
     void loadReviewAi(requested.account, {force:true});
+    void loadArticleTags(read, requested.account, current);
     if (vm.article) void loadStoredDiagnosis(vm.article);
   } catch (error) {
     if (!current() || error.name === 'AbortError') return;
     vm.loading = false; vm.error = error.message || '读取失败，请稍后重试。'; paintContentReviewPage();
   }
+}
+// Pattern tags are optional decoration of the article list; a failed read only leaves the time view.
+async function loadArticleTags(read, account, current) {
+  try {
+    const tags = await read('/review/ai/tags?account=' + encodeURIComponent(account));
+    if (!current()) return;
+    vm.tags = tags && Array.isArray(tags.dimensions) ? tags : null; paintContentReviewPage();
+  } catch { if (current()) vm.tags = null; }
 }
 function closeArticle() {
   vm.article = ''; writeRoute({article:''}); paintContentReviewPage();

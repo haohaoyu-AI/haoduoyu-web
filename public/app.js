@@ -14080,8 +14080,8 @@ function shiftDay(value, amount) {
 }
 function median(values = []) {
   const sorted = values.map(finiteNumber).filter((value) => value !== null).sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length ? sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2 : null;
+  const middle2 = Math.floor(sorted.length / 2);
+  return sorted.length ? sorted.length % 2 ? sorted[middle2] : (sorted[middle2 - 1] + sorted[middle2]) / 2 : null;
 }
 var nonnegative = (value) => {
   const n = finiteNumber(value);
@@ -15933,9 +15933,9 @@ function publishedIn(row, bounds, nowMs) {
 }
 function summarize2(rows) {
   const hits = rows.filter((row) => row.verdict === "爆").length;
-  const middle = rows.filter((row) => row.verdict === "中").length;
+  const middle2 = rows.filter((row) => row.verdict === "中").length;
   const flops = rows.filter((row) => row.verdict === "扑").length;
-  const unknownVerdicts = rows.length > 0 && hits + middle + flops === 0;
+  const unknownVerdicts = rows.length > 0 && hits + middle2 + flops === 0;
   const reads3 = metricSample(rows, (row) => row.reads_24h);
   const ctr = metricSample(rows, (row) => row.ctr_24h, 100);
   const seconds = metricSample(rows, (row) => row.sample24h?.avg_read_seconds);
@@ -15945,7 +15945,7 @@ function summarize2(rows) {
     count: rows.length,
     observedCount: rows.filter((row) => row.sample24h).length,
     hits: unknownVerdicts ? null : hits,
-    middle: unknownVerdicts ? null : middle,
+    middle: unknownVerdicts ? null : middle2,
     flops: unknownVerdicts ? null : flops,
     readsMedian: median(reads3.values),
     ctrMedian: median(ctr.values),
@@ -16326,7 +16326,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
   ]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options3(
     [["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]],
     f.verdict || ""
-  )}</select></label>${picker}<span class="review-note">${selected.length} 篇</span></div>`;
+  )}</select></label>${groupPicker(vm3)}${picker}<span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty2("当前筛选下没有文章");
   const cells = (row) => {
     const observation = reviewListObservation(row, data3.snapshots, vm3.now || (/* @__PURE__ */ new Date()).toISOString());
@@ -16342,12 +16342,50 @@ function articleLibrary(rows, vm3, data3 = {}) {
     ];
   };
   const wide = columns.length > 1;
-  return filters + `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : ""}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
+  const minimum = wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : "";
+  const table2 = (list2) => `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${minimum}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
     "发布时间",
     "标题",
     ...columns.map((metric) => metric.label),
     "判定"
-  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${e(label3)}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list2.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${e(label3)}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  const dimension = activeGroup(vm3);
+  return filters + (dimension ? groupedArticles(selected, vm3, dimension, table2) : table2(selected));
+}
+function activeGroup(vm3) {
+  const group = vm3.filters?.group || "";
+  return group && vm3.tags?.dimensions?.includes(group) ? group : "";
+}
+function groupPicker(vm3) {
+  const dimensions = vm3.tags?.dimensions || [];
+  const choices = [["", "按时间"], ...dimensions.map((name) => [name, "按" + name])];
+  return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? "" : ' title="还没有套路标签"'}>${options3(
+    choices,
+    activeGroup(vm3)
+  )}</select></label>`;
+}
+var middle = (values) => {
+  const list2 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
+  return list2.length ? list2.length % 2 ? list2[(list2.length - 1) / 2] : (list2[list2.length / 2 - 1] + list2[list2.length / 2]) / 2 : null;
+};
+function groupedArticles(rows, vm3, dimension, table2) {
+  const groups = /* @__PURE__ */ new Map(), tags = vm3.tags?.tags || {};
+  for (const row of rows) {
+    const name = tags[row.id]?.[dimension] || "未分类";
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(row);
+  }
+  const ordered2 = [...groups.entries()].sort(([a, x], [b, y]) => (a === "未分类") - (b === "未分类") || y.length - x.length || (middle(y.map((row) => row.reads_24h)) ?? 0) - (middle(x.map((row) => row.reads_24h)) ?? 0));
+  const readsText = (value) => value === null ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
+  return `<div class="review-article-groups">${ordered2.map(([name, list2]) => {
+    const measured2 = list2.filter((row) => row.reads_24h !== null);
+    const ctr = middle(list2.map((row) => row.ctr_24h)), few = measured2.length < 3;
+    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few ? ' <small class="review-note">样本少</small>' : ""}</span><span class="review-article-group-figures"><span><b>${list2.length}</b> 篇</span>
+      <span>阅读中位数 <b>${e(readsText(middle(measured2.map((row) => row.reads_24h))))}</b></span>
+      <span>点击率 <b>${ctr === null ? "—" : e(ctr.toFixed(1)) + "%"}</b></span><span>爆款 <b>${list2.filter((row) => row.verdict === "爆").length}</b></span></span>
+      </summary>${table2(list2)}</details>`;
+  }).join("")}</div>
+    <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
 }
 var sections = [["keep_topic", "保留选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "发布检查"]];
 var statuses2 = [["candidate", "待验证"], ["trial", "试用中"], ["kept", "有效"], ["dropped", "无效"], ["hold", "观察中"]];
@@ -16758,6 +16796,7 @@ async function loadContentReview(context) {
   if (identity5 !== currentIdentity2) {
     data2 = normalizeReviewData();
     vm2.filters = {};
+    vm2.tags = null;
     vm2.articlesExpanded = true;
     vm2.diagnoses = {};
     identity5 = currentIdentity2;
@@ -16775,12 +16814,23 @@ async function loadContentReview(context) {
     paintContentReviewPage();
     focusBenchmark(vm2.benchmark);
     void loadReviewAi(requested.account, { force: true });
+    void loadArticleTags(read3, requested.account, current3);
     if (vm2.article) void loadStoredDiagnosis(vm2.article);
   } catch (error) {
     if (!current3() || error.name === "AbortError") return;
     vm2.loading = false;
     vm2.error = error.message || "读取失败，请稍后重试。";
     paintContentReviewPage();
+  }
+}
+async function loadArticleTags(read3, account3, current3) {
+  try {
+    const tags = await read3("/review/ai/tags?account=" + encodeURIComponent(account3));
+    if (!current3()) return;
+    vm2.tags = tags && Array.isArray(tags.dimensions) ? tags : null;
+    paintContentReviewPage();
+  } catch {
+    if (current3()) vm2.tags = null;
   }
 }
 function closeArticle() {

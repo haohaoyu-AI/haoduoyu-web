@@ -156,3 +156,20 @@ test('title classification and headline breakdown are retired without calling th
     assert.equal(reply.status,410,path);assert.equal(reply.error.code,'REVIEW_AI_RETIRED');assert.equal(calls.length,before,'no provider call');
   }
 });
+test('pattern tags: free dimensions, merge, clear, order and ownership checks',async t=>{
+  const {call,article}=fixture(t);
+  const a=article('文章甲',3,500),b=article('文章乙',4,900);
+  assert.deepEqual((await call('ai/tags?account=V%E5%AD%97')).data,{account:'V字',dimensions:[],tags:{},updated_at:null});
+  let saved=await call('ai/tags','PUT',{account:'V字',tags:{[a]:{'标题套路':'数字冲突','文章套路':'倒叙悬念'},[b]:{'标题套路':'人物逆袭'}}});
+  assert.equal(saved.status,200,JSON.stringify(saved));
+  assert.deepEqual(saved.data.dimensions,['标题套路','文章套路']);assert.deepEqual(saved.data.tags[b],{'标题套路':'人物逆袭'});
+  saved=await call('ai/tags','PUT',{account:'V字',tags:{[b]:{'文风套路':'口语'}},dimensions:['文风套路']});
+  assert.deepEqual(saved.data.dimensions,['文风套路','标题套路','文章套路'],'a new dimension, listed first by request');
+  assert.deepEqual(saved.data.tags[b],{'标题套路':'人物逆袭','文风套路':'口语'},'writes merge per article');
+  saved=await call('ai/tags','PUT',{account:'V字',tags:{[a]:{'文章套路':null},[b]:{'文风套路':''}}});
+  assert.deepEqual(saved.data.dimensions,['标题套路'],'a dimension nobody uses any more disappears');assert.deepEqual(saved.data.tags[a],{'标题套路':'数字冲突'});
+  for(const body of [{tags:{['00000000-0000-4000-8000-000000000000']:{'标题套路':'x'}}},{tags:{[a]:{'标题套路':'一二三四五六七八九十一二三四五六七八九十一'}}},
+    {tags:{[a]:{'':'x'}}},{tags:[]},{tags:{[a]:'x'}},{extra:1,tags:{}}])
+    assert.equal((await call('ai/tags','PUT',{account:'V字',...body})).status,400,JSON.stringify(body));
+  assert.equal((await call('ai/tags?account=V%E5%AD%97&x=1')).status,400);
+});
