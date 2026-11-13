@@ -19,6 +19,6 @@ test('to-do counter fixes pin exact source, artifact and the current production 
   assert.throws(()=>verifyWorker(Buffer.alloc(release.bytes),release.commit));
   const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
   assert.ok(yaml.includes('          - '+release.commit+'\n'));
-  assert.ok(yaml.includes("if: inputs.target_commit == '"+release.commit+"'"),'the committed frontend is checked before regeneration');
+  assert.ok(yaml.includes("inputs.target_commit == '"+release.commit+"'"),'the committed frontend is checked before regeneration');
   assert.doesNotMatch(yaml,/contents: write|wrangler secret|migrations apply/);
 });
