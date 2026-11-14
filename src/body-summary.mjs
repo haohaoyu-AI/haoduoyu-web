@@ -10,7 +10,7 @@ import {askOpenAi,reviewAiChoice,runReviewAi} from './review-ai.mjs';
 // log under fixed ids, like the other AI output: no schema change, included in backups, never edits a note.
 export const BODY_SUMMARY_LABEL = '大小便记录';
 export const BODY_SUMMARY_ROUTES = ['/body-summary','/body-summary/context'];
-const CONTEXT_MAX = 600, LOOKBACK_WEEKS = 3, ENTRY_LIMIT = 400;
+const CONTEXT_MAX = 600, LOOKBACK_WEEKS = 3, MIN_COMPARE_WEEKS = 2, ENTRY_LIMIT = 400;
 // Untagged notes that may still be about the same thing; the model decides whether each one is relevant.
 const related = /屎|尿|便|拉|肚|腹|厕|漏|稀|憋|胀|疼|痛|排/;
 const json = (data,status = 200) => Response.json({data},{status,headers:{'Cache-Control':'no-store'}});
@@ -80,24 +80,32 @@ function parse(output) {
 
 async function generate(db,owner,env,week,context) {
   const from = shift(week.start,-7 * LOOKBACK_WEEKS);
-  const rows = await consistentRead(db,store => entriesFor(store,owner,from,week.end));
+  const [rows,before] = await consistentRead(db,async store => [await entriesFor(store,owner,from,week.end),
+    await store.get(`SELECT 1 AS found FROM matrix_note_entries WHERE user_id=? AND category IN ('life','work') AND deleted_at IS NULL
+      AND date<? LIMIT 1`,owner,from)]);
   const inWeek = rows.filter(row => row.date >= week.start), earlier = rows.filter(row => row.date < week.start);
-  // Weeks before the first note are not zero weeks; only weeks that have notes are averaged.
+  // Only whole weeks of notes make a fair average: a week with no notes, or the week the notes started part-way
+  // through, would read as fewer events than really happened. With notes from before the window, every week counts.
+  const started = before ? from : earlier[0]?.date;
   const recorded = Array.from({length:LOOKBACK_WEEKS},(_,index) => shift(week.start,-7 * (index + 1)))
-    .filter(start => earlier.some(row => row.date >= start && row.date <= shift(start,6))).sort();
+    .filter(start => started && start >= started && earlier.some(row => row.date >= start && row.date <= shift(start,6))).sort();
+  const comparable = recorded.length >= MIN_COMPARE_WEEKS;
   const base = {week_start:week.start,week_end:week.end,complete:week.complete,entry_count:inWeek.length,generated_at:new Date().toISOString()};
   if (!inWeek.length) return {...base,empty:true};
   const user = [`背景说明：${context || '（无）'}`,
     `本周：${week.start} 至 ${week.end}${week.complete ? '' : '（本周还没过完）'}`,'本周记录：',...inWeek.map(line),
-    `前 ${LOOKBACK_WEEKS} 周记录（${from} 起，只用于比较；其中有记录的周：${recorded.length ? recorded.map(start => start + ' 起').join('、') : '无'}，` +
-      `previous 只按这 ${recorded.length} 周平均）：`,...(earlier.length ? earlier.map(line) : ['（没有）'])].join('\n');
+    comparable ? `前 ${LOOKBACK_WEEKS} 周记录（${from} 起，只用于比较；其中完整记录的周：${recorded.map(start => start + ' 起').join('、')}，` +
+      `previous 只按这 ${recorded.length} 周平均）：` : `更早的记录还不满 ${MIN_COMPARE_WEEKS} 个整周，不够比较：previous 必须为 null，不要写“和之前比”这一节。` +
+      `下面的更早记录只用来判断哪些情况是第一次出现：`,...(earlier.length ? earlier.map(line) : ['（没有）'])].join('\n');
   const result = await runReviewAi(db,owner,env,'body',{},choice => askOpenAi({env,key:choice.key,model:choice.model,effort:choice.effort,
     system:SYSTEM,user,maxTokens:choice.effort ? 8000 : 2500}));
-  return {...base,...parse(result.text),previous_weeks:recorded.length,format:SUMMARY_FORMAT,model:result.model};
+  const summary = parse(result.text);
+  if (!comparable) { summary.previous = null; summary.sections = summary.sections.filter(section => !/之前/.test(section.title)); }
+  return {...base,...summary,previous_weeks:comparable ? recorded.length : 0,format:SUMMARY_FORMAT,model:result.model};
 }
 
 // Summaries from an older format (wordier text, or averages that counted empty weeks) are rewritten once, on the next open.
-const SUMMARY_FORMAT = 2;
+const SUMMARY_FORMAT = 3;
 const fresh = saved => saved && (saved.empty || saved.format === SUMMARY_FORMAT) ? saved : null;
 export async function handleBodySummary(db,request,route,owner,env,origin) {
   const method = request.method, url = new URL(request.url), store = storeFor(db);

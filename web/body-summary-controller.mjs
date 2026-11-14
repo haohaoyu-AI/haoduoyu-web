@@ -65,21 +65,19 @@ function shown(data) {
   return current && !current.empty ? current : last;
 }
 function stats(summary) {
-  const row = el('div', 'body-summary-stats');
+  const row = el('div', 'body-summary-stats'), compare = [];
+  // The comparison line appears only when the server had at least two whole weeks of earlier notes to average.
+  const weeks = summary.previous_weeks >= 2 ? summary.previous_weeks : 0;
   for (const [key, name] of STATS) {
     const value = summary.stats?.[key];
     if (value === null || value === undefined) continue;
     const chip = el('span', 'body-summary-stat');
     chip.append(el('span', '', name), el('b', '', `${value} 次`));
-    // "平时" is the weekly average of earlier weeks that have notes, rounded: a reference, not a target.
-    const before = summary.previous?.[key];
-    if (before !== null && before !== undefined) {
-      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周` : '之前'}平均每周 ${before} 次`;
-      chip.append(el('small', '', `平时 ${Math.round(before)}`));
-    }
     row.append(chip);
+    const before = weeks ? summary.previous?.[key] : null;
+    if (before !== null && before !== undefined) compare.push(`${name} ${Math.round(before)}`);
   }
-  return row;
+  return compare.length ? [row, el('p', 'body-summary-compare', `前 ${weeks} 周平均每周：${compare.join(' · ')}`)] : [row];
 }
 function body(summary) {
   const nodes = [];
@@ -88,7 +86,7 @@ function body(summary) {
     box.append(el('strong', '', '建议联系医生'), ...summary.alerts.map(text => el('p', '', text)));
     nodes.push(box);
   }
-  nodes.push(el('p', 'body-summary-headline', summary.headline), stats(summary));
+  nodes.push(el('p', 'body-summary-headline', summary.headline), ...stats(summary));
   for (const part of summary.sections || []) {
     const block = el('div', 'body-summary-section'), list = el('ul');
     list.append(...part.points.map(point => el('li', '', point)));
@@ -115,6 +113,7 @@ function draw(section) {
     `${short(summary.week_start)}–${short(summary.week_end)}${summary.complete ? '' : ' · 本周未完'}` : '');
   head.append(title, meta);
   const parts = [head];
+  if (data?.configured) parts.push(el('p', 'body-summary-how', 'AI 每周自动整理一次，打开就有，不用点；点「更新到今天」会重新生成本周的。'));
   if (view.loading && !data) parts.push(el('p', 'body-summary-note', '正在读取…'));
   else if (data && !data.configured) parts.push(el('p', 'body-summary-note', '服务器还没有配置 AI，暂时不能生成小结。'));
   else if (view.busy === 'last' || view.busy === 'current') parts.push(el('p', 'body-summary-note', '正在整理记录，大约需要半分钟…'));
