@@ -271,7 +271,15 @@ export const todoParseRelease=Object.freeze({
   baseline:'61735d16-a668-4adb-94d4-cdf5ce17098f',
   bytes:3169205,sha256:'7151acedba61b0241eb516f5312652df08fd2bec94c9467c1bfaa2b63dee9bf5',
   label:'production-todo-parse-20261114'});
-const acceptedRelease=commit=>commit===todoParseRelease.commit?todoParseRelease:
+// 一句话加待办: "次数不限" becomes the counter's ∞, on top of the deployed 3c8f550 (run 43554217007).
+export const todoUnlimitedRelease=Object.freeze({
+  commit:'797289c9981d8f2a2d6e1c21c5880c26969851f2',
+  tree:'20ccd24bf8eabb081345aefced61d17ece8877fa',
+  baseline:'2b87a67c-529a-4172-bff6-6b8f536c03d4',
+  bytes:3169629,sha256:'ca5d308f3cec84a19c5d590af8c8929a18f4a691b18457e0e6c0bdfb2dc4feee',
+  label:'production-todo-unlimited-20261114'});
+const acceptedRelease=commit=>commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
+  commit===todoParseRelease.commit?todoParseRelease:
   commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
   commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
   commit===aiTimelineRelease.commit?aiTimelineRelease:
