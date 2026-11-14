@@ -257,7 +257,15 @@ export const unifiedTimelinesRelease=Object.freeze({
   baseline:'005bd44b-2262-4ab2-81d2-cac8391e1156',
   bytes:3149490,sha256:'d87a77e47864b72cc8655869d976587c18c586377373b9254a3975d810968c41',
   label:'production-unified-timelines-20261114'});
-const acceptedRelease=commit=>commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
+// Article list view switch with the timeline by default, on top of the deployed c61cb41 (run 43548169522).
+export const articleViewSwitchRelease=Object.freeze({
+  commit:'7ec49e8ad3c33cadecba9ee599fed2237d009c9a',
+  tree:'1c74a1b2b7690dc0940dd1b6e4d290dba037909a',
+  baseline:'d18f5913-49e8-4e65-89f9-23a2d7b149f6',
+  bytes:3152465,sha256:'9c88558aa5a1799a35e126a1ea433b552b62335a011b687bfa2400074a9e85fd',
+  label:'production-article-view-switch-20261114'});
+const acceptedRelease=commit=>commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
+  commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
   commit===aiTimelineRelease.commit?aiTimelineRelease:
   commit===timelineOnlyRelease.commit?timelineOnlyRelease:
   commit===diaryTimelineRelease.commit?diaryTimelineRelease:
