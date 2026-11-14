@@ -234,7 +234,15 @@ export const diaryTimelineRelease=Object.freeze({
   baseline:'1e584819-9f44-4479-b04a-63d56289a4d8',
   bytes:3140293,sha256:'6fc8ab9eabda6c61e0d9f88733ffe60ac3124eb5f33a3c0df4efee685b876ecb',
   label:'production-diary-timeline-20261114'});
-const acceptedRelease=commit=>commit===diaryTimelineRelease.commit?diaryTimelineRelease:
+// Timeline-only notes history, on top of the deployed 001cfa5 (run 43544351531).
+export const timelineOnlyRelease=Object.freeze({
+  commit:'9fb3aaf0a0c09e3f52473282d6ebe2dbcd965c49',
+  tree:'134490cbd3588bc1993efe64897e1f1befd72f9e',
+  baseline:'74a81fbe-be68-4a27-9d7f-c681ee063707',
+  bytes:3137890,sha256:'6daa2105f6d175082d6f67e0f99fa59d8407597595d8ddcc63a07aa53098e48f',
+  label:'production-timeline-only-20261114'});
+const acceptedRelease=commit=>commit===timelineOnlyRelease.commit?timelineOnlyRelease:
+  commit===diaryTimelineRelease.commit?diaryTimelineRelease:
   commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
   commit===summaryCompareRelease.commit?summaryCompareRelease:
   commit===historyTidyRelease.commit?historyTidyRelease:
