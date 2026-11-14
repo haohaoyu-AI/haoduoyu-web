@@ -680,8 +680,32 @@ function makeMonthCard(date, items, selected) {
   button.setAttribute('aria-label', date + '，' + items.length + ' 条记录' + (score ? '，' + score + ' 分' : ''));
   const heading = document.createElement('span'); heading.className = 'notes-calendar-day-heading';
   heading.textContent = String(Number(date.slice(8))); button.append(heading);
-  if (score) { const mark = document.createElement('span'); mark.className = 'notes-score-mark'; mark.textContent = score + '分'; button.append(mark); }
+  button.classList.toggle('has-notes', items.length > 0);
+  // Under the date: how many notes (the dot), and the day's score when there is one.
+  if (items.length || score) {
+    const meta = document.createElement('span'); meta.className = 'notes-calendar-meta';
+    meta.textContent = [items.length ? items.length + '条' : '', score ? score + '分' : ''].filter(Boolean).join(' ');
+    button.append(meta);
+  }
   return button;
+}
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+function dayTitle(date) {
+  return `${Number(date.slice(5,7))}月${Number(date.slice(8))}日 ${WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}`;
+}
+function dayLine(date, count) {
+  const score = scoreByDate.get(date);
+  return [dayTitle(date), count ? count + ' 条' : '', score ? '打分 ' + score : ''].filter(Boolean).join(' · ');
+}
+function historyCard(row) {
+  const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
+  const heading = document.createElement('div'); heading.className = 'note-entry-head';
+  const time = document.createElement('span'); time.className = 'note-entry-time'; time.textContent = monthTime(row.updated_at);
+  const tags = document.createElement('span'); tags.className = 'note-entry-tags';
+  tags.textContent = (row.displayLabels || [row.displayLabel]).filter(Boolean).join(' · ');
+  heading.append(time, tags);
+  const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.text;
+  article.append(heading, text); return article;
 }
 function paintHistoryRows(root) {
   const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
@@ -700,13 +724,7 @@ function paintHistoryRows(root) {
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === 'asc' ? '时间：从旧到新' : '时间：从新到旧';
-  const card = row => {
-    const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
-    const heading = document.createElement('div'); heading.className = 'note-entry-head';
-    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(' · ');
-    const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.text;
-    article.append(heading, text); return article;
-  };
+  const card = historyCard;
   let rows;
   if (timeline) {
     const direction = order === 'asc' ? 1 : -1;
@@ -718,25 +736,30 @@ function paintHistoryRows(root) {
     list.replaceChildren(...groups.map(([date, items]) => {
       const section = document.createElement('section'); section.className = 'notes-timeline-day';
       const heading = document.createElement('h3'); heading.className = 'notes-timeline-date';
-      heading.textContent = date + (scoreByDate.get(date) ? ' · ' + scoreByDate.get(date) + '分' : '');
+      heading.textContent = dayLine(date, items.length);
       section.append(heading, ...items.map(card)); return section;
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown);
-    const dayScore = scoreByDate.get(selected);
-    const scoreLine = dayScore ? Object.assign(document.createElement('p'), {className:'notes-score-mark', textContent:selected + ' 打分 ' + dayScore}) : null;
-    list.replaceChildren(...[scoreLine, ...rows.map(card)].filter(Boolean));
+    const title = selected ? Object.assign(document.createElement('h3'), {className:'notes-timeline-date', textContent:dayLine(selected, rows.length)}) : null;
+    list.replaceChildren(...[title, ...rows.map(card)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
-  root.querySelector('#notes-history-summary').textContent = historyMonth + ' · ' + total + ' 条已同步记录';
-  root.querySelector('#notes-history-status').textContent = rows.length ? '待同步内容请在原日期查看。' :
-    !total && !label ? '本月没有已同步记录。' : '所选日期没有符合条件的已同步记录。';
+  root.querySelector('#notes-history-summary').textContent =
+    `${Number(historyMonth.slice(5))}月${label ? `「${label}」` : ''}共 ${total} 条`;
+  // Notes not yet synced live on their own day's page, so an empty answer here says where else to look.
+  root.querySelector('#notes-history-status').textContent = rows.length ? '' :
+    !total ? '这个月还没有记录（未同步的内容在当天页面查看）。' : '这天没有记录，点有「条」数的日期查看。';
 }
 function applyHistoryMonth(root, month, days, chosenDate) {
   const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
   const dateSelect = root.querySelector('#notes-history-date'), labelSelect = root.querySelector('#notes-history-label');
   const oldLabel = labelSelect.value, oldDate = dateSelect.value;
-  const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  const picked = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  // Opening a month on a day without notes would show an empty list; start on the latest day that has some instead.
+  const withNotes = dates.filter(date => (days.get(date) || []).length);
+  const selected = (days.get(picked) || []).length || !withNotes.length ? picked :
+    withNotes.filter(date => date <= picked).at(-1) || withNotes[0];
   historyMonth = month; historyDays = days;
   root.dataset.historyLoadedMonth = month;
   root.querySelector('#notes-history-month').value = month;

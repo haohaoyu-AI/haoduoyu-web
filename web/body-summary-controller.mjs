@@ -2,7 +2,7 @@ import {api} from './core/api.mjs';
 
 /** The label whose history view shows the weekly summary card. */
 export const BODY_SUMMARY_LABEL = '大小便记录';
-const STATS = [['bowel','排便'],['normal','正常'],['loose','偏稀'],['hard','偏硬'],['accidents','意外'],['discomfort','不适']];
+const STATS = [['bowel','排便'],['normal','正常'],['loose','偏稀'],['hard','偏硬'],['accidents','漏出'],['discomfort','不舒服']];
 const REFRESH_MS = 5 * 60000;
 const view = {data:null, loadedAt:0, loading:null, busy:'', error:'', contextOpen:false};
 
@@ -70,11 +70,12 @@ function stats(summary) {
     const value = summary.stats?.[key];
     if (value === null || value === undefined) continue;
     const chip = el('span', 'body-summary-stat');
-    chip.append(el('b', '', String(value)), el('span', '', name));
+    chip.append(el('span', '', name), el('b', '', `${value} 次`));
+    // "平时" is the weekly average of earlier weeks that have notes, rounded: a reference, not a target.
     const before = summary.previous?.[key];
     if (before !== null && before !== undefined) {
-      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周（有记录的周）` : '前几周'}平均 ${before}`;
-      chip.append(el('small', '', `均 ${before}`));
+      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周` : '之前'}平均每周 ${before} 次`;
+      chip.append(el('small', '', `平时 ${Math.round(before)}`));
     }
     row.append(chip);
   }

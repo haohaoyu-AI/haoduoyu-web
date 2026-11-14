@@ -51,7 +51,7 @@ test('last week is summarized once from tagged and related untagged notes, with 
   assert.match(prompt,/合成背景/);assert.match(prompt,/成形/);assert.match(prompt,/肚子有点胀（?/);assert.match(prompt,/上上周偏稀/);
   assert.doesNotMatch(prompt,/买菜/,'unrelated notes stay out');
   assert.match(prompt,/其中有记录的周：[^，]+ 起，previous 只按这 1 周平均/,'empty weeks are not averaged as zero');
-  assert.equal(saved.previous_weeks,1);
+  assert.equal(saved.previous_weeks,1);assert.equal(saved.format,2);
   assert.deepEqual((await call('/body-summary','POST',{week:'last'})).headline,saved.headline);
   assert.equal(calls.length,1,'a second device does not pay again');
   await call('/body-summary','POST',{week:'last',redo:true});assert.equal(calls.length,2);

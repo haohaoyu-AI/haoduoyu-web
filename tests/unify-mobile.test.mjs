@@ -134,7 +134,7 @@ test('unified notes navigation keeps a labelled category selector and accessible
   const html=app.run('renderDailyNotes()');
   assert.match(html,/data-category="work"/);
   // Label filters live in history; compose no longer has notes-compose-label.
-  assert.match(html,/<label>标签 <select id="notes-history-label"/);
+  assert.match(html,/<label class="notes-label-field"><span class="sr-only">标签<\/span><select id="notes-history-label"/);
   assert.match(html,/id="notes-new-label"/);
   const mobile=app.run('mobileNavigation()'), sidebar=app.run('sidebarNavigation()');
   assert.equal((mobile.match(/data-nav="notes"/g)||[]).length,1);

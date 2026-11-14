@@ -53,12 +53,14 @@ const SYSTEM = [
   '只根据记录里写到的内容整理，不要编造，不要做诊断，不要给用药或治疗建议。数次数时同一件事的连续几条只算一次。',
   '背景说明里提到的长期情况，不要当作新问题渲染；重点写和前几周相比的变化，以及第一次出现的情况。',
   '如果记录里出现便血、黑便、尿血、发烧并且排尿疼痛、新出现的会阴或腿部麻木无力、尿不出来，放进 alerts，建议尽快联系医生；没有就让 alerts 为空。',
-  '语气平实、具体，引用日期（如 11/8）。不要寒暄，不要说教。',
-  '只输出一个 JSON 对象，不要其他文字：{"headline":"一句话概括本周","stats":{"bowel":排便次数,"normal":正常或成形,"loose":偏稀,"hard":偏硬或偏干,' +
-    '"accidents":大小便意外次数,"discomfort":腹痛或排尿不适次数},"previous":前几周中“有记录的那几周”的每周平均（同样六项，可带小数；' +
-    '没有记录的周不算进去，不要按 0 平均；没有更早记录时为 null）,' +
+  '写给记录者本人看：用大白话，短句，像朋友帮他数了一遍。只写结论，不解释你怎么数、怎么分类、怎么算平均，' +
+    '也不要写“未明确”“有重叠”“按几周计算”这类统计说明；拿不准的记录直接不算，不用交代。引用日期写成 11/8 这样。不要寒暄，不要说教。',
+  '只输出一个 JSON 对象，不要其他文字：{"headline":"一句话说本周最重要的一点，不超过 25 字","stats":{"bowel":排便次数,"normal":正常或成形,' +
+    '"loose":偏稀,"hard":偏硬或偏干,"accidents":漏便或漏尿的次数,"discomfort":肚子疼或排尿不适的次数},' +
+    '"previous":前几周中“有记录的那几周”的每周平均（同样六项，可带小数；没有记录的周不算进去；没有更早记录时为 null）,' +
     '"sections":[{"title":"小标题","points":["要点"]}],"alerts":["需要联系医生的情况"]}',
-  'sections 最多 4 个，建议依次为：排便情况、意外和不适、可能有关的因素（饮食、酒、烟、作息、你自己记下的有效做法）、和前几周比。每个最多 4 条，每条不超过 60 字。'
+  'sections 最多 3 个，依次为：“这周”（最值得注意的 2 到 3 件事）、“可能有关”（记录里写到的饮食、酒、烟、作息，以及他自己说有用的做法；' +
+    '没有就省略这一节）、“和之前比”（只说明显变多、变少或新出现的，没有更早记录就省略）。每节最多 3 条，每条不超过 30 字。'
 ].join('\n');
 
 function parse(output) {
@@ -67,10 +69,10 @@ function parse(output) {
   const keys = ['bowel','normal','loose','hard','accidents','discomfort'];
   const stats = data?.stats && typeof data.stats === 'object' ? Object.fromEntries(keys.map(key => [key,count(data.stats[key])])) : null;
   const previous = data?.previous && typeof data.previous === 'object' ? Object.fromEntries(keys.map(key => [key,average(data.previous[key])])) : null;
-  const sections = (Array.isArray(data?.sections) ? data.sections : []).slice(0,4).map(section => ({title:text(section?.title,20),
-    points:(Array.isArray(section?.points) ? section.points : []).slice(0,4).map(point => text(point,120)).filter(Boolean)}))
+  const sections = (Array.isArray(data?.sections) ? data.sections : []).slice(0,3).map(section => ({title:text(section?.title,12),
+    points:(Array.isArray(section?.points) ? section.points : []).slice(0,3).map(point => text(point,60)).filter(Boolean)}))
     .filter(section => section.title && section.points.length);
-  const headline = text(data?.headline,80);
+  const headline = text(data?.headline,40);
   if (!headline || !stats || !sections.length) throw fail(502,'REVIEW_AI_FAILED','模型返回的内容不完整，请重试');
   return {headline,stats,previous:previous && Object.values(previous).some(value => value !== null) ? previous : null,sections,
     alerts:(Array.isArray(data?.alerts) ? data.alerts : []).slice(0,4).map(item => text(item,120)).filter(Boolean)};
@@ -91,11 +93,12 @@ async function generate(db,owner,env,week,context) {
       `previous 只按这 ${recorded.length} 周平均）：`,...(earlier.length ? earlier.map(line) : ['（没有）'])].join('\n');
   const result = await runReviewAi(db,owner,env,'body',{},choice => askOpenAi({env,key:choice.key,model:choice.model,effort:choice.effort,
     system:SYSTEM,user,maxTokens:choice.effort ? 8000 : 2500}));
-  return {...base,...parse(result.text),previous_weeks:recorded.length,model:result.model};
+  return {...base,...parse(result.text),previous_weeks:recorded.length,format:SUMMARY_FORMAT,model:result.model};
 }
 
-// Summaries written before empty weeks were left out of the averages are rewritten once, on the next open.
-const fresh = saved => saved && (saved.empty || saved.previous_weeks !== undefined) ? saved : null;
+// Summaries from an older format (wordier text, or averages that counted empty weeks) are rewritten once, on the next open.
+const SUMMARY_FORMAT = 2;
+const fresh = saved => saved && (saved.empty || saved.format === SUMMARY_FORMAT) ? saved : null;
 export async function handleBodySummary(db,request,route,owner,env,origin) {
   const method = request.method, url = new URL(request.url), store = storeFor(db);
   if (url.search) invalid('小结接口不接受查询参数');

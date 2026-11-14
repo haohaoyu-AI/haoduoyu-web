@@ -811,3 +811,29 @@ body.floating-workbench {
 .body-summary-context { margin-top:6px; font-size:var(--fs-sm); }
 .body-summary-context summary { cursor:pointer; color:var(--ink-2); }
 .body-summary-context textarea { display:block; width:100%; box-sizing:border-box; margin:6px 0; font-size:16px; }
+
+/* History view, tidied: month stepper in one row, calendar days show note counts, entries lead with the time. */
+#notes-history .notes-month-row { display:grid; grid-template-columns:40px minmax(0,1fr) 40px; align-items:center; gap:6px; }
+#notes-history .notes-month-row .notes-month-step { width:40px; height:40px; padding:0; border:1px solid var(--color-calendar-edge, var(--line));
+  border-radius:var(--radius-12, 12px); background:var(--color-white-a-88, #fff); color:var(--ink-2); font-size:1.1rem; }
+#notes-history .notes-month-field, #notes-history .notes-label-field { display:block; min-width:0; }
+#notes-history .notes-calendar-day { gap:2px; }
+#notes-history .notes-calendar-day:not(.has-notes):not([aria-pressed="true"]) { background:transparent; box-shadow:none; color:var(--ink-3); }
+#notes-history .notes-calendar-meta { font-size:11px; line-height:1.2; color:var(--accent); white-space:nowrap; }
+#notes-history .notes-calendar-summary { font-weight:600; }
+#notes-history #notes-history-status { color:var(--ink-3); font-size:var(--fs-sm); }
+#notes-history .notes-timeline-day { border-top:1px solid var(--line); margin-top:16px; padding-top:12px; }
+#notes-history .notes-timeline-date { margin:0 0 10px; font-size:var(--fs-sm); font-weight:600; color:var(--ink-2); }
+#notes-history .note-entry-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:flex-start; gap:4px 10px; }
+#notes-history .note-entry-time { font-weight:600; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+#notes-history .note-entry-tags { color:var(--ink-3); font-size:var(--fs-xs); }
+@media (max-width:700px) {
+  #notes-history .notes-calendar-filters { grid-template-columns:minmax(0,1fr); gap:8px; padding:12px; }
+  #notes-history .notes-calendar-filters > .notes-month-row { grid-column:1 / -1; }
+  #notes-history .notes-calendar-day { min-height:48px; }
+}
+/* Filters sit in one bar above the calendar instead of a narrow side column, so the month is never cut off. */
+#notes-history .notes-calendar-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
+#notes-history .notes-calendar-filters { display:grid; grid-template-columns:minmax(0,320px) minmax(0,220px); justify-content:start;
+  align-items:center; gap:10px; padding:12px; }
+@media (max-width:700px) { #notes-history .notes-calendar-filters { grid-template-columns:minmax(0,1fr); } }

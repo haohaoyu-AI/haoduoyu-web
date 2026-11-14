@@ -36,11 +36,12 @@ export function renderDailyNotes() {
     '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div>' +
     '<section id="notes-history" hidden aria-label="碎碎念历史">' +
     '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
-    '<label>月份 <input type="month" id="notes-history-month" class="input"></label>' +
-    '<div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button>' +
+    '<div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button>' +
+    '<label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label>' +
     '<button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div>' +
     '<label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
-    '<label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
+    '<label class="notes-label-field"><span class="sr-only">标签</span>' +
+    '<select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
     '<label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
     '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" ' +
       'data-history-display="calendar" ' +

@@ -10775,7 +10775,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -11064,7 +11064,7 @@ function paintNoteEntries(root3, store, current3, legacy2, {
 // web/body-summary-controller.mjs
 init_api();
 var BODY_SUMMARY_LABEL = "大小便记录";
-var STATS = [["bowel", "排便"], ["normal", "正常"], ["loose", "偏稀"], ["hard", "偏硬"], ["accidents", "意外"], ["discomfort", "不适"]];
+var STATS = [["bowel", "排便"], ["normal", "正常"], ["loose", "偏稀"], ["hard", "偏硬"], ["accidents", "漏出"], ["discomfort", "不舒服"]];
 var REFRESH_MS = 5 * 6e4;
 var view = { data: null, loadedAt: 0, loading: null, busy: "", error: "", contextOpen: false };
 var el = (tag2, className, text) => {
@@ -11142,11 +11142,11 @@ function stats(summary) {
     const value = summary.stats?.[key];
     if (value === null || value === void 0) continue;
     const chip = el("span", "body-summary-stat");
-    chip.append(el("b", "", String(value)), el("span", "", name));
+    chip.append(el("span", "", name), el("b", "", `${value} 次`));
     const before = summary.previous?.[key];
     if (before !== null && before !== void 0) {
-      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周（有记录的周）` : "前几周"}平均 ${before}`;
-      chip.append(el("small", "", `均 ${before}`));
+      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周` : "之前"}平均每周 ${before} 次`;
+      chip.append(el("small", "", `平时 ${Math.round(before)}`));
     }
     row.append(chip);
   }
@@ -12115,13 +12115,40 @@ function makeMonthCard(date2, items, selected) {
   heading.className = "notes-calendar-day-heading";
   heading.textContent = String(Number(date2.slice(8)));
   button3.append(heading);
-  if (score) {
-    const mark = document.createElement("span");
-    mark.className = "notes-score-mark";
-    mark.textContent = score + "分";
-    button3.append(mark);
+  button3.classList.toggle("has-notes", items.length > 0);
+  if (items.length || score) {
+    const meta = document.createElement("span");
+    meta.className = "notes-calendar-meta";
+    meta.textContent = [items.length ? items.length + "条" : "", score ? score + "分" : ""].filter(Boolean).join(" ");
+    button3.append(meta);
   }
   return button3;
+}
+var WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+function dayTitle(date2) {
+  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
+}
+function dayLine(date2, count3) {
+  const score = scoreByDate.get(date2);
+  return [dayTitle(date2), count3 ? count3 + " 条" : "", score ? "打分 " + score : ""].filter(Boolean).join(" · ");
+}
+function historyCard(row) {
+  const article = document.createElement("article");
+  article.className = "note-entry note-entry-saved";
+  const heading = document.createElement("div");
+  heading.className = "note-entry-head";
+  const time3 = document.createElement("span");
+  time3.className = "note-entry-time";
+  time3.textContent = monthTime(row.updated_at);
+  const tags = document.createElement("span");
+  tags.className = "note-entry-tags";
+  tags.textContent = (row.displayLabels || [row.displayLabel]).filter(Boolean).join(" · ");
+  heading.append(time3, tags);
+  const text = document.createElement("div");
+  text.className = "note-entry-reader";
+  text.textContent = row.text;
+  article.append(heading, text);
+  return article;
 }
 function paintHistoryRows(root3) {
   const label3 = root3.querySelector("#notes-history-label").value, weekValue = root3.querySelector("#notes-history-week").value;
@@ -12140,18 +12167,7 @@ function paintHistoryRows(root3) {
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === "asc" ? "时间：从旧到新" : "时间：从新到旧";
-  const card2 = (row) => {
-    const article = document.createElement("article");
-    article.className = "note-entry note-entry-saved";
-    const heading = document.createElement("div");
-    heading.className = "note-entry-head";
-    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(" · ");
-    const text = document.createElement("div");
-    text.className = "note-entry-reader";
-    text.textContent = row.text;
-    article.append(heading, text);
-    return article;
-  };
+  const card2 = historyCard;
   let rows;
   if (timeline) {
     const direction = order === "asc" ? 1 : -1;
@@ -12162,25 +12178,26 @@ function paintHistoryRows(root3) {
       section.className = "notes-timeline-day";
       const heading = document.createElement("h3");
       heading.className = "notes-timeline-date";
-      heading.textContent = date2 + (scoreByDate.get(date2) ? " · " + scoreByDate.get(date2) + "分" : "");
+      heading.textContent = dayLine(date2, items.length);
       section.append(heading, ...items.map(card2));
       return section;
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown2);
-    const dayScore = scoreByDate.get(selected);
-    const scoreLine = dayScore ? Object.assign(document.createElement("p"), { className: "notes-score-mark", textContent: selected + " 打分 " + dayScore }) : null;
-    list2.replaceChildren(...[scoreLine, ...rows.map(card2)].filter(Boolean));
+    const title = selected ? Object.assign(document.createElement("h3"), { className: "notes-timeline-date", textContent: dayLine(selected, rows.length) }) : null;
+    list2.replaceChildren(...[title, ...rows.map(card2)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown2).length;
-  root3.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
-  root3.querySelector("#notes-history-status").textContent = rows.length ? "待同步内容请在原日期查看。" : !total && !label3 ? "本月没有已同步记录。" : "所选日期没有符合条件的已同步记录。";
+  root3.querySelector("#notes-history-summary").textContent = `${Number(historyMonth.slice(5))}月${label3 ? `「${label3}」` : ""}共 ${total} 条`;
+  root3.querySelector("#notes-history-status").textContent = rows.length ? "" : !total ? "这个月还没有记录（未同步的内容在当天页面查看）。" : "这天没有记录，点有「条」数的日期查看。";
 }
 function applyHistoryMonth(root3, month, days, chosenDate) {
   const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
   const dateSelect = root3.querySelector("#notes-history-date"), labelSelect = root3.querySelector("#notes-history-label");
   const oldLabel = labelSelect.value, oldDate = dateSelect.value;
-  const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  const picked = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  const withNotes = dates.filter((date2) => (days.get(date2) || []).length);
+  const selected = (days.get(picked) || []).length || !withNotes.length ? picked : withNotes.filter((date2) => date2 <= picked).at(-1) || withNotes[0];
   historyMonth = month;
   historyDays = days;
   root3.dataset.historyLoadedMonth = month;
