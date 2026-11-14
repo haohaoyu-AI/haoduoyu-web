@@ -17140,6 +17140,23 @@ function renderImitation(row, data3, account3) {
   return `<div class="review-imitation"><span>仿</span><div>${value}</div></div>`;
 }
 
+// web/pages/review-remarks.mjs
+init_dom();
+var ARTICLE_REMARK_KIND = "article_note";
+var linked = (note, id2) => {
+  const ids = Array.isArray(note.related_article_ids) ? note.related_article_ids : parseJson(note.related_article_ids, []);
+  return Array.isArray(ids) && ids.some((value) => String(value) === String(id2));
+};
+function articleRemarks(notes = [], id2) {
+  return notes.filter((note) => note && note.kind === ARTICLE_REMARK_KIND && !note.deleted_at && linked(note, id2)).sort((a, b) => String(b.note_date).localeCompare(String(a.note_date)) || String(b.created_at).localeCompare(String(a.created_at)));
+}
+var shortDate = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : "";
+function renderArticleRemarks(row, notes) {
+  const items = articleRemarks(notes, row.id);
+  if (!items.length) return "";
+  return `<section class="review-remarks" aria-label="备注"><h3>备注</h3><ul>${items.map((note) => `<li><p class="review-remark-head"><span class="review-note">${e(shortDate(note.note_date))}</span><strong>${e(note.title)}</strong></p>${note.body_md ? `<div class="review-remark-body">${renderReviewMarkdown(note.body_md)}</div>` : ""}</li>`).join("")}</ul></section>`;
+}
+
 // web/pages/review-benchmark-library.mjs
 init_dom();
 function safeUrl2(value) {
@@ -17617,7 +17634,7 @@ function drawer(data3, rows, vm3) {
   const row = rows.find((r) => String(r.id) === String(vm3.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
-  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime2(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(
+  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime2(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderArticleRemarks(row, data3.notes)}${renderTrafficCard(
     data3.snapshots,
     row.id
   )}${renderArticleDiagnosis(row, vm3)}${renderImitation(row, data3, vm3.account)}</aside></div>`;

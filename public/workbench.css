@@ -991,3 +991,12 @@ body.floating-workbench {
 #ai-reports .ai-decision-day .notes-tl-card { cursor:default; }
 #ai-reports .ai-decision-day .ai-decision-list { gap:6px; font-size:14px; }
 #ai-reports .ai-decision-day .notes-tl-card > p { margin:0; font-size:13px; }
+
+/* Article drawer: 备注 for special cases (a takedown, a report), written by Grok as linked review notes. */
+.review-remarks { margin:12px 0; padding:12px 14px; border-radius:12px; background:color-mix(in srgb, var(--accent) 7%, transparent);
+  border-left:3px solid var(--accent); }
+.review-remarks h3 { margin:0 0 6px; font-size:15px; }
+.review-remarks ul { margin:0; padding:0; list-style:none; display:grid; gap:8px; }
+.review-remark-head { margin:0; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
+.review-remark-body { margin-top:2px; font-size:14px; line-height:1.7; overflow-wrap:anywhere; }
+.review-remark-body p { margin:0; }

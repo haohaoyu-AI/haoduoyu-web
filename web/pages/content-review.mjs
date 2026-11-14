@@ -6,6 +6,7 @@ import {renderCockpitTrends} from './review-trends.mjs';
 import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
+import {renderArticleRemarks} from './review-remarks.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
@@ -412,7 +413,8 @@ function drawer(data,rows,vm) {
       `class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span ` +
         `class="review-note">${e(reviewDateTime(row.published_at) || '发布时间未提供')} · 上海时间</span><h2 id="review-detail-title">${e(row.title || 
           '未命名文章')}</h2><div ` +
-          `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderTrafficCard(data.snapshots,
+          `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderArticleRemarks(row,data.notes)}` +
+          `${renderTrafficCard(data.snapshots,
             row.id)}${renderArticleDiagnosis(row,vm)}${renderImitation(row,data,vm.account)}</aside></div>`;
 }
 
