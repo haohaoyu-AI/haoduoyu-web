@@ -221,7 +221,14 @@ export const summaryCompareRelease=Object.freeze({
   baseline:'6c9bcf79-c638-44d7-8530-6f426ebf5c70',
   bytes:3135140,sha256:'fcca07252ff3599c4ec4f700cee86f5600b86c07628c2270acbf0e82c977dcaa',
   label:'production-summary-compare-20261114'});
-const acceptedRelease=commit=>commit===summaryCompareRelease.commit?summaryCompareRelease:
+export const pausedProjectReminderRelease=Object.freeze({
+  commit:'86d36dda4f80f528da5cf089f018299a0bcb5e53',
+  tree:'1bfa784163175243848978fd6dd03806945a56fd',
+  baseline:'fd3ea4cc-0ab5-4656-94dc-418e8dffef5f',
+  bytes:3135349,sha256:'d4981257ca951628e3fd5ae2cc4f947d94a3e6934fecc545285283c098fd15da',
+  label:'production-hide-paused-project-reminders-20261114'});
+const acceptedRelease=commit=>commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
+  commit===summaryCompareRelease.commit?summaryCompareRelease:
   commit===historyTidyRelease.commit?historyTidyRelease:
   commit===unlockReadsRelease.commit?unlockReadsRelease:
   commit===boundedOfflineRelease.commit?boundedOfflineRelease:
