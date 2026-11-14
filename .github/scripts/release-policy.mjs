@@ -285,7 +285,15 @@ export const todoCountNoteRelease=Object.freeze({
   baseline:'fbce687a-1226-4b54-90ad-df8ea18e276b',
   bytes:3171797,sha256:'8b40303a2aa02f7ea91f7d49e018ef2dd0a64784de12aa4a7acc2a759c992ce8',
   label:'production-todo-count-note-20261114'});
-const acceptedRelease=commit=>commit===todoCountNoteRelease.commit?todoCountNoteRelease:
+// AI 日报 timeline shows each report on the morning after its work day, on top of the deployed b478432 (run 43555803271).
+export const aiReportDayRelease=Object.freeze({
+  commit:'cf4a79871aee70f0aa4217c58d39db30cd9cfb94',
+  tree:'0e90276b12742097644d2bf47c670819ca834e1d',
+  baseline:'c3a93f28-e124-489b-b7de-a23e8c37ff3b',
+  bytes:3172522,sha256:'6fc7267cc444a369f166e3d5a13177fa74e3b66b7759d09db952ba3ea23d18ee',
+  label:'production-ai-report-day-20261114'});
+const acceptedRelease=commit=>commit===aiReportDayRelease.commit?aiReportDayRelease:
+  commit===todoCountNoteRelease.commit?todoCountNoteRelease:
   commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
   commit===todoParseRelease.commit?todoParseRelease:
   commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
