@@ -207,7 +207,15 @@ export const unlockReadsRelease=Object.freeze({
   baseline:'bdabea90-101b-4950-a90d-6aeb07c6763b',
   bytes:3129221,sha256:'d6046a064ab87cd24206cc12621a238f0c536825c989cb6fd9bec322d1ece527',
   label:'production-unlock-reads-20261114'});
-const acceptedRelease=commit=>commit===unlockReadsRelease.commit?unlockReadsRelease:
+// Tidier notes history and plainer weekly summary, on top of the deployed d0b13d8 (run 43540411314).
+export const historyTidyRelease=Object.freeze({
+  commit:'24d9380eef7fc387c416d603efa30d3cd593f212',
+  tree:'d26c0f310d25ae957a846025a03d5136847a56b1',
+  baseline:'dd3ddf89-4e4f-47a8-b8dd-003ac6cbf1ca',
+  bytes:3133678,sha256:'25bdd64efe85355cc32218dddb190e5525383ac37736693d55f556569ff90757',
+  label:'production-history-tidy-20261114'});
+const acceptedRelease=commit=>commit===historyTidyRelease.commit?historyTidyRelease:
+  commit===unlockReadsRelease.commit?unlockReadsRelease:
   commit===boundedOfflineRelease.commit?boundedOfflineRelease:
   commit===summaryAverageRelease.commit?summaryAverageRelease:
   commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
