@@ -34,23 +34,40 @@ export function decisionCount(items = []) {
   return dayDecisions(items).reduce((sum, {decisions}) => sum + (decisions?.length || 0), 0);
 }
 
-const list = decisions => `<ol class="ai-decision-list">${decisions.map(text =>
-  `<li class="ai-report-markdown">${renderSafeMarkdown(text)}</li>`).join('')}</ol>`;
-/** One day's cards; a reminder written in another shape is kept whole, folded, so nothing is lost. */
-export function decisionCards(items = []) {
-  return dayDecisions(items).map(({row, decisions}) => {
-    if (decisions === null) return `<article class="card field-spaced ai-decision-card" style="overflow-wrap:anywhere">` +
-      `<div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`;
-    return `<article class="card field-spaced ai-decision-card">${decisions.length ? list(decisions) : '<p class="muted">这次没有要你拍板的事。</p>'}` +
-      `<details class="ai-decision-full"><summary>看完整提醒</summary><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></details></article>`;
-  }).join('');
+// Grok marks earlier questions once you have answered in the chat: 已采纳, 已否决 or 待定, in brackets or at the end.
+const STATUS = /\s*(?:[【（(\[]\s*(已采纳|已否决|待定)\s*[】）)\]]|[—\-→:：]\s*(已采纳|已否决|待定)\s*[。.]?\s*$)/;
+const STATUS_CLASS = {已采纳: 'is-yes', 已否决: 'is-no', 待定: 'is-wait'};
+/** The text of one item without its status mark, and the status if Grok wrote one. */
+export function decisionStatus(text) {
+  const match = STATUS.exec(text);
+  if (!match) return {text, status: ''};
+  return {text: (text.slice(0, match.index) + text.slice(match.index + match[0].length)).trim(), status: match[1] || match[2]};
 }
-/** Earlier days, newest first; days without reminders are left out. */
-export function decisionHistory(days = [], titleFor = date => date) {
+const list = decisions => `<ol class="ai-decision-list">${decisions.map(item => {
+  const {text, status} = decisionStatus(item);
+  return `<li class="ai-report-markdown${status ? ' ' + STATUS_CLASS[status] : ''}">` +
+    `${status ? `<span class="ai-decision-status">${status}</span>` : ''}${renderSafeMarkdown(text)}</li>`;
+}).join('')}</ol>`;
+const NONE = '<p class="muted">没有要你拍板的事。</p>';
+// Details live in AI汇报; a reminder without a 待你拍板 section says so instead of being shown here.
+const OTHER_SHAPE = '<p class="muted">这份提醒没有单列「待你拍板」，详细内容在「AI汇报」。</p>';
+const dayBody = items => {
+  const parts = dayDecisions(items).map(({decisions}) => decisions === null ? OTHER_SHAPE : decisions.length ? list(decisions) : '');
+  return [...new Set(parts.filter(Boolean))].join('') || NONE; // several old-shape reminders give one note
+};
+/** Today's questions: only the 待你拍板 items. */
+export function decisionCards(items = []) {
+  return `<article class="card field-spaced ai-decision-card">${dayBody(items)}</article>`;
+}
+const WEEK = ['周日','周一','周二','周三','周四','周五','周六'];
+/** Earlier days as a timeline, newest first; days without a reminder are left out. */
+export function decisionHistory(days = []) {
   const rows = days.filter(day => visibleWorkReminders(day.items).length).map(day => {
-    const count = decisionCount(day.items);
-    return `<section class="ai-decision-day"><h4>${e(titleFor(day.date))}<span class="muted"> · ${count ? `${count} 件` : '无'}</span></h4>` +
-      decisionCards(day.items) + '</section>';
+    const count = decisionCount(day.items), week = WEEK[new Date(day.date + 'T00:00:00Z').getUTCDay()];
+    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day.date.slice(8))}</span>` +
+      `<span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">` +
+      `${dayBody(day.items)}<span class="notes-tl-foot">${Number(day.date.slice(5, 7))}月${Number(day.date.slice(8))}日 · ` +
+      `${count ? `${count} 件` : '无待拍板'}</span></div></div>`;
   });
-  return rows.length ? rows.join('') : '<p class="muted">前 7 天没有提醒。</p>';
+  return rows.length ? `<div class="notes-tl">${rows.join('')}</div>` : '<p class="muted">前 7 天没有提醒。</p>';
 }

@@ -136,7 +136,7 @@ export function paintDecisionHistory(days, {loading = false, error = ''} = {}) {
   const box = document.querySelector('#ai-decision-history');
   if (!box) return;
   box.innerHTML = error ? `<p class="body-summary-error">${e(error)}</p>` : loading ? '<p class="muted">正在读取…</p>' :
-    decisionHistory(days, reportDayTitle);
+    decisionHistory(days);
 }
 
 export function paintOpenAiDiary(items = [], {error = '', loading = false, owner = true} = {}) {

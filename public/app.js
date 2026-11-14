@@ -14866,19 +14866,33 @@ function dayDecisions(items = []) {
 function decisionCount(items = []) {
   return dayDecisions(items).reduce((sum, { decisions }) => sum + (decisions?.length || 0), 0);
 }
-var list = (decisions) => `<ol class="ai-decision-list">${decisions.map((text) => `<li class="ai-report-markdown">${renderSafeMarkdown(text)}</li>`).join("")}</ol>`;
-function decisionCards(items = []) {
-  return dayDecisions(items).map(({ row, decisions }) => {
-    if (decisions === null) return `<article class="card field-spaced ai-decision-card" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`;
-    return `<article class="card field-spaced ai-decision-card">${decisions.length ? list(decisions) : '<p class="muted">这次没有要你拍板的事。</p>'}<details class="ai-decision-full"><summary>看完整提醒</summary><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></details></article>`;
-  }).join("");
+var STATUS = /\s*(?:[【（(\[]\s*(已采纳|已否决|待定)\s*[】）)\]]|[—\-→:：]\s*(已采纳|已否决|待定)\s*[。.]?\s*$)/;
+var STATUS_CLASS = { 已采纳: "is-yes", 已否决: "is-no", 待定: "is-wait" };
+function decisionStatus(text) {
+  const match = STATUS.exec(text);
+  if (!match) return { text, status: "" };
+  return { text: (text.slice(0, match.index) + text.slice(match.index + match[0].length)).trim(), status: match[1] || match[2] };
 }
-function decisionHistory(days = [], titleFor = (date2) => date2) {
+var list = (decisions) => `<ol class="ai-decision-list">${decisions.map((item) => {
+  const { text, status } = decisionStatus(item);
+  return `<li class="ai-report-markdown${status ? " " + STATUS_CLASS[status] : ""}">${status ? `<span class="ai-decision-status">${status}</span>` : ""}${renderSafeMarkdown(text)}</li>`;
+}).join("")}</ol>`;
+var NONE = '<p class="muted">没有要你拍板的事。</p>';
+var OTHER_SHAPE = '<p class="muted">这份提醒没有单列「待你拍板」，详细内容在「AI汇报」。</p>';
+var dayBody = (items) => {
+  const parts2 = dayDecisions(items).map(({ decisions }) => decisions === null ? OTHER_SHAPE : decisions.length ? list(decisions) : "");
+  return [...new Set(parts2.filter(Boolean))].join("") || NONE;
+};
+function decisionCards(items = []) {
+  return `<article class="card field-spaced ai-decision-card">${dayBody(items)}</article>`;
+}
+var WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+function decisionHistory(days = []) {
   const rows = days.filter((day6) => visibleWorkReminders(day6.items).length).map((day6) => {
-    const count3 = decisionCount(day6.items);
-    return `<section class="ai-decision-day"><h4>${e(titleFor(day6.date))}<span class="muted"> · ${count3 ? `${count3} 件` : "无"}</span></h4>` + decisionCards(day6.items) + "</section>";
+    const count3 = decisionCount(day6.items), week = WEEK[(/* @__PURE__ */ new Date(day6.date + "T00:00:00Z")).getUTCDay()];
+    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day6.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day6.items)}<span class="notes-tl-foot">${Number(day6.date.slice(5, 7))}月${Number(day6.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
   });
-  return rows.length ? rows.join("") : '<p class="muted">前 7 天没有提醒。</p>';
+  return rows.length ? `<div class="notes-tl">${rows.join("")}</div>` : '<p class="muted">前 7 天没有提醒。</p>';
 }
 
 // web/pages/ai-reports.mjs
@@ -15005,7 +15019,7 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
   if (!box) return;
-  box.innerHTML = error2 ? `<p class="body-summary-error">${e(error2)}</p>` : loading ? '<p class="muted">正在读取…</p>' : decisionHistory(days, reportDayTitle);
+  box.innerHTML = error2 ? `<p class="body-summary-error">${e(error2)}</p>` : loading ? '<p class="muted">正在读取…</p>' : decisionHistory(days);
 }
 function paintOpenAiDiary(items = [], { error: error2 = "", loading = false, owner: owner2 = true } = {}) {
   const root3 = document.querySelector("#ai-diagnosis");
@@ -15994,14 +16008,14 @@ async function loadAiReports({ resetDate = false } = {}) {
 async function loadDecisionHistory(button3) {
   const base = selectedDate || dailyNotesToday(), session2 = runtime.sessionEpoch;
   const dates = Array.from({ length: 7 }, (_, index) => new Date(Date.parse(base + "T00:00:00Z") - (index + 1) * 864e5).toISOString().slice(0, 10));
-  button3.hidden = true;
+  button3.style.display = "none";
   paintDecisionHistory([], { loading: true });
   try {
     const days = await Promise.all(dates.map((date2) => api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => ({ date: date2, items: data3.items || [] }))));
     if (session2 === runtime.sessionEpoch) paintDecisionHistory(days);
   } catch (error2) {
     if (session2 === runtime.sessionEpoch) {
-      button3.hidden = false;
+      button3.style.display = "";
       paintDecisionHistory([], { error: error2.message || "读取失败，请稍后再试" });
     }
   }

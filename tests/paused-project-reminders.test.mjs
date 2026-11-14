@@ -28,7 +28,10 @@ test('both reminder entrances hide only the exact paused source and retain mixed
   ]);
   const data=Object.freeze({date:'2026-11-14',items}),before=JSON.stringify(data);
   paintAiDailyReminders(data);paintWorkReminders(data);
-  for(const html of [dom.ai().get('#ai-reminder-list').innerHTML,dom.legacy().get('#reminder-list').innerHTML]) {
+  // 待拍板 shows each kept reminder's questions in its one card; the old entrance still shows whole reminders.
+  const decisions=dom.ai().get('#ai-reminder-list').innerHTML;
+  assert.match(decisions,/没有单列「待你拍板」/);assert.equal((decisions.match(/<article /g)||[]).length,1);
+  for(const html of [dom.legacy().get('#reminder-list').innerHTML]) {
     assert.doesNotMatch(html,/hidden-project/);
     const kept=items.slice(1).map(row=>row.summary);
     for(const summary of kept)assert.ok(html.includes(summary),summary);

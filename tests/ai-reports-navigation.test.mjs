@@ -98,8 +98,8 @@ test('AI daily keeps original authors and renders unmatched reports separately',
     assert.match(html, /<h3 class="ai-report-author ai-report-author--other">其他作者<\/h3>[\s\S]*另一位作者/);
     assert.match(elements.get('#ai-report-calendar').innerHTML, /data-ai-report-select="2024-02-29"/);
     assert.doesNotMatch(elements.get('#ai-report-calendar').innerHTML, /2024-02-30/);
-    paintAiDailyReminders({items:[{summary:'今日 <script>提醒</script>\n第二行'}]});
-    assert.match(elements.get('#ai-reminder-list').innerHTML, /&lt;script&gt;提醒&lt;\/script&gt;<br>第二行/);
+    paintAiDailyReminders({items:[{summary:'**待你拍板**\n1. 今日 <script>提醒</script>'}]});
+    assert.match(elements.get('#ai-reminder-list').innerHTML, /今日 &lt;script&gt;提醒&lt;\/script&gt;/);
   } finally { globalThis.document = previous; }
 });
 

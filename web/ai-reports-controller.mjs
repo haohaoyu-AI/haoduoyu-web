@@ -96,13 +96,13 @@ export async function loadAiReports({resetDate = false} = {}) {
 async function loadDecisionHistory(button) {
   const base = selectedDate || dailyNotesToday(), session = runtime.sessionEpoch;
   const dates = Array.from({length: 7}, (_, index) => new Date(Date.parse(base + 'T00:00:00Z') - (index + 1) * 86400000).toISOString().slice(0, 10));
-  button.hidden = true; paintDecisionHistory([], {loading: true});
+  button.style.display = 'none'; paintDecisionHistory([], {loading: true});
   try {
     const days = await Promise.all(dates.map(date => api('/work-reminders?date=' + encodeURIComponent(date))
       .then(data => ({date, items: data.items || []}))));
     if (session === runtime.sessionEpoch) paintDecisionHistory(days);
   } catch (error) {
-    if (session === runtime.sessionEpoch) { button.hidden = false; paintDecisionHistory([], {error: error.message || '读取失败，请稍后再试'}); }
+    if (session === runtime.sessionEpoch) { button.style.display = ''; paintDecisionHistory([], {error: error.message || '读取失败，请稍后再试'}); }
   }
 }
 /** The timeline for the visible month, or the opened work day's reports in reading view. */
