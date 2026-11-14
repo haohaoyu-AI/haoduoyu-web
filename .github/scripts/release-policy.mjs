@@ -227,7 +227,15 @@ export const pausedProjectReminderRelease=Object.freeze({
   baseline:'fd3ea4cc-0ab5-4656-94dc-418e8dffef5f',
   bytes:3135349,sha256:'d4981257ca951628e3fd5ae2cc4f947d94a3e6934fecc545285283c098fd15da',
   label:'production-hide-paused-project-reminders-20261114'});
-const acceptedRelease=commit=>commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
+// Diary-style notes timeline, on top of the deployed 86d36dd (run 43543974757).
+export const diaryTimelineRelease=Object.freeze({
+  commit:'001cfa5edaa7a1373e78ed08e2f46cad636f1250',
+  tree:'cb6991f0e6cde025ee86b9118cd614aace0d17ae',
+  baseline:'1e584819-9f44-4479-b04a-63d56289a4d8',
+  bytes:3140293,sha256:'6fc8ab9eabda6c61e0d9f88733ffe60ac3124eb5f33a3c0df4efee685b876ecb',
+  label:'production-diary-timeline-20261114'});
+const acceptedRelease=commit=>commit===diaryTimelineRelease.commit?diaryTimelineRelease:
+  commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
   commit===summaryCompareRelease.commit?summaryCompareRelease:
   commit===historyTidyRelease.commit?historyTidyRelease:
   commit===unlockReadsRelease.commit?unlockReadsRelease:
