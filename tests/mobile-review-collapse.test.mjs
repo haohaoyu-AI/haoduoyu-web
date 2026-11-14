@@ -5,7 +5,7 @@ import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 const data=normalizeReviewData({articles:[{id:'one',account:'A',title:'完整文章标题',published_at:'2026-11-07T01:00:00Z'},
   {id:'two',account:'B',title:'其他账号',published_at:'2026-11-07T01:00:00Z'}]});
-const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{},loading:false,error:'',article:'',secondary:'articles'};
+const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{group:'@table',group:'@table'},loading:false,error:'',article:'',secondary:'articles'};
 test('article collection stays open without a collapse control and preserves its data markup',()=>{
   const html=renderContentReviewContent(data,vm);
   assert.match(html,/data-review-articles-expanded="true"/);
@@ -21,7 +21,7 @@ test('expanded state retains detail, filter and metric controls, including empty
   assert.match(html,/data-review-column="ctr" checked/);
   assert.match(html,/data-review-article="one"/);
   assert.match(html,/toggle-fullscreen/);
-  const empty=renderContentReviewContent(data,{...vm,filters:{verdict:'爆'}});
+  const empty=renderContentReviewContent(data,{...vm,filters:{group:'@table',verdict:'爆'}});
   assert.match(empty,/当前筛选下没有文章/);
   assert.match(empty,/全屏展示/);
   assert.doesNotMatch(empty,/收起文章列表/);

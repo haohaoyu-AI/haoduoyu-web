@@ -22,7 +22,7 @@ test('article references prefer scoped benchmark records and safely fall back to
   ];
   const benchmarkAccounts = [{id:'account-a',account:'A',name:'Account A'},{id:'account-b',account:'B',name:'Account B'}];
   const data = normalizeReviewData({articles,benchmarkAccounts,benchmarkArticles});
-  const html = renderContentReviewContent(data,{account:'A',now:'2026-11-02T12:00:00Z',filters:{range:'all'},secondary:'articles',article:'',loading:false,error:''});
+  const html = renderContentReviewContent(data,{account:'A',now:'2026-11-02T12:00:00Z',filters:{group:'@table',range:'all'},secondary:'articles',article:'',loading:false,error:''});
   const row = id => html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`))?.[1] || '';
   assert.match(row('a'),/href="https:\/\/example\.test\/reference"[^>]*>仿：Reference title（阅读 0）<\/a>/);
   assert.doesNotMatch(row('a'),/Fallback A/);

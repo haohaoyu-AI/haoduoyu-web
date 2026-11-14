@@ -927,3 +927,13 @@ body.floating-workbench {
 #review-article-library .review-tl-article .review-title-button { display:block; text-align:left; font-size:15px; line-height:1.6; }
 #review-article-library .review-tl-article small { color:var(--ink-3); font-size:var(--fs-xs); }
 #review-article-library .review-tl .notes-tl-week + .notes-tl-week { margin-top:0; }
+/* Article list: the way to view it is a visible switch, filters sit below it as a lighter row. */
+#review-article-library .review-view-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:0 0 10px; }
+#review-article-library .review-view-switch { display:flex; gap:6px; width:fit-content; max-width:100%; padding:5px; overflow-x:auto;
+  border:1px solid var(--glass-edge, var(--line)); border-radius:var(--radius-20, 20px); background:var(--color-white-a-38, rgba(255,255,255,.38)); }
+#review-article-library .review-view-switch > button { min-height:40px; flex:none; padding:0 16px; border:1px solid transparent; border-radius:var(--radius-18, 18px);
+  background:transparent; color:var(--ink-2); }
+#review-article-library .review-view-switch > button[aria-pressed="true"] { background:var(--color-white-a-88, #fff); border-color:var(--color-white, #fff);
+  color:var(--accent); font-weight:600; }
+#review-article-library .review-view-switch > button:disabled { opacity:.45; cursor:not-allowed; }
+#review-article-library .review-view-count { color:var(--ink-3); font-size:var(--fs-sm); }

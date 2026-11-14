@@ -7,7 +7,7 @@ import {reviewRoute} from '../web/review-controller.mjs';
 // Synthetic records only. The UTC publication times straddle Shanghai midnight.
 const account = 'V字', other = '其他账号';
 const vm = extra => ({account, view:'overview', secondary:'cockpit',
-  now:'2026-11-02T04:00:00Z', filters:{range:'all'}, article:'', loading:false, error:'', ...extra});
+  now:'2026-11-02T04:00:00Z', filters:{group:'@table',range:'all'}, article:'', loading:false, error:'', ...extra});
 const htmlFor = (input, extra) => renderContentReviewContent(normalizeReviewData(input), vm(extra));
 const names = ['浅黑科技','首席商业洞察','人工智能学家'];
 function fixture() {
@@ -70,11 +70,11 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
   assert.equal(stat(html,'\u7206 / \u4e2d / \u6251'),'\u2014 / \u2014 / \u2014');
   assert.equal(stat(html,'\u9605\u8bfb\u4e2d\u4f4d\u6570'),'\u6570\u636e\u672a\u6ee124h');
   assert.doesNotMatch(html,/review-stat-sample/);
-  const thisWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'this'}});
+  const thisWeek=htmlFor(fixture(),{filters:{group:'@table',range:'all',metricsRange:'this'}});
   assert.match(thisWeek,/<option value="this" selected>/);
   assert.equal(stat(thisWeek,'发文数'),'1篇');
   assert.equal(stat(thisWeek,'爆 / 中 / 扑'),'— / — / —');
-  const lastWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'last'}});
+  const lastWeek=htmlFor(fixture(),{filters:{group:'@table',range:'all',metricsRange:'last'}});
   assert.match(lastWeek,/<option value="last" selected>/);
   assert.equal(stat(lastWeek,'发文数'),'3篇');
   assert.equal(stat(lastWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
@@ -92,17 +92,17 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
 });
 
 test('statistics range offers only weeks and falls back from old or invalid values', () => {
-  const expected = htmlFor(fixture(), {filters:{range:'all',metricsRange:'this'}});
+  const expected = htmlFor(fixture(), {filters:{group:'@table',range:'all',metricsRange:'this'}});
   const select = html => html.match(/<select class="input" data-review-filter="metricsRange">([\s\S]*?)<\/select>/)[1];
   const choices = [...select(expected).matchAll(/<option value="([^"]+)"(?: selected)?>([^<]+)<\/option>/g)].map(m => [m[1],m[2]]);
   assert.deepEqual(choices, [['this','\u672c\u5468'],['last','\u4e0a\u5468'],['30d','\u8fd130\u5929']]);
   for (const value of [undefined,'24h','invalid','']) {
-    const html = htmlFor(fixture(), {filters:{range:'all',metricsRange:value}});
+    const html = htmlFor(fixture(), {filters:{group:'@table',range:'all',metricsRange:value}});
     assert.equal(select(html), select(expected));
     assert.equal(stat(html,'\u53d1\u6587\u6570'),stat(expected,'\u53d1\u6587\u6570'));
   }
   for (const value of ['last','this','last','this']) {
-    const html = htmlFor(fixture(), {filters:{range:'all',metricsRange:value}});
+    const html = htmlFor(fixture(), {filters:{group:'@table',range:'all',metricsRange:value}});
     assert.match(select(html),new RegExp(`<option value="${value}" selected>`));
     assert.equal(stat(html,'\u53d1\u6587\u6570'),value === 'last' ? '3\u7bc7' : '1\u7bc7');
   }
@@ -142,7 +142,7 @@ test('benchmark accounts show current-account features and benchmark library', (
 });
 
 test('active manual shows all grouped rules without status controls and with complete text', () => {
-  const html=htmlFor(fixture(),{secondary:'review',filters:{range:'all',status:'kept'}});
+  const html=htmlFor(fixture(),{secondary:'review',filters:{group:'@table',range:'all',status:'kept'}});
   assert.equal((html.match(/class="review-v13-rule-row"/g)||[]).length,31);
   assert.match(html,/ACTIVE_RULE_1/);
   assert.match(html,/ACTIVE_RULE_2/);

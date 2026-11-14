@@ -8,7 +8,7 @@ import {readContentReviewData, reviewRoute} from '../web/review-controller.mjs';
 const account = 'V字';
 const other = '其他账号';
 const model = (overrides = {}) => ({account, view:'overview', secondary:'accounts', week:'this',
-  now:'2026-10-30T12:00:00Z', filters:{range:'all'}, article:'', version:'', loading:false, error:'', ...overrides});
+  now:'2026-10-30T12:00:00Z', filters:{group:'@table',range:'all'}, article:'', version:'', loading:false, error:'', ...overrides});
 const render = (input, overrides) => renderContentReviewContent(normalizeReviewData(input), model(overrides));
 
 test('other account health alone does not defeat the current-account empty state or badge', () => {

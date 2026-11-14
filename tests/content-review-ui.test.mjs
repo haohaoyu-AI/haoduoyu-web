@@ -15,7 +15,7 @@ const fixture = () => normalizeReviewData({
   playbooks:[{id:'p2',account,version:2,published_on:'2026-10-29',content_md:'## 当前原则\n先核实事实，再形成判断。其余正文。',rules:[{rule_id:'r-1',section:'title',text:'Exact applied rule',status:'kept',evidence:{metric:'ctr',n_with:9,n_without:13,with_median:8.2,without_median:0},trials:0}]},
     {id:'p1',account,version:1,published_on:'2026-10-28',content_md:'Historical text.',rules:[{rule_id:'r-1',section:'title',text:'Old rule'}]}]
 });
-const model = (view = 'overview') => ({account,view,week:'this',now:'2026-10-30T12:00:00Z',filters:{},article:'',version:'',loading:false,error:''});
+const model = (view = 'overview') => ({account,view,week:'this',now:'2026-10-30T12:00:00Z',filters:{group:'@table'},article:'',version:'',loading:false,error:''});
 
 test('legacy view URLs render an accurate empty state and preserve numeric formatting',() => {
   assert.deepEqual(REVIEW_VIEWS.map(([id]) => id),['overview','articles','playbook']);
@@ -133,10 +133,10 @@ test('server revision conflict retries all pages once, then stops on another con
 test('article library and drawer show true Shanghai time and filters exclude unknown dates',() => {
   const data = fixture(); data.articles[0].published_at = '2026-10-26T20:05:00Z';
   data.articles.push({id:'unknown',account,title:'unknown publication',published_at:null});
-  const html = renderContentReviewContent(data,{...model('articles'),article:'a',filters:{range:'all',from:'2026-10-27',to:'2026-10-27'}});
+  const html = renderContentReviewContent(data,{...model('articles'),article:'a',filters:{group:'@table',range:'all',from:'2026-10-27',to:'2026-10-27'}});
   assert.match(html,/2026-10-27 04:05/); assert.doesNotMatch(html,/2026-10-26 20:05/);
   assert.match(html,/data-review-row="a"/); assert.doesNotMatch(html,/data-review-row="unknown"/);
-  const excluded = renderContentReviewContent(data,{...model('articles'),filters:{range:'all',to:'2026-10-26'}});
+  const excluded = renderContentReviewContent(data,{...model('articles'),filters:{group:'@table',range:'all',to:'2026-10-26'}});
   assert.doesNotMatch(excluded,/data-review-row="a"|data-review-row="unknown"/);
 });
 
@@ -189,4 +189,15 @@ test('new and migrated notes and health remain hidden from current review',() =>
   data.accountHealth=[{id:'h',account,judgement:'normal',action:'HIDDEN_ACTION'}];
   const html=renderContentReviewContent(data,{...model(),secondary:'notes'});
   assert.doesNotMatch(html,/HIDDEN_REPORT|HIDDEN_LEGACY_NOTE|HIDDEN_LEGACY_BENCHMARK|HIDDEN_LEGACY_HEALTH|HIDDEN_NEW_NOTE|HIDDEN_BODY|HIDDEN_ACTION|review-health-badge/);
+});
+
+test('article list opens as the publish timeline with a visible view switch',() => {
+  const data = fixture();
+  const html = renderContentReviewContent(data,{...model('articles'),filters:{range:'all'}});
+  assert.match(html,/data-review-view="@timeline" aria-pressed="true"/);
+  assert.match(html,/data-review-view="@table" aria-pressed="false"/);
+  assert.match(html,/class="notes-tl review-tl"/);
+  assert.doesNotMatch(html,/data-review-columns-picker/,'metric columns only appear for the table');
+  const table = renderContentReviewContent(data,{...model('articles'),filters:{range:'all',group:'@table'}});
+  assert.match(table,/review-articles-table/);assert.match(table,/data-review-columns-picker/);
 });

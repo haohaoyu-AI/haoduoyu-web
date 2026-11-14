@@ -209,7 +209,7 @@ export async function loadContentReview(context) {
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
   if (identity !== currentIdentity) {
-    data = normalizeReviewData(); vm.filters = {}; vm.tags = null; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
+    data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
   }
   vm = {...vm,...requested,loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
@@ -344,6 +344,7 @@ function onReviewClick(event) {
   if (event.target.closest?.('a')) return;
   const target = event.target.closest?.('button,[data-review-row]');
   if (!target || !node?.contains(target)) return;
+  if (target.dataset.reviewView !== undefined) { chooseArticleView(target.dataset.reviewView); return; }
   if (target.dataset.reviewAction === 'toggle-articles') { void toggleArticleList(); return; }
   if (target.dataset.reviewAction === 'toggle-fullscreen') { void toggleReviewFullscreen(); return; }
   if (target.dataset.reviewAction === 'show-health') {
@@ -469,11 +470,30 @@ function registerEvents() {
     }
     if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
-    vm.filters[key] = target.value; paintContentReviewPage();
+    vm.filters[key] = target.value; if (key === 'group') rememberArticleView(target.value);
+    paintContentReviewPage();
     const filterRoot = target.closest('.review-trends') ? root()?.querySelector('.review-trends') : root();
     filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({preventScroll:true});
   });
   document.addEventListener('keydown', onReviewKeydown);
   window.addEventListener('popstate',() => { if (!root()) return; const next = route(); if (next.account !== vm.account) void loadContentReview(pageContext); 
     else { syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark); } });
+}
+
+// The article list view (timeline, table or a tag grouping) is remembered on this device only.
+const ARTICLE_VIEW_KEY = 'haoduoyu-review-article-view';
+function savedArticleView() {
+  try {
+    const value = localStorage.getItem(ARTICLE_VIEW_KEY);
+    if (value && !value.startsWith('@')) vm.lastGroup = value;
+    return value ? {group:value} : {};
+  } catch { return {}; }
+}
+function rememberArticleView(value) {
+  if (value && !value.startsWith('@')) vm.lastGroup = value;
+  try { localStorage.setItem(ARTICLE_VIEW_KEY, value); } catch { /* Private mode or blocked storage: the choice lasts this visit. */ }
+}
+function chooseArticleView(value) {
+  vm.filters.group = value; rememberArticleView(value); paintContentReviewPage();
+  root()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({preventScroll:true});
 }

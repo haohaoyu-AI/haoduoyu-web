@@ -191,6 +191,7 @@ function articleListPanel(rows,vm,data) {
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div></section>`;
 }
 function articleLibrary(rows,vm,data = {}) {
+  const view = articleView(vm);
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === 
     '7d' ? -6 : -29);
   const selected = rows.filter(r => (!from || (day(r.published_at) && day(r.published_at) >= from && day(r.published_at) <= today)) && (!f.from || 
@@ -203,8 +204,9 @@ function articleLibrary(rows,vm,data = {}) {
       `data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? ' checked' : ''}>${e(metric.label)}</label>`).join('')}</div></details>`;
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all',
     '全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],
-      f.verdict || '')}</select></label>${groupPicker(vm)}${picker}<span class="review-note">${selected.length} 篇</span></div>`;
-  if (!selected.length) return filters + empty('当前筛选下没有文章');
+      f.verdict || '')}</select></label>${view === GROUP_VIEW ? groupPicker(vm) : ''}${view === TABLE_VIEW ? picker : ''}</div>`;
+  const top = viewSwitch(vm, view, selected.length) + filters;
+  if (!selected.length) return top + empty('当前筛选下没有文章');
   const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString());
     const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} ` +
       `小时</span>` : '';
@@ -225,12 +227,25 @@ function articleLibrary(rows,vm,data = {}) {
       ...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${list.map(row => `<tr ` +
         `data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td ` +
           `data-label="${e(label)}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  if (vm.filters?.group === TIMELINE_VIEW) return filters + articleTimeline(selected, data, vm);
-  const dimension = activeGroup(vm);
-  return filters + (dimension ? groupedArticles(selected, vm, dimension, table) : table(selected));
+  if (view === TIMELINE_VIEW) return top + articleTimeline(selected, data, vm);
+  return top + (view === GROUP_VIEW ? groupedArticles(selected, vm, activeGroup(vm), table) : table(selected));
 }
-/** View value for the publish timeline; not a tag dimension name the bot could write. */
-const TIMELINE_VIEW = '@timeline';
+/** View values; none can be a tag dimension name the bot writes. The timeline is the default. */
+export const TIMELINE_VIEW = '@timeline', TABLE_VIEW = '@table', GROUP_VIEW = '@group';
+export function articleView(vm) {
+  if (vm.filters?.group === TABLE_VIEW) return TABLE_VIEW;
+  return activeGroup(vm) ? GROUP_VIEW : TIMELINE_VIEW;
+}
+/** The three ways to look at the list, as buttons above the filters, with the article count. */
+function viewSwitch(vm, view, count) {
+  const dimension = vm.tags?.dimensions?.includes(vm.lastGroup) ? vm.lastGroup : vm.tags?.dimensions?.[0] || '';
+  const button = (value, label, extra = '') => `<button type="button" class="btn" data-review-view="${e(value)}" ` +
+    `aria-pressed="${view === (value === dimension ? GROUP_VIEW : value)}"${extra}>${label}</button>`;
+  return `<div class="review-view-row"><div class="segmented review-view-switch" role="group" aria-label="文章列表显示方式">` +
+    button(TIMELINE_VIEW, '时间轴') + button(TABLE_VIEW, '表格') +
+    button(dimension, '按套路', dimension ? '' : ' disabled title="grok 还没有填写套路标签"') +
+    `</div><span class="review-view-count">${count} 篇</span></div>`;
+}
 const ARTICLE_WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
 const readsText = value => value === null || value === undefined ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` :
   Math.round(value).toLocaleString('zh-CN');
@@ -250,7 +265,8 @@ function articleTimeline(rows, data, vm) {
       `<span class="notes-tl-week">${ARTICLE_WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}</span>` +
       `<span class="notes-tl-week">${Number(date.slice(5,7))}月</span></span>` +
       `<span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list)}` +
-      `<span class="notes-tl-foot">${list.length} 篇${hits ? ` · 爆 ${hits}` : ''}</span></span></div>`; }).join('')}</div>`;
+      (list.length > 1 || hits ? `<span class="notes-tl-foot">${[list.length > 1 ? list.length + ' 篇' : '', hits ? '爆 ' + hits : '']
+        .filter(Boolean).join(' · ')}</span>` : '') + '</span></div>'; }).join('')}</div>`;
 }
 // The same articles, viewed by time (default) or grouped by one of the bot's pattern dimensions.
 function activeGroup(vm) {
@@ -259,9 +275,8 @@ function activeGroup(vm) {
 }
 function groupPicker(vm) {
   const dimensions = vm.tags?.dimensions || [];
-  const choices = [['','按时间'], [TIMELINE_VIEW, '发布时间轴'], ...dimensions.map(name => [name, '按' + name])];
-  return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? '' : ' title="还没有套路标签"'}>${options(choices,
-    vm.filters?.group === TIMELINE_VIEW ? TIMELINE_VIEW : activeGroup(vm))}</select></label>`;
+  const choices = dimensions.map(name => [name, '按' + name]);
+  return `<label>套路维度<select class="input" data-review-filter="group">${options(choices, activeGroup(vm))}</select></label>`;
 }
 const middle = values => { const list = values.filter(value => value !== null && value !== undefined && Number.isFinite(value)).sort((a, b) => a - b);
   return list.length ? list.length % 2 ? list[(list.length - 1) / 2] : (list[list.length / 2 - 1] + list[list.length / 2]) / 2 : null; };

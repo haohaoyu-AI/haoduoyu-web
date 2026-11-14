@@ -17064,6 +17064,7 @@ function articleListPanel(rows, vm3, data3) {
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows, vm3, data3)}</div></section>`;
 }
 function articleLibrary(rows, vm3, data3 = {}) {
+  const view2 = articleView(vm3);
   const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay2(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day5(r.published_at) && day5(r.published_at) >= from && day5(r.published_at) <= today2) && (!f.from || day5(r.published_at) >= f.from && day5(r.published_at)) && (!f.to || day5(r.published_at) <= f.to && day5(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
@@ -17075,8 +17076,9 @@ function articleLibrary(rows, vm3, data3 = {}) {
   ]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options3(
     [["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]],
     f.verdict || ""
-  )}</select></label>${groupPicker(vm3)}${picker}<span class="review-note">${selected.length} 篇</span></div>`;
-  if (!selected.length) return filters + empty2("当前筛选下没有文章");
+  )}</select></label>${view2 === GROUP_VIEW ? groupPicker(vm3) : ""}${view2 === TABLE_VIEW ? picker : ""}</div>`;
+  const top = viewSwitch(vm3, view2, selected.length) + filters;
+  if (!selected.length) return top + empty2("当前筛选下没有文章");
   const cells = (row) => {
     const observation = reviewListObservation(row, data3.snapshots, vm3.now || (/* @__PURE__ */ new Date()).toISOString());
     const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : "";
@@ -17098,11 +17100,19 @@ function articleLibrary(rows, vm3, data3 = {}) {
     ...columns.map((metric) => metric.label),
     "判定"
   ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list2.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body3]) => `<td data-label="${e(label3)}">${body3}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  if (vm3.filters?.group === TIMELINE_VIEW) return filters + articleTimeline(selected, data3, vm3);
-  const dimension = activeGroup(vm3);
-  return filters + (dimension ? groupedArticles(selected, vm3, dimension, table2) : table2(selected));
+  if (view2 === TIMELINE_VIEW) return top + articleTimeline(selected, data3, vm3);
+  return top + (view2 === GROUP_VIEW ? groupedArticles(selected, vm3, activeGroup(vm3), table2) : table2(selected));
 }
-var TIMELINE_VIEW = "@timeline";
+var TIMELINE_VIEW = "@timeline", TABLE_VIEW = "@table", GROUP_VIEW = "@group";
+function articleView(vm3) {
+  if (vm3.filters?.group === TABLE_VIEW) return TABLE_VIEW;
+  return activeGroup(vm3) ? GROUP_VIEW : TIMELINE_VIEW;
+}
+function viewSwitch(vm3, view2, count3) {
+  const dimension = vm3.tags?.dimensions?.includes(vm3.lastGroup) ? vm3.lastGroup : vm3.tags?.dimensions?.[0] || "";
+  const button3 = (value, label3, extra = "") => `<button type="button" class="btn" data-review-view="${e(value)}" aria-pressed="${view2 === (value === dimension ? GROUP_VIEW : value)}"${extra}>${label3}</button>`;
+  return `<div class="review-view-row"><div class="segmented review-view-switch" role="group" aria-label="文章列表显示方式">` + button3(TIMELINE_VIEW, "时间轴") + button3(TABLE_VIEW, "表格") + button3(dimension, "按套路", dimension ? "" : ' disabled title="grok 还没有填写套路标签"') + `</div><span class="review-view-count">${count3} 篇</span></div>`;
+}
 var ARTICLE_WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 var readsText = (value) => value === null || value === void 0 ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
 function articleTimeline(rows, data3, vm3) {
@@ -17119,7 +17129,7 @@ function articleTimeline(rows, data3, vm3) {
   }).join("");
   return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
     const hits = list2.filter((row) => row.verdict === "爆").length;
-    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}</span><span class="notes-tl-week">${Number(date2.slice(5, 7))}月</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list2)}<span class="notes-tl-foot">${list2.length} 篇${hits ? ` · 爆 ${hits}` : ""}</span></span></div>`;
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}</span><span class="notes-tl-week">${Number(date2.slice(5, 7))}月</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list2)}` + (list2.length > 1 || hits ? `<span class="notes-tl-foot">${[list2.length > 1 ? list2.length + " 篇" : "", hits ? "爆 " + hits : ""].filter(Boolean).join(" · ")}</span>` : "") + "</span></div>";
   }).join("")}</div>`;
 }
 function activeGroup(vm3) {
@@ -17128,11 +17138,8 @@ function activeGroup(vm3) {
 }
 function groupPicker(vm3) {
   const dimensions = vm3.tags?.dimensions || [];
-  const choices = [["", "按时间"], [TIMELINE_VIEW, "发布时间轴"], ...dimensions.map((name) => [name, "按" + name])];
-  return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? "" : ' title="还没有套路标签"'}>${options3(
-    choices,
-    vm3.filters?.group === TIMELINE_VIEW ? TIMELINE_VIEW : activeGroup(vm3)
-  )}</select></label>`;
+  const choices = dimensions.map((name) => [name, "按" + name]);
+  return `<label>套路维度<select class="input" data-review-filter="group">${options3(choices, activeGroup(vm3))}</select></label>`;
 }
 var middle = (values) => {
   const list2 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
@@ -17572,7 +17579,7 @@ async function loadContentReview(context) {
   const requested = route(), currentIdentity2 = `${runtime2.sessionEpoch}:${state2.me?.id || ""}:${requested.account}`;
   if (identity5 !== currentIdentity2) {
     data2 = normalizeReviewData();
-    vm2.filters = {};
+    vm2.filters = savedArticleView();
     vm2.tags = null;
     vm2.articlesExpanded = true;
     vm2.diagnoses = {};
@@ -17738,6 +17745,10 @@ function onReviewClick(event) {
   if (event.target.closest?.("a")) return;
   const target = event.target.closest?.("button,[data-review-row]");
   if (!target || !node3?.contains(target)) return;
+  if (target.dataset.reviewView !== void 0) {
+    chooseArticleView(target.dataset.reviewView);
+    return;
+  }
   if (target.dataset.reviewAction === "toggle-articles") {
     void toggleArticleList();
     return;
@@ -17939,6 +17950,7 @@ function registerEvents2() {
     if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
     vm2.filters[key] = target.value;
+    if (key === "group") rememberArticleView(target.value);
     paintContentReviewPage();
     const filterRoot = target.closest(".review-trends") ? root2()?.querySelector(".review-trends") : root2();
     filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({ preventScroll: true });
@@ -17954,6 +17966,29 @@ function registerEvents2() {
       focusBenchmark(vm2.benchmark);
     }
   });
+}
+var ARTICLE_VIEW_KEY = "haoduoyu-review-article-view";
+function savedArticleView() {
+  try {
+    const value = localStorage.getItem(ARTICLE_VIEW_KEY);
+    if (value && !value.startsWith("@")) vm2.lastGroup = value;
+    return value ? { group: value } : {};
+  } catch {
+    return {};
+  }
+}
+function rememberArticleView(value) {
+  if (value && !value.startsWith("@")) vm2.lastGroup = value;
+  try {
+    localStorage.setItem(ARTICLE_VIEW_KEY, value);
+  } catch {
+  }
+}
+function chooseArticleView(value) {
+  vm2.filters.group = value;
+  rememberArticleView(value);
+  paintContentReviewPage();
+  root2()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({ preventScroll: true });
 }
 
 // web/controller.mjs
