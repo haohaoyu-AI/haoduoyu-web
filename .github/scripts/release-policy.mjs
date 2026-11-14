@@ -313,7 +313,15 @@ export const decisionsTimelineRelease=Object.freeze({
   baseline:'46848449-3ad1-4a04-ab35-82fbb7dd731d',
   bytes:3185021,sha256:'611cc17503b03258bde18765c134c7d15fc6a8ff92a152ba8f1062fd24e174e2',
   label:'production-decisions-timeline-20261114'});
-const acceptedRelease=commit=>commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
+// Article 备注 (review notes of kind article_note) in the article drawer, on top of the deployed 805e14b (run 43570144823).
+export const articleRemarksRelease=Object.freeze({
+  commit:'700e45863c78400d77fec3f628807f245b3623f7',
+  tree:'4e019c8168d926581d19ba186b9a9e70c496da04',
+  baseline:'89f52b59-f950-4fa5-ad41-8099a172eef9',
+  bytes:3187038,sha256:'15d39b1af797c9508b95b46370d9eeed3c54d5f455f95e1cc00099837ea73a87',
+  label:'production-article-remarks-20261114'});
+const acceptedRelease=commit=>commit===articleRemarksRelease.commit?articleRemarksRelease:
+  commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
   commit===decisionsRelease.commit?decisionsRelease:
   commit===futureQuickRelease.commit?futureQuickRelease:
   commit===aiReportDayRelease.commit?aiReportDayRelease:
