@@ -240,6 +240,8 @@ export const timelineOnlyRelease=Object.freeze({
   tree:'134490cbd3588bc1993efe64897e1f1befd72f9e',
   baseline:'74a81fbe-be68-4a27-9d7f-c681ee063707',
   bytes:3137890,sha256:'6daa2105f6d175082d6f67e0f99fa59d8407597595d8ddcc63a07aa53098e48f',
+  // Run 43545024626 uploaded this exact artifact, then deployment hit a transient 404: resume, do not upload again.
+  uploadedVersion:'a5c493db-c68a-441e-9e92-12066455ac71',
   label:'production-timeline-only-20261114'});
 const acceptedRelease=commit=>commit===timelineOnlyRelease.commit?timelineOnlyRelease:
   commit===diaryTimelineRelease.commit?diaryTimelineRelease:
