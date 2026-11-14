@@ -85,6 +85,15 @@ async function readTodos(db,request,initialRevision) {
   },initialRevision);
 }
 
+// A 常用 item that was counted last time ("5/∞ 次", "2/4 次 · 备注") starts the new day at zero with the same target,
+// so a counted habit does not need its counter set up again every day. The note text itself is not copied.
+const tally=/^\s*\d{1,3}\/(\d{1,3}|∞) ?次/;
+async function templateTally(store,userId,templateId) {
+  const last=await store.get(`SELECT d.note FROM matrix_todo_template_links AS l JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id
+    WHERE l.user_id=? AND l.template_id=? AND d.deleted_at IS NULL ORDER BY d.date DESC,d.created_at DESC LIMIT 1`,userId,templateId);
+  const match=tally.exec(last?.note||'');
+  return match?`0/${match[1]} 次`:'';
+}
 async function createTodo(store,actor,input) {
   const existing=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,input.id);
   if(existing) {
@@ -96,8 +105,9 @@ async function createTodo(store,actor,input) {
     return {replayed:true,response:json(await linkedItem(store,actor.id,existing))};
   }
   if(input.template_id) await requireActiveTemplate(store,actor.id,input.template_id);
-  const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null,note:''};
-  store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,0,1,?,?)',actor.id,input.id,input.date,input.text,stamp,stamp);
+  const note=input.template_id?await templateTally(store,actor.id,input.template_id):'';
+  const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null,note};
+  store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at,note) VALUES(?,?,?,?,0,1,?,?,?)',actor.id,input.id,input.date,input.text,stamp,stamp,note);
   if(input.template_id) store.queue('INSERT INTO matrix_todo_template_links(user_id,todo_id,template_id) VALUES(?,?,?)',actor.id,input.id,input.template_id);
   if(input.template_id) {
     const template=await store.get('SELECT version FROM matrix_todo_templates WHERE user_id=? AND id=?',actor.id,input.template_id);

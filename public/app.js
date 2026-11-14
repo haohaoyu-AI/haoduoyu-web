@@ -8970,8 +8970,12 @@ function smartDayLabel(date2, today2 = bjtDate()) {
   return `${date2.slice(0, 4) === today2.slice(0, 4) ? "" : date2.slice(0, 4) + "年"}${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 周${weekday}`;
 }
 function smartTodoText(proposal) {
-  return proposal.count ? `0/${proposal.count} 次 ${proposal.text}` : proposal.text;
+  return proposal.text;
 }
+function smartTodoNote(proposal) {
+  return proposal.count ? `0/${proposal.count} 次` : "";
+}
+var countLabel = (proposal) => proposal.count === "∞" ? "不限次数" : proposal.count ? `${proposal.count} 次` : "";
 function smartTodoWanted(text) {
   return TODO_PARSE_HINT.test(text);
 }
@@ -9011,11 +9015,11 @@ async function confirmSmartTodo(day6) {
   smart.busy = true;
   smart.error = "";
   hooks.repaint();
-  const text = smartTodoText(proposal), sequence5 = smart.sequence;
+  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence;
   try {
-    if (proposal.kind === "daily") await hooks.saveDaily(day6, text);
-    else if (proposal.date === day6.date) await hooks.save(day6, { id: crypto.randomUUID(), date: day6.date, text });
-    else await hooks.saveElsewhere(day6, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date));
+    if (proposal.kind === "daily") await hooks.saveDaily(day6, text, note);
+    else if (proposal.date === day6.date) await hooks.save(day6, { id: crypto.randomUUID(), date: day6.date, text }, note);
+    else await hooks.saveElsewhere(day6, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
     if (sequence5 === smart.sequence) clearSmartTodo();
   } catch (error2) {
     if (sequence5 === smart.sequence) {
@@ -9032,9 +9036,10 @@ async function plainSmartTodo(day6) {
   await hooks.plain(day6, sentence);
 }
 function summary(proposal) {
-  const text = smartTodoText(proposal);
-  if (proposal.kind === "daily") return [["存为常用并加到今天", ""], [text, "todo-smart-text"]];
-  return [[`加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
+  const text = smartTodoText(proposal), count3 = countLabel(proposal);
+  const parts2 = [[proposal.kind === "daily" ? "存为常用并加到今天" : `加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
+  if (count3) parts2.push([`计数：${count3}`, "todo-smart-count"]);
+  return parts2;
 }
 function paintSmartTodo(root3, day6) {
   const form = root3.querySelector("#todo-form");
@@ -9058,7 +9063,7 @@ function paintSmartTodo(root3, day6) {
     const line = el("p", "todo-smart-line");
     for (const [text, className] of summary(smart.proposal)) line.append(el("span", className, text));
     parts2.push(line);
-    if (smart.proposal.kind === "daily") parts2.push(el("p", "todo-smart-hint", "常用里一点就能加到当天，不会自动每天出现。"));
+    if (smart.proposal.kind === "daily") parts2.push(el("p", "todo-smart-hint", smart.proposal.count ? "常用里一点就能加到当天，计数会自动从 0 开始。" : "常用里一点就能加到当天，不会自动每天出现。"));
   } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
   if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
   const actions2 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
@@ -9715,7 +9720,7 @@ async function addTypedTodo(day6, text) {
 var smartHooks = {
   repaint: () => paintTodos(),
   plain: (day6, text) => addTypedTodo(day6, text),
-  async save(day6, request2) {
+  async save(day6, request2, note) {
     await saveTodo(day6, request2);
     if (day6.failedCreate === request2) {
       day6.failedCreate = null;
@@ -9723,10 +9728,12 @@ var smartHooks = {
     }
     day6.draft = "";
     day6.error = "";
+    await startCount(day6, day6.items.find((row) => row.id === request2.id), note);
     paintTodos();
   },
-  async saveElsewhere(day6, request2, label3) {
-    const item = await api("/todos", { method: "POST", body: request2 });
+  async saveElsewhere(day6, request2, label3, note) {
+    let item = await api("/todos", { method: "POST", body: request2 });
+    if (note) item = await countNote(item, note);
     const other = todoDay(item.date);
     if (other.loaded) {
       mergeTodo(other, item);
@@ -9741,14 +9748,35 @@ var smartHooks = {
     day6.draft = "";
     setTodoNotice(day6, `已添加到 ${label3}`);
   },
-  async saveDaily(day6, text) {
+  async saveDaily(day6, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
     refreshOpenTodoTemplates();
     day6.draft = "";
     await submitTodoTemplate(template);
     if (day6.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+    await startCount(day6, day6.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
+    paintTodos();
   }
 };
+async function startCount(day6, item, note) {
+  if (!note || !item) return;
+  try {
+    mergeTodo(day6, await countNote(item, note));
+    day6.revision++;
+  } catch {
+    setTodoNotice(day6, "已添加，但计数没设上，可以在“⋯”里设置次数");
+  }
+}
+async function countNote(item, note, tries = 8) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await api(`/todos/${item.id}/note`, { method: "PATCH", body: { note, version: item.version } });
+    } catch (error2) {
+      if (error2?.status !== 404 || attempt >= tries) throw error2;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+  }
+}
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day6 = todoDay();

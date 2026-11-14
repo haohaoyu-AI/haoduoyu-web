@@ -25,8 +25,13 @@ export function smartDayLabel(date, today = bjtDate()) {
 }
 /** The to-do text as it will be saved: a count becomes the "0/N 次" prefix the counter already understands. */
 export function smartTodoText(proposal) {
-  return proposal.count ? `0/${proposal.count} 次 ${proposal.text}` : proposal.text;
+  return proposal.text;
 }
+/** A count is kept where the counter reads it, at the front of the note ("0/4 次", "0/∞ 次"), never in the title. */
+export function smartTodoNote(proposal) {
+  return proposal.count ? `0/${proposal.count} 次` : "";
+}
+const countLabel = proposal => proposal.count === "∞" ? "不限次数" : proposal.count ? `${proposal.count} 次` : "";
 export function smartTodoWanted(text) {
   return TODO_PARSE_HINT.test(text);
 }
@@ -62,11 +67,11 @@ export async function confirmSmartTodo(day) {
   const proposal = smart.proposal;
   if (!proposal || smart.busy || !hooks) return;
   smart.busy = true; smart.error = ""; hooks.repaint();
-  const text = smartTodoText(proposal), sequence = smart.sequence;
+  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence = smart.sequence;
   try {
-    if (proposal.kind === "daily") await hooks.saveDaily(day, text);
-    else if (proposal.date === day.date) await hooks.save(day, { id: crypto.randomUUID(), date: day.date, text });
-    else await hooks.saveElsewhere(day, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date));
+    if (proposal.kind === "daily") await hooks.saveDaily(day, text, note);
+    else if (proposal.date === day.date) await hooks.save(day, { id: crypto.randomUUID(), date: day.date, text }, note);
+    else await hooks.saveElsewhere(day, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
     if (sequence === smart.sequence) clearSmartTodo();
   } catch (error) {
     if (sequence === smart.sequence) { smart.busy = false; smart.error = error?.message || "添加失败，请稍后再试"; }
@@ -80,9 +85,10 @@ async function plainSmartTodo(day) {
 }
 
 function summary(proposal) {
-  const text = smartTodoText(proposal);
-  if (proposal.kind === "daily") return [["存为常用并加到今天", ""], [text, "todo-smart-text"]];
-  return [[`加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
+  const text = smartTodoText(proposal), count = countLabel(proposal);
+  const parts = [[proposal.kind === "daily" ? "存为常用并加到今天" : `加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
+  if (count) parts.push([`计数：${count}`, "todo-smart-count"]);
+  return parts;
 }
 /** Kept right under the add form; drawn again on every to-do repaint. */
 export function paintSmartTodo(root, day) {
@@ -100,7 +106,7 @@ export function paintSmartTodo(root, day) {
     const line = el("p", "todo-smart-line");
     for (const [text, className] of summary(smart.proposal)) line.append(el("span", className, text));
     parts.push(line);
-    if (smart.proposal.kind === "daily") parts.push(el("p", "todo-smart-hint", "常用里一点就能加到当天，不会自动每天出现。"));
+    if (smart.proposal.kind === "daily") parts.push(el("p", "todo-smart-hint", smart.proposal.count ? "常用里一点就能加到当天，计数会自动从 0 开始。" : "常用里一点就能加到当天，不会自动每天出现。"));
   } else parts.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
   if (smart.error && smart.status === "ready") parts.push(el("p", "todo-smart-error", smart.error));
   const actions = el("div", "todo-smart-actions"), button = (label, className, run) => {

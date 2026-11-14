@@ -66,3 +66,18 @@ test('carried ids are valid, stable UUIDs and the route refuses other methods',a
   const {carry}=setup(t);assert.deepEqual((await carry()).carried,[]);
   await assert.rejects(handleTodoCarry({},new Request('http://localhost/todo-carry'),'http://localhost'),error=>error.status===404);
 });
+
+test('a counted 常用 item starts each new day at zero with the same target',async t=>{
+  const {sql,owner,todos,add}=setup(t);
+  const open=randomUUID(),plain=randomUUID();
+  for(const [id,text] of [[open,'合成习惯'],[plain,'合成事项']])
+    sql.prepare('INSERT INTO matrix_todo_templates(user_id,id,text,version,created_at,updated_at) VALUES(?,?,?,1,?,?)').run(owner,id,text,today,today);
+  const link=(todo,template)=>sql.prepare('INSERT INTO matrix_todo_template_links(user_id,todo_id,template_id) VALUES(?,?,?)').run(owner,todo,template);
+  link(add(ago(2),'合成习惯',{note:'2/4 次'}),open);link(add(ago(1),'合成习惯',{note:'7/∞ 次 · 合成备注'}),open);
+  link(add(ago(1),'合成事项',{note:'只是备注'}),plain);
+  const counted=await todos('/todos','POST',{id:randomUUID(),date:today,text:'合成习惯',template_id:open});
+  assert.equal(counted.note,'0/∞ 次','the latest day sets the target; the tally restarts and the note text stays behind');
+  const saved=await todos('/todos?date='+today,'GET');
+  assert.equal(saved.items.find(item=>item.id===counted.id).note,'0/∞ 次');
+  assert.equal((await todos('/todos','POST',{id:randomUUID(),date:today,text:'合成事项',template_id:plain})).note,undefined,'an uncounted item stays plain');
+});

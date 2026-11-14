@@ -1,17 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {smartDayLabel,smartTodoText,smartTodoWanted} from '../web/pages/todo-smart.mjs';
+import {smartDayLabel,smartTodoNote,smartTodoText,smartTodoWanted} from '../web/pages/todo-smart.mjs';
 import {renderAiSettings,AI_FEATURES_SHOWN} from '../web/pages/review-ai.mjs';
 
-test('the confirm row names the day plainly and keeps counts in the counter format',()=>{
+test('the confirm row names the day plainly and puts counts where the counter reads them',()=>{
   assert.equal(smartDayLabel('2026-11-14','2026-11-14'),'今天');
   assert.equal(smartDayLabel('2026-11-15','2026-11-14'),'明天');
   assert.equal(smartDayLabel('2026-11-16','2026-11-14'),'后天');
   assert.equal(smartDayLabel('2026-11-20','2026-11-14'),'11月20日 周五');
   assert.equal(smartDayLabel('2027-01-04','2026-11-14'),'2027年1月4日 周一');
-  assert.equal(smartTodoText({text:'上厕所',count:4}),'0/4 次 上厕所');
+  assert.equal(smartTodoText({text:'上厕所',count:4}),'上厕所','the title never carries the count');
+  assert.equal(smartTodoNote({text:'上厕所',count:4}),'0/4 次');
   assert.equal(smartTodoText({text:'取快递',count:null}),'取快递');
-  assert.equal(smartTodoText({text:'上厕所',count:'∞'}),'0/∞ 次 上厕所');
+  assert.equal(smartTodoNote({text:'上厕所',count:'∞'}),'0/∞ 次','the counter reads its tally from the note');
+  assert.equal(smartTodoNote({text:'取快递',count:null}),'');
   assert.equal(smartTodoWanted('买牛奶'),false);assert.equal(smartTodoWanted('明天买牛奶'),true);
 });
 

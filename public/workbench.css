@@ -954,3 +954,4 @@ body.floating-workbench {
 #daily-todos .todo-smart-error{flex-basis:100%;font-size:13px;color:var(--danger,#b91c1c)}
 #daily-todos .todo-smart-actions{display:flex;gap:6px;margin-left:auto}
 @media (max-width:560px){#daily-todos .todo-smart-actions{margin-left:0;width:100%}#daily-todos .todo-smart-actions .btn.primary{flex:1}}
+#daily-todos .todo-smart-count{font-size:12px;color:var(--accent);white-space:nowrap}

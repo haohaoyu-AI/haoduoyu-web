@@ -520,13 +520,16 @@ async function addTypedTodo(day, text) {
 const smartHooks = {
   repaint: () => paintTodos(),
   plain: (day, text) => addTypedTodo(day, text),
-  async save(day, request) {
+  async save(day, request, note) {
     await saveTodo(day, request);
     if (day.failedCreate === request) { day.failedCreate = null; throw new Error(day.error || "添加失败，请稍后再试"); }
-    day.draft = ""; day.error = ""; paintTodos();
+    day.draft = ""; day.error = "";
+    await startCount(day, day.items.find(row => row.id === request.id), note);
+    paintTodos();
   },
-  async saveElsewhere(day, request, label) {
-    const item = await api("/todos", { method: "POST", body: request });
+  async saveElsewhere(day, request, label, note) {
+    let item = await api("/todos", { method: "POST", body: request });
+    if (note) item = await countNote(item, note);
     const other = todoDay(item.date);
     if (other.loaded) { mergeTodo(other, item); other.revision++; }
     if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
@@ -536,14 +539,33 @@ const smartHooks = {
     }
     day.draft = ""; setTodoNotice(day, `已添加到 ${label}`);
   },
-  async saveDaily(day, text) {
+  async saveDaily(day, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
     refreshOpenTodoTemplates();
     day.draft = "";
     await submitTodoTemplate(template);
     if (day.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+    // Today's counter is what later days copy, so the habit starts counted from tomorrow on as well.
+    await startCount(day, day.items.find(row => row.template_id === template.id && !row.deleted_at), note);
+    paintTodos();
   },
 };
+async function startCount(day, item, note) {
+  if (!note || !item) return;
+  try { mergeTodo(day, await countNote(item, note)); day.revision++; }
+  catch { setTodoNotice(day, "已添加，但计数没设上，可以在“⋯”里设置次数"); }
+}
+/** A new to-do is saved through the offline queue and can reach the server a moment after this call; until then the
+ * note route answers 404, so it is asked again for a few seconds. */
+async function countNote(item, note, tries = 8) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await api(`/todos/${item.id}/note`, { method: "PATCH", body: { note, version: item.version } }); }
+    catch (error) {
+      if (error?.status !== 404 || attempt >= tries) throw error;
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+  }
+}
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day = todoDay();
