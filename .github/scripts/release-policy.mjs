@@ -292,7 +292,15 @@ export const aiReportDayRelease=Object.freeze({
   baseline:'c3a93f28-e124-489b-b7de-a23e8c37ff3b',
   bytes:3172522,sha256:'6fc7267cc444a369f166e3d5a13177fa74e3b66b7759d09db952ba3ea23d18ee',
   label:'production-ai-report-day-20261114'});
-const acceptedRelease=commit=>commit===aiReportDayRelease.commit?aiReportDayRelease:
+// Future to-dos: 今天 / 明天 / weekend one-tap move buttons, on top of the deployed cf4a798 (run 43565920091).
+export const futureQuickRelease=Object.freeze({
+  commit:'9e7e48c9852f3455f29bf6cb755ae18debf69c2a',
+  tree:'35e883a87eba97bfdf2240ee30114ebb5099b235',
+  baseline:'07842567-6f01-47ec-bd85-85f75ba8f51d',
+  bytes:3174938,sha256:'be1440ac44fdb32ebce88df16fbd3bd996c3c2f76bff1857511a3bf052d46b06',
+  label:'production-future-quick-20261114'});
+const acceptedRelease=commit=>commit===futureQuickRelease.commit?futureQuickRelease:
+  commit===aiReportDayRelease.commit?aiReportDayRelease:
   commit===todoCountNoteRelease.commit?todoCountNoteRelease:
   commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
   commit===todoParseRelease.commit?todoParseRelease:
