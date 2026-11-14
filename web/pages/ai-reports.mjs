@@ -2,6 +2,7 @@ import {renderOpenAiRun, openAiLogin} from './openai-review.mjs';
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday} from '../core/daily-notes-state.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
+import {visibleWorkReminders} from '../core/work-reminders-state.mjs';
 
 export function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
@@ -110,7 +111,7 @@ export function paintAiDailyReminders(data, error = '', loading = false) {
   const root = document.querySelector('#ai-reports');
   if (!root) return;
   root.querySelector('#ai-reminder-status').textContent = error || (loading ? '正在读取工作提醒…' : '');
-  const items = data?.items || [];
+  const items = visibleWorkReminders(data?.items || []);
   root.querySelector('#ai-reminder-list').innerHTML = items.length ? items.map(row =>
     `<article class="card field-spaced" style="overflow-wrap:anywhere">` +
     `<div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join('') :

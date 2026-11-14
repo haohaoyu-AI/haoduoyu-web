@@ -1,5 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {bjtDate} from '../core/format.mjs';
+import {visibleWorkReminders} from '../core/work-reminders-state.mjs';
 
 export function renderWorkReminders() {
   return '<section id="work-reminders" aria-label="每日工作提醒"><div class="reminder-toolbar">' +
@@ -14,7 +15,7 @@ export function paintWorkReminders(data, error = '') {
   if (document.activeElement !== field) field.value = date;
   const message = root.querySelector('#reminder-error');
   message.hidden = !error; message.textContent = error;
-  const rows = data?.items || [];
+  const rows = visibleWorkReminders(data?.items || []);
   root.querySelector('#reminder-list').innerHTML = rows.length ? rows.map(row =>
     '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' +
     e(new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false})
