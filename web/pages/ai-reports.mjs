@@ -16,7 +16,7 @@ export function renderAiReports() {
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
       <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
       <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
+      <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
     </div>
   </section>`;
@@ -124,4 +124,46 @@ export function paintOpenAiDiary(items = [], {error = '', loading = false, owner
   root.querySelector('#openai-diary-status').textContent = error || (loading ? '正在读取分析记录…' : '');
   root.querySelector('#openai-diary-list').innerHTML = !owner ? openAiLogin : loading || error ? '' :
     items.length ? items.map(renderOpenAiRun).join('') : '<p>这一天没有 OpenAI API 分析记录。</p>';
+}
+
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+/** "11月13日 周五", the same date wording as the notes timeline. */
+export function reportDayTitle(date) {
+  return `${Number(date.slice(5,7))}月${Number(date.slice(8))}日 ${WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}`;
+}
+/** Plain first lines of a Markdown report, for the timeline card. */
+export function reportPreview(markdown) {
+  return String(markdown ?? '').replace(/```[\s\S]*?```/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^[\s#>*+-]+/gm, '').replace(/[*_`~|]/g, '')
+    .split(/\r?\n/).map(line => line.trim()).filter(Boolean).slice(0, 2).join(' ');
+}
+/** AI reports as a diary timeline: one row per work day in the month, newest first; a row opens that day. */
+export function paintAiReportTimeline(items, month, {loading = false, error = ''} = {}) {
+  const root = document.querySelector('#ai-reports');
+  if (!root) return;
+  paintAiCalendar(`${month}-01`, month);
+  const days = new Map();
+  for (const row of items) {
+    const day = reportDay(row);
+    if (day.startsWith(month)) days.set(day, [...(days.get(day) || []), row]);
+  }
+  root.querySelector('#ai-report-list-status').textContent = error || (loading ? '' : days.size ? '' : '这个月还没有汇报');
+  const head = root.querySelector('#ai-report-dayhead');
+  if (head) head.innerHTML = '';
+  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, list]) => {
+    const preview = list.map(row => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join('\n');
+    const authors = [...new Set(list.map(row => reportGroup(row.author)))].join(' · ');
+    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date}" aria-label="${e(reportDayTitle(date))}的汇报，打开">` +
+      `<span class="notes-tl-date"><span class="notes-tl-num">${Number(date.slice(8))}</span>` +
+      `<span class="notes-tl-week">${reportDayTitle(date).split(' ')[1]}</span></span><span class="notes-tl-dot"></span>` +
+      `<span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span>` +
+      `<span class="notes-tl-foot">${e(authors)} · ${list.length} 份</span></span></button>`;
+  });
+  root.querySelector('#ai-report-list').innerHTML = loading || error ? '' : `<div class="notes-tl">${rows.join('')}</div>`;
+}
+/** Back link and title above one opened day. */
+export function paintAiReportDayHead(date) {
+  const head = document.querySelector('#ai-reports #ai-report-dayhead');
+  if (head) head.innerHTML = date ? '<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button>' +
+    `<h3 class="notes-read-title">${e(reportDayTitle(date))} 的汇报</h3>` : '';
 }

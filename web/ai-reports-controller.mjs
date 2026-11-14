@@ -4,15 +4,19 @@ import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
-import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay} from './pages/ai-reports.mjs';
+import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,paintAiReportTimeline,paintAiReportDayHead}
+  from './pages/ai-reports.mjs';
 
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
+// Reports read for the timeline, and the work day opened from it ('' shows the list).
+let allReports = null, openReportDay = '';
 
 function selectDailyTab(name) {
   if (!OPENAI_TABS.includes(name)) return;
   state.aiDailyTab = name;
   const root = document.querySelector('#ai-reports');
   if (!root) return;
+  root.dataset.aiTab = name; // The day calendar is for reminders; reports use the timeline.
   for (const button of root.querySelectorAll('[data-ai-daily-tab]'))
     button.setAttribute('aria-pressed', String(button.dataset.aiDailyTab === name));
   for (const panel of root.querySelectorAll('[data-ai-daily-panel]'))
@@ -62,7 +66,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
   if (pageSession !== session || resetDate) {
-    pageSession = session;
+    pageSession = session; allReports = null; openReportDay = '';
     selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
     visibleMonth = selectedDate.slice(0,7);
   }
@@ -70,13 +74,13 @@ export async function loadAiReports({resetDate = false} = {}) {
   if (!visibleMonth) visibleMonth = selectedDate.slice(0,7);
   const ticket = ++sequence, date = selectedDate;
   const current = () => ticket === sequence && session === runtime.sessionEpoch && state.page === 'ai-reports';
-  paintAiReports([], '', true, date, visibleMonth);
+  if (!allReports) paintAiReportTimeline([], visibleMonth, {loading:true});
   paintAiDailyReminders(null, '', true);
   selectDailyTab(state.aiDailyTab || 'reports');
   const report = readAllAiReports(api, current).then(items => {
-    if (current() && items) paintAiReports(reportsForDailyDate(items, date), '', false, date, visibleMonth);
+    if (current() && items) { allReports = items; paintReports(); }
   }).catch(error => {
-    if (current()) paintAiReports([], error.message || '读取失败，请稍后重试。', false, date, visibleMonth);
+    if (current()) paintAiReportTimeline([], visibleMonth, {error:error.message || '读取失败，请稍后重试。'});
   });
   const reminders = api('/work-reminders?date=' + encodeURIComponent(date)).then(data => {
     if (current()) paintAiDailyReminders(data);
@@ -87,12 +91,21 @@ export async function loadAiReports({resetDate = false} = {}) {
   await Promise.all([report, reminders]);
 }
 
+/** The timeline for the visible month, or the opened work day's reports in reading view. */
+function paintReports() {
+  if (!allReports) return;
+  const root = document.querySelector('#ai-reports');
+  root?.classList.toggle('ai-report-day-open', Boolean(openReportDay));
+  if (!openReportDay) { paintAiReportDayHead(''); paintAiReportTimeline(allReports, visibleMonth); return; }
+  paintAiReports(sortAiReports(allReports.filter(row => reportDay(row) === openReportDay)), '', false, selectedDate, visibleMonth);
+  paintAiReportDayHead(openReportDay);
+}
 function moveMonth(offset) {
   const d = new Date(visibleMonth + '-01T00:00:00Z');
   d.setUTCMonth(d.getUTCMonth() + offset);
   if (!Number.isFinite(d.getTime())) return;
   const next = d.toISOString().slice(0, 7);
-  if (validDailyNotesDate(next + '-01')) { visibleMonth = next; paintAiCalendar(selectedDate, visibleMonth); }
+  if (validDailyNotesDate(next + '-01')) { visibleMonth = next; openReportDay = ''; paintAiCalendar(selectedDate, visibleMonth); paintReports(); }
 }
 function registerAiReportEvents() {
   if (registered) return;
@@ -105,6 +118,10 @@ function registerAiReportEvents() {
       if (tab === 'openai') void loadAiReports();
     } else if (event.target.closest?.('[data-openai-diary-refresh]')) void loadAiReports();
     else if (event.target.closest?.('[data-ai-report-month]')) moveMonth(Number(event.target.closest('[data-ai-report-month]').dataset.aiReportMonth));
+    else if (event.target.closest?.('[data-ai-report-open],[data-ai-report-back]')) {
+      openReportDay = event.target.closest('[data-ai-report-open]')?.dataset.aiReportOpen || '';
+      paintReports(); document.querySelector('#ai-report-dayhead')?.scrollIntoView?.({block:'nearest'});
+    }
     else {
       const day = event.target.closest?.('[data-ai-report-select]')?.dataset.aiReportSelect;
       if (day && validDailyNotesDate(day)) { selectedDate = day; visibleMonth = day.slice(0,7);

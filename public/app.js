@@ -14616,7 +14616,7 @@ function renderAiReports() {
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
       <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
       <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
+      <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
     </div>
   </section>`;
@@ -14716,6 +14716,36 @@ function paintOpenAiDiary(items = [], { error: error2 = "", loading = false, own
   if (!root3) return;
   root3.querySelector("#openai-diary-status").textContent = error2 || (loading ? "正在读取分析记录…" : "");
   root3.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error2 ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
+}
+var WEEKDAYS2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+function reportDayTitle(date2) {
+  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS2[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
+}
+function reportPreview(markdown) {
+  return String(markdown ?? "").replace(/```[\s\S]*?```/g, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^[\s#>*+-]+/gm, "").replace(/[*_`~|]/g, "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 2).join(" ");
+}
+function paintAiReportTimeline(items, month, { loading = false, error: error2 = "" } = {}) {
+  const root3 = document.querySelector("#ai-reports");
+  if (!root3) return;
+  paintAiCalendar(`${month}-01`, month);
+  const days = /* @__PURE__ */ new Map();
+  for (const row of items) {
+    const day6 = reportDay(row);
+    if (day6.startsWith(month)) days.set(day6, [...days.get(day6) || [], row]);
+  }
+  root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
+  const head = root3.querySelector("#ai-report-dayhead");
+  if (head) head.innerHTML = "";
+  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
+    const preview = list2.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
+    const authors = [...new Set(list2.map((row) => reportGroup(row.author)))].join(" · ");
+    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">${e(authors)} · ${list2.length} 份</span></span></button>`;
+  });
+  root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : `<div class="notes-tl">${rows.join("")}</div>`;
+}
+function paintAiReportDayHead(date2) {
+  const head = document.querySelector("#ai-reports #ai-report-dayhead");
+  if (head) head.innerHTML = date2 ? `<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button><h3 class="notes-read-title">${e(reportDayTitle(date2))} 的汇报</h3>` : "";
 }
 
 // shared/review-analytics.mjs
@@ -15553,11 +15583,13 @@ init_api();
 init_state();
 init_daily_notes_state();
 var sequence3 = 0, registered3 = false, selectedDate = "", visibleMonth = "", pageSession = null;
+var allReports = null, openReportDay = "";
 function selectDailyTab(name) {
   if (!OPENAI_TABS.includes(name)) return;
   state.aiDailyTab = name;
   const root3 = document.querySelector("#ai-reports");
   if (!root3) return;
+  root3.dataset.aiTab = name;
   for (const button3 of root3.querySelectorAll("[data-ai-daily-tab]"))
     button3.setAttribute("aria-pressed", String(button3.dataset.aiDailyTab === name));
   for (const panel2 of root3.querySelectorAll("[data-ai-daily-panel]"))
@@ -15601,6 +15633,8 @@ async function loadAiReports({ resetDate = false } = {}) {
   const session2 = runtime.sessionEpoch;
   if (pageSession !== session2 || resetDate) {
     pageSession = session2;
+    allReports = null;
+    openReportDay = "";
     selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
     visibleMonth = selectedDate.slice(0, 7);
   }
@@ -15608,13 +15642,16 @@ async function loadAiReports({ resetDate = false } = {}) {
   if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
   const ticket2 = ++sequence3, date2 = selectedDate;
   const current3 = () => ticket2 === sequence3 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
-  paintAiReports([], "", true, date2, visibleMonth);
+  if (!allReports) paintAiReportTimeline([], visibleMonth, { loading: true });
   paintAiDailyReminders(null, "", true);
   selectDailyTab(state.aiDailyTab || "reports");
   const report = readAllAiReports(api, current3).then((items) => {
-    if (current3() && items) paintAiReports(reportsForDailyDate(items, date2), "", false, date2, visibleMonth);
+    if (current3() && items) {
+      allReports = items;
+      paintReports();
+    }
   }).catch((error2) => {
-    if (current3()) paintAiReports([], error2.message || "读取失败，请稍后重试。", false, date2, visibleMonth);
+    if (current3()) paintAiReportTimeline([], visibleMonth, { error: error2.message || "读取失败，请稍后重试。" });
   });
   const reminders = api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => {
     if (current3()) paintAiDailyReminders(data3);
@@ -15624,6 +15661,18 @@ async function loadAiReports({ resetDate = false } = {}) {
   void loadExperimentsPanel();
   await Promise.all([report, reminders]);
 }
+function paintReports() {
+  if (!allReports) return;
+  const root3 = document.querySelector("#ai-reports");
+  root3?.classList.toggle("ai-report-day-open", Boolean(openReportDay));
+  if (!openReportDay) {
+    paintAiReportDayHead("");
+    paintAiReportTimeline(allReports, visibleMonth);
+    return;
+  }
+  paintAiReports(sortAiReports(allReports.filter((row) => reportDay(row) === openReportDay)), "", false, selectedDate, visibleMonth);
+  paintAiReportDayHead(openReportDay);
+}
 function moveMonth(offset) {
   const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
   d.setUTCMonth(d.getUTCMonth() + offset);
@@ -15631,7 +15680,9 @@ function moveMonth(offset) {
   const next = d.toISOString().slice(0, 7);
   if (validDailyNotesDate(next + "-01")) {
     visibleMonth = next;
+    openReportDay = "";
     paintAiCalendar(selectedDate, visibleMonth);
+    paintReports();
   }
 }
 function registerAiReportEvents() {
@@ -15646,7 +15697,11 @@ function registerAiReportEvents() {
       if (tab === "openai") void loadAiReports();
     } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
     else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
-    else {
+    else if (event.target.closest?.("[data-ai-report-open],[data-ai-report-back]")) {
+      openReportDay = event.target.closest("[data-ai-report-open]")?.dataset.aiReportOpen || "";
+      paintReports();
+      document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
+    } else {
       const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
       if (day6 && validDailyNotesDate(day6)) {
         selectedDate = day6;
