@@ -264,7 +264,15 @@ export const articleViewSwitchRelease=Object.freeze({
   baseline:'d18f5913-49e8-4e65-89f9-23a2d7b149f6',
   bytes:3152465,sha256:'9c88558aa5a1799a35e126a1ea433b552b62335a011b687bfa2400074a9e85fd',
   label:'production-article-view-switch-20261114'});
-const acceptedRelease=commit=>commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
+// 一句话加待办 with a confirm row and the tidied AI model settings, on top of the deployed 7ec49e8 (run 43549188280).
+export const todoParseRelease=Object.freeze({
+  commit:'3c8f550809843d2dc50026d292b1f141fa308b83',
+  tree:'f8b48610f04d5c09f924ada94a2264d99c99c9fe',
+  baseline:'61735d16-a668-4adb-94d4-cdf5ce17098f',
+  bytes:3169205,sha256:'7151acedba61b0241eb516f5312652df08fd2bec94c9467c1bfaa2b63dee9bf5',
+  label:'production-todo-parse-20261114'});
+const acceptedRelease=commit=>commit===todoParseRelease.commit?todoParseRelease:
+  commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
   commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
   commit===aiTimelineRelease.commit?aiTimelineRelease:
   commit===timelineOnlyRelease.commit?timelineOnlyRelease:
