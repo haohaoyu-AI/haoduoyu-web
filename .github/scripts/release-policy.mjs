@@ -250,7 +250,15 @@ export const aiTimelineRelease=Object.freeze({
   baseline:'a5c493db-c68a-441e-9e92-12066455ac71',
   bytes:3142860,sha256:'9f7c8bee6e64b6ea4c77415a0a15c4e3e4c8fd6c4c16a62ee2ef3f3e5a8162de',
   label:'production-ai-timeline-20261114'});
-const acceptedRelease=commit=>commit===aiTimelineRelease.commit?aiTimelineRelease:
+// To-do calendar and article publishing in the shared diary design, on top of the deployed 3b6fadf (run 43546897568).
+export const unifiedTimelinesRelease=Object.freeze({
+  commit:'c61cb41fafc7180e73325e5d27b4212c0348d825',
+  tree:'80893167b3707597f71ba041cb142bcd8fbbf059',
+  baseline:'005bd44b-2262-4ab2-81d2-cac8391e1156',
+  bytes:3149490,sha256:'d87a77e47864b72cc8655869d976587c18c586377373b9254a3975d810968c41',
+  label:'production-unified-timelines-20261114'});
+const acceptedRelease=commit=>commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
+  commit===aiTimelineRelease.commit?aiTimelineRelease:
   commit===timelineOnlyRelease.commit?timelineOnlyRelease:
   commit===diaryTimelineRelease.commit?diaryTimelineRelease:
   commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
