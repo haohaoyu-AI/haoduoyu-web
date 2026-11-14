@@ -118,7 +118,7 @@ test('runtime event bursts share one run, persistent snapshot gate survives runt
   const restarted=createOfflineRuntime(options);await restarted.sync();
   assert.equal(f.state.calls.filter(p=>p.includes('window=')).length,1);runtime.stop();restarted.stop();
 });
-test('queued writes cannot turn an identity 500 into a 100ms retry loop; the read failure cooldown persists',async()=>{
+test('queued writes cannot turn an identity 500 into a 100ms retry loop; the read pause is background only',async()=>{
   const f=fixture();let online=true,broken=false,attempts=0;
   const request=async path=>{
     if(path==='/auth/me'&&broken){attempts++;throw Object.assign(new Error('quota exhausted'),{status:500});}
@@ -134,6 +134,25 @@ test('queued writes cannot turn an identity 500 into a 100ms retry loop; the rea
   await new Promise(r=>setTimeout(r,260));
   assert.equal(attempts,1);assert.equal((await all(f.db,'outbox')).length,1);
   const cooldown=(await all(f.db,'meta')).find(r=>r.key===entityKey(owner,'outbox-rate-limit'));
-  assert.equal(cooldown.until,f.now()+300000);
-  await runtime.sync({rerun:true});assert.equal(attempts,1);runtime.stop();
+  assert.equal(cooldown,undefined,'a read failure is not stored, so a reload is never locked out');
+  await runtime.sync({rerun:true});assert.equal(attempts,1,'automatic sync waits out the pause');
+  await runtime.call('/todos',{method:'POST',body:{date:'2026-03-02',text:'用户刚保存的待办'}});
+  await new Promise(r=>setTimeout(r,260));
+  assert.equal(attempts,2,'a new save gets exactly one attempt');assert.equal((await all(f.db,'outbox')).length,2);
+  broken=false;f.state.time+=31000;
+  assert.equal((await runtime.call('/auth/me')).id,'synthetic-owner','what the person opens is not held back by the pause');
+  runtime.stop();
+});
+test('an hour-long pause stored by the previous page is ignored; new pauses stay within two minutes',async()=>{
+  const f=fixture();
+  const options={db:f.db,request:f.request,now:f.now,online:()=>true,windowedSnapshot:true,scopeProbe:true,scopeReuseMs:30000};
+  const runtime=createOfflineRuntime(options);await runtime.call('/auth/me');
+  await f.db.transaction(['meta'],'readwrite',tx=>tx.put('meta',{key:entityKey(owner,'outbox-rate-limit'),until:f.now()+3600000}));
+  f.state.time+=31000;
+  assert.equal((await runtime.call('/auth/me')).id,'synthetic-owner','the stale lock does not block');
+  await f.db.transaction(['meta'],'readwrite',tx=>tx.put('meta',{key:entityKey(owner,'outbox-rate-limit'),until:f.now()+60000}));
+  await assert.rejects(runtime.call('/auth/me'),error=>error.status===429&&error.retryAfterMs<=60000,'a real short pause is honoured');
+  f.state.time+=61000;
+  assert.equal((await runtime.call('/auth/me')).id,'synthetic-owner');
+  runtime.stop();
 });

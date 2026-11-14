@@ -6,6 +6,11 @@ import {recordResolutionAck, recordResolutionFailure} from './resolution-ledger.
 import {retryAfterDelay, retryUntil} from '../core/retry-after.mjs';
 
 export const RETRY_DELAYS = Object.freeze([5000, 15000, 60000, 300000]);
+/** Longest pause a stored rate limit can impose; server Retry-After values are far shorter. */
+export const STORED_COOLDOWN_MAX_MS = 120000;
+// New pauses are stored at most two minutes ahead. One further ahead was written by an older page for read
+// failures (up to an hour) and is ignored, so a device that was locked recovers without clearing its data.
+const storedPause = (until, time) => Number.isSafeInteger(until) && until >= 0 && until <= time + STORED_COOLDOWN_MAX_MS ? until : 0;
 const prefixes = {unscheduled_todo: 'unscheduled_todo:', todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
   memo_note: 'memo-note:', memo_group: 'memo-group:'};
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -191,7 +196,7 @@ function createContext(options) {
     checkScope(scope);
     const item = await db.transaction(['meta'], 'readonly', tx => tx.get('meta', rateLimitKey(scope)));
     checkScope(scope);
-    return Number.isSafeInteger(item?.until) && item.until >= 0 ? item.until : 0;
+    return storedPause(item?.until, now());
   };
   const setCooldown = async (scope, until, assertActive = () => {}) => {
     checkScope(scope);
@@ -201,7 +206,8 @@ function createContext(options) {
       checkScope(scope);
       assertActive();
       const key = rateLimitKey(scope), old = await tx.get('meta', key);
-      const value = Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, until);
+      const kept = storedPause(old?.until, now());
+      const value = Math.max(kept, Math.min(until, now() + STORED_COOLDOWN_MAX_MS));
       await tx.put('meta', {key, until: value});
       checkScope(scope);
       assertActive();

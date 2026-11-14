@@ -2383,7 +2383,7 @@ function createContext(options4) {
     checkScope(scope);
     const item = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", rateLimitKey(scope)));
     checkScope(scope);
-    return Number.isSafeInteger(item?.until) && item.until >= 0 ? item.until : 0;
+    return storedPause(item?.until, now());
   };
   const setCooldown = async (scope, until, assertActive = () => {
   }) => {
@@ -2394,7 +2394,8 @@ function createContext(options4) {
       checkScope(scope);
       assertActive();
       const key = rateLimitKey(scope), old = await tx.get("meta", key);
-      const value = Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, until);
+      const kept = storedPause(old?.until, now());
+      const value = Math.max(kept, Math.min(until, now() + STORED_COOLDOWN_MAX_MS));
       await tx.put("meta", { key, until: value });
       checkScope(scope);
       assertActive();
@@ -2869,7 +2870,7 @@ function createOutbox(options4) {
   const { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
   return { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
 }
-var RETRY_DELAYS, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
+var RETRY_DELAYS, STORED_COOLDOWN_MAX_MS, storedPause, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
 var init_outbox = __esm({
   "web/offline/outbox.mjs"() {
     init_db();
@@ -2879,6 +2880,8 @@ var init_outbox = __esm({
     init_resolution_ledger();
     init_retry_after();
     RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
+    STORED_COOLDOWN_MAX_MS = 12e4;
+    storedPause = (until, time3) => Number.isSafeInteger(until) && until >= 0 && until <= time3 + STORED_COOLDOWN_MAX_MS ? until : 0;
     prefixes3 = {
       unscheduled_todo: "unscheduled_todo:",
       todo: "todo:",
@@ -4822,6 +4825,7 @@ function identityActions(context) {
     context.pulledAt = 0;
     context.syncNotBefore = 0;
     context.readFailures = 0;
+    context.readPauseUntil = 0;
     clearTimeout(context.historyTimer);
     context.historyRetry = false;
     state2.historyRemaining = 0;
@@ -4968,15 +4972,30 @@ function stateActions(context) {
   }
   return { refresh, queue, resolve };
 }
-async function pauseFailedRead(context, stage, error2, owner2, active6) {
+function pauseFailedRead(context, stage, error2) {
   if (!context.windowedSnapshot || !["identity", "cache", "snapshot"].includes(stage) || [401, 403].includes(error2.status)) return;
   context.readFailures = Math.min(5, (context.readFailures || 0) + 1);
-  const delay = Math.min(36e5, 3e5 * 2 ** (context.readFailures - 1));
-  context.cooldownUntil = Math.max(context.cooldownUntil || 0, context.now() + delay, error2.rateLimitedUntil || 0);
-  if (owner2) try {
-    const assertActive = () => {
-      if (!active6()) throw fail4("身份范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    };
+  const delay = Math.min(READ_PAUSE_MAX_MS, 6e4 * 2 ** (context.readFailures - 1));
+  context.readPauseUntil = Math.max(context.readPauseUntil || 0, context.now() + delay, error2.rateLimitedUntil || 0);
+}
+async function pauseRefused(context, stage, error2, owner2, active6) {
+  const { now } = context;
+  if (error2.status !== 429) return;
+  const deadline = Math.min(
+    now() + STORED_COOLDOWN_MAX_MS,
+    Number.isSafeInteger(error2.rateLimitedUntil) ? error2.rateLimitedUntil : retryUntil(now(), error2.retryAfterMs)
+  );
+  if (stage === "snapshot") context.historyRetry = true;
+  if (["cache", "snapshot"].includes(stage)) {
+    context.readPauseUntil = Math.max(context.readPauseUntil || 0, deadline);
+    return;
+  }
+  context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+  if (!owner2) return;
+  const assertActive = () => {
+    if (!active6()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+  };
+  try {
     await context.outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
   } catch {
   }
@@ -4993,7 +5012,7 @@ async function runSync(context) {
   try {
     if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
     if (!active6()) return { ...state2 };
-    if (context.cooldownUntil > now()) {
+    if (context.cooldownUntil > now() || (context.readPauseUntil || 0) > now()) {
       context.scheduleRetry();
       if (state2.historyRemaining || context.historyRetry) context.scheduleHistory();
       return context.refresh();
@@ -5015,10 +5034,10 @@ async function runSync(context) {
       { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
     );
     stage = "cache";
-    if (state2.verifiedScope) await context.cache.captureDocuments();
+    if (state2.verifiedScope && !((context.readPauseUntil || 0) > now())) await context.cache.captureDocuments();
     if (!active6()) return { ...state2 };
     const pulled = now() - context.pulledAt;
-    if (state2.verifiedScope && !(state2.historyRemaining === 0 && context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
+    if (state2.verifiedScope && !((context.readPauseUntil || 0) > now()) && !(state2.historyRemaining === 0 && context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = "snapshot";
       const result = await (context.snapshotV2 || snapshot).pull({ date: today(now) });
       if (!active6()) return { ...state2 };
@@ -5041,21 +5060,8 @@ async function runSync(context) {
     context.readFailures = 0;
   } catch (error2) {
     if (!active6()) return { ...state2 };
-    await pauseFailedRead(context, stage, error2, owner2, active6);
-    if (error2.status === 429) {
-      if (stage === "snapshot") context.historyRetry = true;
-      const deadline = Number.isSafeInteger(error2.rateLimitedUntil) ? error2.rateLimitedUntil : retryUntil(now(), error2.retryAfterMs);
-      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
-      if (owner2) {
-        const assertActive = () => {
-          if (!active6()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-        };
-        try {
-          await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
-        } catch {
-        }
-      }
-    }
+    pauseFailedRead(context, stage, error2);
+    await pauseRefused(context, stage, error2, owner2, active6);
     if (!active6()) return { ...state2 };
     state2.error = error2.message;
     state2.errorStage = stage;
@@ -5067,7 +5073,8 @@ async function runSync(context) {
   if (!active6()) return { ...state2 };
   context.broadcast();
   if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
-  if ((state2.historyRemaining || context.historyRetry) && state2.online && (!state2.error || context.cooldownUntil > now())) context.scheduleHistory();
+  if ((state2.historyRemaining || context.historyRetry) && state2.online && (!state2.error || Math.max(context.cooldownUntil || 0, context.readPauseUntil || 0) > now()))
+    context.scheduleHistory();
   return { ...state2 };
 }
 function syncActions(context) {
@@ -5079,7 +5086,7 @@ function syncActions(context) {
     const owner2 = state2.scope, generation = context.generation;
     context.historyTimer = setTimeout(() => {
       if (!context.stopped && owner2 === state2.scope && generation === context.generation && online()) void sync();
-    }, Math.min(MAX_TIMER_DELAY, Math.max(500, (context.cooldownUntil || 0) - now())));
+    }, Math.min(MAX_TIMER_DELAY, Math.max(500, (context.cooldownUntil || 0) - now(), (context.readPauseUntil || 0) - now())));
     context.historyTimer?.unref?.();
   }
   function sync({ rerun = false } = {}) {
@@ -5107,7 +5114,7 @@ function syncActions(context) {
       if (context.stopped || state2.scope !== owner2 || context.generation !== generation) return;
       if (!operations2.length) return;
       const next = Math.min(...operations2.map((row) => row.next_attempt_at || 0));
-      const deadline = Math.max(context.cooldownUntil || 0, await outbox.cooldown(owner2));
+      const deadline = Math.max(context.cooldownUntil || 0, context.readPauseUntil || 0, await outbox.cooldown(owner2));
       if (context.stopped || state2.scope !== owner2 || context.generation !== generation) return;
       const delay = Math.min(MAX_TIMER_DELAY, Math.max(100, next - now(), deadline - now()));
       clearTimeout(context.timer);
@@ -5228,6 +5235,7 @@ function mutationActions(context) {
     active6();
     await context.refresh();
     context.broadcast();
+    context.readPauseUntil = 0;
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
@@ -5418,7 +5426,7 @@ function createOfflineRuntime(options4) {
     };
     try {
       active6();
-      const deadline = retryUntil(context.now(), delay);
+      const deadline = Math.min(context.now() + STORED_COOLDOWN_MAX_MS, retryUntil(context.now(), delay));
       context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
       await context.outbox.setCooldown(token.scope, context.cooldownUntil, active6);
       active6();
@@ -5519,7 +5527,7 @@ async function offlineRequest(path, options4, request2, onIdentity, assertActive
   const value = await runtime2.call(path, { ...opts, offlineGuard: assertActive });
   return envelope2 ? { data: value } : value;
 }
-var OFFLINE_FEATURES, scopePattern, uuidPattern5, networkFailure, fail4, today, offlineError, SCOPE_INDEX, SCOPE_ONLY, singleton, initialization, readyListeners;
+var READ_PAUSE_MAX_MS, OFFLINE_FEATURES, scopePattern, uuidPattern5, networkFailure, fail4, today, offlineError, SCOPE_INDEX, SCOPE_ONLY, singleton, initialization, readyListeners;
 var init_runtime = __esm({
   "web/offline/runtime.mjs"() {
     init_db();
@@ -5532,6 +5540,7 @@ var init_runtime = __esm({
     init_conflict_draft_guards();
     init_memos();
     init_retry_after();
+    READ_PAUSE_MAX_MS = 15 * 6e4;
     OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true });
     scopePattern = /^[a-f0-9]{64}$/;
     uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;

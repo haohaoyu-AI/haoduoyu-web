@@ -150,7 +150,7 @@ test('foreground 429 persists scope cooldown and blocks immediate background wor
   const app=createOfflineRuntime(options);net.setRuntime(app);t.after(()=>app.stop());await app.call('/auth/me');
   await assert.rejects(app.call('/review/notes?account=test'),error=>error.status===429);
   const saved=await db.transaction(['meta'],'readonly',tx=>tx.get('meta',entityKey(scope,'outbox-rate-limit')));
-  assert.equal(saved.until,901000);
+  assert.equal(saved.until,121000,'a long Retry-After is stored as at most two minutes');
   const before=calls.length;await app.sync();assert.equal(calls.length,before,'background work must respect the foreground deadline');
   app.stop();const restarted=createOfflineRuntime(options);net.setRuntime(restarted);t.after(()=>restarted.stop());
   await restarted.call('/auth/me');const afterIdentity=calls.length;await restarted.sync();

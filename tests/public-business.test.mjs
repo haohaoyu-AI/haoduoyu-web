@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
-import {limitPublicBusiness,publicBusinessRoute} from '../src/public-business.mjs';
+import {limitPublicBusiness,publicBusinessRoute,PUBLIC_DAILY_LIMIT,PUBLIC_MINUTE_LIMIT,PUBLIC_MINUTE_WRITES} from '../src/public-business.mjs';
 import {cloudflareConfig} from '../scripts/cloudflare-config.mjs';
 
 async function publicApp(t) {
@@ -172,13 +172,15 @@ test('anonymous writes preserve origin/header checks, bounded bodies, validation
 
 test('public per-isolate request, write and daily limits are bounded',()=>{
   const key=randomUUID(),time=Date.parse('2026-10-24T01:00:00Z');
-  for(let i=0;i<20;i++)limitPublicBusiness(key,true,time);
+  for(let i=0;i<PUBLIC_MINUTE_WRITES;i++)limitPublicBusiness(key,true,time);
   assert.throws(()=>limitPublicBusiness(key,true,time),error=>error.status===429);
   limitPublicBusiness(key,true,time+60000);
-  const reads=randomUUID();for(let i=0;i<60;i++)limitPublicBusiness(reads,false,time);
+  const reads=randomUUID();for(let i=0;i<PUBLIC_MINUTE_LIMIT;i++)limitPublicBusiness(reads,false,time);
   assert.throws(()=>limitPublicBusiness(reads,false,time),error=>error.status===429);
-  const daily=randomUUID();for(let i=0;i<1000;i++)limitPublicBusiness(daily,false,time+Math.floor(i/60)*60000);
-  assert.throws(()=>limitPublicBusiness(daily,false,time+20*60000),error=>error.status===429);
+  const perMinute=PUBLIC_MINUTE_LIMIT-1,minutes=Math.ceil(PUBLIC_DAILY_LIMIT/perMinute);
+  const daily=randomUUID();for(let i=0;i<PUBLIC_DAILY_LIMIT;i++)limitPublicBusiness(daily,false,time+Math.floor(i/perMinute)*60000);
+  assert.throws(()=>limitPublicBusiness(daily,false,time+minutes*60000),error=>error.status===429);
+  assert.ok(PUBLIC_MINUTE_LIMIT>=200&&PUBLIC_DAILY_LIMIT>=10000,'a page load with offline sync stays far below the limits');
   limitPublicBusiness(daily,false,time+86400000);
 });
 

@@ -1,8 +1,10 @@
 import {openOfflineDB, offlineValue, entityKey} from './db.mjs';
 import {createOfflineCache, identityFingerprint, offlineReadRoute, safeIdentity} from './cache.mjs';
-import {createOutbox} from './outbox.mjs';
+import {createOutbox,STORED_COOLDOWN_MAX_MS} from './outbox.mjs';
 import {createSnapshotSync} from './sync.mjs';
 import {createWindowSnapshotSync,WINDOW_REFRESH_MS} from './window-sync.mjs';
+/** Longest wait between background refreshes after repeated read failures. */
+export const READ_PAUSE_MAX_MS = 15 * 60000;
 import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
 import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
@@ -167,7 +169,7 @@ async function adoptIdentity(context, me, index, generation, invalidate) {
 function identityActions(context) {
   const {cache, state, emit, request, onIdentity} = context;
   async function invalidate({forget = false} = {}) {
-    context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;context.syncNotBefore=0;context.readFailures=0;
+    context.generation++; context.scopeCheckedAt = 0; context.pulledAt = 0;context.syncNotBefore=0;context.readFailures=0;context.readPauseUntil=0;
     clearTimeout(context.historyTimer); context.historyRetry=false; state.historyRemaining = 0;
     context.authFlight = null;
     context.scopeFlight = null;
@@ -286,15 +288,28 @@ function stateActions(context) {
   }
   return {refresh, queue, resolve};
 }
-async function pauseFailedRead(context,stage,error,owner,active) {
+// A failed background read slows only the background refresh: what the person opens, reads or saves is never held
+// back by it, and nothing is stored, so reloading the page starts fresh.
+function pauseFailedRead(context,stage,error) {
   if(!context.windowedSnapshot||!['identity','cache','snapshot'].includes(stage)||[401,403].includes(error.status))return;
   context.readFailures=Math.min(5,(context.readFailures||0)+1);
-  const delay=Math.min(3600000,300000*2**(context.readFailures-1));
-  context.cooldownUntil=Math.max(context.cooldownUntil||0,context.now()+delay,error.rateLimitedUntil||0);
-  if(owner)try {
-    const assertActive=()=>{if(!active())throw fail('身份范围已变化。','OFFLINE_SCOPE_CHANGED');};
-    await context.outbox.setCooldown(owner,context.cooldownUntil,assertActive);
-  }catch{ /* The in-memory pause still stops timer retries if persistence fails. */ }
+  const delay=Math.min(READ_PAUSE_MAX_MS,60000*2**(context.readFailures-1));
+  context.readPauseUntil=Math.max(context.readPauseUntil||0,context.now()+delay,error.rateLimitedUntil||0);
+}
+// A refused background read only pauses the background refresh; a refused sign-in check or save pauses requests,
+// stored for at most two minutes so a reload cannot stay locked.
+async function pauseRefused(context,stage,error,owner,active) {
+  const {now} = context;
+  if (error.status !== 429) return;
+  const deadline = Math.min(now() + STORED_COOLDOWN_MAX_MS,
+    Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs));
+  if (stage === 'snapshot') context.historyRetry = true;
+  if (['cache','snapshot'].includes(stage)) { context.readPauseUntil = Math.max(context.readPauseUntil || 0, deadline); return; }
+  context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+  if (!owner) return;
+  const assertActive = () => { if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED'); };
+  try { await context.outbox.setCooldown(owner, context.cooldownUntil, assertActive); }
+  catch { /* The in-memory deadline still protects this session. */ }
 }
 async function runSync(context) {
   const {state, emit, outbox, snapshot, now, online} = context;
@@ -305,7 +320,7 @@ async function runSync(context) {
   try {
     if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
     if (!active()) return {...state};
-    if (context.cooldownUntil > now()) {
+    if (context.cooldownUntil > now() || (context.readPauseUntil || 0) > now()) {
       context.scheduleRetry();
       if(state.historyRemaining||context.historyRetry)context.scheduleHistory();
       return context.refresh();
@@ -324,11 +339,12 @@ async function runSync(context) {
     if (drained.rateLimitedUntil > now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
       {status: 429, rateLimitedUntil: drained.rateLimitedUntil});
     stage = 'cache';
-    if (state.verifiedScope) await context.cache.captureDocuments();
+    if (state.verifiedScope && !((context.readPauseUntil || 0) > now())) await context.cache.captureDocuments();
     if (!active()) return {...state};
     // Saves answer with the stored record, so a burst of quick edits needs one full refresh, not one per click.
     const pulled = now() - context.pulledAt;
-    if (state.verifiedScope && !(state.historyRemaining===0&&context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
+    if (state.verifiedScope && !((context.readPauseUntil || 0) > now()) &&
+        !(state.historyRemaining===0&&context.scopeReuseMs && context.pulledAt && pulled >= 0 && pulled < context.scopeReuseMs)) {
       stage = 'snapshot';
       const result=await (context.snapshotV2 || snapshot).pull({date: today(now)});
       if (!active()) return {...state};
@@ -350,17 +366,8 @@ async function runSync(context) {
     context.readFailures=0;
   } catch (error) {
     if (!active()) return {...state};
-    await pauseFailedRead(context,stage,error,owner,active);
-    if (error.status === 429) {
-      if(stage==='snapshot')context.historyRetry=true;
-      const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
-      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
-      if (owner) {
-        const assertActive = () => { if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED'); };
-        try { await outbox.setCooldown(owner, context.cooldownUntil, assertActive); }
-        catch { /* The in-memory deadline still protects this session. */ }
-      }
-    }
+    pauseFailedRead(context,stage,error);
+    await pauseRefused(context,stage,error,owner,active);
     if (!active()) return {...state};
     state.error = error.message; state.errorStage = stage;
     if (error.status) state.online = true;
@@ -371,7 +378,8 @@ async function runSync(context) {
   if (!active()) return {...state};
   context.broadcast();
   if (state.pending && state.online && !context.stopped) context.scheduleRetry();
-  if((state.historyRemaining||context.historyRetry)&&state.online&&(!state.error||context.cooldownUntil>now()))context.scheduleHistory();
+  if((state.historyRemaining||context.historyRetry)&&state.online&&(!state.error||Math.max(context.cooldownUntil||0,context.readPauseUntil||0)>now()))
+    context.scheduleHistory();
   return {...state};
 }
 function syncActions(context) {
@@ -383,7 +391,7 @@ function syncActions(context) {
     const owner=state.scope,generation=context.generation;
     context.historyTimer=setTimeout(()=>{
       if(!context.stopped&&owner===state.scope&&generation===context.generation&&online())void sync();
-    },Math.min(MAX_TIMER_DELAY,Math.max(500,(context.cooldownUntil||0)-now())));
+    },Math.min(MAX_TIMER_DELAY,Math.max(500,(context.cooldownUntil||0)-now(),(context.readPauseUntil||0)-now())));
     context.historyTimer?.unref?.();
   }
   function sync({rerun = false} = {}) {
@@ -409,7 +417,7 @@ function syncActions(context) {
       if (context.stopped || state.scope !== owner || context.generation !== generation) return;
       if (!operations.length) return;
       const next = Math.min(...operations.map(row => row.next_attempt_at || 0));
-      const deadline = Math.max(context.cooldownUntil || 0, await outbox.cooldown(owner));
+      const deadline = Math.max(context.cooldownUntil || 0, context.readPauseUntil || 0, await outbox.cooldown(owner));
       if (context.stopped || state.scope !== owner || context.generation !== generation) return;
       const delay = Math.min(MAX_TIMER_DELAY, Math.max(100, next - now(), deadline - now()));
       clearTimeout(context.timer);
@@ -496,6 +504,8 @@ function mutationActions(context) {
       method, path, body, base, local, ...(route.type === 'unscheduled_todo' ? {protocol: 4} : {}), assertActive: active});
     active();
     await context.refresh(); context.broadcast();
+    // A save the person just made gets one attempt even while background reads are paused; another failure pauses again.
+    context.readPauseUntil = 0;
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
@@ -659,7 +669,7 @@ export function createOfflineRuntime(options) {
     };
     try {
       active();
-      const deadline = retryUntil(context.now(), delay);
+      const deadline = Math.min(context.now() + STORED_COOLDOWN_MAX_MS, retryUntil(context.now(), delay));
       context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
       await context.outbox.setCooldown(token.scope, context.cooldownUntil, active);
       active();
