@@ -11,6 +11,7 @@ test('the confirm row names the day plainly and keeps counts in the counter form
   assert.equal(smartDayLabel('2027-01-04','2026-11-14'),'2027年1月4日 周一');
   assert.equal(smartTodoText({text:'上厕所',count:4}),'0/4 次 上厕所');
   assert.equal(smartTodoText({text:'取快递',count:null}),'取快递');
+  assert.equal(smartTodoText({text:'上厕所',count:'∞'}),'0/∞ 次 上厕所');
   assert.equal(smartTodoWanted('买牛奶'),false);assert.equal(smartTodoWanted('明天买牛奶'),true);
 });
 

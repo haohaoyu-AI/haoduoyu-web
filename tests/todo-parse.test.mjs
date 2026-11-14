@@ -49,7 +49,10 @@ test('a sentence with a day is read once and returned as a proposal; nothing is 
   text=JSON.stringify({kind:'once',date:'2020-01-01',text:'交表',count:2000});
   const past=await call({text:'周五前交表'});
   assert.equal(past.date,today,'a past date falls back to today');assert.equal(past.count,null,'an absurd count is dropped');
-  text='说不清';await assert.rejects(call({text:'下周一开会'}),error=>error.status===502);
+  text=JSON.stringify({kind:'daily',date:null,text:'上厕所',count:'unlimited'});
+  const unlimited=await call({text:'每天上厕所次数不限'});
+  assert.equal(unlimited.kind,'daily');assert.equal(unlimited.count,'∞','no ceiling becomes the counter\'s own ∞');
+    text='说不清';await assert.rejects(call({text:'下周一开会'}),error=>error.status===502);
   settings({todo:{model:'small-model',effort:''}});text=JSON.stringify({kind:'once',date:today,text:'开会',count:null});
   await call({text:'下周一开会'});assert.equal(calls.at(-1).model,'small-model','the to-do feature uses its own model');
   settings({todo:{model:'off',effort:''}});const before=calls.length;
@@ -67,6 +70,6 @@ test('bad input and signed-out visitors are refused',async t=>{
 });
 
 test('the hint picks sentences that name a day, a count or a daily habit',()=>{
-  for(const text of ['明天交电费','下周三体检','20号还信用卡','每天喝水','上厕所 4 次','周五前交稿','11月20日开会'])assert.match(text,TODO_PARSE_HINT,text);
+  for(const text of ['明天交电费','下周三体检','20号还信用卡','每天喝水','上厕所 4 次','周五前交稿','11月20日开会','上厕所次数不限'])assert.match(text,TODO_PARSE_HINT,text);
   for(const text of ['买牛奶','给妈妈打电话','今天洗衣服'])assert.doesNotMatch(text,TODO_PARSE_HINT,text);
 });
