@@ -697,15 +697,46 @@ function dayLine(date, count) {
   const score = scoreByDate.get(date);
   return [dayTitle(date), count ? count + ' 条' : '', score ? '打分 ' + score : ''].filter(Boolean).join(' · ');
 }
+const node = (tag, className, text) => {
+  const value = document.createElement(tag);
+  if (className) value.className = className;
+  if (text !== undefined) value.textContent = text;
+  return value;
+};
+const rowLabels = row => (row.displayLabels || [row.displayLabel]).filter(Boolean);
+const byTime = direction => (a, b) => direction * String(a.updated_at || '').localeCompare(String(b.updated_at || ''));
+/** Reading view of one note: the time in small type above the text, no box (as in a paper diary). */
 function historyCard(row) {
-  const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
-  const heading = document.createElement('div'); heading.className = 'note-entry-head';
-  const time = document.createElement('span'); time.className = 'note-entry-time'; time.textContent = monthTime(row.updated_at);
-  const tags = document.createElement('span'); tags.className = 'note-entry-tags';
-  tags.textContent = (row.displayLabels || [row.displayLabel]).filter(Boolean).join(' · ');
-  heading.append(time, tags);
-  const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.text;
-  article.append(heading, text); return article;
+  const article = node('article', 'notes-read-entry');
+  const head = node('div', 'notes-read-head');
+  head.append(node('span', 'notes-read-time', monthTime(row.updated_at)), node('span', 'notes-read-tags', rowLabels(row).join(' · ')));
+  article.append(head, node('div', 'notes-read-text', row.text)); return article;
+}
+/** One timeline row per day: date on the left, a dotted line with a dot, and a card with the first lines of the day. */
+function timelineDay(date, items) {
+  const button = node('button', 'notes-tl-day'); button.type = 'button'; button.dataset.historyOpen = date;
+  button.setAttribute('aria-label', dayLine(date, items.length) + '，打开这一天');
+  const when = node('span', 'notes-tl-date');
+  when.append(node('span', 'notes-tl-num', String(Number(date.slice(8)))), node('span', 'notes-tl-week', dayTitle(date).split(' ')[1]));
+  const card = node('span', 'notes-tl-card');
+  card.append(node('span', 'notes-tl-preview', items.map(row => `${monthTime(row.updated_at)} ${row.text}`).join('\n')));
+  const score = scoreByDate.get(date), tags = [...new Set(items.flatMap(rowLabels))].join(' · ');
+  card.append(node('span', 'notes-tl-foot', [tags, items.length + ' 条', score ? score + '分' : ''].filter(Boolean).join(' · ')));
+  button.append(when, node('span', 'notes-tl-dot'), card); return button;
+}
+function paintTimeline(list, shown, order, open) {
+  const direction = order === 'asc' ? 1 : -1;
+  if (open) {
+    const rows = (historyDays.get(open) || []).filter(shown).sort(byTime(1));
+    const back = node('button', 'notes-read-back', '← 返回时间轴'); back.type = 'button'; back.dataset.historyBack = '1';
+    list.replaceChildren(back, node('h3', 'notes-read-title', dayLine(open, rows.length)), ...rows.map(historyCard));
+    return rows;
+  }
+  const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b))
+    .map(([date, items]) => [date, items.filter(shown).sort(byTime(1))]).filter(([, items]) => items.length);
+  const wrap = node('div', 'notes-tl'); wrap.append(...groups.map(([date, items]) => timelineDay(date, items)));
+  list.replaceChildren(wrap);
+  return groups.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root) {
   const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
@@ -723,26 +754,15 @@ function paintHistoryRows(root) {
   const orderButton = root.querySelector('[data-history-order]');
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
-  orderButton.textContent = order === 'asc' ? '时间：从旧到新' : '时间：从新到旧';
-  const card = historyCard;
+  orderButton.textContent = order === 'asc' ? '↑ 旧到新' : '↓ 新到旧';
+  const open = timeline && historyDays.has(root.dataset.historyOpen) ? root.dataset.historyOpen : '';
+  orderButton.hidden = !timeline || Boolean(open);
   let rows;
-  if (timeline) {
-    const direction = order === 'asc' ? 1 : -1;
-    const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b))
-      .map(([date, items]) => [date, items.filter(shown).sort((a, b) =>
-        direction * String(a.updated_at || '').localeCompare(String(b.updated_at || '')))])
-      .filter(([, items]) => items.length);
-    rows = groups.flatMap(([, items]) => items);
-    list.replaceChildren(...groups.map(([date, items]) => {
-      const section = document.createElement('section'); section.className = 'notes-timeline-day';
-      const heading = document.createElement('h3'); heading.className = 'notes-timeline-date';
-      heading.textContent = dayLine(date, items.length);
-      section.append(heading, ...items.map(card)); return section;
-    }));
-  } else {
-    rows = (historyDays.get(selected) || []).filter(shown);
-    const title = selected ? Object.assign(document.createElement('h3'), {className:'notes-timeline-date', textContent:dayLine(selected, rows.length)}) : null;
-    list.replaceChildren(...[title, ...rows.map(card)].filter(Boolean));
+  if (timeline) rows = paintTimeline(list, shown, order, open);
+  else {
+    rows = (historyDays.get(selected) || []).filter(shown).sort(byTime(1));
+    const title = selected ? node('h3', 'notes-read-title', dayLine(selected, rows.length)) : null;
+    list.replaceChildren(...[title, ...rows.map(historyCard)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
   root.querySelector('#notes-history-summary').textContent =
@@ -760,6 +780,7 @@ function applyHistoryMonth(root, month, days, chosenDate) {
   const withNotes = dates.filter(date => (days.get(date) || []).length);
   const selected = (days.get(picked) || []).length || !withNotes.length ? picked :
     withNotes.filter(date => date <= picked).at(-1) || withNotes[0];
+  if (historyMonth !== month) root.dataset.historyOpen = '';
   historyMonth = month; historyDays = days;
   root.dataset.historyLoadedMonth = month;
   root.querySelector('#notes-history-month').value = month;
@@ -877,25 +898,31 @@ async function handleEntryAction(target, entries) {
   else if (action === 'use-server') entries.useServer(id);
   else if (action === 'use-draft') await entries.useDraft(id);
 }
+/** Timeline open/back, sort order and calendar/timeline switch. Returns whether the click was one of these. */
+function historyViewClick(root, target) {
+  const {historyOpen, historyBack, historyOrder, historyDisplay} = target.dataset;
+  if (!historyOpen && !historyBack && !historyOrder && !historyDisplay) return false;
+  if (historyOpen || historyBack) root.dataset.historyOpen = historyOpen || '';
+  if (historyOrder) root.dataset.historyOrder = historyOrder === 'asc' ? 'desc' : 'asc';
+  if (historyDisplay) {
+    root.dataset.historyDisplay = historyDisplay; root.dataset.historyOpen = '';
+    for (const button of root.querySelectorAll('[data-history-display]')) button.setAttribute('aria-pressed', String(button === target));
+  }
+  if (historyMonth) paintHistoryRows(root);
+  if (historyOpen || historyBack) root.querySelector('#notes-history-list')?.scrollIntoView?.({block:'start'});
+  return true;
+}
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
     '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],' +
-    '[data-history-order],[data-daily-score],[data-daily-score-toggle]');
+    '[data-history-order],[data-history-open],[data-history-back],[data-daily-score],[data-daily-score-toggle]');
   if (target?.matches('[data-daily-score-toggle]')) { scoreOpen = !scoreOpen; paintDailyScore(); return; }
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
   if (target.dataset.dailyScore) { await saveDailyScore(dailyNotesRouteDate(), Number(target.dataset.dailyScore)); return; }
-  if (target.dataset.historyOrder) {
-    root.dataset.historyOrder = target.dataset.historyOrder === 'asc' ? 'desc' : 'asc';
-    if (historyMonth) paintHistoryRows(root); return;
-  }
-  if (target.dataset.historyDisplay) {
-    root.dataset.historyDisplay = target.dataset.historyDisplay;
-    for (const button of root.querySelectorAll('[data-history-display]')) button.setAttribute('aria-pressed', String(button === target));
-    if (historyMonth) paintHistoryRows(root); return;
-  }
+  if (historyViewClick(root, target)) return;
   if (target.dataset.notesMonth) {
     const month = historyMonth || dailyNotesToday().slice(0, 7);
     await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === 'prev' ? -1 : 1)); return;

@@ -485,12 +485,12 @@ function animatePageEntry(container) {
   }
 }
 function applyChartStyles(container) {
-  for (const node2 of container.querySelectorAll(".publication-bars i[data-chart-color],.legend-dot[data-chart-color]")) {
-    const color = node2.dataset.chartColor;
-    node2.style.setProperty("--plot-color", /^var\(--p-(?:toutiao|zhihu|wechat|other)\)$/.test(color) ? color : "var(--p-other)");
-    if (node2.hasAttribute("data-chart-height")) {
-      const height = Number(node2.dataset.chartHeight);
-      node2.style.setProperty("--h", Number.isFinite(height) && height >= 0 && height <= 80 ? `${height}px` : "0px");
+  for (const node3 of container.querySelectorAll(".publication-bars i[data-chart-color],.legend-dot[data-chart-color]")) {
+    const color = node3.dataset.chartColor;
+    node3.style.setProperty("--plot-color", /^var\(--p-(?:toutiao|zhihu|wechat|other)\)$/.test(color) ? color : "var(--p-other)");
+    if (node3.hasAttribute("data-chart-height")) {
+      const height = Number(node3.dataset.chartHeight);
+      node3.style.setProperty("--h", Number.isFinite(height) && height >= 0 && height <= 80 ? `${height}px` : "0px");
     }
   }
 }
@@ -512,9 +512,9 @@ var init_entry = __esm({
 // web/ui/popover.mjs
 function closePopover({ restoreFocus = true } = {}) {
   if (!runtime.activePopover) return;
-  const { node: node2, trigger } = runtime.activePopover;
+  const { node: node3, trigger } = runtime.activePopover;
   runtime.activePopover = null;
-  node2.remove();
+  node3.remove();
   trigger.setAttribute("aria-expanded", "false");
   if (restoreFocus && trigger.isConnected) trigger.focus();
 }
@@ -524,21 +524,21 @@ function popover(trigger, body3, { menu = false, label: label3 = "说明" } = {}
     return;
   }
   closePopover();
-  const id2 = trigger.getAttribute("aria-controls") || `popover-${++runtime.popoverId}`, node2 = document.createElement("div");
+  const id2 = trigger.getAttribute("aria-controls") || `popover-${++runtime.popoverId}`, node3 = document.createElement("div");
   trigger.setAttribute("aria-controls", id2);
   trigger.setAttribute("aria-expanded", "true");
-  node2.id = id2;
-  node2.className = "popover";
-  node2.setAttribute("role", menu ? "menu" : "dialog");
-  node2.setAttribute("aria-label", label3);
-  node2.tabIndex = -1;
-  node2.innerHTML = body3;
-  (trigger.closest("[role=dialog]") || document.body).append(node2);
-  runtime.activePopover = { node: node2, trigger, menu };
-  const anchor = trigger.getBoundingClientRect(), r = node2.getBoundingClientRect();
-  node2.style.left = `var(--popover-left,${Math.max(16, Math.min(anchor.right - r.width, innerWidth - r.width - 16))}px)`;
-  node2.style.top = `var(--popover-top,${Math.max(16, Math.min(anchor.bottom + 8, innerHeight - r.height - 16))}px)`;
-  (node2.querySelector('button,a[href],input:not([type=hidden]),select,[tabindex="0"]') || node2).focus();
+  node3.id = id2;
+  node3.className = "popover";
+  node3.setAttribute("role", menu ? "menu" : "dialog");
+  node3.setAttribute("aria-label", label3);
+  node3.tabIndex = -1;
+  node3.innerHTML = body3;
+  (trigger.closest("[role=dialog]") || document.body).append(node3);
+  runtime.activePopover = { node: node3, trigger, menu };
+  const anchor = trigger.getBoundingClientRect(), r = node3.getBoundingClientRect();
+  node3.style.left = `var(--popover-left,${Math.max(16, Math.min(anchor.right - r.width, innerWidth - r.width - 16))}px)`;
+  node3.style.top = `var(--popover-top,${Math.max(16, Math.min(anchor.bottom + 8, innerHeight - r.height - 16))}px)`;
+  (node3.querySelector('button,a[href],input:not([type=hidden]),select,[tabindex="0"]') || node3).focus();
 }
 var init_popover = __esm({
   "web/ui/popover.mjs"() {
@@ -2317,7 +2317,7 @@ function operationFor(input, uuid5, time3) {
   return operation2;
 }
 async function digest(value) {
-  const canonical4 = (node2) => Array.isArray(node2) ? node2.map(canonical4) : node2 && typeof node2 === "object" ? Object.fromEntries(Object.keys(node2).sort().map((key) => [key, canonical4(node2[key])])) : node2;
+  const canonical4 = (node3) => Array.isArray(node3) ? node3.map(canonical4) : node3 && typeof node3 === "object" ? Object.fromEntries(Object.keys(node3).sort().map((key) => [key, canonical4(node3[key])])) : node3;
   const bytes = new TextEncoder().encode(JSON.stringify(canonical4(value)));
   const hash2 = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash2)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
@@ -5674,13 +5674,13 @@ var init_api = __esm({
 // web/ui/toast.mjs
 init_dom();
 function toast(message, error2 = false) {
-  const node2 = document.createElement("div");
-  node2.className = `toast${error2 ? " error" : ""}`;
-  node2.setAttribute("role", error2 ? "alert" : "status");
-  node2.textContent = message;
-  $("#toasts").append(node2);
+  const node3 = document.createElement("div");
+  node3.className = `toast${error2 ? " error" : ""}`;
+  node3.setAttribute("role", error2 ? "alert" : "status");
+  node3.textContent = message;
+  $("#toasts").append(node3);
   while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
-  setTimeout(() => node2.remove(), error2 ? 8e3 : 4500);
+  setTimeout(() => node3.remove(), error2 ? 8e3 : 4500);
 }
 
 // web/pages/todo-note-field.mjs
@@ -7008,13 +7008,13 @@ var identity4 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(s
 var current2 = () => session === identity4();
 var clock = createOpenAiElapsedClock(() => {
   if (!current2() || (state.page !== "ai-diagnosis" || state.diagnosisTab !== "help") || document.visibilityState === "hidden") return null;
-  const node2 = document.querySelector("#openai-review-panel [data-openai-elapsed]");
-  return node2 ? { node: node2, startedAt: Number(node2.dataset.openaiElapsed) } : null;
+  const node3 = document.querySelector("#openai-review-panel [data-openai-elapsed]");
+  return node3 ? { node: node3, startedAt: Number(node3.dataset.openaiElapsed) } : null;
 });
 var connectionClock = createOpenAiElapsedClock(() => {
   if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || document.visibilityState === "hidden") return null;
-  const node2 = document.querySelector("#openai-review-panel [data-connectivity-elapsed]");
-  return node2 ? { node: node2, startedAt: Number(node2.dataset.connectivityElapsed) } : null;
+  const node3 = document.querySelector("#openai-review-panel [data-connectivity-elapsed]");
+  return node3 ? { node: node3, startedAt: Number(node3.dataset.connectivityElapsed) } : null;
 });
 function stopOpenAiReviewTimers() {
   clock.stop();
@@ -7084,8 +7084,8 @@ function reset() {
 }
 function paintOpenAiReview() {
   reset();
-  const node2 = document.querySelector("#openai-review-panel");
-  if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm);
+  const node3 = document.querySelector("#openai-review-panel");
+  if (node3) node3.innerHTML = renderOpenAiReviewPanel(vm);
   clock.refresh();
   connectionClock.refresh();
 }
@@ -8348,8 +8348,8 @@ function paintTodoTemplates() {
     "todo-template-status": "",
     "todo-template-archived": archivedRows(store)
   })) {
-    const node2 = $("#" + id2, root3);
-    if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
+    const node3 = $("#" + id2, root3);
+    if (node3 && node3.innerHTML !== html) node3.innerHTML = html;
   }
 }
 function templateReadActive(store, owner2, sequence5, version2, date2) {
@@ -8625,55 +8625,55 @@ async function submitTodoCount({ form, data: data3 }) {
     message.textContent = "没有保存，请重试";
   }
 }
-function readNote(node2) {
-  const raw = node2?.isContentEditable ? node2.textContent : node2?.value;
+function readNote(node3) {
+  const raw = node3?.isContentEditable ? node3.textContent : node3?.value;
   return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4e3);
 }
-function placeNoteCaret(node2) {
-  if (!node2) return;
-  node2.focus();
+function placeNoteCaret(node3) {
+  if (!node3) return;
+  node3.focus();
   const selection = window.getSelection?.();
-  if (!selection || !node2.isContentEditable) {
-    const end = node2.value?.length || 0;
-    node2.setSelectionRange?.(end, end);
+  if (!selection || !node3.isContentEditable) {
+    const end = node3.value?.length || 0;
+    node3.setSelectionRange?.(end, end);
     return;
   }
   const range = document.createRange();
-  range.selectNodeContents(node2);
+  range.selectNodeContents(node3);
   range.collapse(false);
   selection.removeAllRanges();
   selection.addRange(range);
 }
-function rememberNote(node2) {
-  const text = readNote(node2);
-  const shown2 = node2.isContentEditable ? node2.textContent : node2.value;
+function rememberNote(node3) {
+  const text = readNote(node3);
+  const shown2 = node3.isContentEditable ? node3.textContent : node3.value;
   if (shown2 !== text) {
-    if (node2.isContentEditable) node2.textContent = text;
-    else node2.value = text;
-    placeNoteCaret(node2);
+    if (node3.isContentEditable) node3.textContent = text;
+    else node3.value = text;
+    placeNoteCaret(node3);
   }
-  if (node2.dataset.future === "1") {
+  if (node3.dataset.future === "1") {
     const view2 = futureTodoView();
-    if (view2.noteEdit?.id === node2.dataset.id) view2.noteEdit.text = text;
+    if (view2.noteEdit?.id === node3.dataset.id) view2.noteEdit.text = text;
     return;
   }
-  const day6 = todoDay(node2.dataset.date);
-  if (day6.noteEdit?.id === node2.dataset.id) day6.noteEdit.text = text;
+  const day6 = todoDay(node3.dataset.date);
+  if (day6.noteEdit?.id === node3.dataset.id) day6.noteEdit.text = text;
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
   watchTodoNotes.ready = true;
   document.addEventListener("beforeinput", (event) => {
-    const node2 = event.target;
-    if (!node2?.matches?.("[data-todo-note-input]")) return;
+    const node3 = event.target;
+    if (!node3?.matches?.("[data-todo-note-input]")) return;
     if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
       event.preventDefault();
-      node2.blur();
+      node3.blur();
     }
   });
   document.addEventListener("paste", (event) => {
-    const node2 = event.target?.closest?.("[data-todo-note-input]");
-    if (!node2) return;
+    const node3 = event.target?.closest?.("[data-todo-note-input]");
+    if (!node3) return;
     event.preventDefault();
     const text = (event.clipboardData?.getData("text/plain") || "").replace(/\r?\n/g, "");
     const selection = window.getSelection();
@@ -8682,7 +8682,7 @@ function watchTodoNotes() {
     range.deleteContents();
     range.insertNode(document.createTextNode(text));
     range.collapse(false);
-    node2.dispatchEvent(new Event("input", { bubbles: true }));
+    node3.dispatchEvent(new Event("input", { bubbles: true }));
   });
   document.addEventListener("input", (event) => {
     if (event.target?.matches?.("[data-todo-note-input]")) rememberNote(event.target);
@@ -9077,9 +9077,9 @@ var monthLoader = createTodoMonthLoader({
   },
   changed(snapshot) {
     if (monthSnapshot !== snapshot || !todosVisible()) return;
-    const node2 = $("#todo-calendar");
-    if (node2) {
-      node2.dataset.month = "";
+    const node3 = $("#todo-calendar");
+    if (node3) {
+      node3.dataset.month = "";
       paintTodoCalendar(todoDay().date);
     }
   }
@@ -9203,9 +9203,9 @@ async function loadTodoMonth2(month) {
   const snapshot = monthLoader.open(month, monthOwner());
   monthSnapshot = snapshot;
   if (todosVisible()) {
-    const node2 = $("#todo-calendar");
-    if (node2) {
-      node2.dataset.month = "";
+    const node3 = $("#todo-calendar");
+    if (node3) {
+      node3.dataset.month = "";
       paintTodoCalendar(todoDay().date);
     }
   }
@@ -9270,8 +9270,8 @@ ${todoCalendar(day6.date)}</div></section>`;
 function paintTodoPanels(root3) {
   const panel2 = state.todoPanel || "";
   for (const [id2, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"], ["todo-future", "future"]]) {
-    const node2 = $("#" + id2, root3);
-    if (node2) node2.hidden = id2 === "todo-main" ? ["templates", "future"].includes(panel2) : panel2 !== value;
+    const node3 = $("#" + id2, root3);
+    if (node3) node3.hidden = id2 === "todo-main" ? ["templates", "future"].includes(panel2) : panel2 !== value;
   }
   root3?.querySelectorAll('[data-action="todo-panel"]').forEach((button3) => {
     button3.setAttribute("aria-current", button3.dataset.panel === panel2 ? "page" : "false");
@@ -9396,8 +9396,8 @@ function paintTodoDom() {
   };
   for (const [id2, html] of Object.entries(parts2)) {
     if (id2 === "todo-items" && keepNote) continue;
-    const node2 = $("#" + id2, root3);
-    if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
+    const node3 = $("#" + id2, root3);
+    if (node3 && node3.innerHTML !== html) node3.innerHTML = html;
   }
   paintTodoCalendar(day6.date);
   const input = $("#todo-text", root3), button3 = $("#todo-form button[type=submit]", root3);
@@ -9694,9 +9694,9 @@ function registerTodosClock() {
         monthSnapshot.loading = false;
         monthSnapshot.error = "身份范围暂未核实，请稍后重试。";
       }
-      const node2 = $("#todo-calendar");
-      if (node2) {
-        node2.dataset.month = "";
+      const node3 = $("#todo-calendar");
+      if (node3) {
+        node3.dataset.month = "";
         paintTodoCalendar(todoDay().date);
       }
       if (ready) void loadTodoMonth2(month);
@@ -10653,7 +10653,7 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
   const active6 = () => !disposed && root3.isConnected && identityNow() === expected;
   const visibleRows = (date2) => (days.get(date2) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
-  function node2(tag2, text, className = "") {
+  function node3(tag2, text, className = "") {
     const result = doc.createElement(tag2);
     result.textContent = text;
     if (className) result.className = className;
@@ -10664,13 +10664,13 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
     list2.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
-      const card2 = node2("article", "", "note-entry note-entry-saved"), head = node2("div", "", "note-entry-head");
-      head.append(node2("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
-      const time3 = node2("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
+      const card2 = node3("article", "", "note-entry note-entry-saved"), head = node3("div", "", "note-entry-head");
+      head.append(node3("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
+      const time3 = node3("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
       time3.dateTime = item.updated_at;
       head.append(time3);
-      card2.append(head, node2("div", item.text || "这条记录没有文字。", "note-entry-reader"));
-      const open = node2("button", "查看当天", "btn text");
+      card2.append(head, node3("div", item.text || "这条记录没有文字。", "note-entry-reader"));
+      const open = node3("button", "查看当天", "btn text");
       open.type = "button";
       open.addEventListener("click", () => {
         if (active6()) void selectDate(selected, item.category);
@@ -10678,17 +10678,17 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
       card2.append(open);
       list2.append(card2);
     }
-    if (!rows.length) list2.append(node2("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+    if (!rows.length) list2.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
   function paint3() {
     const grid = find("#notes-month-grid");
     grid.replaceChildren();
     for (const date2 of noteMonthWeeks(month).flat()) {
       if (!date2) {
-        grid.append(node2("span", ""));
+        grid.append(node3("span", ""));
         continue;
       }
-      const count3 = visibleRows(date2).length, button3 = node2("button", String(Number(date2.slice(-2))) + (count3 ? " · " + count3 : ""), "btn");
+      const count3 = visibleRows(date2).length, button3 = node3("button", String(Number(date2.slice(-2))) + (count3 ? " · " + count3 : ""), "btn");
       button3.type = "button";
       button3.dataset.notesMonthDate = date2;
       button3.setAttribute("aria-label", date2 + "，" + count3 + " 条记录");
@@ -10857,38 +10857,38 @@ function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送"></button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
 function createEntryElement(item, editing3) {
-  const node2 = document.createElement("article");
-  node2.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
-  node2.dataset.noteEntry = item.id;
-  node2.dataset.category = item.category;
-  node2.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
-  return node2;
+  const node3 = document.createElement("article");
+  node3.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
+  node3.dataset.noteEntry = item.id;
+  node3.dataset.category = item.category;
+  node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  return node3;
 }
-function paintEntrySummary(node2, item) {
-  node2.dataset.category = item.category;
-  node2.querySelector(".note-entry-label").textContent = !item.labelKnown || !item.labelComplete ? "标签待联网核实" : (item.labels || []).join("、");
-  paintTime(node2.querySelector("time"), item.updatedAt);
-  const status = node2.querySelector(".note-entry-status");
+function paintEntrySummary(node3, item) {
+  node3.dataset.category = item.category;
+  node3.querySelector(".note-entry-label").textContent = !item.labelKnown || !item.labelComplete ? "标签待联网核实" : (item.labels || []).join("、");
+  paintTime(node3.querySelector("time"), item.updatedAt);
+  const status = node3.querySelector(".note-entry-status");
   status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "未发送");
   status.dataset.phase = item.phase;
-  const message = node2.querySelector(".note-entry-message");
+  const message = node3.querySelector(".note-entry-message");
   message.textContent = item.error;
   message.hidden = !item.error;
 }
-function paintSavedEntry(node2, item) {
-  paintEntrySummary(node2, item);
-  node2.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
-  const draft = noteDraftNeedsAttention(item), body3 = node2.querySelector(".note-entry-reader");
+function paintSavedEntry(node3, item) {
+  paintEntrySummary(node3, item);
+  node3.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
+  const draft = noteDraftNeedsAttention(item), body3 = node3.querySelector(".note-entry-reader");
   body3.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
   body3.classList.toggle("note-entry-draft-label", draft);
-  node2.dataset.draft = String(draft);
-  const edit = node2.querySelector('[data-note-entry-action="edit"]');
+  node3.dataset.draft = String(draft);
+  const edit = node3.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node2, item, confirmId, labels4, labelsVerified) {
-  paintEntrySummary(node2, item);
-  const find = (selector) => node2.querySelector(selector), editor = find("textarea");
+function paintEntryEditor(node3, item, confirmId, labels4, labelsVerified) {
+  paintEntrySummary(node3, item);
+  const find = (selector) => node3.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
   editor.dataset.category = item.category;
   editor.hidden = item.deleted;
@@ -10944,33 +10944,33 @@ function paintActiveEditor(root3, store, active6, legacy2, confirmId, labels4, l
   host.hidden = !item;
   if (item) {
     if (!nodes.has(active6)) nodes.set(active6, createEntryElement(item, true));
-    const node2 = nodes.get(active6);
-    if (host.firstElementChild !== node2) host.replaceChildren(node2);
-    paintEntryEditor(node2, item, confirmId, labels4, labelsVerified);
+    const node3 = nodes.get(active6);
+    if (host.firstElementChild !== node3) host.replaceChildren(node3);
+    paintEntryEditor(node3, item, confirmId, labels4, labelsVerified);
   }
   root3.querySelector("#notes-legacy-card").hidden = active6 !== "legacy";
   paintDailyNotes(root3, legacy2, { compatibility: true, editing: active6 === "legacy" });
 }
 function paintLegacySummary(root3, legacy2, active6) {
-  const node2 = root3.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy2);
-  let label3 = node2.querySelector(".note-entry-label");
+  const node3 = root3.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy2);
+  let label3 = node3.querySelector(".note-entry-label");
   if (!label3) {
     label3 = document.createElement("span");
     label3.className = "note-entry-label";
-    node2.querySelector(".note-entry-head").prepend(label3);
+    node3.querySelector(".note-entry-head").prepend(label3);
   }
   label3.textContent = root3.dataset.category === "work" ? "工作" : "生活";
-  node2.hidden = active6 === "legacy" || !(legacy2.version > 0 || draft);
-  paintTime(node2.querySelector("time"), legacy2.updatedAt);
-  node2.querySelector(".note-entry-reader").textContent = draft ? legacy2.draft : legacy2.deleted ? "原有记录已删除。" : legacy2.serverText;
-  node2.querySelector(".note-entry-status").textContent = draft ? statuses[legacy2.phase] || "保留的原有草稿" : "原有记录 · 只读";
-  node2.querySelector(".note-entry-status").dataset.phase = legacy2.phase;
-  node2.querySelector(".note-entry-message").textContent = legacy2.error;
-  node2.querySelector(".note-entry-message").hidden = !legacy2.error;
-  const edit = node2.querySelector('[data-notes-action="edit-legacy"]');
+  node3.hidden = active6 === "legacy" || !(legacy2.version > 0 || draft);
+  paintTime(node3.querySelector("time"), legacy2.updatedAt);
+  node3.querySelector(".note-entry-reader").textContent = draft ? legacy2.draft : legacy2.deleted ? "原有记录已删除。" : legacy2.serverText;
+  node3.querySelector(".note-entry-status").textContent = draft ? statuses[legacy2.phase] || "保留的原有草稿" : "原有记录 · 只读";
+  node3.querySelector(".note-entry-status").dataset.phase = legacy2.phase;
+  node3.querySelector(".note-entry-message").textContent = legacy2.error;
+  node3.querySelector(".note-entry-message").hidden = !legacy2.error;
+  const edit = node3.querySelector('[data-notes-action="edit-legacy"]');
   edit.hidden = false;
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
-  node2.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
+  node3.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
 function paintRetainedDrafts(root3, current3, drafts) {
   const box = root3.querySelector("#notes-drafts");
@@ -10982,28 +10982,28 @@ function paintRetainedDrafts(root3, current3, drafts) {
   }).join("");
 }
 function paintOtherLegacy(root3, list2, legacy2, category) {
-  let node2 = root3.querySelector("#notes-legacy-other");
-  if (!node2) {
-    node2 = document.createElement("article");
-    node2.id = "notes-legacy-other";
-    node2.className = "note-entry note-entry-saved notes-legacy-saved";
-    node2.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
+  let node3 = root3.querySelector("#notes-legacy-other");
+  if (!node3) {
+    node3 = document.createElement("article");
+    node3.id = "notes-legacy-other";
+    node3.className = "note-entry note-entry-saved notes-legacy-saved";
+    node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
   }
-  list2.append(node2);
+  list2.append(node3);
   const draft = legacy2 && retainedLegacy(legacy2);
-  node2.hidden = !legacy2 || !(legacy2.version > 0 || draft);
+  node3.hidden = !legacy2 || !(legacy2.version > 0 || draft);
   if (!legacy2) return;
-  node2.querySelector(".note-entry-label").textContent = category === "work" ? "工作" : "生活";
-  paintTime(node2.querySelector("time"), legacy2.updatedAt);
-  node2.querySelector(".note-entry-reader").textContent = draft ? legacy2.draft : legacy2.deleted ? "原有记录已删除。" : legacy2.serverText;
-  node2.querySelector(".note-entry-status").textContent = draft ? statuses[legacy2.phase] || "保留的原有草稿" : "原有记录 · 只读";
-  const message = node2.querySelector(".note-entry-message");
+  node3.querySelector(".note-entry-label").textContent = category === "work" ? "工作" : "生活";
+  paintTime(node3.querySelector("time"), legacy2.updatedAt);
+  node3.querySelector(".note-entry-reader").textContent = draft ? legacy2.draft : legacy2.deleted ? "原有记录已删除。" : legacy2.serverText;
+  node3.querySelector(".note-entry-status").textContent = draft ? statuses[legacy2.phase] || "保留的原有草稿" : "原有记录 · 只读";
+  const message = node3.querySelector(".note-entry-message");
   message.textContent = legacy2.error;
   message.hidden = !legacy2.error;
-  const edit = node2.querySelector('[data-notes-action="edit-other-legacy"]');
+  const edit = node3.querySelector('[data-notes-action="edit-other-legacy"]');
   edit.dataset.legacyCategory = category;
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
-  const exportButton = node2.querySelector('[data-notes-action="export-other-legacy"]');
+  const exportButton = node3.querySelector('[data-notes-action="export-other-legacy"]');
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
@@ -11029,13 +11029,13 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   const items = current3.ids.map((id2) => store.entry(id2)).filter(Boolean);
   const saved = items.filter((item) => !item.deleted && item.id !== active6 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished2 = find("#notes-unpublished");
-  const nodes = new Map([...list2.children, ...unpublished2.children].filter((node2) => node2.dataset.noteEntry).map((node2) => [node2.dataset.noteEntry, node2])), wanted = new Set(saved.map((item) => item.id));
-  for (const [id2, node2] of nodes) if (!wanted.has(id2)) node2.remove();
+  const nodes = new Map([...list2.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
+  for (const [id2, node3] of nodes) if (!wanted.has(id2)) node3.remove();
   for (const item of saved) {
-    const node2 = nodes.get(item.id) || createEntryElement(item, false);
-    (noteDraftNeedsAttention(item) ? unpublished2 : list2).append(node2);
-    paintSavedEntry(node2, item);
-    node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
+    const node3 = nodes.get(item.id) || createEntryElement(item, false);
+    (noteDraftNeedsAttention(item) ? unpublished2 : list2).append(node3);
+    paintSavedEntry(node3, item);
+    node3.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
   paintActiveEditor(root3, store, active6, legacy2, confirmId, labels4, labelsVerified);
   paintLegacySummary(root3, legacy2, active6);
@@ -11068,10 +11068,10 @@ var STATS = [["bowel", "排便"], ["normal", "正常"], ["loose", "偏稀"], ["h
 var REFRESH_MS = 5 * 6e4;
 var view = { data: null, loadedAt: 0, loading: null, busy: "", error: "", contextOpen: false };
 var el = (tag2, className, text) => {
-  const node2 = document.createElement(tag2);
-  if (className) node2.className = className;
-  if (text !== void 0) node2.textContent = text;
-  return node2;
+  const node3 = document.createElement(tag2);
+  if (className) node3.className = className;
+  if (text !== void 0) node3.textContent = text;
+  return node3;
 };
 var short = (date2) => `${Number(date2.slice(5, 7))}/${Number(date2.slice(8))}`;
 var time2 = (stamp3) => {
@@ -12131,23 +12131,50 @@ function dayLine(date2, count3) {
   const score = scoreByDate.get(date2);
   return [dayTitle(date2), count3 ? count3 + " 条" : "", score ? "打分 " + score : ""].filter(Boolean).join(" · ");
 }
+var node = (tag2, className, text) => {
+  const value = document.createElement(tag2);
+  if (className) value.className = className;
+  if (text !== void 0) value.textContent = text;
+  return value;
+};
+var rowLabels = (row) => (row.displayLabels || [row.displayLabel]).filter(Boolean);
+var byTime = (direction) => (a, b) => direction * String(a.updated_at || "").localeCompare(String(b.updated_at || ""));
 function historyCard(row) {
-  const article = document.createElement("article");
-  article.className = "note-entry note-entry-saved";
-  const heading = document.createElement("div");
-  heading.className = "note-entry-head";
-  const time3 = document.createElement("span");
-  time3.className = "note-entry-time";
-  time3.textContent = monthTime(row.updated_at);
-  const tags = document.createElement("span");
-  tags.className = "note-entry-tags";
-  tags.textContent = (row.displayLabels || [row.displayLabel]).filter(Boolean).join(" · ");
-  heading.append(time3, tags);
-  const text = document.createElement("div");
-  text.className = "note-entry-reader";
-  text.textContent = row.text;
-  article.append(heading, text);
+  const article = node("article", "notes-read-entry");
+  const head = node("div", "notes-read-head");
+  head.append(node("span", "notes-read-time", monthTime(row.updated_at)), node("span", "notes-read-tags", rowLabels(row).join(" · ")));
+  article.append(head, node("div", "notes-read-text", row.text));
   return article;
+}
+function timelineDay(date2, items) {
+  const button3 = node("button", "notes-tl-day");
+  button3.type = "button";
+  button3.dataset.historyOpen = date2;
+  button3.setAttribute("aria-label", dayLine(date2, items.length) + "，打开这一天");
+  const when = node("span", "notes-tl-date");
+  when.append(node("span", "notes-tl-num", String(Number(date2.slice(8)))), node("span", "notes-tl-week", dayTitle(date2).split(" ")[1]));
+  const card2 = node("span", "notes-tl-card");
+  card2.append(node("span", "notes-tl-preview", items.map((row) => `${monthTime(row.updated_at)} ${row.text}`).join("\n")));
+  const score = scoreByDate.get(date2), tags = [...new Set(items.flatMap(rowLabels))].join(" · ");
+  card2.append(node("span", "notes-tl-foot", [tags, items.length + " 条", score ? score + "分" : ""].filter(Boolean).join(" · ")));
+  button3.append(when, node("span", "notes-tl-dot"), card2);
+  return button3;
+}
+function paintTimeline(list2, shown2, order, open) {
+  const direction = order === "asc" ? 1 : -1;
+  if (open) {
+    const rows = (historyDays.get(open) || []).filter(shown2).sort(byTime(1));
+    const back = node("button", "notes-read-back", "← 返回时间轴");
+    back.type = "button";
+    back.dataset.historyBack = "1";
+    list2.replaceChildren(back, node("h3", "notes-read-title", dayLine(open, rows.length)), ...rows.map(historyCard));
+    return rows;
+  }
+  const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date2, items]) => [date2, items.filter(shown2).sort(byTime(1))]).filter(([, items]) => items.length);
+  const wrap = node("div", "notes-tl");
+  wrap.append(...groups.map(([date2, items]) => timelineDay(date2, items)));
+  list2.replaceChildren(wrap);
+  return groups.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root3) {
   const label3 = root3.querySelector("#notes-history-label").value, weekValue = root3.querySelector("#notes-history-week").value;
@@ -12165,26 +12192,15 @@ function paintHistoryRows(root3) {
   const orderButton = root3.querySelector("[data-history-order]");
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
-  orderButton.textContent = order === "asc" ? "时间：从旧到新" : "时间：从新到旧";
-  const card2 = historyCard;
+  orderButton.textContent = order === "asc" ? "↑ 旧到新" : "↓ 新到旧";
+  const open = timeline && historyDays.has(root3.dataset.historyOpen) ? root3.dataset.historyOpen : "";
+  orderButton.hidden = !timeline || Boolean(open);
   let rows;
-  if (timeline) {
-    const direction = order === "asc" ? 1 : -1;
-    const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date2, items]) => [date2, items.filter(shown2).sort((a, b) => direction * String(a.updated_at || "").localeCompare(String(b.updated_at || "")))]).filter(([, items]) => items.length);
-    rows = groups.flatMap(([, items]) => items);
-    list2.replaceChildren(...groups.map(([date2, items]) => {
-      const section = document.createElement("section");
-      section.className = "notes-timeline-day";
-      const heading = document.createElement("h3");
-      heading.className = "notes-timeline-date";
-      heading.textContent = dayLine(date2, items.length);
-      section.append(heading, ...items.map(card2));
-      return section;
-    }));
-  } else {
-    rows = (historyDays.get(selected) || []).filter(shown2);
-    const title = selected ? Object.assign(document.createElement("h3"), { className: "notes-timeline-date", textContent: dayLine(selected, rows.length) }) : null;
-    list2.replaceChildren(...[title, ...rows.map(card2)].filter(Boolean));
+  if (timeline) rows = paintTimeline(list2, shown2, order, open);
+  else {
+    rows = (historyDays.get(selected) || []).filter(shown2).sort(byTime(1));
+    const title = selected ? node("h3", "notes-read-title", dayLine(selected, rows.length)) : null;
+    list2.replaceChildren(...[title, ...rows.map(historyCard)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown2).length;
   root3.querySelector("#notes-history-summary").textContent = `${Number(historyMonth.slice(5))}月${label3 ? `「${label3}」` : ""}共 ${total} 条`;
@@ -12197,6 +12213,7 @@ function applyHistoryMonth(root3, month, days, chosenDate) {
   const picked = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
   const withNotes = dates.filter((date2) => (days.get(date2) || []).length);
   const selected = (days.get(picked) || []).length || !withNotes.length ? picked : withNotes.filter((date2) => date2 <= picked).at(-1) || withNotes[0];
+  if (historyMonth !== month) root3.dataset.historyOpen = "";
   historyMonth = month;
   historyDays = days;
   root3.dataset.historyLoadedMonth = month;
@@ -12334,10 +12351,24 @@ async function handleEntryAction(target, entries) {
   else if (action === "use-server") entries.useServer(id2);
   else if (action === "use-draft") await entries.useDraft(id2);
 }
+function historyViewClick(root3, target) {
+  const { historyOpen, historyBack, historyOrder, historyDisplay } = target.dataset;
+  if (!historyOpen && !historyBack && !historyOrder && !historyDisplay) return false;
+  if (historyOpen || historyBack) root3.dataset.historyOpen = historyOpen || "";
+  if (historyOrder) root3.dataset.historyOrder = historyOrder === "asc" ? "desc" : "asc";
+  if (historyDisplay) {
+    root3.dataset.historyDisplay = historyDisplay;
+    root3.dataset.historyOpen = "";
+    for (const button3 of root3.querySelectorAll("[data-history-display]")) button3.setAttribute("aria-pressed", String(button3 === target));
+  }
+  if (historyMonth) paintHistoryRows(root3);
+  if (historyOpen || historyBack) root3.querySelector("#notes-history-list")?.scrollIntoView?.({ block: "start" });
+  return true;
+}
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root3 = document.querySelector("#daily-notes");
-  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-daily-score],[data-daily-score-toggle]");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-history-open],[data-history-back],[data-daily-score],[data-daily-score-toggle]");
   if (target?.matches("[data-daily-score-toggle]")) {
     scoreOpen = !scoreOpen;
     paintDailyScore();
@@ -12349,17 +12380,7 @@ async function handleNotesClick(event) {
     await saveDailyScore(dailyNotesRouteDate(), Number(target.dataset.dailyScore));
     return;
   }
-  if (target.dataset.historyOrder) {
-    root3.dataset.historyOrder = target.dataset.historyOrder === "asc" ? "desc" : "asc";
-    if (historyMonth) paintHistoryRows(root3);
-    return;
-  }
-  if (target.dataset.historyDisplay) {
-    root3.dataset.historyDisplay = target.dataset.historyDisplay;
-    for (const button3 of root3.querySelectorAll("[data-history-display]")) button3.setAttribute("aria-pressed", String(button3 === target));
-    if (historyMonth) paintHistoryRows(root3);
-    return;
-  }
+  if (historyViewClick(root3, target)) return;
   if (target.dataset.notesMonth) {
     const month = historyMonth || dailyNotesToday().slice(0, 7);
     await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === "prev" ? -1 : 1));
@@ -12658,13 +12679,13 @@ var phases = {
   loading: ""
 };
 var active5 = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === trash);
-function paintEditedTime(node2, item) {
+function paintEditedTime(node3, item) {
   const local = item.localQueued && item.localUpdatedAt;
   const value = local || item.updated_at;
   const timestamp5 = value && Date.parse(value);
-  node2.hidden = !Number.isFinite(timestamp5);
-  node2.dateTime = node2.hidden ? "" : value;
-  node2.textContent = node2.hidden ? "" : new Intl.DateTimeFormat("zh-CN", {
+  node3.hidden = !Number.isFinite(timestamp5);
+  node3.dateTime = node3.hidden ? "" : value;
+  node3.textContent = node3.hidden ? "" : new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -15536,9 +15557,9 @@ var data = null, sequence2 = 0, registered2 = false, panelError = false;
 var account2 = () => state.account || "V字";
 var root = () => document.querySelector("#ai-experiments");
 function paint() {
-  const node2 = root();
-  if (!node2 || state.page !== "ai-reports") return;
-  node2.innerHTML = data ? renderReportReview(data, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
+  const node3 = root();
+  if (!node3 || state.page !== "ai-reports") return;
+  node3.innerHTML = data ? renderReportReview(data, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
 }
 function register2() {
   if (registered2) return;
@@ -17239,13 +17260,13 @@ init_state();
 var registered4 = false;
 var visible3 = () => state.page === "settings" && state.settingsTab === "ai";
 function paint2() {
-  const node2 = document.querySelector("#ai-settings");
-  if (!visible3() || !node2) return;
-  const active6 = document.activeElement, focus = node2.contains(active6) && active6.dataset.aiSetting ? [
+  const node3 = document.querySelector("#ai-settings");
+  if (!visible3() || !node3) return;
+  const active6 = document.activeElement, focus = node3.contains(active6) && active6.dataset.aiSetting ? [
     active6.dataset.aiSetting,
     active6.dataset.aiFeature || ""
   ] : null;
-  node2.outerHTML = renderAiSettings(reviewAiView());
+  node3.outerHTML = renderAiSettings(reviewAiView());
   if (focus) document.querySelector(`#ai-settings [data-ai-setting="${focus[0]}"]${focus[1] ? `[data-ai-feature="${focus[1]}"]` : ""}`)?.focus({ preventScroll: true });
 }
 function register3() {
@@ -17416,10 +17437,10 @@ function syncViewFromRoute() {
 }
 function focusBenchmark(id2) {
   if (!id2) return;
-  const node2 = document.getElementById(`review-benchmark-${encodeURIComponent(id2)}`);
-  if (!node2 || !root2()?.contains(node2)) return;
-  node2.scrollIntoView({ block: "start" });
-  node2.focus({ preventScroll: true });
+  const node3 = document.getElementById(`review-benchmark-${encodeURIComponent(id2)}`);
+  if (!node3 || !root2()?.contains(node3)) return;
+  node3.scrollIntoView({ block: "start" });
+  node3.focus({ preventScroll: true });
 }
 function positionReviewColumnsPicker() {
   const picker = root2()?.querySelector("[data-review-columns-picker]");
@@ -17453,33 +17474,33 @@ function scheduleReviewColumnsPosition() {
 }
 var returnFocusId = "", returnScroll = 0;
 function syncReviewFullscreen() {
-  const node2 = root2(), button3 = node2?.querySelector('[data-review-action="toggle-fullscreen"]');
+  const node3 = root2(), button3 = node3?.querySelector('[data-review-action="toggle-fullscreen"]');
   if (!button3) return;
-  const active6 = node2.classList.contains("review-list-fullscreen");
+  const active6 = node3.classList.contains("review-list-fullscreen");
   button3.textContent = active6 ? "退出全屏" : "全屏展示";
   button3.setAttribute("aria-pressed", String(active6));
 }
 async function toggleReviewFullscreen() {
-  const node2 = root2();
-  if (!node2) return;
-  if (node2.classList.contains("review-list-fullscreen")) {
-    node2.classList.remove("review-list-fullscreen");
-    if (document.fullscreenElement === node2) await document.exitFullscreen().catch(() => {
+  const node3 = root2();
+  if (!node3) return;
+  if (node3.classList.contains("review-list-fullscreen")) {
+    node3.classList.remove("review-list-fullscreen");
+    if (document.fullscreenElement === node3) await document.exitFullscreen().catch(() => {
     });
   } else {
     vm2.articlesExpanded = true;
     paintContentReviewPage();
-    node2.classList.add("review-list-fullscreen");
-    if (node2.requestFullscreen) await node2.requestFullscreen().catch(() => {
+    node3.classList.add("review-list-fullscreen");
+    if (node3.requestFullscreen) await node3.requestFullscreen().catch(() => {
     });
   }
   syncReviewFullscreen();
 }
 async function toggleArticleList() {
-  const node2 = root2();
-  if (!node2 || vm2.loading || vm2.error) return;
+  const node3 = root2();
+  if (!node3 || vm2.loading || vm2.error) return;
   const expanded = !vm2.articlesExpanded;
-  if (!expanded && node2.classList.contains("review-list-fullscreen")) await toggleReviewFullscreen();
+  if (!expanded && node3.classList.contains("review-list-fullscreen")) await toggleReviewFullscreen();
   vm2.articlesExpanded = expanded;
   vm2.metricPickerOpen = false;
   paintContentReviewPage();
@@ -17496,15 +17517,15 @@ var aiContext = () => ({
   }
 });
 function paintContentReviewPage() {
-  const node2 = root2();
-  if (!node2) return;
+  const node3 = root2();
+  if (!node3) return;
   vm2.ai = reviewAiView();
   const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : "";
-  node2.innerHTML = renderContentReviewContent(data2, vm2);
-  if (focused) node2.querySelector(`[data-ai-once="${focused}"]`)?.focus({ preventScroll: true });
+  node3.innerHTML = renderContentReviewContent(data2, vm2);
+  if (focused) node3.querySelector(`[data-ai-once="${focused}"]`)?.focus({ preventScroll: true });
   syncReviewFullscreen();
-  const dialog = node2.querySelector('[role="dialog"]');
-  for (const child of node2.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
+  const dialog = node3.querySelector('[role="dialog"]');
+  for (const child of node3.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector(".review-drawer-close")?.focus({ preventScroll: true });
   if (vm2.metricPickerOpen) positionReviewColumnsPicker();
 }
@@ -17557,8 +17578,8 @@ function closeArticle() {
   vm2.article = "";
   writeRoute({ article: "" });
   paintContentReviewPage();
-  const node2 = [...root2()?.querySelectorAll("[data-review-article]") || []].find((el2) => el2.dataset.reviewArticle === returnFocusId);
-  node2?.focus({ preventScroll: true });
+  const node3 = [...root2()?.querySelectorAll("[data-review-article]") || []].find((el2) => el2.dataset.reviewArticle === returnFocusId);
+  node3?.focus({ preventScroll: true });
   window.scrollTo({ top: returnScroll, behavior: "instant" });
 }
 function selectTab(view2, focus = false) {
@@ -17661,14 +17682,14 @@ function describeTrendPoint(event, leaving) {
   if (target && root2()?.contains(target)) target.textContent = leaving ? target.dataset.default : point.dataset.trendReadout;
 }
 function onReviewClick(event) {
-  const node2 = root2();
-  const picker = node2?.querySelector("[data-review-columns-picker]");
+  const node3 = root2();
+  const picker = node3?.querySelector("[data-review-columns-picker]");
   if (picker?.open && !picker.contains(event.target)) {
     picker.open = false;
     vm2.metricPickerOpen = false;
   }
   const benchmarkLink = event.target.closest?.("a[data-review-benchmark]");
-  if (benchmarkLink && node2?.contains(benchmarkLink)) {
+  if (benchmarkLink && node3?.contains(benchmarkLink)) {
     event.preventDefault();
     vm2.article = "";
     vm2.secondary = "library";
@@ -17680,7 +17701,7 @@ function onReviewClick(event) {
   }
   if (event.target.closest?.("a")) return;
   const target = event.target.closest?.("button,[data-review-row]");
-  if (!target || !node2?.contains(target)) return;
+  if (!target || !node3?.contains(target)) return;
   if (target.dataset.reviewAction === "toggle-articles") {
     void toggleArticleList();
     return;
@@ -17695,7 +17716,7 @@ function onReviewClick(event) {
     vm2.article = "";
     writeRoute({ view: "overview", section: "attention", article: "" });
     paintContentReviewPage();
-    const history2 = node2.querySelector("#review-health-history");
+    const history2 = node3.querySelector("#review-health-history");
     history2?.scrollIntoView({ behavior: "smooth", block: "start" });
     history2?.focus({ preventScroll: true });
     return;
@@ -17766,9 +17787,9 @@ function onReviewClick(event) {
   }
 }
 function onReviewKeydown(event) {
-  const node2 = root2();
-  if (!node2?.contains(event.target)) return;
-  const dialog = node2.querySelector('[role="dialog"]');
+  const node3 = root2();
+  if (!node3?.contains(event.target)) return;
+  const dialog = node3.querySelector('[role="dialog"]');
   if (dialog) {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -17788,7 +17809,7 @@ function onReviewKeydown(event) {
     }
     return;
   }
-  const picker = node2.querySelector("[data-review-columns-picker]");
+  const picker = node3.querySelector("[data-review-columns-picker]");
   if (event.key === "Escape" && picker?.open) {
     event.preventDefault();
     picker.open = false;
@@ -17796,7 +17817,7 @@ function onReviewKeydown(event) {
     picker.querySelector("[data-review-columns-trigger]")?.focus({ preventScroll: true });
     return;
   }
-  if (event.key === "Escape" && node2.classList.contains("review-list-fullscreen")) {
+  if (event.key === "Escape" && node3.classList.contains("review-list-fullscreen")) {
     event.preventDefault();
     void toggleReviewFullscreen();
     return;
@@ -17827,11 +17848,11 @@ function registerEvents2() {
     if (root2() && !vm2.loading) paintContentReviewPage();
   });
   document.addEventListener("fullscreenchange", () => {
-    const node2 = root2();
-    if (node2?.classList.contains("review-list-fullscreen") && !document.fullscreenElement && node2.dataset.nativeFullscreen === "true") {
-      node2.classList.remove("review-list-fullscreen");
-      node2.dataset.nativeFullscreen = "";
-    } else if (node2 && document.fullscreenElement === node2) node2.dataset.nativeFullscreen = "true";
+    const node3 = root2();
+    if (node3?.classList.contains("review-list-fullscreen") && !document.fullscreenElement && node3.dataset.nativeFullscreen === "true") {
+      node3.classList.remove("review-list-fullscreen");
+      node3.dataset.nativeFullscreen = "";
+    } else if (node3 && document.fullscreenElement === node3) node3.dataset.nativeFullscreen = "true";
     syncReviewFullscreen();
   });
   document.addEventListener("toggle", (event) => {
@@ -17850,8 +17871,8 @@ function registerEvents2() {
   document.addEventListener("mouseout", (event) => describeTrendPoint(event, true));
   document.addEventListener("change", (event) => {
     const target = event.target;
-    const node2 = root2();
-    if (!node2?.contains(target) || vm2.loading || vm2.error) return;
+    const node3 = root2();
+    if (!node3?.contains(target) || vm2.loading || vm2.error) return;
     if (reviewAiInput(target)) return;
     if (target.dataset.reviewTrend) {
       changeTrend(target);
@@ -17866,7 +17887,7 @@ function registerEvents2() {
       vm2.metricColumns = REVIEW_METRIC_COLUMNS.filter((key2) => selected.has(key2));
       vm2.metricPickerOpen = true;
       storage.set(columnStorageKey, JSON.stringify(vm2.metricColumns));
-      const scrollLeft = node2.querySelector(".review-table-wrap")?.scrollLeft || 0;
+      const scrollLeft = node3.querySelector(".review-table-wrap")?.scrollLeft || 0;
       const scrollY = window.scrollY;
       paintContentReviewPage();
       const current3 = root2();
@@ -18478,10 +18499,10 @@ function offlineStatusLabel(state2) {
   return "查看同步状态";
 }
 function textNode(document2, tag2, text, className) {
-  const node2 = document2.createElement(tag2);
-  node2.textContent = text;
-  if (className) node2.className = className;
-  return node2;
+  const node3 = document2.createElement(tag2);
+  node3.textContent = text;
+  if (className) node3.className = className;
+  return node3;
 }
 function readable(value) {
   if (!value) return "（线上已不存在）";
@@ -18765,7 +18786,7 @@ init_state();
 init_todos_state();
 init_runtime();
 var activeWindow = null, opening = false;
-function node(doc, tag2, text = "", className = "") {
+function node2(doc, tag2, text = "", className = "") {
   const result = doc.createElement(tag2);
   result.textContent = text;
   if (className) result.className = className;
@@ -18776,55 +18797,55 @@ function makeView(pip) {
   doc.title = "好多鱼桌面便签";
   for (const link of document.querySelectorAll('link[rel="stylesheet"]')) doc.head.append(link.cloneNode());
   doc.body.className = "floating-workbench";
-  const main = node(doc, "main", "", "floating-main");
-  const head = node(doc, "header", "", "floating-head");
-  head.append(node(doc, "time", "", "floating-date"));
-  const close = node(doc, "button", "", "floating-close");
+  const main = node2(doc, "main", "", "floating-main");
+  const head = node2(doc, "header", "", "floating-head");
+  head.append(node2(doc, "time", "", "floating-date"));
+  const close = node2(doc, "button", "", "floating-close");
   close.type = "button";
   close.setAttribute("aria-label", "关闭便签");
   head.append(close);
   close.addEventListener("click", () => pip.close());
-  const tabs = node(doc, "nav", "", "floating-tabs");
+  const tabs = node2(doc, "nav", "", "floating-tabs");
   tabs.setAttribute("aria-label", "便签内容");
   for (const [id2, text] of [["todos", "今日待办"], ["notes", "今日碎碎念"]]) {
-    const button3 = node(doc, "button", text);
+    const button3 = node2(doc, "button", text);
     button3.type = "button";
     button3.dataset.tab = id2;
     tabs.append(button3);
   }
-  const offline = node(doc, "p", "", "floating-offline");
+  const offline = node2(doc, "p", "", "floating-offline");
   offline.setAttribute("role", "status");
-  const todo = node(doc, "section", "", "floating-panel");
+  const todo = node2(doc, "section", "", "floating-panel");
   todo.dataset.panel = "todos";
-  todo.append(node(doc, "h2", "⌄  今日待办", "floating-group-title"));
-  const todoMessage = node(doc, "p", "", "floating-message");
+  todo.append(node2(doc, "h2", "⌄  今日待办", "floating-group-title"));
+  const todoMessage = node2(doc, "p", "", "floating-message");
   todoMessage.setAttribute("role", "alert");
-  const todoList = node(doc, "ul", "", "floating-list");
+  const todoList = node2(doc, "ul", "", "floating-list");
   todo.append(todoMessage, todoList);
-  const notes = node(doc, "section", "", "floating-panel");
+  const notes = node2(doc, "section", "", "floating-panel");
   notes.dataset.panel = "notes";
   notes.hidden = true;
-  notes.append(node(doc, "h2", "⌄  今日碎碎念", "floating-group-title"));
-  const noteList = node(doc, "ul", "", "floating-note-list");
-  const newNote = node(doc, "button", "写一条");
+  notes.append(node2(doc, "h2", "⌄  今日碎碎念", "floating-group-title"));
+  const noteList = node2(doc, "ul", "", "floating-note-list");
+  const newNote = node2(doc, "button", "写一条");
   newNote.type = "button";
-  const notesInput = node(doc, "textarea");
+  const notesInput = node2(doc, "textarea");
   notesInput.placeholder = "写下一点想说的话…";
   notesInput.setAttribute("aria-label", "碎碎念内容");
   notesInput.rows = 5;
-  const labels4 = node(doc, "fieldset", "", "floating-labels");
-  labels4.append(node(doc, "legend", "标签（可多选）"));
-  const options4 = node(doc, "div");
+  const labels4 = node2(doc, "fieldset", "", "floating-labels");
+  labels4.append(node2(doc, "legend", "标签（可多选）"));
+  const options4 = node2(doc, "div");
   labels4.append(options4);
-  const noteMessage = node(doc, "p", "", "floating-message");
+  const noteMessage = node2(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
-  const noteActions = node(doc, "div", "", "floating-actions");
-  const send = node(doc, "button", "发送");
+  const noteActions = node2(doc, "div", "", "floating-actions");
+  const send = node2(doc, "button", "发送");
   send.type = "button";
-  const check2 = node(doc, "button", "核对保存结果");
+  const check2 = node2(doc, "button", "核对保存结果");
   check2.type = "button";
   check2.hidden = true;
-  const retry = node(doc, "button", "重试原保存");
+  const retry = node2(doc, "button", "重试原保存");
   retry.type = "button";
   retry.hidden = true;
   noteActions.append(send, check2, retry);
@@ -18859,18 +18880,18 @@ function paintTodo(view2) {
   for (const item of day6.items) {
     const removal = day6.removals.get(item.id);
     if (item.deleted_at || removal && removal.phase !== "restoring") continue;
-    const li = node(view2.doc, "li"), label3 = node(view2.doc, "label"), check2 = node(view2.doc, "input");
+    const li = node2(view2.doc, "li"), label3 = node2(view2.doc, "label"), check2 = node2(view2.doc, "input");
     check2.type = "checkbox";
     check2.dataset.todoId = item.id;
     check2.dataset.date = day6.date;
     check2.checked = day6.updates.has(item.id) ? day6.updates.get(item.id) : Boolean(item.completed);
     check2.disabled = !day6.loaded || todoBusy(day6, item.id);
-    label3.append(check2, node(view2.doc, "span", item.text));
+    label3.append(check2, node2(view2.doc, "span", item.text));
     li.append(label3);
     if (check2.checked) li.classList.add("is-complete");
     fragment.append(li);
   }
-  if (!day6.items.some((item) => !item.deleted_at) && day6.loaded) fragment.append(node(view2.doc, "li", "今天还没有待办。", "floating-empty"));
+  if (!day6.items.some((item) => !item.deleted_at) && day6.loaded) fragment.append(node2(view2.doc, "li", "今天还没有待办。", "floating-empty"));
   view2.todoList.replaceChildren(fragment);
 }
 function paintNotes(view2) {
@@ -18879,8 +18900,8 @@ function paintNotes(view2) {
   const text = item?.draft || "";
   const fragment = view2.doc.createDocumentFragment();
   for (const record of snap?.entries || []) {
-    const row = node(view2.doc, "li");
-    const content2 = record.legacy ? node(view2.doc, "div") : node(view2.doc, "button");
+    const row = node2(view2.doc, "li");
+    const content2 = record.legacy ? node2(view2.doc, "div") : node2(view2.doc, "button");
     if (!record.legacy) {
       content2.type = "button";
       content2.dataset.noteId = record.id;
@@ -18892,8 +18913,8 @@ function paintNotes(view2) {
       { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
     ).format(new Date(time3)) : "";
     content2.append(
-      node(view2.doc, "small", [caption, record.legacy ? "原有记录 · 只读" : record.dirty ? "草稿" : ""].filter(Boolean).join(" · ")),
-      node(view2.doc, "span", record.dirty ? record.draft : record.draft ?? record.serverText ?? "")
+      node2(view2.doc, "small", [caption, record.legacy ? "原有记录 · 只读" : record.dirty ? "草稿" : ""].filter(Boolean).join(" · ")),
+      node2(view2.doc, "span", record.dirty ? record.draft : record.draft ?? record.serverText ?? "")
     );
     row.append(content2);
     fragment.append(row);
@@ -18910,10 +18931,10 @@ function paintNotes(view2) {
   if (JSON.stringify(current3) !== JSON.stringify(available)) {
     const fragment2 = view2.doc.createDocumentFragment();
     for (const name of available) {
-      const label3 = node(view2.doc, "label"), input = node(view2.doc, "input");
+      const label3 = node2(view2.doc, "label"), input = node2(view2.doc, "input");
       input.type = "checkbox";
       input.value = name;
-      label3.append(input, node(view2.doc, "span", name));
+      label3.append(input, node2(view2.doc, "span", name));
       fragment2.append(label3);
     }
     view2.options.replaceChildren(fragment2);
@@ -19253,7 +19274,7 @@ async function articleDetail(id2) {
     const focused = document.activeElement?.dataset?.articleVerifyIndex;
     document.querySelector("#overlay .article-ledger-detail").outerHTML = renderArticleDetailBody(view2.article, view2);
     document.querySelector("#modal-title").textContent = view2.article.title;
-    if (focused !== void 0 && !view2.busy) Array.from(document.querySelectorAll("#overlay [data-article-verify-index]")).find((node2) => node2.dataset.articleVerifyIndex === focused)?.focus();
+    if (focused !== void 0 && !view2.busy) Array.from(document.querySelectorAll("#overlay [data-article-verify-index]")).find((node3) => node3.dataset.articleVerifyIndex === focused)?.focus();
   } });
 }
 
