@@ -319,6 +319,8 @@ export const articleRemarksRelease=Object.freeze({
   tree:'4e019c8168d926581d19ba186b9a9e70c496da04',
   baseline:'89f52b59-f950-4fa5-ad41-8099a172eef9',
   bytes:3187038,sha256:'15d39b1af797c9508b95b46370d9eeed3c54d5f455f95e1cc00099837ea73a87',
+  // Run 43579073579 uploaded this version but stopped before deploying (CONFIGURATION_CHANGED at verify_upload).
+  uploadedVersion:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
   label:'production-article-remarks-20261114'});
 const acceptedRelease=commit=>commit===articleRemarksRelease.commit?articleRemarksRelease:
   commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
