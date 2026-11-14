@@ -214,7 +214,15 @@ export const historyTidyRelease=Object.freeze({
   baseline:'dd3ddf89-4e4f-47a8-b8dd-003ac6cbf1ca',
   bytes:3133678,sha256:'25bdd64efe85355cc32218dddb190e5525383ac37736693d55f556569ff90757',
   label:'production-history-tidy-20261114'});
-const acceptedRelease=commit=>commit===historyTidyRelease.commit?historyTidyRelease:
+// Weekly summary compares only against whole weeks and explains itself, on top of the deployed 24d9380 (run 43541789296).
+export const summaryCompareRelease=Object.freeze({
+  commit:'cb90b5dbd864d44a056a27217e412bfd391ab697',
+  tree:'91b49629172a2b34323b671a43bccbc28102aca5',
+  baseline:'6c9bcf79-c638-44d7-8530-6f426ebf5c70',
+  bytes:3135140,sha256:'fcca07252ff3599c4ec4f700cee86f5600b86c07628c2270acbf0e82c977dcaa',
+  label:'production-summary-compare-20261114'});
+const acceptedRelease=commit=>commit===summaryCompareRelease.commit?summaryCompareRelease:
+  commit===historyTidyRelease.commit?historyTidyRelease:
   commit===unlockReadsRelease.commit?unlockReadsRelease:
   commit===boundedOfflineRelease.commit?boundedOfflineRelease:
   commit===summaryAverageRelease.commit?summaryAverageRelease:
