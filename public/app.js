@@ -11137,20 +11137,18 @@ function shown(data3) {
   return current3 && !current3.empty ? current3 : last;
 }
 function stats(summary) {
-  const row = el("div", "body-summary-stats");
+  const row = el("div", "body-summary-stats"), compare3 = [];
+  const weeks = summary.previous_weeks >= 2 ? summary.previous_weeks : 0;
   for (const [key, name] of STATS) {
     const value = summary.stats?.[key];
     if (value === null || value === void 0) continue;
     const chip = el("span", "body-summary-stat");
     chip.append(el("span", "", name), el("b", "", `${value} 次`));
-    const before = summary.previous?.[key];
-    if (before !== null && before !== void 0) {
-      chip.title = `${summary.previous_weeks ? `前 ${summary.previous_weeks} 周` : "之前"}平均每周 ${before} 次`;
-      chip.append(el("small", "", `平时 ${Math.round(before)}`));
-    }
     row.append(chip);
+    const before = weeks ? summary.previous?.[key] : null;
+    if (before !== null && before !== void 0) compare3.push(`${name} ${Math.round(before)}`);
   }
-  return row;
+  return compare3.length ? [row, el("p", "body-summary-compare", `前 ${weeks} 周平均每周：${compare3.join(" · ")}`)] : [row];
 }
 function body2(summary) {
   const nodes = [];
@@ -11160,7 +11158,7 @@ function body2(summary) {
     box.append(el("strong", "", "建议联系医生"), ...summary.alerts.map((text) => el("p", "", text)));
     nodes.push(box);
   }
-  nodes.push(el("p", "body-summary-headline", summary.headline), stats(summary));
+  nodes.push(el("p", "body-summary-headline", summary.headline), ...stats(summary));
   for (const part of summary.sections || []) {
     const block = el("div", "body-summary-section"), list2 = el("ul");
     list2.append(...part.points.map((point) => el("li", "", point)));
@@ -11193,6 +11191,7 @@ function draw(section) {
   const meta = el("span", "body-summary-meta", summary ? `${short(summary.week_start)}–${short(summary.week_end)}${summary.complete ? "" : " · 本周未完"}` : "");
   head.append(title, meta);
   const parts2 = [head];
+  if (data3?.configured) parts2.push(el("p", "body-summary-how", "AI 每周自动整理一次，打开就有，不用点；点「更新到今天」会重新生成本周的。"));
   if (view.loading && !data3) parts2.push(el("p", "body-summary-note", "正在读取…"));
   else if (data3 && !data3.configured) parts2.push(el("p", "body-summary-note", "服务器还没有配置 AI，暂时不能生成小结。"));
   else if (view.busy === "last" || view.busy === "current") parts2.push(el("p", "body-summary-note", "正在整理记录，大约需要半分钟…"));

@@ -837,3 +837,5 @@ body.floating-workbench {
 #notes-history .notes-calendar-filters { display:grid; grid-template-columns:minmax(0,320px) minmax(0,220px); justify-content:start;
   align-items:center; gap:10px; padding:12px; }
 @media (max-width:700px) { #notes-history .notes-calendar-filters { grid-template-columns:minmax(0,1fr); } }
+.body-summary-how { margin:4px 0 0; color:var(--ink-3); font-size:var(--fs-xs); }
+.body-summary-compare { margin:-2px 0 8px; color:var(--ink-3); font-size:var(--fs-xs); }

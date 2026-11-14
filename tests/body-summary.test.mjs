@@ -50,8 +50,8 @@ test('last week is summarized once from tagged and related untagged notes, with 
   const prompt=calls[0].input[1].content;
   assert.match(prompt,/合成背景/);assert.match(prompt,/成形/);assert.match(prompt,/肚子有点胀（?/);assert.match(prompt,/上上周偏稀/);
   assert.doesNotMatch(prompt,/买菜/,'unrelated notes stay out');
-  assert.match(prompt,/其中有记录的周：[^，]+ 起，previous 只按这 1 周平均/,'empty weeks are not averaged as zero');
-  assert.equal(saved.previous_weeks,1);assert.equal(saved.format,2);
+  assert.match(prompt,/更早的记录还不满 2 个整周，不够比较/,'one partial earlier week is not a baseline');
+  assert.equal(saved.previous_weeks,0);assert.equal(saved.previous,null);assert.equal(saved.format,3);
   assert.deepEqual((await call('/body-summary','POST',{week:'last'})).headline,saved.headline);
   assert.equal(calls.length,1,'a second device does not pay again');
   await call('/body-summary','POST',{week:'last',redo:true});assert.equal(calls.length,2);
@@ -79,4 +79,18 @@ test('without public mode a visitor cannot read or generate a summary',async t=>
   const {call}=setup(t,{reply:good,mode:'0'});
   await assert.rejects(call('/body-summary'),error=>error.status===403);
   await assert.rejects(call('/body-summary','POST',{week:'last'}),error=>error.status===401);
+});
+
+test('two whole earlier weeks give a baseline; the week the notes began part-way is left out',async t=>{
+  const reply=()=>JSON.stringify({headline:'本周平稳',stats:{bowel:5,normal:3,loose:1,hard:1,accidents:1,discomfort:0},
+    previous:{bowel:4,normal:3,loose:1,hard:0,accidents:1,discomfort:0},sections:[{title:'这周',points:['5 次']},{title:'和之前比',points:['差不多']}],alerts:[]});
+  const {call,note,calls}=setup(t,{reply});
+  const {last}=bodySummaryWeeks(),ago=n=>new Date(Date.parse(last.start)-n*86400000).toISOString().slice(0,10);
+  note(last.start,'合成记录：拉了一次',BODY_SUMMARY_LABEL);
+  note(ago(18),'合成记录：开始记录，周中第一条',BODY_SUMMARY_LABEL);
+  note(ago(14),'合成记录：一次',BODY_SUMMARY_LABEL);note(ago(7),'合成记录：一次',BODY_SUMMARY_LABEL);
+  let saved=await call('/body-summary','POST',{week:'last'});
+  assert.equal(saved.previous_weeks,2,'the two whole weeks count, the partial first week does not');
+  assert.equal(saved.previous.bowel,4);assert.ok(saved.sections.some(section=>section.title==='和之前比'));
+  assert.match(calls[0].input[1].content,new RegExp('其中完整记录的周：'+ago(14)+' 起、'+ago(7)+' 起'));
 });
