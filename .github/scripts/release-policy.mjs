@@ -200,7 +200,15 @@ export const boundedOfflineRelease=Object.freeze({
   baseline:'9637f764-633c-4a89-89e8-7a3296477d21',
   bytes:3128436,sha256:'56ba0df89bbbd5b1509e7c0f6439035179f6e59564e6a0c69da62d6fd1bc7136',
   label:'production-bounded-offline-reads-20261114'});
-const acceptedRelease=commit=>commit===boundedOfflineRelease.commit?boundedOfflineRelease:
+// Read failures no longer lock foreground requests; relaxed public limits. On top of the deployed 8fa6cc7 (run 43463586177).
+export const unlockReadsRelease=Object.freeze({
+  commit:'d0b13d839449b8a9e62559b69e37abd012906d1a',
+  tree:'32fc4f05bdcd05d31d6de918beb71fced262c687',
+  baseline:'bdabea90-101b-4950-a90d-6aeb07c6763b',
+  bytes:3129221,sha256:'d6046a064ab87cd24206cc12621a238f0c536825c989cb6fd9bec322d1ece527',
+  label:'production-unlock-reads-20261114'});
+const acceptedRelease=commit=>commit===unlockReadsRelease.commit?unlockReadsRelease:
+  commit===boundedOfflineRelease.commit?boundedOfflineRelease:
   commit===summaryAverageRelease.commit?summaryAverageRelease:
   commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
   commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
