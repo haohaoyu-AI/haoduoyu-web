@@ -5718,7 +5718,8 @@ var cache = {
   dates: {},
   uncertain: {},
   noteEdit: null,
-  noteError: ""
+  noteError: "",
+  picking: {}
 };
 var paintingFuture = false;
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
@@ -5737,7 +5738,8 @@ function current() {
     dates: {},
     uncertain: {},
     noteEdit: null,
-    noteError: ""
+    noteError: "",
+    picking: {}
   });
   return cache;
 }
@@ -5748,7 +5750,7 @@ function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
-<p class="todo-future-help">勾选完成后移至今日待办（需联网）；也可选择日期移动。</p>
+<p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点「今天」「明天」这些按钮直接移过去，别的日子点「其它日期…」。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -5758,10 +5760,34 @@ function futureTodoView() {
 function futureRepainting() {
   return paintingFuture;
 }
+var shiftDay = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
+var shortDay = (date2) => `${Number(date2.slice(5, 7))}/${Number(date2.slice(8))}`;
+function futureQuickDates(today2 = bjtDate()) {
+  const weekday = (/* @__PURE__ */ new Date(today2 + "T00:00:00Z")).getUTCDay();
+  const third = weekday === 5 ? ["周日", shiftDay(today2, 2)] : weekday === 6 ? ["下周六", shiftDay(today2, 7)] : ["周末", shiftDay(today2, (6 - weekday + 7) % 7 || 7)];
+  return [["今天", today2], ["明天", shiftDay(today2, 1)], third];
+}
+function futureSchedule(item, v, off) {
+  const id2 = e(item.id);
+  if (v.picking[item.id] || v.uncertain[item.id])
+    return `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${id2}" value="${e(v.dates[item.id] || "")}" aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${id2}" ${v.pending ? "disabled" : ""}>${v.uncertain[item.id] ? "核实移动结果" : "移至该日期"}</button></div>`;
+  const quick = futureQuickDates().map(([label3, date2]) => `<button class="btn small" type="button" data-action="todo-future-quick" data-id="${id2}" data-date="${date2}" title="移到 ${shortDay(date2)}" aria-label="把 ${e(item.text)} 移到${label3}（${shortDay(date2)}）" ${off}>${label3}</button>`).join("");
+  return `<div class="todo-future-schedule todo-future-quick">${quick}<button class="btn small text" type="button" data-action="todo-future-pick" data-id="${id2}" ${off}>其它日期…</button></div>`;
+}
+function quickScheduleUnscheduledTodo(id2, date2) {
+  if (!validTodoDate(date2)) return;
+  current().dates[id2] = date2;
+  return scheduleUnscheduledTodo(id2);
+}
+function pickUnscheduledTodoDate(id2) {
+  current().picking[id2] = true;
+  paintUnscheduledTodos();
+  $(`[data-future-date-id="${CSS.escape(id2)}"]`)?.focus();
+}
 function futureRow(item) {
   const v = current(), busy2 = v.pending || v.uncertain[item.id], off = busy2 ? "disabled" : "", check2 = `future-check-${item.id}`;
   const note = todoNoteField(item, { pending: busy2, editing: v.noteEdit, error: v.noteError, future: true });
-  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${note}</div><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(item.id)}" value="${e(v.dates[item.id] || "")}" aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(item.id)}" ${v.pending ? "disabled" : ""}>${v.uncertain[item.id] ? "核实移动结果" : "移至该日期"}</button></div><button class="icon-button" type="button" data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
+  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${note}</div>` + futureSchedule(item, v, off) + `<button class="icon-button" type="button" data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
 }
 function paintUnscheduledTodos() {
   paintingFuture = true;
@@ -8961,11 +8987,11 @@ var el = (tag2, className, text) => {
   if (text !== void 0) node3.textContent = text;
   return node3;
 };
-var shiftDay = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
+var shiftDay2 = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
 function smartDayLabel(date2, today2 = bjtDate()) {
   if (date2 === today2) return "今天";
-  if (date2 === shiftDay(today2, 1)) return "明天";
-  if (date2 === shiftDay(today2, 2)) return "后天";
+  if (date2 === shiftDay2(today2, 1)) return "明天";
+  if (date2 === shiftDay2(today2, 2)) return "后天";
   const weekday = WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()];
   return `${date2.slice(0, 4) === today2.slice(0, 4) ? "" : date2.slice(0, 4) + "年"}${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 周${weekday}`;
 }
@@ -14871,7 +14897,7 @@ function reportShownDay(row) {
   const day6 = reportDay(row);
   return day6 ? new Date(Date.parse(day6 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
 }
-var shortDay = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
+var shortDay2 = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
 function reportGroup(author) {
   const name = String(author ?? "").trim().toLowerCase();
   if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
@@ -14957,7 +14983,7 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
     const preview = list2.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
     const authors = [...new Set(list2.map((row) => reportGroup(row.author)))].join(" · ");
-    const covered = [...new Set(list2.map(reportDay))].sort().map(shortDay).join("、");
+    const covered = [...new Set(list2.map(reportDay))].sort().map(shortDay2).join("、");
     return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list2.length} 份</span></span></button>`;
   });
   root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : `<div class="notes-tl">${rows.join("")}</div>`;
@@ -15007,7 +15033,7 @@ function reviewDateTime(value) {
   const p = parts(value);
   return p ? `${day4(value)} ${p.hour}:${p.minute}` : "";
 }
-function shiftDay2(value, amount) {
+function shiftDay3(value, amount) {
   const date2 = day4(value);
   return date2 && Number.isInteger(amount) ? new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10) : "";
 }
@@ -15106,8 +15132,8 @@ function weekBounds(now = (/* @__PURE__ */ new Date()).toISOString(), week = "th
   if (!today2) throw new TypeError("now must be a valid date or explicit ISO timestamp");
   if (!["this", "last"].includes(week)) throw new TypeError("week must be this or last");
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  const start = shiftDay2(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
-  return { today: today2, start, end: shiftDay2(start, 6), previousStart: shiftDay2(start, -7), previousEnd: shiftDay2(start, -1) };
+  const start = shiftDay3(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
+  return { today: today2, start, end: shiftDay3(start, 6), previousStart: shiftDay3(start, -7), previousEnd: shiftDay3(start, -1) };
 }
 function summarizeArticles(rows = []) {
   const judged = rows.filter((row) => nonnegative(row.reads_24h) !== null && ["爆", "中", "扑"].includes(row.verdict));
@@ -15165,7 +15191,7 @@ function buildOverview(data3 = {}, options4 = {}) {
   }
   const trendDays = range === "30d" ? 30 : 7;
   const trend = Array.from({ length: trendDays }, (_, index) => {
-    const date2 = shiftDay2(bounds.today, index - trendDays + 1), daily = cohort(date2, date2), result = { date: date2, count: daily.length, published_count: daily.length };
+    const date2 = shiftDay3(bounds.today, index - trendDays + 1), daily = cohort(date2, date2), result = { date: date2, count: daily.length, published_count: daily.length };
     for (const field2 of ["reads_24h", "ctr_24h", "completion_24h"]) {
       const values = daily.map((row) => row[field2]).filter((value) => value !== null);
       result[field2] = median(values);
@@ -16088,7 +16114,7 @@ function reviewDateTime2(value) {
   const parts2 = shanghaiParts(value), date2 = day5(value);
   return parts2 && date2 ? `${date2} ${parts2.hour}:${parts2.minute}` : "";
 }
-function shiftDay3(value, amount) {
+function shiftDay4(value, amount) {
   const date2 = day5(value);
   if (!date2 || !Number.isFinite(amount)) return "";
   return new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
@@ -16198,18 +16224,18 @@ function compareMetrics(current3 = {}, previous = {}) {
 }
 function periodSummary(data3, { start, end, periodType } = {}) {
   const duration3 = day5(start) && day5(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
-  const previousEnd = duration3 > 0 ? shiftDay3(start, -1) : "";
-  const previousStart = duration3 > 0 ? shiftDay3(start, -duration3) : "";
+  const previousEnd = duration3 > 0 ? shiftDay4(start, -1) : "";
+  const previousStart = duration3 > 0 ? shiftDay4(start, -duration3) : "";
   const rows = articleRows2(data3, { start, end, periodType });
   const previousRows = duration3 > 0 ? articleRows2(data3, { start: previousStart, end: previousEnd, periodType }) : [];
   const current3 = aggregate(rows), previous = aggregate(previousRows);
   return { start, end, previousStart, previousEnd, rows, previousRows, current: current3, previous, changes: compareMetrics(current3, previous) };
 }
 function dailySummary(data3, date2) {
-  const previousDate = shiftDay3(date2, -1);
+  const previousDate = shiftDay4(date2, -1);
   const result = periodSummary(data3, { start: date2, end: date2, periodType: "daily" });
-  const recentRows = articleRows2(data3, { start: shiftDay3(date2, -2), end: date2 });
-  const previousRecentRows = articleRows2(data3, { start: shiftDay3(date2, -3), end: previousDate });
+  const recentRows = articleRows2(data3, { start: shiftDay4(date2, -2), end: date2 });
+  const previousRecentRows = articleRows2(data3, { start: shiftDay4(date2, -3), end: previousDate });
   const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
   const stats2 = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
   const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
@@ -16295,7 +16321,7 @@ function periodsFor(data3 = {}, type = "daily") {
     const dates = [...new Set([...list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
-      const start = shiftDay3(end, -(duration3 - 1));
+      const start = shiftDay4(end, -(duration3 - 1));
       periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
     }
   }
@@ -16367,7 +16393,7 @@ function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */
   const today2 = day5(now);
   if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
-  const start = range === "custom" ? from : shiftDay3(today2, range === "30d" ? -29 : -6);
+  const start = range === "custom" ? from : shiftDay4(today2, range === "30d" ? -29 : -6);
   const end = range === "custom" ? to : today2;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day5(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day5(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
@@ -16460,15 +16486,15 @@ function reviewTrends(data3 = {}, options4 = {}) {
     return {
       ...row,
       trend_provisional: elapsed !== null && elapsed < 24 || age !== null && age < 24,
-      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay3(bounds.today, -1)
+      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay4(bounds.today, -1)
     };
   });
   const pool = rows.filter((row) => !verdict || row.verdict === verdict);
   const between = (start, end) => pool.filter((row) => day5(row.published_at) >= start && day5(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
-  const previous = { start: shiftDay3(bounds.start, -bounds.days), end: shiftDay3(bounds.start, -1) };
+  const previous = { start: shiftDay4(bounds.start, -bounds.days), end: shiftDay4(bounds.start, -1) };
   const rolling = (date2, key) => {
-    const values = between(shiftDay3(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
+    const values = between(shiftDay4(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
   const first = selected.map((row) => day5(row.published_at)).sort()[0];
@@ -16476,7 +16502,7 @@ function reviewTrends(data3 = {}, options4 = {}) {
   const startMs = Date.parse(`${plot.start}T00:00:00Z`);
   plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
   const series = Array.from({ length: bounds.days }, (_, index) => {
-    const date2 = shiftDay3(bounds.start, index);
+    const date2 = shiftDay4(bounds.start, index);
     return {
       date: date2,
       position: date2 < plot.start ? null : ((Date.parse(`${date2}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days,
@@ -16691,7 +16717,7 @@ function renderCockpitTrends(data3, vm3, window2) {
 function renderReviewTrends(data3, vm3) {
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day5(now), t = vm3.trends || {};
   const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
-  const from = range === "custom" ? t.from || "" : shiftDay3(today2, range === "30d" ? -29 : -6);
+  const from = range === "custom" ? t.from || "" : shiftDay4(today2, range === "30d" ? -29 : -6);
   const to = range === "custom" ? t.to || "" : today2;
   const filters = controls({ range, from, to, today: today2 });
   let result;
@@ -16884,25 +16910,25 @@ function average(values) {
 }
 function mondayOf(today2) {
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  return shiftDay3(today2, -((weekday + 6) % 7));
+  return shiftDay4(today2, -((weekday + 6) % 7));
 }
 function metricWindow(range, today2) {
   const monday = mondayOf(today2);
   if (range === "24h") return { rolling: true };
   if (range === "30d") return {
-    start: shiftDay3(today2, -29),
+    start: shiftDay4(today2, -29),
     end: today2,
     label: "较前30天",
-    previous: { start: shiftDay3(today2, -59), end: shiftDay3(today2, -30), closed: true }
+    previous: { start: shiftDay4(today2, -59), end: shiftDay4(today2, -30), closed: true }
   };
   if (range === "last") return {
-    start: shiftDay3(monday, -7),
-    end: shiftDay3(monday, -1),
+    start: shiftDay4(monday, -7),
+    end: shiftDay4(monday, -1),
     closed: true,
     label: "较上上周",
-    previous: { start: shiftDay3(monday, -14), end: shiftDay3(monday, -8), closed: true }
+    previous: { start: shiftDay4(monday, -14), end: shiftDay4(monday, -8), closed: true }
   };
-  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay3(monday, -7), end: shiftDay3(monday, -1), closed: true } };
+  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay4(monday, -7), end: shiftDay4(monday, -1), closed: true } };
 }
 function publishedIn(row, bounds, nowMs) {
   const publishedDay = day5(row.published_at);
@@ -16943,7 +16969,7 @@ function metricDelta(current3, previous) {
 function dailySeries2(rows, bounds, nowMs) {
   if (!bounds.start || !bounds.end) return [];
   const days = [];
-  for (let date2 = bounds.start; date2 <= bounds.end; date2 = shiftDay3(date2, 1)) {
+  for (let date2 = bounds.start; date2 <= bounds.end; date2 = shiftDay4(date2, 1)) {
     const dayRows = rows.filter((row) => publishedIn(row, { start: date2, end: date2, closed: true }, nowMs));
     days.push({ date: date2, ...summarize2(dayRows) });
   }
@@ -17295,7 +17321,7 @@ function articleListPanel(rows, vm3, data3) {
 }
 function articleLibrary(rows, vm3, data3 = {}) {
   const view2 = articleView(vm3);
-  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay3(today2, range === "7d" ? -6 : -29);
+  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay4(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day5(r.published_at) && day5(r.published_at) >= from && day5(r.published_at) <= today2) && (!f.from || day5(r.published_at) >= f.from && day5(r.published_at)) && (!f.to || day5(r.published_at) <= f.to && day5(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
   const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
@@ -17869,7 +17895,7 @@ function changeTrend(target) {
   const today2 = day5((/* @__PURE__ */ new Date()).toISOString());
   vm2.trends = { ...vm2.trends, [key]: target.value };
   if (key === "range" && vm2.trends.range === "custom") {
-    vm2.trends.from ||= shiftDay3(today2, -6);
+    vm2.trends.from ||= shiftDay4(today2, -6);
     vm2.trends.to ||= today2;
   }
   writeRoute({ ...Object.fromEntries(Object.entries(vm2.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
@@ -20049,6 +20075,8 @@ var actions = {
   "todo-panel": ({ target }) => setTodoPanel(target.dataset.panel),
   "todo-future-delete": ({ id: id2 }) => deleteUnscheduledTodo(id2),
   "todo-future-schedule": ({ id: id2 }) => scheduleUnscheduledTodo(id2),
+  "todo-future-quick": ({ id: id2, target }) => quickScheduleUnscheduledTodo(id2, target.dataset.date),
+  "todo-future-pick": ({ id: id2 }) => pickUnscheduledTodoDate(id2),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,

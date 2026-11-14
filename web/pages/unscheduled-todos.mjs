@@ -8,13 +8,13 @@ import {toast} from '../ui/toast.mjs';
 import {todoNoteField} from './todo-note-field.mjs';
 
 const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-  uncertain:{},noteEdit:null,noteError:''};
+  uncertain:{},noteEdit:null,noteError:'',picking:{}};
 let paintingFuture=false;
 const owner=()=>JSON.stringify([runtime.sessionEpoch,state.me?.id??null,getOfflineRuntime()?.state.scope??null]);
 function current() {
   const key=owner();
   if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-    uncertain:{},noteEdit:null,noteError:''});
+    uncertain:{},noteEdit:null,noteError:'',picking:{}});
   return cache;
 }
 const visible=()=>Boolean(state.me)&&state.page==='todos'&&state.todoPanel==='future';
@@ -24,12 +24,43 @@ export function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending?'disabled':''}>添加</button></form>
-<p class="todo-future-help">勾选完成后移至今日待办（需联网）；也可选择日期移动。</p>
+<p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点「今天」「明天」这些按钮直接移过去，别的日子点「其它日期…」。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
 export function futureTodoView() { return current(); }
 export function futureRepainting() { return paintingFuture; }
+const shiftDay=(date,days)=>new Date(Date.parse(date+'T00:00:00Z')+days*86400000).toISOString().slice(0,10);
+const shortDay=date=>`${Number(date.slice(5,7))}/${Number(date.slice(8))}`;
+/** 今天, 明天 and the next weekend day not already covered by 明天, so the three buttons never name the same day:
+ * Saturday (周末) on Sunday to Thursday, Sunday (周日) on Friday, next Saturday (下周六) on Saturday. */
+export function futureQuickDates(today=bjtDate()) {
+  const weekday=new Date(today+'T00:00:00Z').getUTCDay();
+  const third=weekday===5?['周日',shiftDay(today,2)]:weekday===6?['下周六',shiftDay(today,7)]:['周末',shiftDay(today,(6-weekday+7)%7||7)];
+  return [['今天',today],['明天',shiftDay(today,1)],third];
+}
+function futureSchedule(item,v,off) {
+  const id=e(item.id);
+  // The date field stays for "其它日期…" and for a move whose result still needs checking.
+  if(v.picking[item.id]||v.uncertain[item.id])
+    return `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${id}" value="${e(v.dates[item.id] || '')}" ` +
+      `aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${id}" ` +
+      `${v.pending?'disabled':''}>${v.uncertain[item.id]?'核实移动结果':'移至该日期'}</button></div>`;
+  const quick=futureQuickDates().map(([label,date])=>`<button class="btn small" type="button" data-action="todo-future-quick" data-id="${id}" ` +
+    `data-date="${date}" title="移到 ${shortDay(date)}" aria-label="把 ${e(item.text)} 移到${label}（${shortDay(date)}）" ${off}>${label}</button>`).join('');
+  return `<div class="todo-future-schedule todo-future-quick">${quick}<button class="btn small text" type="button" data-action="todo-future-pick" ` +
+    `data-id="${id}" ${off}>其它日期…</button></div>`;
+}
+/** One tap: the chosen day goes through the same checked move as the date field. */
+export function quickScheduleUnscheduledTodo(id,date) {
+  if(!validTodoDate(date))return;
+  current().dates[id]=date;
+  return scheduleUnscheduledTodo(id);
+}
+export function pickUnscheduledTodoDate(id) {
+  current().picking[id]=true;paintUnscheduledTodos();
+  $(`[data-future-date-id="${CSS.escape(id)}"]`)?.focus();
+}
 function futureRow(item) {
   const v=current(),busy=v.pending||v.uncertain[item.id],off=busy?'disabled':'',check=`future-check-${item.id}`;
   const note=todoNoteField(item,{pending:busy,editing:v.noteEdit,error:v.noteError,future:true});
@@ -37,9 +68,7 @@ function futureRow(item) {
     `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(item.id)}" ` +
     `${item.completed?'checked':''} ${off}></label>` +
     `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(item.text)}</label>${note}</div>` +
-    `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(item.id)}" value="${e(v.dates[item.id] || '')}" ` +
-    `aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(item.id)}" ` +
-    `${v.pending?'disabled':''}>${v.uncertain[item.id]?'核实移动结果':'移至该日期'}</button></div><button class="icon-button" type="button" ` +
+    futureSchedule(item,v,off) + `<button class="icon-button" type="button" ` +
     `data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
 }
 export function paintUnscheduledTodos() {
