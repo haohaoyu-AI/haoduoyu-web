@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {state} from '../web/core/state.mjs';
 import {sidebarNavigation, mobileNavigation, mobileSettingsMenu} from '../web/ui/workbench.mjs';
-import {renderAiReports, paintAiReports, paintAiDailyReminders, reportDay} from '../web/pages/ai-reports.mjs';
+import {renderAiReports, paintAiReports, paintAiDailyReminders, reportDay, reportShownDay} from '../web/pages/ai-reports.mjs';
 import {readAllAiReports, aiReportsYesterday, sortAiReports, reportsForDailyDate} from '../web/ai-reports-controller.mjs';
 
 test('AI reports are reachable in public and private desktop and mobile navigation', () => {
@@ -121,6 +121,9 @@ test('report errors and date navigation remain visible and actionable', () => {
 
 test('declared work date takes precedence; otherwise use the Beijing submission date', () => {
   assert.equal(reportDay({content:'2026-10-29\nwork',created_at:'2026-10-30T03:00:00Z'}),'2026-10-29');
+  // The timeline shows a report on the morning after the day it covers, like the day view.
+  assert.equal(reportShownDay({content:'2026-10-29\nwork',created_at:'2026-10-30T03:00:00Z'}),'2026-10-30');
+  assert.equal(reportShownDay({content:'2026-10-31\nwork',created_at:'2026-11-01T01:00:00Z'}),'2026-11-01','a month boundary moves with it');
   assert.equal(reportDay({content:'2026-02-30\nwork',created_at:'2026-10-29T17:00:00Z'}),'2026-10-30');
 });
 

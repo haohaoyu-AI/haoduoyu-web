@@ -955,3 +955,4 @@ body.floating-workbench {
 #daily-todos .todo-smart-actions{display:flex;gap:6px;margin-left:auto}
 @media (max-width:560px){#daily-todos .todo-smart-actions{margin-left:0;width:100%}#daily-todos .todo-smart-actions .btn.primary{flex:1}}
 #daily-todos .todo-smart-count{font-size:12px;color:var(--accent);white-space:nowrap}
+:is(#notes-history,#ai-reports,#review-article-library) .notes-read-sub{margin:-4px 0 10px;font-size:13px;color:var(--muted)}

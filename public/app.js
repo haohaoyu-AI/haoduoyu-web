@@ -14867,6 +14867,11 @@ function reportDay(row) {
   }).formatToParts(date2).map((part) => [part.type, part.value]));
   return `${parts2.year}-${parts2.month}-${parts2.day}`;
 }
+function reportShownDay(row) {
+  const day6 = reportDay(row);
+  return day6 ? new Date(Date.parse(day6 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
+}
+var shortDay = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
 function reportGroup(author) {
   const name = String(author ?? "").trim().toLowerCase();
   if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
@@ -14943,7 +14948,7 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   paintAiCalendar(`${month}-01`, month);
   const days = /* @__PURE__ */ new Map();
   for (const row of items) {
-    const day6 = reportDay(row);
+    const day6 = reportShownDay(row);
     if (day6.startsWith(month)) days.set(day6, [...days.get(day6) || [], row]);
   }
   root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
@@ -14952,13 +14957,14 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
     const preview = list2.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
     const authors = [...new Set(list2.map((row) => reportGroup(row.author)))].join(" · ");
-    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">${e(authors)} · ${list2.length} 份</span></span></button>`;
+    const covered = [...new Set(list2.map(reportDay))].sort().map(shortDay).join("、");
+    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list2.length} 份</span></span></button>`;
   });
   root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : `<div class="notes-tl">${rows.join("")}</div>`;
 }
 function paintAiReportDayHead(date2) {
   const head = document.querySelector("#ai-reports #ai-report-dayhead");
-  if (head) head.innerHTML = date2 ? `<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button><h3 class="notes-read-title">${e(reportDayTitle(date2))} 的汇报</h3>` : "";
+  if (head) head.innerHTML = date2 ? `<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button><h3 class="notes-read-title">${e(reportDayTitle(date2))} 的汇报</h3><p class="notes-read-sub">汇报的是前一天（${e(reportDayTitle(new Date(Date.parse(date2 + "T00:00:00Z") - 864e5).toISOString().slice(0, 10)))}）做的事</p>` : "";
 }
 
 // shared/review-analytics.mjs
@@ -15904,7 +15910,7 @@ function paintReports() {
     paintAiReportTimeline(allReports, visibleMonth);
     return;
   }
-  paintAiReports(sortAiReports(allReports.filter((row) => reportDay(row) === openReportDay)), "", false, selectedDate, visibleMonth);
+  paintAiReports(sortAiReports(allReports.filter((row) => reportShownDay(row) === openReportDay)), "", false, selectedDate, visibleMonth);
   paintAiReportDayHead(openReportDay);
 }
 function moveMonth(offset) {

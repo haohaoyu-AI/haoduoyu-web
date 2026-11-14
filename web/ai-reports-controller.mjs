@@ -4,7 +4,7 @@ import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
-import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,paintAiReportTimeline,paintAiReportDayHead}
+import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,reportShownDay,paintAiReportTimeline,paintAiReportDayHead}
   from './pages/ai-reports.mjs';
 
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
@@ -97,7 +97,7 @@ function paintReports() {
   const root = document.querySelector('#ai-reports');
   root?.classList.toggle('ai-report-day-open', Boolean(openReportDay));
   if (!openReportDay) { paintAiReportDayHead(''); paintAiReportTimeline(allReports, visibleMonth); return; }
-  paintAiReports(sortAiReports(allReports.filter(row => reportDay(row) === openReportDay)), '', false, selectedDate, visibleMonth);
+  paintAiReports(sortAiReports(allReports.filter(row => reportShownDay(row) === openReportDay)), '', false, selectedDate, visibleMonth);
   paintAiReportDayHead(openReportDay);
 }
 function moveMonth(offset) {

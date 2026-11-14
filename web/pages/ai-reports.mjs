@@ -49,6 +49,13 @@ export function reportDay(row) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** The day a report is shown on: the morning after the work day it reports, the same rule as the day view. */
+export function reportShownDay(row) {
+  const day = reportDay(row);
+  return day ? new Date(Date.parse(day + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10) : '';
+}
+const shortDay = date => `${Number(date.slice(5,7))}月${Number(date.slice(8))}日`;
+
 // Only explicit known names are mapped. Unrecognized historical names remain visible.
 export function reportGroup(author) {
   const name = String(author ?? '').trim().toLowerCase();
@@ -144,7 +151,7 @@ export function paintAiReportTimeline(items, month, {loading = false, error = ''
   paintAiCalendar(`${month}-01`, month);
   const days = new Map();
   for (const row of items) {
-    const day = reportDay(row);
+    const day = reportShownDay(row);
     if (day.startsWith(month)) days.set(day, [...(days.get(day) || []), row]);
   }
   root.querySelector('#ai-report-list-status').textContent = error || (loading ? '' : days.size ? '' : '这个月还没有汇报');
@@ -153,11 +160,12 @@ export function paintAiReportTimeline(items, month, {loading = false, error = ''
   const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, list]) => {
     const preview = list.map(row => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join('\n');
     const authors = [...new Set(list.map(row => reportGroup(row.author)))].join(' · ');
+    const covered = [...new Set(list.map(reportDay))].sort().map(shortDay).join('、');
     return `<button type="button" class="notes-tl-day" data-ai-report-open="${date}" aria-label="${e(reportDayTitle(date))}的汇报，打开">` +
       `<span class="notes-tl-date"><span class="notes-tl-num">${Number(date.slice(8))}</span>` +
       `<span class="notes-tl-week">${reportDayTitle(date).split(' ')[1]}</span></span><span class="notes-tl-dot"></span>` +
       `<span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span>` +
-      `<span class="notes-tl-foot">${e(authors)} · ${list.length} 份</span></span></button>`;
+      `<span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list.length} 份</span></span></button>`;
   });
   root.querySelector('#ai-report-list').innerHTML = loading || error ? '' : `<div class="notes-tl">${rows.join('')}</div>`;
 }
@@ -165,5 +173,6 @@ export function paintAiReportTimeline(items, month, {loading = false, error = ''
 export function paintAiReportDayHead(date) {
   const head = document.querySelector('#ai-reports #ai-report-dayhead');
   if (head) head.innerHTML = date ? '<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button>' +
-    `<h3 class="notes-read-title">${e(reportDayTitle(date))} 的汇报</h3>` : '';
+    `<h3 class="notes-read-title">${e(reportDayTitle(date))} 的汇报</h3>` +
+    `<p class="notes-read-sub">汇报的是前一天（${e(reportDayTitle(new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10)))}）做的事</p>` : '';
 }
