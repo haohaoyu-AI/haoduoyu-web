@@ -278,7 +278,15 @@ export const todoUnlimitedRelease=Object.freeze({
   baseline:'2b87a67c-529a-4172-bff6-6b8f536c03d4',
   bytes:3169629,sha256:'ca5d308f3cec84a19c5d590af8c8929a18f4a691b18457e0e6c0bdfb2dc4feee',
   label:'production-todo-unlimited-20261114'});
-const acceptedRelease=commit=>commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
+// 一句话加待办: counts in the note, counted 常用 items restart at zero, on top of the deployed 797289c (run 43555248895).
+export const todoCountNoteRelease=Object.freeze({
+  commit:'b478432def7d3188c5dd5c4560c076144d96f026',
+  tree:'7010e01501369a02d727e33ebf38f2e1c25b6294',
+  baseline:'fbce687a-1226-4b54-90ad-df8ea18e276b',
+  bytes:3171797,sha256:'8b40303a2aa02f7ea91f7d49e018ef2dd0a64784de12aa4a7acc2a759c992ce8',
+  label:'production-todo-count-note-20261114'});
+const acceptedRelease=commit=>commit===todoCountNoteRelease.commit?todoCountNoteRelease:
+  commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
   commit===todoParseRelease.commit?todoParseRelease:
   commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
   commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
