@@ -32,9 +32,9 @@ export function renderDailyNotes() {
   return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '">' +
     '<div class="segmented" role="group" aria-label="碎碎念视图">' +
     '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
-    '<button type="button" data-notes-view="history" aria-pressed="false">历史</button>' +
+    '<button type="button" data-notes-view="history" aria-pressed="false">时间轴</button>' +
     '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div>' +
-    '<section id="notes-history" hidden aria-label="碎碎念历史">' +
+    '<section id="notes-history" hidden aria-label="碎碎念时间轴">' +
     '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
     '<div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button>' +
     '<label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label>' +
@@ -42,17 +42,12 @@ export function renderDailyNotes() {
     '<label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
     '<label class="notes-label-field"><span class="sr-only">标签</span>' +
     '<select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
-    '<label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
-    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" ' +
-      'data-history-display="calendar" ' +
-      'aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" ' +
-        'class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div>' +
+    '<label hidden>日期 <select id="notes-history-date" class="input"></select></label>' +
+    '<button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside>' +
+    '<div class="notes-calendar-main">' +
     '<section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" ' +
           'class="notes-calendar-summary"></p>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
-    '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
-    '<span>四</span><span>五</span><span>六</span><span>日</span></div>' +
-    '<div id="notes-history-grid" class="notes-calendar-grid"></div>' +
     '<div id="notes-history-list" class="notes-entry-list"></div></div></div></section>' +
     '<section id="notes-labels" hidden aria-label="标签管理">' +
     '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" ' +

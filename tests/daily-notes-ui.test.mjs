@@ -200,7 +200,7 @@ test('notes view puts business text only into value/textContent and offers respo
   assert.equal(nodes.get('#notes-editor').hidden, true);
   assert.match(renderDailyNotes(), /碎碎念/); assert.doesNotMatch(renderDailyNotes(), /contenteditable/);
   assert.doesNotMatch(renderDailyNotes(), /最近的文字|notes-dates|data-notes-action="more"/);
-  assert.match(renderDailyNotes(), /id="notes-history-grid"/);
+  assert.match(renderDailyNotes(), /id="notes-history-list"/);assert.doesNotMatch(renderDailyNotes(), /notes-history-grid|data-history-display/);
   assert.match(renderDailyNotes(), /data-notes-view="history"/);
   assert.match(renderDailyNotes(), /notes-composer/);
 });

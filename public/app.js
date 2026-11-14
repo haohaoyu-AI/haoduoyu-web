@@ -10775,7 +10775,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -12097,32 +12097,6 @@ function monthOptions(select, values, current3, allLabel) {
   }));
   select.value = values.includes(current3) ? current3 : "";
 }
-function makeMonthCard(date2, items, selected) {
-  const button3 = document.createElement("button");
-  button3.type = "button";
-  button3.className = "notes-calendar-day";
-  if (!date2) {
-    button3.disabled = true;
-    button3.classList.add("is-empty");
-    return button3;
-  }
-  const score = scoreByDate.get(date2);
-  button3.dataset.notesHistoryDay = date2;
-  button3.setAttribute("aria-pressed", String(date2 === selected));
-  button3.setAttribute("aria-label", date2 + "，" + items.length + " 条记录" + (score ? "，" + score + " 分" : ""));
-  const heading = document.createElement("span");
-  heading.className = "notes-calendar-day-heading";
-  heading.textContent = String(Number(date2.slice(8)));
-  button3.append(heading);
-  button3.classList.toggle("has-notes", items.length > 0);
-  if (items.length || score) {
-    const meta = document.createElement("span");
-    meta.className = "notes-calendar-meta";
-    meta.textContent = [items.length ? items.length + "条" : "", score ? score + "分" : ""].filter(Boolean).join(" ");
-    button3.append(meta);
-  }
-  return button3;
-}
 var WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function dayTitle(date2) {
   return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
@@ -12177,34 +12151,21 @@ function paintTimeline(list2, shown2, order, open) {
   return groups.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root3) {
-  const label3 = root3.querySelector("#notes-history-label").value, weekValue = root3.querySelector("#notes-history-week").value;
+  const label3 = root3.querySelector("#notes-history-label").value;
   paintBodySummary(root3, label3);
-  const weeks = noteMonthWeeks(historyMonth), selected = root3.querySelector("#notes-history-date").value;
-  historyDate = selected;
-  const grid = root3.querySelector("#notes-history-grid"), list2 = root3.querySelector("#notes-history-list");
-  const shown2 = (item) => !label3 || (item.displayLabels || [item.displayLabel]).includes(label3);
-  const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
-  grid.replaceChildren(...visibleWeeks.flatMap((week) => week.map((date2) => makeMonthCard(date2, (historyDays.get(date2) || []).filter(shown2), selected))));
-  const timeline = root3.dataset.historyDisplay === "timeline";
-  root3.querySelector(".notes-calendar-weekdays").hidden = timeline;
-  grid.hidden = timeline;
-  const order = root3.dataset.historyOrder === "asc" ? "asc" : "desc";
+  historyDate = root3.querySelector("#notes-history-date").value;
+  const list2 = root3.querySelector("#notes-history-list");
+  const shown2 = (item) => !label3 || rowLabels(item).includes(label3);
+  const order = root3.dataset.historySort === "asc" ? "asc" : "desc";
   const orderButton = root3.querySelector("[data-history-order]");
-  orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === "asc" ? "↑ 旧到新" : "↓ 新到旧";
-  const open = timeline && historyDays.has(root3.dataset.historyOpen) ? root3.dataset.historyOpen : "";
-  orderButton.hidden = !timeline || Boolean(open);
-  let rows;
-  if (timeline) rows = paintTimeline(list2, shown2, order, open);
-  else {
-    rows = (historyDays.get(selected) || []).filter(shown2).sort(byTime(1));
-    const title = selected ? node("h3", "notes-read-title", dayLine(selected, rows.length)) : null;
-    list2.replaceChildren(...[title, ...rows.map(historyCard)].filter(Boolean));
-  }
+  const open = historyDays.has(root3.dataset.historyOpenDay) ? root3.dataset.historyOpenDay : "";
+  orderButton.hidden = Boolean(open);
+  const rows = paintTimeline(list2, shown2, order, open);
   const total = [...historyDays.values()].flat().filter(shown2).length;
   root3.querySelector("#notes-history-summary").textContent = `${Number(historyMonth.slice(5))}月${label3 ? `「${label3}」` : ""}共 ${total} 条`;
-  root3.querySelector("#notes-history-status").textContent = rows.length ? "" : !total ? "这个月还没有记录（未同步的内容在当天页面查看）。" : "这天没有记录，点有「条」数的日期查看。";
+  root3.querySelector("#notes-history-status").textContent = rows.length ? "" : label3 ? "这个月没有这个标签的记录。" : "这个月还没有记录（未同步的内容在当天页面查看）。";
 }
 function applyHistoryMonth(root3, month, days, chosenDate) {
   const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
@@ -12213,7 +12174,7 @@ function applyHistoryMonth(root3, month, days, chosenDate) {
   const picked = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
   const withNotes = dates.filter((date2) => (days.get(date2) || []).length);
   const selected = (days.get(picked) || []).length || !withNotes.length ? picked : withNotes.filter((date2) => date2 <= picked).at(-1) || withNotes[0];
-  if (historyMonth !== month) root3.dataset.historyOpen = "";
+  if (historyMonth !== month) root3.dataset.historyOpenDay = "";
   historyMonth = month;
   historyDays = days;
   root3.dataset.historyLoadedMonth = month;
@@ -12352,15 +12313,10 @@ async function handleEntryAction(target, entries) {
   else if (action === "use-draft") await entries.useDraft(id2);
 }
 function historyViewClick(root3, target) {
-  const { historyOpen, historyBack, historyOrder, historyDisplay } = target.dataset;
-  if (!historyOpen && !historyBack && !historyOrder && !historyDisplay) return false;
-  if (historyOpen || historyBack) root3.dataset.historyOpen = historyOpen || "";
-  if (historyOrder) root3.dataset.historyOrder = historyOrder === "asc" ? "desc" : "asc";
-  if (historyDisplay) {
-    root3.dataset.historyDisplay = historyDisplay;
-    root3.dataset.historyOpen = "";
-    for (const button3 of root3.querySelectorAll("[data-history-display]")) button3.setAttribute("aria-pressed", String(button3 === target));
-  }
+  const { historyOpen, historyBack, historyOrder } = target.dataset;
+  if (!historyOpen && !historyBack && !historyOrder) return false;
+  if (historyOpen || historyBack) root3.dataset.historyOpenDay = historyOpen || "";
+  if (historyOrder) root3.dataset.historySort = historyOrder === "asc" ? "desc" : "asc";
   if (historyMonth) paintHistoryRows(root3);
   if (historyOpen || historyBack) root3.querySelector("#notes-history-list")?.scrollIntoView?.({ block: "start" });
   return true;
@@ -12368,7 +12324,7 @@ function historyViewClick(root3, target) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root3 = document.querySelector("#daily-notes");
-  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order],[data-history-open],[data-history-back],[data-daily-score],[data-daily-score-toggle]");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-history-order],[data-history-open],[data-history-back],[data-daily-score],[data-daily-score-toggle]");
   if (target?.matches("[data-daily-score-toggle]")) {
     scoreOpen = !scoreOpen;
     paintDailyScore();
@@ -12384,11 +12340,6 @@ async function handleNotesClick(event) {
   if (target.dataset.notesMonth) {
     const month = historyMonth || dailyNotesToday().slice(0, 7);
     await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === "prev" ? -1 : 1));
-    return;
-  }
-  if (target.dataset.notesHistoryDay) {
-    root3.querySelector("#notes-history-date").value = target.dataset.notesHistoryDay;
-    paintHistoryRows(root3);
     return;
   }
   if (target.dataset.notesView) {

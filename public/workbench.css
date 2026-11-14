@@ -871,3 +871,14 @@ body.floating-workbench {
 #notes-history .notes-read-back { display:block; width:auto; margin-right:auto; text-align:left; }
 #notes-history .notes-tl-dot::before { border-left-color:rgba(120,90,60,.3); }
 #notes-history .notes-tl-dot::after { border-color:rgba(120,90,60,.45); }
+/* Timeline is the only history view: the sort toggle sits in the filter bar. */
+#notes-history .notes-calendar-filters { grid-template-columns:minmax(0,320px) minmax(0,220px) auto; }
+#notes-history .notes-calendar-filters .notes-timeline-order { margin:0; min-height:40px; padding:0 12px; border:1px solid var(--line);
+  border-radius:12px; background:var(--color-white-a-88, rgba(255,255,255,.88)); color:var(--ink-2); font:inherit; font-size:var(--fs-sm);
+  white-space:nowrap; cursor:pointer; }
+#notes-history .notes-calendar-filters .notes-timeline-order[hidden] { display:none; }
+#notes-history .notes-calendar-main { padding-top:14px; }
+@media (max-width:700px) {
+  #notes-history .notes-calendar-filters { grid-template-columns:minmax(0,1fr) auto; }
+  #notes-history .notes-calendar-filters > .notes-month-row { grid-column:1 / -1; }
+}

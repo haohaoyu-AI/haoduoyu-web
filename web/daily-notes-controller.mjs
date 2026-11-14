@@ -672,23 +672,6 @@ function monthOptions(select, values, current, allLabel) {
   }));
   select.value = values.includes(current) ? current : '';
 }
-function makeMonthCard(date, items, selected) {
-  const button = document.createElement('button'); button.type = 'button'; button.className = 'notes-calendar-day';
-  if (!date) { button.disabled = true; button.classList.add('is-empty'); return button; }
-  const score = scoreByDate.get(date);
-  button.dataset.notesHistoryDay = date; button.setAttribute('aria-pressed', String(date === selected));
-  button.setAttribute('aria-label', date + '，' + items.length + ' 条记录' + (score ? '，' + score + ' 分' : ''));
-  const heading = document.createElement('span'); heading.className = 'notes-calendar-day-heading';
-  heading.textContent = String(Number(date.slice(8))); button.append(heading);
-  button.classList.toggle('has-notes', items.length > 0);
-  // Under the date: how many notes (the dot), and the day's score when there is one.
-  if (items.length || score) {
-    const meta = document.createElement('span'); meta.className = 'notes-calendar-meta';
-    meta.textContent = [items.length ? items.length + '条' : '', score ? score + '分' : ''].filter(Boolean).join(' ');
-    button.append(meta);
-  }
-  return button;
-}
 const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
 function dayTitle(date) {
   return `${Number(date.slice(5,7))}月${Number(date.slice(8))}日 ${WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}`;
@@ -739,37 +722,24 @@ function paintTimeline(list, shown, order, open) {
   return groups.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root) {
-  const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
+  const label = root.querySelector('#notes-history-label').value;
   paintBodySummary(root, label);
-  const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector('#notes-history-date').value;
-  historyDate = selected;
-  const grid = root.querySelector('#notes-history-grid'), list = root.querySelector('#notes-history-list');
-  const shown = item => !label || (item.displayLabels || [item.displayLabel]).includes(label);
-  const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
-  grid.replaceChildren(...visibleWeeks.flatMap(week => week.map(date =>
-    makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
-  const timeline = root.dataset.historyDisplay === 'timeline';
-  root.querySelector('.notes-calendar-weekdays').hidden = timeline; grid.hidden = timeline;
-  const order = root.dataset.historyOrder === 'asc' ? 'asc' : 'desc';
+  historyDate = root.querySelector('#notes-history-date').value;
+  const list = root.querySelector('#notes-history-list');
+  const shown = item => !label || rowLabels(item).includes(label);
+  const order = root.dataset.historySort === 'asc' ? 'asc' : 'desc';
   const orderButton = root.querySelector('[data-history-order]');
-  orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === 'asc' ? '↑ 旧到新' : '↓ 新到旧';
-  const open = timeline && historyDays.has(root.dataset.historyOpen) ? root.dataset.historyOpen : '';
-  orderButton.hidden = !timeline || Boolean(open);
-  let rows;
-  if (timeline) rows = paintTimeline(list, shown, order, open);
-  else {
-    rows = (historyDays.get(selected) || []).filter(shown).sort(byTime(1));
-    const title = selected ? node('h3', 'notes-read-title', dayLine(selected, rows.length)) : null;
-    list.replaceChildren(...[title, ...rows.map(historyCard)].filter(Boolean));
-  }
+  const open = historyDays.has(root.dataset.historyOpenDay) ? root.dataset.historyOpenDay : '';
+  orderButton.hidden = Boolean(open);
+  const rows = paintTimeline(list, shown, order, open);
   const total = [...historyDays.values()].flat().filter(shown).length;
   root.querySelector('#notes-history-summary').textContent =
     `${Number(historyMonth.slice(5))}月${label ? `「${label}」` : ''}共 ${total} 条`;
   // Notes not yet synced live on their own day's page, so an empty answer here says where else to look.
   root.querySelector('#notes-history-status').textContent = rows.length ? '' :
-    !total ? '这个月还没有记录（未同步的内容在当天页面查看）。' : '这天没有记录，点有「条」数的日期查看。';
+    label ? '这个月没有这个标签的记录。' : '这个月还没有记录（未同步的内容在当天页面查看）。';
 }
 function applyHistoryMonth(root, month, days, chosenDate) {
   const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
@@ -780,7 +750,7 @@ function applyHistoryMonth(root, month, days, chosenDate) {
   const withNotes = dates.filter(date => (days.get(date) || []).length);
   const selected = (days.get(picked) || []).length || !withNotes.length ? picked :
     withNotes.filter(date => date <= picked).at(-1) || withNotes[0];
-  if (historyMonth !== month) root.dataset.historyOpen = '';
+  if (historyMonth !== month) root.dataset.historyOpenDay = '';
   historyMonth = month; historyDays = days;
   root.dataset.historyLoadedMonth = month;
   root.querySelector('#notes-history-month').value = month;
@@ -898,16 +868,13 @@ async function handleEntryAction(target, entries) {
   else if (action === 'use-server') entries.useServer(id);
   else if (action === 'use-draft') await entries.useDraft(id);
 }
-/** Timeline open/back, sort order and calendar/timeline switch. Returns whether the click was one of these. */
+/** Timeline open/back and sort order. Returns whether the click was one of these. */
+// Page state lives in data-history-sort / data-history-open-day so the root never matches the button selectors below.
 function historyViewClick(root, target) {
-  const {historyOpen, historyBack, historyOrder, historyDisplay} = target.dataset;
-  if (!historyOpen && !historyBack && !historyOrder && !historyDisplay) return false;
-  if (historyOpen || historyBack) root.dataset.historyOpen = historyOpen || '';
-  if (historyOrder) root.dataset.historyOrder = historyOrder === 'asc' ? 'desc' : 'asc';
-  if (historyDisplay) {
-    root.dataset.historyDisplay = historyDisplay; root.dataset.historyOpen = '';
-    for (const button of root.querySelectorAll('[data-history-display]')) button.setAttribute('aria-pressed', String(button === target));
-  }
+  const {historyOpen, historyBack, historyOrder} = target.dataset;
+  if (!historyOpen && !historyBack && !historyOrder) return false;
+  if (historyOpen || historyBack) root.dataset.historyOpenDay = historyOpen || '';
+  if (historyOrder) root.dataset.historySort = historyOrder === 'asc' ? 'desc' : 'asc';
   if (historyMonth) paintHistoryRows(root);
   if (historyOpen || historyBack) root.querySelector('#notes-history-list')?.scrollIntoView?.({block:'start'});
   return true;
@@ -916,7 +883,7 @@ async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
-    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],' +
+    '[data-note-entry-action],[data-notes-view],[data-notes-month],' +
     '[data-history-order],[data-history-open],[data-history-back],[data-daily-score],[data-daily-score-toggle]');
   if (target?.matches('[data-daily-score-toggle]')) { scoreOpen = !scoreOpen; paintDailyScore(); return; }
   if (!target || !root?.contains(target)) return;
@@ -926,9 +893,6 @@ async function handleNotesClick(event) {
   if (target.dataset.notesMonth) {
     const month = historyMonth || dailyNotesToday().slice(0, 7);
     await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === 'prev' ? -1 : 1)); return;
-  }
-  if (target.dataset.notesHistoryDay) {
-    root.querySelector('#notes-history-date').value = target.dataset.notesHistoryDay; paintHistoryRows(root); return;
   }
   if (target.dataset.notesView) {
     notesView = ['history', 'labels'].includes(target.dataset.notesView) ? target.dataset.notesView : 'today'; historySequence++;
