@@ -243,7 +243,15 @@ export const timelineOnlyRelease=Object.freeze({
   // Run 43545024626 uploaded this exact artifact, then deployment hit a transient 404: resume, do not upload again.
   uploadedVersion:'a5c493db-c68a-441e-9e92-12066455ac71',
   label:'production-timeline-only-20261114'});
-const acceptedRelease=commit=>commit===timelineOnlyRelease.commit?timelineOnlyRelease:
+// AI reports diary timeline, on top of the deployed 9fb3aaf (run 43545149509).
+export const aiTimelineRelease=Object.freeze({
+  commit:'3b6fadfbe1795c5134eccdcc6a31e03565f591f8',
+  tree:'40769a9c6b399d0d3f1ac103723846747c0febfc',
+  baseline:'a5c493db-c68a-441e-9e92-12066455ac71',
+  bytes:3142860,sha256:'9f7c8bee6e64b6ea4c77415a0a15c4e3e4c8fd6c4c16a62ee2ef3f3e5a8162de',
+  label:'production-ai-timeline-20261114'});
+const acceptedRelease=commit=>commit===aiTimelineRelease.commit?aiTimelineRelease:
+  commit===timelineOnlyRelease.commit?timelineOnlyRelease:
   commit===diaryTimelineRelease.commit?diaryTimelineRelease:
   commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
   commit===summaryCompareRelease.commit?summaryCompareRelease:
