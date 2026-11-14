@@ -314,3 +314,5 @@ a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:ge
 # Synthetic placeholder OpenAI key in the weekly-summary test fixture (no real credential).
 c776a8816861605f9d43bdc91fbc0a79cbec67b6:tests/body-summary.test.mjs:generic-api-key:20
 8ebc589f0e5d9f990aed0003d4b90538e2602dea:tests/body-summary.test.mjs:generic-api-key:20
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+3c8f550809843d2dc50026d292b1f141fa308b83:tests/todo-parse.test.mjs:generic-api-key:24
