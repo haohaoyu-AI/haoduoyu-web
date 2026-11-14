@@ -5806,9 +5806,9 @@ async function loadUnscheduledTodos() {
     }
   }
 }
-function inputUnscheduledTodo(el2) {
-  if (el2.id === "todo-future-text") current().draft = el2.value;
-  if (el2.dataset?.futureDateId) current().dates[el2.dataset.futureDateId] = el2.value;
+function inputUnscheduledTodo(el3) {
+  if (el3.id === "todo-future-text") current().draft = el3.value;
+  if (el3.dataset?.futureDateId) current().dates[el3.dataset.futureDateId] = el3.value;
 }
 function moved(row, date2, source, todo, complete = false) {
   const completed = complete ? true : row.completed;
@@ -6028,8 +6028,8 @@ async function change(id2, method2, body3) {
     }
   }
 }
-function toggleUnscheduledTodo(el2) {
-  return el2.checked ? scheduleUnscheduledTodo(el2.dataset.futureTodoId, { complete: true }) : change(el2.dataset.futureTodoId, "PATCH", { completed: false });
+function toggleUnscheduledTodo(el3) {
+  return el3.checked ? scheduleUnscheduledTodo(el3.dataset.futureTodoId, { complete: true }) : change(el3.dataset.futureTodoId, "PATCH", { completed: false });
 }
 function deleteUnscheduledTodo(id2) {
   return change(id2, "DELETE", {});
@@ -8946,6 +8946,138 @@ async function changeTodoTemplate(options4, remove = false) {
   }
 }
 
+// shared/todo-parse-hint.mjs
+var TODO_PARSE_HINT = /明天|明早|明晚|后天|下周|下星期|下个?月|本周|这周|周[一二三四五六日天末]|星期[一二三四五六日天]|礼拜[一二三四五六日天]|\d{1,2}\s*[号日]|\d{1,2}\s*月|\d{1,2}[/.-]\d{1,2}|每天|每日|天天|每晚|每早|\d+\s*次|[一二两三四五六七八九十]+\s*次|月底|月初/;
+
+// web/pages/todo-smart.mjs
+init_api();
+init_format();
+var WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+var smart = { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, sequence: 0 };
+var hooks = null;
+var el = (tag2, className, text) => {
+  const node3 = document.createElement(tag2);
+  if (className) node3.className = className;
+  if (text !== void 0) node3.textContent = text;
+  return node3;
+};
+var shiftDay = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
+function smartDayLabel(date2, today2 = bjtDate()) {
+  if (date2 === today2) return "今天";
+  if (date2 === shiftDay(today2, 1)) return "明天";
+  if (date2 === shiftDay(today2, 2)) return "后天";
+  const weekday = WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()];
+  return `${date2.slice(0, 4) === today2.slice(0, 4) ? "" : date2.slice(0, 4) + "年"}${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 周${weekday}`;
+}
+function smartTodoText(proposal) {
+  return proposal.count ? `0/${proposal.count} 次 ${proposal.text}` : proposal.text;
+}
+function smartTodoWanted(text) {
+  return TODO_PARSE_HINT.test(text);
+}
+function smartTodoReady(text) {
+  return smart.status === "ready" && smart.sentence === text && !smart.busy;
+}
+function clearSmartTodo() {
+  smart.sequence++;
+  Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false });
+}
+async function startSmartTodo(day6, sentence, given) {
+  hooks = given;
+  const sequence5 = ++smart.sequence;
+  Object.assign(smart, { sentence, date: day6.date, status: "reading", proposal: null, error: "", busy: false });
+  hooks.repaint();
+  try {
+    const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence } });
+    if (sequence5 !== smart.sequence) return;
+    if (!data3.needs_model) {
+      clearSmartTodo();
+      hooks.repaint();
+      await hooks.plain(day6, sentence);
+      return;
+    }
+    smart.status = "ready";
+    smart.proposal = data3;
+  } catch (error2) {
+    if (sequence5 !== smart.sequence) return;
+    smart.status = "error";
+    smart.error = error2?.message || "没能读懂这句话";
+  }
+  hooks.repaint();
+}
+async function confirmSmartTodo(day6) {
+  const proposal = smart.proposal;
+  if (!proposal || smart.busy || !hooks) return;
+  smart.busy = true;
+  smart.error = "";
+  hooks.repaint();
+  const text = smartTodoText(proposal), sequence5 = smart.sequence;
+  try {
+    if (proposal.kind === "daily") await hooks.saveDaily(day6, text);
+    else if (proposal.date === day6.date) await hooks.save(day6, { id: crypto.randomUUID(), date: day6.date, text });
+    else await hooks.saveElsewhere(day6, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date));
+    if (sequence5 === smart.sequence) clearSmartTodo();
+  } catch (error2) {
+    if (sequence5 === smart.sequence) {
+      smart.busy = false;
+      smart.error = error2?.message || "添加失败，请稍后再试";
+    }
+  }
+  hooks.repaint();
+}
+async function plainSmartTodo(day6) {
+  const sentence = smart.sentence;
+  clearSmartTodo();
+  hooks.repaint();
+  await hooks.plain(day6, sentence);
+}
+function summary(proposal) {
+  const text = smartTodoText(proposal);
+  if (proposal.kind === "daily") return [["存为常用并加到今天", ""], [text, "todo-smart-text"]];
+  return [[`加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
+}
+function paintSmartTodo(root3, day6) {
+  const form = root3.querySelector("#todo-form");
+  let row = root3.querySelector("#todo-smart");
+  if (!smart.status || smart.date !== day6.date || !form) {
+    row?.remove();
+    return;
+  }
+  if (!row) {
+    row = el("div", "todo-smart");
+    row.id = "todo-smart";
+    row.setAttribute("role", "status");
+  }
+  if (form.nextElementSibling !== row) form.after(row);
+  const key = [smart.sequence, smart.status, smart.busy, smart.error].join("|");
+  if (row.dataset.key === key) return;
+  row.dataset.key = key;
+  const parts2 = [];
+  if (smart.status === "reading") parts2.push(el("span", "todo-smart-wait", "正在看这句话…"));
+  else if (smart.status === "ready") {
+    const line = el("p", "todo-smart-line");
+    for (const [text, className] of summary(smart.proposal)) line.append(el("span", className, text));
+    parts2.push(line);
+    if (smart.proposal.kind === "daily") parts2.push(el("p", "todo-smart-hint", "常用里一点就能加到当天，不会自动每天出现。"));
+  } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
+  if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
+  const actions2 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
+    const node3 = el("button", className, label3);
+    node3.type = "button";
+    node3.disabled = smart.busy;
+    node3.addEventListener("click", run2);
+    actions2.append(node3);
+  };
+  if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day6));
+  if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day6));
+  button3("取消", "btn text", () => {
+    clearSmartTodo();
+    hooks?.repaint();
+  });
+  parts2.push(actions2);
+  row.replaceChildren(...parts2);
+}
+
 // web/pages/todo-preferences.mjs
 init_api();
 init_dom();
@@ -9429,6 +9561,7 @@ function paintTodoDom() {
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root3) || $("[data-todo-id]", root3) || $("#todo-text", root3))?.focus();
   paintTodoTemplates();
+  paintSmartTodo(root3, day6);
 }
 function todoReadActive(owner2, version2, date2, day6, sequence5) {
   return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day6.sequence === sequence5 && todosVisible();
@@ -9571,9 +9704,51 @@ async function submitTodo({ form, data: data3 }) {
     paintTodos();
     return;
   }
+  if (smartTodoReady(text)) return confirmSmartTodo(day6);
+  if (smartTodoWanted(text)) return startSmartTodo(day6, text, smartHooks);
+  await addTypedTodo(day6, text);
+}
+async function addTypedTodo(day6, text) {
   if (!day6.create || day6.create.text !== text) day6.create = { id: crypto.randomUUID(), date: day6.date, text };
   await saveTodo(day6, day6.create);
 }
+var smartHooks = {
+  repaint: () => paintTodos(),
+  plain: (day6, text) => addTypedTodo(day6, text),
+  async save(day6, request2) {
+    await saveTodo(day6, request2);
+    if (day6.failedCreate === request2) {
+      day6.failedCreate = null;
+      throw new Error(day6.error || "添加失败，请稍后再试");
+    }
+    day6.draft = "";
+    day6.error = "";
+    paintTodos();
+  },
+  async saveElsewhere(day6, request2, label3) {
+    const item = await api("/todos", { method: "POST", body: request2 });
+    const other = todoDay(item.date);
+    if (other.loaded) {
+      mergeTodo(other, item);
+      other.revision++;
+    }
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
+      monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter((row) => row.id !== item.id), item]);
+      monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
+      const calendar = $("#todo-calendar");
+      if (calendar) calendar.dataset.month = "";
+    }
+    day6.draft = "";
+    setTodoNotice(day6, `已添加到 ${label3}`);
+  },
+  async saveDaily(day6, text) {
+    const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
+    refreshOpenTodoTemplates();
+    day6.draft = "";
+    await submitTodoTemplate(template);
+    if (day6.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+  }
+};
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day6 = todoDay();
@@ -11077,7 +11252,7 @@ var BODY_SUMMARY_LABEL = "大小便记录";
 var STATS = [["bowel", "排便"], ["normal", "正常"], ["loose", "偏稀"], ["hard", "偏硬"], ["accidents", "漏出"], ["discomfort", "不舒服"]];
 var REFRESH_MS = 5 * 6e4;
 var view = { data: null, loadedAt: 0, loading: null, busy: "", error: "", contextOpen: false };
-var el = (tag2, className, text) => {
+var el2 = (tag2, className, text) => {
   const node3 = document.createElement(tag2);
   if (className) node3.className = className;
   if (text !== void 0) node3.textContent = text;
@@ -11146,79 +11321,79 @@ function shown(data3) {
   const current3 = data3?.current, last = data3?.last;
   return current3 && !current3.empty ? current3 : last;
 }
-function stats(summary) {
-  const row = el("div", "body-summary-stats"), compare3 = [];
-  const weeks = summary.previous_weeks >= 2 ? summary.previous_weeks : 0;
+function stats(summary2) {
+  const row = el2("div", "body-summary-stats"), compare3 = [];
+  const weeks = summary2.previous_weeks >= 2 ? summary2.previous_weeks : 0;
   for (const [key, name] of STATS) {
-    const value = summary.stats?.[key];
+    const value = summary2.stats?.[key];
     if (value === null || value === void 0) continue;
-    const chip = el("span", "body-summary-stat");
-    chip.append(el("span", "", name), el("b", "", `${value} 次`));
+    const chip = el2("span", "body-summary-stat");
+    chip.append(el2("span", "", name), el2("b", "", `${value} 次`));
     row.append(chip);
-    const before = weeks ? summary.previous?.[key] : null;
+    const before = weeks ? summary2.previous?.[key] : null;
     if (before !== null && before !== void 0) compare3.push(`${name} ${Math.round(before)}`);
   }
-  return compare3.length ? [row, el("p", "body-summary-compare", `前 ${weeks} 周平均每周：${compare3.join(" · ")}`)] : [row];
+  return compare3.length ? [row, el2("p", "body-summary-compare", `前 ${weeks} 周平均每周：${compare3.join(" · ")}`)] : [row];
 }
-function body2(summary) {
+function body2(summary2) {
   const nodes = [];
-  if (summary.alerts?.length) {
-    const box = el("div", "body-summary-alert");
+  if (summary2.alerts?.length) {
+    const box = el2("div", "body-summary-alert");
     box.setAttribute("role", "alert");
-    box.append(el("strong", "", "建议联系医生"), ...summary.alerts.map((text) => el("p", "", text)));
+    box.append(el2("strong", "", "建议联系医生"), ...summary2.alerts.map((text) => el2("p", "", text)));
     nodes.push(box);
   }
-  nodes.push(el("p", "body-summary-headline", summary.headline), ...stats(summary));
-  for (const part of summary.sections || []) {
-    const block = el("div", "body-summary-section"), list2 = el("ul");
-    list2.append(...part.points.map((point) => el("li", "", point)));
-    block.append(el("h4", "", part.title), list2);
+  nodes.push(el2("p", "body-summary-headline", summary2.headline), ...stats(summary2));
+  for (const part of summary2.sections || []) {
+    const block = el2("div", "body-summary-section"), list2 = el2("ul");
+    list2.append(...part.points.map((point) => el2("li", "", point)));
+    block.append(el2("h4", "", part.title), list2);
     nodes.push(block);
   }
   return nodes;
 }
 function contextEditor(section) {
-  const details = el("details", "body-summary-context");
+  const details = el2("details", "body-summary-context");
   details.open = view.contextOpen;
   details.addEventListener("toggle", () => {
     view.contextOpen = details.open;
   });
-  const area = el("textarea", "input");
+  const area = el2("textarea", "input");
   area.maxLength = 600;
   area.rows = 3;
   area.value = view.data?.context || "";
   area.placeholder = "写给 AI 的背景：长期情况、你的习惯说法等。只用于生成小结。";
-  const save = el("button", "btn text", view.busy === "context" ? "保存中…" : "保存说明");
+  const save = el2("button", "btn text", view.busy === "context" ? "保存中…" : "保存说明");
   save.type = "button";
   save.disabled = Boolean(view.busy);
   save.addEventListener("click", () => saveContext(section, area.value));
-  details.append(el("summary", "", "背景说明"), area, save);
+  details.append(el2("summary", "", "背景说明"), area, save);
   return details;
 }
 function draw(section) {
-  const data3 = view.data, summary = shown(data3);
-  const head = el("div", "body-summary-head"), title = el("h3", "", "大小便周小结");
-  const meta = el("span", "body-summary-meta", summary ? `${short(summary.week_start)}–${short(summary.week_end)}${summary.complete ? "" : " · 本周未完"}` : "");
+  const data3 = view.data, summary2 = shown(data3);
+  const head = el2("div", "body-summary-head"), title = el2("h3", "", "大小便周小结");
+  const meta = el2("span", "body-summary-meta", summary2 ? `${short(summary2.week_start)}–${short(summary2.week_end)}${summary2.complete ? "" : " · 本周未完"}` : "");
   head.append(title, meta);
   const parts2 = [head];
-  if (data3?.configured) parts2.push(el("p", "body-summary-how", "AI 每周自动整理一次，打开就有，不用点；点「更新到今天」会重新生成本周的。"));
-  if (view.loading && !data3) parts2.push(el("p", "body-summary-note", "正在读取…"));
-  else if (data3 && !data3.configured) parts2.push(el("p", "body-summary-note", "服务器还没有配置 AI，暂时不能生成小结。"));
-  else if (view.busy === "last" || view.busy === "current") parts2.push(el("p", "body-summary-note", "正在整理记录，大约需要半分钟…"));
-  else if (summary?.empty) parts2.push(el("p", "body-summary-note", "这一周没有相关记录。"));
-  else if (summary) parts2.push(...body2(summary));
-  if (view.error) parts2.push(el("p", "body-summary-error", view.error));
+  if (data3?.configured) parts2.push(el2("p", "body-summary-how", "AI 每周自动整理一次，打开就有，不用点；点「更新到今天」会重新生成本周的。"));
+  if (view.loading && !data3) parts2.push(el2("p", "body-summary-note", "正在读取…"));
+  else if (data3 && !data3.configured) parts2.push(el2("p", "body-summary-note", "服务器还没有配置 AI，暂时不能生成小结。"));
+  else if (view.busy === "last" || view.busy === "current") parts2.push(el2("p", "body-summary-note", "正在整理记录，大约需要半分钟…"));
+  else if (summary2?.empty) parts2.push(el2("p", "body-summary-note", "这一周没有相关记录。"));
+  else if (summary2) parts2.push(...body2(summary2));
+  if (view.error) parts2.push(el2("p", "body-summary-error", view.error));
   if (data3?.configured) {
-    const actions2 = el("div", "body-summary-actions");
-    const refresh = el("button", "btn text", "更新到今天");
+    const actions2 = el2("div", "body-summary-actions");
+    const refresh = el2("button", "btn text", "更新到今天");
     refresh.type = "button";
     refresh.disabled = Boolean(view.busy || view.loading);
     refresh.addEventListener("click", () => generate(section, "current", true));
-    const stamp3 = summary?.generated_at ? el("span", "body-summary-meta", `生成于 ${time2(summary.generated_at)}`) : null;
+    const stamp3 = summary2?.generated_at ? el2("span", "body-summary-meta", `生成于 ${time2(summary2.generated_at)}`) : null;
     actions2.append(...[stamp3, refresh].filter(Boolean));
     parts2.push(actions2, contextEditor(section));
   }
-  parts2.push(el("p", "body-summary-foot", "只整理你写下的记录，不是诊断。"));
+  parts2.push(el2("p", "body-summary-foot", "只整理你写下的记录，不是诊断。"));
   section.replaceChildren(...parts2);
 }
 
@@ -11533,8 +11708,8 @@ function archiveBox(root3, expected) {
   box = document.createElement("details");
   box.id = "notes-retained-archive";
   box.className = "notes-drafts";
-  const summary = document.createElement("summary");
-  box.append(summary);
+  const summary2 = document.createElement("summary");
+  box.append(summary2);
   const tools = document.createElement("div");
   tools.className = "notes-retained-tools";
   box.append(tools);
@@ -12107,9 +12282,9 @@ function monthOptions(select, values, current3, allLabel) {
   }));
   select.value = values.includes(current3) ? current3 : "";
 }
-var WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+var WEEKDAYS2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function dayTitle(date2) {
-  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
+  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS2[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
 }
 function dayLine(date2, count3) {
   const score = scoreByDate.get(date2);
@@ -14727,9 +14902,9 @@ function paintOpenAiDiary(items = [], { error: error2 = "", loading = false, own
   root3.querySelector("#openai-diary-status").textContent = error2 || (loading ? "正在读取分析记录…" : "");
   root3.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error2 ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
 }
-var WEEKDAYS2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+var WEEKDAYS3 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function reportDayTitle(date2) {
-  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS2[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
+  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${WEEKDAYS3[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
 }
 function reportPreview(markdown) {
   return String(markdown ?? "").replace(/```[\s\S]*?```/g, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^[\s#>*+-]+/gm, "").replace(/[*_`~|]/g, "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 2).join(" ");
@@ -14798,7 +14973,7 @@ function reviewDateTime(value) {
   const p = parts(value);
   return p ? `${day4(value)} ${p.hour}:${p.minute}` : "";
 }
-function shiftDay(value, amount) {
+function shiftDay2(value, amount) {
   const date2 = day4(value);
   return date2 && Number.isInteger(amount) ? new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10) : "";
 }
@@ -14897,8 +15072,8 @@ function weekBounds(now = (/* @__PURE__ */ new Date()).toISOString(), week = "th
   if (!today2) throw new TypeError("now must be a valid date or explicit ISO timestamp");
   if (!["this", "last"].includes(week)) throw new TypeError("week must be this or last");
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  const start = shiftDay(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
-  return { today: today2, start, end: shiftDay(start, 6), previousStart: shiftDay(start, -7), previousEnd: shiftDay(start, -1) };
+  const start = shiftDay2(today2, -(weekday + 6) % 7 - (week === "last" ? 7 : 0));
+  return { today: today2, start, end: shiftDay2(start, 6), previousStart: shiftDay2(start, -7), previousEnd: shiftDay2(start, -1) };
 }
 function summarizeArticles(rows = []) {
   const judged = rows.filter((row) => nonnegative(row.reads_24h) !== null && ["爆", "中", "扑"].includes(row.verdict));
@@ -14956,7 +15131,7 @@ function buildOverview(data3 = {}, options4 = {}) {
   }
   const trendDays = range === "30d" ? 30 : 7;
   const trend = Array.from({ length: trendDays }, (_, index) => {
-    const date2 = shiftDay(bounds.today, index - trendDays + 1), daily = cohort(date2, date2), result = { date: date2, count: daily.length, published_count: daily.length };
+    const date2 = shiftDay2(bounds.today, index - trendDays + 1), daily = cohort(date2, date2), result = { date: date2, count: daily.length, published_count: daily.length };
     for (const field2 of ["reads_24h", "ctr_24h", "completion_24h"]) {
       const values = daily.map((row) => row[field2]).filter((value) => value !== null);
       result[field2] = median(values);
@@ -14983,9 +15158,9 @@ function buildOverview(data3 = {}, options4 = {}) {
     days_since_snapshot: elapsed,
     message: latest2 ? `最近快照为 ${latest2}，距今 ${elapsed} 个上海日历日，已超过 2 日采集间隔。` : "已有文章但尚无有效日期的采集快照，无法确认采集连续性。"
   });
-  const summary = summarySentence(current3, week);
+  const summary2 = summarySentence(current3, week);
   const conclusion = weeklyConclusion(data3.reports, account3, bounds, week);
-  return { account: account3 ?? null, week, range, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary, conclusion };
+  return { account: account3 ?? null, week, range, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary: summary2, conclusion };
 }
 
 // shared/review-experiments.mjs
@@ -15180,7 +15355,20 @@ function renderReviewMarkdown(value) {
 
 // web/pages/review-ai.mjs
 init_dom();
-var AI_FEATURE_LABELS = { weekly: "周报", titles: "标题归类", benchmarks: "爆文拆解", diagnosis: "单篇诊断", body: "大小便小结" };
+var AI_FEATURE_LABELS = {
+  weekly: "周报",
+  titles: "标题归类",
+  benchmarks: "爆文拆解",
+  diagnosis: "单篇文章分析",
+  body: "大小便周小结",
+  todo: "一句话加待办"
+};
+var AI_FEATURES_SHOWN = [
+  ["body", "每周把碎碎念里的大小便记录整理成一段小结。"],
+  ["todo", "把“明天下午取快递”这样的一句话拆成日期和事项，确认后才添加。"],
+  ["diagnosis", "内容复盘里，对单篇文章做一次分析。"]
+];
+var SMALL_MODEL = /mini|nano|lite|flash|small/i;
 var AI_EFFORT_LABELS = [["", "模型默认"], ["low", "低"], ["medium", "中"], ["high", "高"]];
 var known = (value) => value !== null && value !== void 0 && Number.isFinite(value);
 var reads = (value) => !known(value) ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
@@ -15339,6 +15527,11 @@ function titlePattern(vm3, row, data3) {
   const shown2 = names.has(label3) ? names.get(label3) : label3, origin = own3 ? "已登记的标题套路" : "AI 归类";
   return label3 ? `<span class="review-pattern-tag${own3 ? "" : " is-ai"}" title="${e(origin + (shown2 === label3 ? "" : "：" + label3))}">${e(shown2)}</span>` : "";
 }
+function smallHint(chosen, models) {
+  if (chosen === "off" || chosen && SMALL_MODEL.test(chosen)) return "";
+  const pick = models.find((id2) => SMALL_MODEL.test(id2));
+  return pick ? ` 建议选小模型，比如 ${e(pick)}，更快也更省。` : " 建议选名字带 mini 的小模型，更快也更省。";
+}
 function renderAiSettings(ai2) {
   if (!ai2 || ai2.status === "loading") return '<section id="ai-settings" class="ai-settings"><p role="status">正在读取 AI 设置…</p></section>';
   if (ai2.status === "error") return `<section id="ai-settings" class="ai-settings"><p role="alert">${e(ai2.error || "读取失败")}</p>${button2(
@@ -15347,14 +15540,16 @@ function renderAiSettings(ai2) {
   )}</section>`;
   const data3 = ai2.data, draft = ai2.draft || data3.settings, models = ai2.models || [];
   const modelSelect = (feature, value) => {
-    const list2 = [.../* @__PURE__ */ new Set([...value ? [value] : [], ...models])];
+    const list2 = [.../* @__PURE__ */ new Set([...value && value !== "off" ? [value] : [], ...models])];
+    const off = feature === "todo" ? `<option value="off"${value === "off" ? " selected" : ""}>关闭（按原文添加）</option>` : "";
     return `<select class="input" data-ai-setting="model" data-ai-feature="${feature}" aria-label="${AI_FEATURE_LABELS[feature]}的模型">
-      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list2.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}</select>`;
+      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list2.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}${off}</select>`;
   };
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id2, label3]) => `<option value="${id2}"${id2 === value ? " selected" : ""}>${label3}</option>`).join("")}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature === "diagnosis").map(([feature, label3]) => `<tr><th scope="row">${label3}</th>
+  const rows = AI_FEATURES_SHOWN.filter(([feature]) => draft.features[feature]).map(([feature, note]) => `<tr><th scope="row">${AI_FEATURE_LABELS[feature]}
+    <span class="ai-feature-note">${e(note)}${feature === "todo" ? smallHint(draft.features.todo.model, models) : ""}</span></th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(
     feature,
     draft.features[feature].effort
@@ -15374,13 +15569,14 @@ function renderAiSettings(ai2) {
   const message = ai2.messages?.settings;
   return `<section id="ai-settings" class="ai-settings" aria-label="AI 设置">
     ${data3.configured ? "" : '<p role="alert">服务器还没有配置 API 密钥和默认模型。密钥只保存在服务器后台，不会出现在网页里。</p>'}
-    <form id="ai-settings-form"><h2>每个功能的默认模型和强度</h2>
+    <form id="ai-settings-form"><h2>每个功能用哪个模型</h2>
+    <p class="ai-default-model">默认模型：<b>${e(data3.default_model || "未设置")}</b><span class="muted">没单独选的功能都用它；它在服务器后台设置。</span></p>
     <div class="ai-settings-table-wrap"><table class="ai-settings-table"><thead><tr><th>功能</th><th>模型</th><th>强度</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <p class="muted">${ai2.modelsError ? e(ai2.modelsError) : models.length ? "模型列表来自你的 API 账号。强度只对支持推理强度的模型有效，不支持时会自动忽略。" : "正在读取模型列表…"}</p>
     <label class="ai-settings-limit">每日最多调用次数<input class="input" type="number" min="0" max="200" step="1" inputmode="numeric"
       data-ai-setting="daily_limit" value="${draft.daily_limit}"></label>
-    <p class="muted">今天已用 ${data3.usage.used} / ${data3.usage.limit} 次。到上限后当天不再调用；单篇诊断另有每天 20 篇的上限。</p>
+    <p class="muted">今天已用 ${data3.usage.used} / ${data3.usage.limit} 次。到上限后当天不再调用；单篇文章分析另有每天 20 篇的上限。</p>
     <div class="form-actions"><button class="btn primary" type="submit"${ai2.busy === "settings" || !ai2.dirty ? " disabled" : ""}>${ai2.busy === "settings" ? "正在保存…" : "保存"}</button>
     <span role="${message?.error ? "alert" : "status"}" class="${message?.error ? "ai-run-failed" : "muted"}">${e(message?.text || (ai2.dirty ? "有未保存的修改" : ""))}</span></div></form>
     <h2>最近运行</h2>${runs ? `<div class="ai-settings-table-wrap"><table
@@ -15858,7 +16054,7 @@ function reviewDateTime2(value) {
   const parts2 = shanghaiParts(value), date2 = day5(value);
   return parts2 && date2 ? `${date2} ${parts2.hour}:${parts2.minute}` : "";
 }
-function shiftDay2(value, amount) {
+function shiftDay3(value, amount) {
   const date2 = day5(value);
   if (!date2 || !Number.isFinite(amount)) return "";
   return new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
@@ -15968,18 +16164,18 @@ function compareMetrics(current3 = {}, previous = {}) {
 }
 function periodSummary(data3, { start, end, periodType } = {}) {
   const duration3 = day5(start) && day5(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
-  const previousEnd = duration3 > 0 ? shiftDay2(start, -1) : "";
-  const previousStart = duration3 > 0 ? shiftDay2(start, -duration3) : "";
+  const previousEnd = duration3 > 0 ? shiftDay3(start, -1) : "";
+  const previousStart = duration3 > 0 ? shiftDay3(start, -duration3) : "";
   const rows = articleRows2(data3, { start, end, periodType });
   const previousRows = duration3 > 0 ? articleRows2(data3, { start: previousStart, end: previousEnd, periodType }) : [];
   const current3 = aggregate(rows), previous = aggregate(previousRows);
   return { start, end, previousStart, previousEnd, rows, previousRows, current: current3, previous, changes: compareMetrics(current3, previous) };
 }
 function dailySummary(data3, date2) {
-  const previousDate = shiftDay2(date2, -1);
+  const previousDate = shiftDay3(date2, -1);
   const result = periodSummary(data3, { start: date2, end: date2, periodType: "daily" });
-  const recentRows = articleRows2(data3, { start: shiftDay2(date2, -2), end: date2 });
-  const previousRecentRows = articleRows2(data3, { start: shiftDay2(date2, -3), end: previousDate });
+  const recentRows = articleRows2(data3, { start: shiftDay3(date2, -2), end: date2 });
+  const previousRecentRows = articleRows2(data3, { start: shiftDay3(date2, -3), end: previousDate });
   const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
   const stats2 = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
   const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
@@ -15993,8 +16189,8 @@ function groupPerformance(rows = [], field2 = "topic_category") {
     groups.get(key).push(row);
   }
   return [...groups].map(([name, members]) => {
-    const summary = aggregate(members);
-    return { name, ...summary, average_reads: summary.coverage.reads ? summary.reads / summary.coverage.reads : null, rows: members };
+    const summary2 = aggregate(members);
+    return { name, ...summary2, average_reads: summary2.coverage.reads ? summary2.reads / summary2.coverage.reads : null, rows: members };
   }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
@@ -16065,7 +16261,7 @@ function periodsFor(data3 = {}, type = "daily") {
     const dates = [...new Set([...list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
-      const start = shiftDay2(end, -(duration3 - 1));
+      const start = shiftDay3(end, -(duration3 - 1));
       periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
     }
   }
@@ -16137,7 +16333,7 @@ function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */
   const today2 = day5(now);
   if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
-  const start = range === "custom" ? from : shiftDay2(today2, range === "30d" ? -29 : -6);
+  const start = range === "custom" ? from : shiftDay3(today2, range === "30d" ? -29 : -6);
   const end = range === "custom" ? to : today2;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day5(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day5(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
@@ -16230,15 +16426,15 @@ function reviewTrends(data3 = {}, options4 = {}) {
     return {
       ...row,
       trend_provisional: elapsed !== null && elapsed < 24 || age !== null && age < 24,
-      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay2(bounds.today, -1)
+      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay3(bounds.today, -1)
     };
   });
   const pool = rows.filter((row) => !verdict || row.verdict === verdict);
   const between = (start, end) => pool.filter((row) => day5(row.published_at) >= start && day5(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
-  const previous = { start: shiftDay2(bounds.start, -bounds.days), end: shiftDay2(bounds.start, -1) };
+  const previous = { start: shiftDay3(bounds.start, -bounds.days), end: shiftDay3(bounds.start, -1) };
   const rolling = (date2, key) => {
-    const values = between(shiftDay2(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
+    const values = between(shiftDay3(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
   const first = selected.map((row) => day5(row.published_at)).sort()[0];
@@ -16246,7 +16442,7 @@ function reviewTrends(data3 = {}, options4 = {}) {
   const startMs = Date.parse(`${plot.start}T00:00:00Z`);
   plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
   const series = Array.from({ length: bounds.days }, (_, index) => {
-    const date2 = shiftDay2(bounds.start, index);
+    const date2 = shiftDay3(bounds.start, index);
     return {
       date: date2,
       position: date2 < plot.start ? null : ((Date.parse(`${date2}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days,
@@ -16272,21 +16468,21 @@ function reviewTrends(data3 = {}, options4 = {}) {
     };
   }).sort((a, b) => a.position - b.position);
   const basis = rows[0]?.verdict_basis;
-  const summary = summarize(selected);
+  const summary2 = summarize(selected);
   return {
     ...bounds,
     account: account3,
     verdict,
     previous,
     plot,
-    kpis: headline(summary, summarize(between(previous.start, previous.end))),
+    kpis: headline(summary2, summarize(between(previous.start, previous.end))),
     points,
     series,
     top: points.filter((point) => point.reads !== null).sort((a, b) => b.reads - a.reads)[0] || null,
     thresholds: basis ? { hit: basis.high_threshold, flop: basis.low_threshold, method: basis.method, sample_count: basis.sample_count } : null,
     rolling: { days: ROLLING_DAYS, min_samples: ROLLING_MIN_SAMPLES },
     rows: selected,
-    summary,
+    summary: summary2,
     excluded: {
       unpublished: source.filter(unpublished).length,
       undated: source.filter((row) => !unpublished(row) && !day5(row.published_at)).length,
@@ -16461,7 +16657,7 @@ function renderCockpitTrends(data3, vm3, window2) {
 function renderReviewTrends(data3, vm3) {
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day5(now), t = vm3.trends || {};
   const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
-  const from = range === "custom" ? t.from || "" : shiftDay2(today2, range === "30d" ? -29 : -6);
+  const from = range === "custom" ? t.from || "" : shiftDay3(today2, range === "30d" ? -29 : -6);
   const to = range === "custom" ? t.to || "" : today2;
   const filters = controls({ range, from, to, today: today2 });
   let result;
@@ -16654,25 +16850,25 @@ function average(values) {
 }
 function mondayOf(today2) {
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  return shiftDay2(today2, -((weekday + 6) % 7));
+  return shiftDay3(today2, -((weekday + 6) % 7));
 }
 function metricWindow(range, today2) {
   const monday = mondayOf(today2);
   if (range === "24h") return { rolling: true };
   if (range === "30d") return {
-    start: shiftDay2(today2, -29),
+    start: shiftDay3(today2, -29),
     end: today2,
     label: "较前30天",
-    previous: { start: shiftDay2(today2, -59), end: shiftDay2(today2, -30), closed: true }
+    previous: { start: shiftDay3(today2, -59), end: shiftDay3(today2, -30), closed: true }
   };
   if (range === "last") return {
-    start: shiftDay2(monday, -7),
-    end: shiftDay2(monday, -1),
+    start: shiftDay3(monday, -7),
+    end: shiftDay3(monday, -1),
     closed: true,
     label: "较上上周",
-    previous: { start: shiftDay2(monday, -14), end: shiftDay2(monday, -8), closed: true }
+    previous: { start: shiftDay3(monday, -14), end: shiftDay3(monday, -8), closed: true }
   };
-  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay2(monday, -7), end: shiftDay2(monday, -1), closed: true } };
+  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay3(monday, -7), end: shiftDay3(monday, -1), closed: true } };
 }
 function publishedIn(row, bounds, nowMs) {
   const publishedDay = day5(row.published_at);
@@ -16713,7 +16909,7 @@ function metricDelta(current3, previous) {
 function dailySeries2(rows, bounds, nowMs) {
   if (!bounds.start || !bounds.end) return [];
   const days = [];
-  for (let date2 = bounds.start; date2 <= bounds.end; date2 = shiftDay2(date2, 1)) {
+  for (let date2 = bounds.start; date2 <= bounds.end; date2 = shiftDay3(date2, 1)) {
     const dayRows = rows.filter((row) => publishedIn(row, { start: date2, end: date2, closed: true }, nowMs));
     days.push({ date: date2, ...summarize2(dayRows) });
   }
@@ -17065,7 +17261,7 @@ function articleListPanel(rows, vm3, data3) {
 }
 function articleLibrary(rows, vm3, data3 = {}) {
   const view2 = articleView(vm3);
-  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay2(today2, range === "7d" ? -6 : -29);
+  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay3(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day5(r.published_at) && day5(r.published_at) >= from && day5(r.published_at) <= today2) && (!f.from || day5(r.published_at) >= f.from && day5(r.published_at)) && (!f.to || day5(r.published_at) <= f.to && day5(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
   const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
@@ -17621,7 +17817,7 @@ function closeArticle() {
   vm2.article = "";
   writeRoute({ article: "" });
   paintContentReviewPage();
-  const node3 = [...root2()?.querySelectorAll("[data-review-article]") || []].find((el2) => el2.dataset.reviewArticle === returnFocusId);
+  const node3 = [...root2()?.querySelectorAll("[data-review-article]") || []].find((el3) => el3.dataset.reviewArticle === returnFocusId);
   node3?.focus({ preventScroll: true });
   window.scrollTo({ top: returnScroll, behavior: "instant" });
 }
@@ -17639,7 +17835,7 @@ function changeTrend(target) {
   const today2 = day5((/* @__PURE__ */ new Date()).toISOString());
   vm2.trends = { ...vm2.trends, [key]: target.value };
   if (key === "range" && vm2.trends.range === "custom") {
-    vm2.trends.from ||= shiftDay2(today2, -6);
+    vm2.trends.from ||= shiftDay3(today2, -6);
     vm2.trends.to ||= today2;
   }
   writeRoute({ ...Object.fromEntries(Object.entries(vm2.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
@@ -17844,7 +18040,7 @@ function onReviewKeydown(event) {
       return;
     }
     if (event.key === "Tab") {
-      const focusable = [...dialog.querySelectorAll('button:not([disabled]),a[href],summary,[tabindex="0"]')].filter((el2) => !el2.hidden && el2.getClientRects().length);
+      const focusable = [...dialog.querySelectorAll('button:not([disabled]),a[href],summary,[tabindex="0"]')].filter((el3) => !el3.hidden && el3.getClientRects().length);
       const first = focusable[0], last = focusable.at(-1);
       if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
         event.preventDefault();
@@ -19305,8 +19501,8 @@ function renderArticleAnalytics(a) {
   const unconfirmed = hasRecordedUnknownMetrics(a);
   if (!isPublished2(a) && !unconfirmed) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong><p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
   const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing4 = unconfirmed ? "未取得" : "未采集";
-  const summary = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
-  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
+  const summary2 = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
+  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary2}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
     const unknown2 = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown2 ? "unknown" : n.status, label3 = unknown2 ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
     return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label3)}</span><small>${e(displayTime(
       n.snapshot?.as_of || n.due_at
@@ -20244,65 +20440,65 @@ async function handleClick(event) {
   }
 }
 function handleChange(event) {
-  const el2 = event.target;
-  if (changeReconciliationFilters(el2)) return;
-  if (el2.matches?.("[data-article-verify-index]")) {
-    handleArticleVerificationChange(el2);
+  const el3 = event.target;
+  if (changeReconciliationFilters(el3)) return;
+  if (el3.matches?.("[data-article-verify-index]")) {
+    handleArticleVerificationChange(el3);
     return;
   }
-  if (el2.id === "todo-completed-mode") {
-    changeTodoCompletedMode(el2.value);
+  if (el3.id === "todo-completed-mode") {
+    changeTodoCompletedMode(el3.value);
     return;
   }
-  if (el2.dataset?.futureTodoId) {
-    toggleUnscheduledTodo(el2);
+  if (el3.dataset?.futureTodoId) {
+    toggleUnscheduledTodo(el3);
     return;
   }
-  if (el2.dataset?.futureDateId) {
-    inputUnscheduledTodo(el2);
+  if (el3.dataset?.futureDateId) {
+    inputUnscheduledTodo(el3);
     return;
   }
-  if (el2.dataset?.todoId) {
-    toggleTodo(el2);
+  if (el3.dataset?.todoId) {
+    toggleTodo(el3);
     return;
   }
-  if (el2.id === "todo-date") {
-    selectTodoDate(el2.value);
+  if (el3.id === "todo-date") {
+    selectTodoDate(el3.value);
     return;
   }
-  if (el2.id === "filter-view") {
-    const view2 = state.savedViews.find((v) => v.id === el2.value);
+  if (el3.id === "filter-view") {
+    const view2 = state.savedViews.find((v) => v.id === el3.value);
     if (view2) {
       $("#filter-panel").outerHTML = articleFilterPanel(viewDraft(view2));
       $("#filter-panel select")?.focus();
     }
-  } else if (el2.name === "columns" && el2.closest("#filter-panel")) {
-    $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el2.form));
-    $('#filter-panel input[value="' + el2.value + '"]')?.focus();
-  } else if (el2.id === "global-account" || el2.id === "overview-account") {
-    state.account = el2.value;
+  } else if (el3.name === "columns" && el3.closest("#filter-panel")) {
+    $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el3.form));
+    $('#filter-panel input[value="' + el3.value + '"]')?.focus();
+  } else if (el3.id === "global-account" || el3.id === "overview-account") {
+    state.account = el3.value;
     state.listPage = 1;
     updateRoute();
     renderShell();
-  } else if (el2.id === "page-size") {
-    state.pageSize = Number(el2.value);
+  } else if (el3.id === "page-size") {
+    state.pageSize = Number(el3.value);
     state.listPage = 1;
     updateRoute();
     renderPage();
-  } else if (el2.id === "trend-date") {
-    state.trendDate = el2.value;
+  } else if (el3.id === "trend-date") {
+    state.trendDate = el3.value;
     state.trendOpen = true;
     replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el2.id === "trend-metric") {
-    state.trendMetric = el2.value;
+  } else if (el3.id === "trend-metric") {
+    state.trendMetric = el3.value;
     state.trendOpen = true;
     replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el2.closest("#article-filters") && el2.name) {
-    state.filters[el2.name] = el2.value;
-    reloadFilteredPage("[name=" + el2.name + "]");
-  } else if (el2.id === "review-account") {
+  } else if (el3.closest("#article-filters") && el3.name) {
+    state.filters[el3.name] = el3.value;
+    reloadFilteredPage("[name=" + el3.name + "]");
+  } else if (el3.id === "review-account") {
     const select = $("#review-article");
-    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el2.value).map((a) => `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
+    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el3.value).map((a) => `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
   }
 }
 function handleToggle(event) {
@@ -20311,10 +20507,10 @@ function handleToggle(event) {
   if (event.target.isConnected && key === "trendOpen") state[key] = event.target.open;
 }
 function handleInput(event) {
-  const el2 = event.target;
-  inputUnscheduledTodo(el2);
-  inputTodo(el2);
-  inputTodoTemplate(el2);
+  const el3 = event.target;
+  inputUnscheduledTodo(el3);
+  inputTodo(el3);
+  inputTodoTemplate(el3);
 }
 function handleFilterSubmit(event) {
   if (event.target.id === "filter-panel") {
@@ -20363,7 +20559,7 @@ function handleKeydown(event) {
   if (event.key === "Tab") {
     const nodes = $$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]', $(
       "#overlay"
-    )).filter((el2) => el2.getClientRects().length);
+    )).filter((el3) => el3.getClientRects().length);
     if (!nodes.length) return;
     const first = nodes[0], last = nodes.at(-1);
     if (event.shiftKey && document.activeElement === first) {

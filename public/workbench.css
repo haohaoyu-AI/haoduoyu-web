@@ -937,3 +937,20 @@ body.floating-workbench {
   color:var(--accent); font-weight:600; }
 #review-article-library .review-view-switch > button:disabled { opacity:.45; cursor:not-allowed; }
 #review-article-library .review-view-count { color:var(--ink-3); font-size:var(--fs-sm); }
+
+/* AI settings: one line under each feature saying what it does. */
+.ai-settings-table th .ai-feature-note{display:block;margin-top:2px;font-weight:400;font-size:12px;line-height:1.5;color:var(--muted,#6b7280);max-width:28em}
+.ai-default-model{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin:0 0 10px}
+.ai-default-model .muted{font-size:12px}
+
+/* 一句话加待办: the model's reading, shown under the input until it is confirmed. */
+#daily-todos .todo-smart{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--accent,#2563eb);border-radius:10px;background:var(--surface,#fff)}
+#daily-todos .todo-smart p{margin:0}
+#daily-todos .todo-smart-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;flex:1 1 220px;min-width:0}
+#daily-todos .todo-smart-day{font-weight:600;white-space:nowrap}
+#daily-todos .todo-smart-text{overflow-wrap:anywhere}
+#daily-todos .todo-smart-hint,#daily-todos .todo-smart-wait{flex-basis:100%;font-size:12px;color:var(--muted,#6b7280)}
+#daily-todos .todo-smart-wait{flex-basis:auto;flex:1}
+#daily-todos .todo-smart-error{flex-basis:100%;font-size:13px;color:var(--danger,#b91c1c)}
+#daily-todos .todo-smart-actions{display:flex;gap:6px;margin-left:auto}
+@media (max-width:560px){#daily-todos .todo-smart-actions{margin-left:0;width:100%}#daily-todos .todo-smart-actions .btn.primary{flex:1}}

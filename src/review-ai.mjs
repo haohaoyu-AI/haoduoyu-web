@@ -10,7 +10,7 @@ import {experiments,namedPattern,patternStats,ruleNames,weeklyPeriod,RULE_STATUS
 // AI output lives in the audit log under fixed entity ids. It never rewrites articles, snapshots,
 // rules or benchmark records, so no schema change is needed and bot-owned data keeps its hashes.
 const base='/review/ai';
-export const REVIEW_AI_FEATURES=['weekly','titles','benchmarks','diagnosis','body'];
+export const REVIEW_AI_FEATURES=['weekly','titles','benchmarks','diagnosis','body','todo'];
 const EFFORTS=['','low','medium','high'];
 const modelPattern=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Control':'no-store'}});

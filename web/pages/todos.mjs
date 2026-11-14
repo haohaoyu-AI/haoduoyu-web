@@ -13,6 +13,7 @@ import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive
 import { todosState } from "../core/todos-state.mjs";
 import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderInlineTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
 import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
+import { confirmSmartTodo, paintSmartTodo, smartTodoReady, smartTodoWanted, startSmartTodo } from "./todo-smart.mjs";
 import {
   receiveTodoPreferences, todoCompletedMode, todoPreferences
 } from "./todo-preferences.mjs";
@@ -372,6 +373,7 @@ function paintTodoDom() {
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-text", root))?.focus();
   paintTodoTemplates();
+  paintSmartTodo(root, day);
 }
 function todoReadActive(owner, version, date, day, sequence) {
   return todoSessionActive(owner) && version === runtime.renderVersion && todoDate() === date && day.sequence === sequence && todosVisible();
@@ -506,9 +508,42 @@ async function submitTodo({ form, data }) {
     paintTodos();
     return;
   }
+  if (smartTodoReady(text)) return confirmSmartTodo(day);
+  if (smartTodoWanted(text)) return startSmartTodo(day, text, smartHooks);
+  await addTypedTodo(day, text);
+}
+async function addTypedTodo(day, text) {
   if (!day.create || day.create.text !== text) day.create = { id: crypto.randomUUID(), date: day.date, text };
   await saveTodo(day, day.create);
 }
+/** A confirmed sentence is saved by the same paths as typed to-dos; a failure throws so the row can say so. */
+const smartHooks = {
+  repaint: () => paintTodos(),
+  plain: (day, text) => addTypedTodo(day, text),
+  async save(day, request) {
+    await saveTodo(day, request);
+    if (day.failedCreate === request) { day.failedCreate = null; throw new Error(day.error || "添加失败，请稍后再试"); }
+    day.draft = ""; day.error = ""; paintTodos();
+  },
+  async saveElsewhere(day, request, label) {
+    const item = await api("/todos", { method: "POST", body: request });
+    const other = todoDay(item.date);
+    if (other.loaded) { mergeTodo(other, item); other.revision++; }
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
+      monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter(row => row.id !== item.id), item]);
+      monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
+      const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
+    }
+    day.draft = ""; setTodoNotice(day, `已添加到 ${label}`);
+  },
+  async saveDaily(day, text) {
+    const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
+    refreshOpenTodoTemplates();
+    day.draft = "";
+    await submitTodoTemplate(template);
+    if (day.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+  },
+};
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day = todoDay();

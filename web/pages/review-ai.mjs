@@ -3,7 +3,16 @@ import {enrichArticles} from '../../shared/review-analytics.mjs';
 import {experiments, patternStats, ruleNames} from '../../shared/review-experiments.mjs';
 import {renderReviewMarkdown} from '../core/review-markdown.mjs';
 
-export const AI_FEATURE_LABELS = {weekly:'周报', titles:'标题归类', benchmarks:'爆文拆解', diagnosis:'单篇诊断', body:'大小便小结'};
+export const AI_FEATURE_LABELS = {weekly:'周报', titles:'标题归类', benchmarks:'爆文拆解', diagnosis:'单篇文章分析', body:'大小便周小结',
+  todo:'一句话加待办'};
+// Only features still in use get a row. Removed features keep their saved choice, so turning one back on finds it unchanged.
+export const AI_FEATURES_SHOWN = [
+  ['body', '每周把碎碎念里的大小便记录整理成一段小结。'],
+  ['todo', '把“明天下午取快递”这样的一句话拆成日期和事项，确认后才添加。'],
+  ['diagnosis', '内容复盘里，对单篇文章做一次分析。'],
+];
+/** Small, fast models suit short jobs such as reading one to-do sentence. */
+const SMALL_MODEL = /mini|nano|lite|flash|small/i;
 export const AI_EFFORT_LABELS = [['','模型默认'],['low','低'],['medium','中'],['high','高']];
 const known = value => value !== null && value !== undefined && Number.isFinite(value);
 const reads = value => !known(value) ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : Math.round(value).toLocaleString('zh-CN');
@@ -158,21 +167,29 @@ export function titlePattern(vm, row, data) {
   return label ? `<span class="review-pattern-tag${own ? '' : ' is-ai'}" title="${e(origin + (shown === label ? '' : '：' + label))}">${e(shown)}</span>` : '';
 }
 /** Settings → AI: one default per feature, a daily ceiling, and what ran lately. */
+function smallHint(chosen, models) {
+  if (chosen === 'off' || chosen && SMALL_MODEL.test(chosen)) return '';
+  const pick = models.find(id => SMALL_MODEL.test(id));
+  return pick ? ` 建议选小模型，比如 ${e(pick)}，更快也更省。` : ' 建议选名字带 mini 的小模型，更快也更省。';
+}
 export function renderAiSettings(ai) {
   if (!ai || ai.status === 'loading') return '<section id="ai-settings" class="ai-settings"><p role="status">正在读取 AI 设置…</p></section>';
   if (ai.status === 'error') return `<section id="ai-settings" class="ai-settings"><p role="alert">${e(ai.error || '读取失败')}</p>${button('重试',
     'reload')}</section>`;
   const data = ai.data, draft = ai.draft || data.settings, models = ai.models || [];
   const modelSelect = (feature, value) => {
-    const list = [...new Set([...(value ? [value] : []), ...models])];
+    const list = [...new Set([...(value && value !== 'off' ? [value] : []), ...models])];
+    // Only the to-do reader can be switched off: sentences are then added exactly as typed.
+    const off = feature === 'todo' ? `<option value="off"${value === 'off' ? ' selected' : ''}>关闭（按原文添加）</option>` : '';
     return `<select class="input" data-ai-setting="model" data-ai-feature="${feature}" aria-label="${AI_FEATURE_LABELS[feature]}的模型">
       <option value="">服务器默认${data.default_model ? `（${e(data.default_model)}）` : ''}</option>${list.map(id =>
-        `<option value="${e(id)}"${id === value ? ' selected' : ''}>${e(id)}</option>`).join('')}</select>`;
+        `<option value="${e(id)}"${id === value ? ' selected' : ''}>${e(id)}</option>`).join('')}${off}</select>`;
   };
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
     ${AI_EFFORT_LABELS.map(([id,label]) => `<option value="${id}"${id === value ? ' selected' : ''}>${label}</option>`).join('')}</select>`;
-  const rows = Object.entries(AI_FEATURE_LABELS).filter(([feature]) => feature === 'diagnosis').map(([feature,label]) => `<tr><th scope="row">${label}</th>
+  const rows = AI_FEATURES_SHOWN.filter(([feature]) => draft.features[feature]).map(([feature,note]) => `<tr><th scope="row">${AI_FEATURE_LABELS[feature]}
+    <span class="ai-feature-note">${e(note)}${feature === 'todo' ? smallHint(draft.features.todo.model, models) : ''}</span></th>
     <td data-label="模型">${modelSelect(feature, draft.features[feature].model)}</td><td data-label="强度">${effortSelect(feature,
       draft.features[feature].effort)}</td></tr>`).join('');
   const status = {succeeded:'成功', failed:'失败', running:'进行中'};
@@ -186,13 +203,14 @@ export function renderAiSettings(ai) {
   const message = ai.messages?.settings;
   return `<section id="ai-settings" class="ai-settings" aria-label="AI 设置">
     ${data.configured ? '' : '<p role="alert">服务器还没有配置 API 密钥和默认模型。密钥只保存在服务器后台，不会出现在网页里。</p>'}
-    <form id="ai-settings-form"><h2>每个功能的默认模型和强度</h2>
+    <form id="ai-settings-form"><h2>每个功能用哪个模型</h2>
+    <p class="ai-default-model">默认模型：<b>${e(data.default_model || '未设置')}</b><span class="muted">没单独选的功能都用它；它在服务器后台设置。</span></p>
     <div class="ai-settings-table-wrap"><table class="ai-settings-table"><thead><tr><th>功能</th><th>模型</th><th>强度</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <p class="muted">${ai.modelsError ? e(ai.modelsError) : models.length ? '模型列表来自你的 API 账号。强度只对支持推理强度的模型有效，不支持时会自动忽略。' : '正在读取模型列表…'}</p>
     <label class="ai-settings-limit">每日最多调用次数<input class="input" type="number" min="0" max="200" step="1" inputmode="numeric"
       data-ai-setting="daily_limit" value="${draft.daily_limit}"></label>
-    <p class="muted">今天已用 ${data.usage.used} / ${data.usage.limit} 次。到上限后当天不再调用；单篇诊断另有每天 20 篇的上限。</p>
+    <p class="muted">今天已用 ${data.usage.used} / ${data.usage.limit} 次。到上限后当天不再调用；单篇文章分析另有每天 20 篇的上限。</p>
     <div class="form-actions"><button class="btn primary" type="submit"${ai.busy === 'settings' || !ai.dirty ? ' disabled' : ''}>${ai.busy === 'settings'
       ? '正在保存…' : '保存'}</button>
     <span role="${message?.error ? 'alert' : 'status'}" class="${message?.error ? 'ai-run-failed' : 'muted'}">${e(message?.text || (ai.dirty
