@@ -14572,6 +14572,11 @@ function renderTodoSettings() {
   return `<section class="card panel todo-settings" aria-label="今日待办设置">${renderTodoPreferences()}</section>`;
 }
 
+// web/core/work-reminders-state.mjs
+function visibleWorkReminders(items = []) {
+  return items.filter((row) => row.source_key !== "tencent.daily-summary");
+}
+
 // web/pages/work-reminders.mjs
 init_dom();
 init_format();
@@ -14586,7 +14591,7 @@ function paintWorkReminders(data3, error2 = "") {
   const message = root3.querySelector("#reminder-error");
   message.hidden = !error2;
   message.textContent = error2;
-  const rows = data3?.items || [];
+  const rows = visibleWorkReminders(data3?.items || []);
   root3.querySelector("#reminder-list").innerHTML = rows.length ? rows.map((row) => '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' + e(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(row.updated_at))) + "</time><p>" + e(row.summary) + "</p></article>").join("") : data3?.loading ? "" : '<div class="card reminder-empty">暂无工作提醒</div>';
 }
 
@@ -14732,7 +14737,7 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   const root3 = document.querySelector("#ai-reports");
   if (!root3) return;
   root3.querySelector("#ai-reminder-status").textContent = error2 || (loading ? "正在读取工作提醒…" : "");
-  const items = data3?.items || [];
+  const items = visibleWorkReminders(data3?.items || []);
   root3.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error2 ? "" : "<p>暂无工作提醒</p>";
 }
 function paintOpenAiDiary(items = [], { error: error2 = "", loading = false, owner: owner2 = true } = {}) {
