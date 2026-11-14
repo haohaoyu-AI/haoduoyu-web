@@ -299,7 +299,15 @@ export const futureQuickRelease=Object.freeze({
   baseline:'07842567-6f01-47ec-bd85-85f75ba8f51d',
   bytes:3174938,sha256:'be1440ac44fdb32ebce88df16fbd3bd996c3c2f76bff1857511a3bf052d46b06',
   label:'production-future-quick-20261114'});
-const acceptedRelease=commit=>commit===futureQuickRelease.commit?futureQuickRelease:
+// AI 日报: 待拍板 tab and today's reports opened above the timeline, on top of the deployed 9e7e48c (run 43566254217).
+export const decisionsRelease=Object.freeze({
+  commit:'154bd73596ab4eeb238880bc7012a01dddc4c8c3',
+  tree:'aab2ee69bf1e483d9f1fa62dfe8b74405c4cc5f9',
+  baseline:'f59a64b1-bbe4-4b71-bf85-eb3f79596a3c',
+  bytes:3182962,sha256:'3b5bbea13b955f4505e7f086c95055812e28cdc9d570055cebc7b4009c597d5a',
+  label:'production-decisions-20261114'});
+const acceptedRelease=commit=>commit===decisionsRelease.commit?decisionsRelease:
+  commit===futureQuickRelease.commit?futureQuickRelease:
   commit===aiReportDayRelease.commit?aiReportDayRelease:
   commit===todoCountNoteRelease.commit?todoCountNoteRelease:
   commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
