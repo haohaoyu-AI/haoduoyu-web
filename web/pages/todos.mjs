@@ -58,6 +58,11 @@ function observeTodoChanges(callback) {
 function notifyTodoChanges() {
   for (const callback of todoObservers) callback();
 }
+const TODO_WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+/** "11月14日 周六", the date wording shared with the notes and AI report timelines. */
+function todoDayTitle(date) {
+  return `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日 ${TODO_WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}`;
+}
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date;
@@ -70,14 +75,18 @@ function todoCalendarDay(date, selected) {
   const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => 
     !item.deleted_at);
   const shown = items.filter(item => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
+  const loaded = monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date);
+  const done = items.filter(item => item.completed).length;
+  // Same language as the notes timeline: days without to-dos are muted, others show done/total.
+  const tone = !items.length ? " is-blank" : done === items.length ? " is-all-done" : "";
   const content = shown.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ` +
     `${e(item.text)}</span>`).join("");
   const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
-  return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
-data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active}"
-${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === 
-  monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : 
-    ""}</small></span>${content}${more}</button>`;
+  const count = loaded && items.length ? `${done}/${items.length}` : "";
+  return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}${loaded ? tone : ""}" type="button"
+data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}${count ? `，完成 ${count}` : ""}" aria-pressed="${active}"
+${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${count}</small></span>` +
+    `${content}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -142,6 +151,7 @@ function moveTodoMonth(offset) {
 function paintTodoCalendar(date) {
   const calendar = $("#todo-calendar"), month = todoCalendarMonth(date), today = bjtDate();
   if (!calendar) return;
+  const title = $(".todo-day-title"); if (title) title.textContent = todoDayTitle(date);
   if (!calendar.dataset.viewBound) {
     calendar.addEventListener('click', event => {
       const retry = event.target.closest('[data-todo-calendar-retry]');
@@ -231,7 +241,7 @@ ${[["today","今日"],["future","未来待办"],["history","日历"],["templates
 function renderTodoHistory(day) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
-${todoCalendar(day.date)}</div></section>`;
+${todoCalendar(day.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day.date))}</h3></section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";

@@ -9091,6 +9091,10 @@ function observeTodoChanges(callback) {
 function notifyTodoChanges() {
   for (const callback of todoObservers) callback();
 }
+var TODO_WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+function todoDayTitle(date2) {
+  return `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 ${TODO_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}`;
+}
 function todoCalendarMonth(date2) {
   if (todosState.calendarDate !== date2 || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date2;
@@ -9102,11 +9106,15 @@ function todoCalendarDay(date2, selected) {
   const today2 = date2 === bjtDate(), active6 = date2 === selected;
   const items = (monthSnapshot.month === date2.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date2) || [] : []).filter((item) => !item.deleted_at);
   const shown2 = items.filter((item) => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
+  const loaded = monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && monthSnapshot.days.has(date2);
+  const done2 = items.filter((item) => item.completed).length;
+  const tone = !items.length ? " is-blank" : done2 === items.length ? " is-all-done" : "";
   const content2 = shown2.slice(0, 4).map((item) => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
   const more = shown2.length > 4 ? `<span class="todo-calendar-more">还有 ${shown2.length - 4} 项</span>` : "";
-  return `<button class="todo-calendar-day${active6 ? " is-selected" : ""}${today2 ? " is-today" : ""}" type="button"
-data-action="todo-calendar-date" data-date="${e(date2)}" aria-label="${e(date2)}" aria-pressed="${active6}"
-${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date2.slice(-2))}</strong><small>${monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && monthSnapshot.days.has(date2) ? shown2.length + " 项" : ""}</small></span>${content2}${more}</button>`;
+  const count3 = loaded && items.length ? `${done2}/${items.length}` : "";
+  return `<button class="todo-calendar-day${active6 ? " is-selected" : ""}${today2 ? " is-today" : ""}${loaded ? tone : ""}" type="button"
+data-action="todo-calendar-date" data-date="${e(date2)}" aria-label="${e(date2)}${count3 ? `，完成 ${count3}` : ""}" aria-pressed="${active6}"
+${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date2.slice(-2))}</strong><small>${count3}</small></span>${content2}${more}</button>`;
 }
 function todoCalendar(date2) {
   const month = todoCalendarMonth(date2), first = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -9158,6 +9166,8 @@ function moveTodoMonth(offset) {
 function paintTodoCalendar(date2) {
   const calendar = $("#todo-calendar"), month = todoCalendarMonth(date2), today2 = bjtDate();
   if (!calendar) return;
+  const title = $(".todo-day-title");
+  if (title) title.textContent = todoDayTitle(date2);
   if (!calendar.dataset.viewBound) {
     calendar.addEventListener("click", (event) => {
       const retry = event.target.closest("[data-todo-calendar-retry]");
@@ -9265,7 +9275,7 @@ ${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["tem
 function renderTodoHistory(day6) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day6.date)}" data-today="${bjtDate()}">
-${todoCalendar(day6.date)}</div></section>`;
+${todoCalendar(day6.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day6.date))}</h3></section>`;
 }
 function paintTodoPanels(root3) {
   const panel2 = state.todoPanel || "";
@@ -17088,8 +17098,29 @@ function articleLibrary(rows, vm3, data3 = {}) {
     ...columns.map((metric) => metric.label),
     "判定"
   ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list2.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body3]) => `<td data-label="${e(label3)}">${body3}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  if (vm3.filters?.group === TIMELINE_VIEW) return filters + articleTimeline(selected, data3, vm3);
   const dimension = activeGroup(vm3);
   return filters + (dimension ? groupedArticles(selected, vm3, dimension, table2) : table2(selected));
+}
+var TIMELINE_VIEW = "@timeline";
+var ARTICLE_WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+var readsText = (value) => value === null || value === void 0 ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
+function articleTimeline(rows, data3, vm3) {
+  const days = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const date2 = day5(row.published_at);
+    if (date2) days.set(date2, [...days.get(date2) || [], row]);
+  }
+  const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString();
+  const lines = (list2) => list2.map((row) => {
+    const observation = reviewListObservation(row, data3.snapshots, now);
+    const reads3 = observation.kind === "immature" ? "未满24h" : "阅读 " + readsText(row.reads_24h);
+    return `<span class="review-tl-article"><button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button><small>${e([reviewDateTime2(row.published_at).slice(11), reads3].filter(Boolean).join(" · "))}${row.verdict ? " · " + e(row.verdict) : ""}</small></span>`;
+  }).join("");
+  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
+    const hits = list2.filter((row) => row.verdict === "爆").length;
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}</span><span class="notes-tl-week">${Number(date2.slice(5, 7))}月</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list2)}<span class="notes-tl-foot">${list2.length} 篇${hits ? ` · 爆 ${hits}` : ""}</span></span></div>`;
+  }).join("")}</div>`;
 }
 function activeGroup(vm3) {
   const group = vm3.filters?.group || "";
@@ -17097,10 +17128,10 @@ function activeGroup(vm3) {
 }
 function groupPicker(vm3) {
   const dimensions = vm3.tags?.dimensions || [];
-  const choices = [["", "按时间"], ...dimensions.map((name) => [name, "按" + name])];
+  const choices = [["", "按时间"], [TIMELINE_VIEW, "发布时间轴"], ...dimensions.map((name) => [name, "按" + name])];
   return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? "" : ' title="还没有套路标签"'}>${options3(
     choices,
-    activeGroup(vm3)
+    vm3.filters?.group === TIMELINE_VIEW ? TIMELINE_VIEW : activeGroup(vm3)
   )}</select></label>`;
 }
 var middle = (values) => {
@@ -17115,7 +17146,6 @@ function groupedArticles(rows, vm3, dimension, table2) {
     groups.get(name).push(row);
   }
   const ordered2 = [...groups.entries()].sort(([a, x], [b, y]) => (a === "未分类") - (b === "未分类") || y.length - x.length || (middle(y.map((row) => row.reads_24h)) ?? 0) - (middle(x.map((row) => row.reads_24h)) ?? 0));
-  const readsText = (value) => value === null ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : Math.round(value).toLocaleString("zh-CN");
   return `<div class="review-article-groups">${ordered2.map(([name, list2]) => {
     const measured2 = list2.filter((row) => row.reads_24h !== null);
     const ctr = middle(list2.map((row) => row.ctr_24h)), few = measured2.length < 3;

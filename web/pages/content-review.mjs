@@ -225,8 +225,32 @@ function articleLibrary(rows,vm,data = {}) {
       ...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${list.map(row => `<tr ` +
         `data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td ` +
           `data-label="${e(label)}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  if (vm.filters?.group === TIMELINE_VIEW) return filters + articleTimeline(selected, data, vm);
   const dimension = activeGroup(vm);
   return filters + (dimension ? groupedArticles(selected, vm, dimension, table) : table(selected));
+}
+/** View value for the publish timeline; not a tag dimension name the bot could write. */
+const TIMELINE_VIEW = '@timeline';
+const ARTICLE_WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+const readsText = value => value === null || value === undefined ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` :
+  Math.round(value).toLocaleString('zh-CN');
+/** Publishing as a diary timeline: one row per Beijing publish day, newest first, each article with its 24h reads and verdict. */
+function articleTimeline(rows, data, vm) {
+  const days = new Map();
+  for (const row of rows) { const date = day(row.published_at); if (date) days.set(date, [...(days.get(date) || []), row]); }
+  const now = vm.now || new Date().toISOString();
+  const lines = list => list.map(row => { const observation = reviewListObservation(row, data.snapshots, now);
+    const reads = observation.kind === 'immature' ? '未满24h' : '阅读 ' + readsText(row.reads_24h);
+    return `<span class="review-tl-article"><button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
+      `aria-haspopup="dialog">${e(row.title || '未命名文章')}</button><small>${e([reviewDateTime(row.published_at).slice(11), reads].filter(Boolean).join(' · '))}` +
+      `${row.verdict ? ' · ' + e(row.verdict) : ''}</small></span>`; }).join('');
+  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, list]) => {
+    const hits = list.filter(row => row.verdict === '爆').length;
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date.slice(8))}</span>` +
+      `<span class="notes-tl-week">${ARTICLE_WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}</span>` +
+      `<span class="notes-tl-week">${Number(date.slice(5,7))}月</span></span>` +
+      `<span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list)}` +
+      `<span class="notes-tl-foot">${list.length} 篇${hits ? ` · 爆 ${hits}` : ''}</span></span></div>`; }).join('')}</div>`;
 }
 // The same articles, viewed by time (default) or grouped by one of the bot's pattern dimensions.
 function activeGroup(vm) {
@@ -235,9 +259,9 @@ function activeGroup(vm) {
 }
 function groupPicker(vm) {
   const dimensions = vm.tags?.dimensions || [];
-  const choices = [['','按时间'], ...dimensions.map(name => [name, '按' + name])];
+  const choices = [['','按时间'], [TIMELINE_VIEW, '发布时间轴'], ...dimensions.map(name => [name, '按' + name])];
   return `<label>查看方式<select class="input" data-review-filter="group"${dimensions.length ? '' : ' title="还没有套路标签"'}>${options(choices,
-    activeGroup(vm))}</select></label>`;
+    vm.filters?.group === TIMELINE_VIEW ? TIMELINE_VIEW : activeGroup(vm))}</select></label>`;
 }
 const middle = values => { const list = values.filter(value => value !== null && value !== undefined && Number.isFinite(value)).sort((a, b) => a - b);
   return list.length ? list.length % 2 ? list[(list.length - 1) / 2] : (list[list.length / 2 - 1] + list[list.length / 2]) / 2 : null; };
@@ -250,7 +274,6 @@ function groupedArticles(rows, vm, dimension, table) {
   }
   const ordered = [...groups.entries()].sort(([a, x], [b, y]) => (a === '未分类') - (b === '未分类') || y.length - x.length ||
     (middle(y.map(row => row.reads_24h)) ?? 0) - (middle(x.map(row => row.reads_24h)) ?? 0));
-  const readsText = value => value === null ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : Math.round(value).toLocaleString('zh-CN');
   return `<div class="review-article-groups">${ordered.map(([name, list]) => { const measured = list.filter(row => row.reads_24h !== null);
     const ctr = middle(list.map(row => row.ctr_24h)), few = measured.length < 3;
     return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few
