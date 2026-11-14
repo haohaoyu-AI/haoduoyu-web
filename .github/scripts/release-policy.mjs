@@ -306,7 +306,15 @@ export const decisionsRelease=Object.freeze({
   baseline:'f59a64b1-bbe4-4b71-bf85-eb3f79596a3c',
   bytes:3182962,sha256:'3b5bbea13b955f4505e7f086c95055812e28cdc9d570055cebc7b4009c597d5a',
   label:'production-decisions-20261114'});
-const acceptedRelease=commit=>commit===decisionsRelease.commit?decisionsRelease:
+// 待拍板: only the questions, history as a timeline, status marks, on top of the deployed 154bd73 (run 43568540619).
+export const decisionsTimelineRelease=Object.freeze({
+  commit:'805e14b8037a2e221ba2823f395689d78f21a399',
+  tree:'72aa62ca298f4ea309a558766596e2243d6d3a26',
+  baseline:'46848449-3ad1-4a04-ab35-82fbb7dd731d',
+  bytes:3185021,sha256:'611cc17503b03258bde18765c134c7d15fc6a8ff92a152ba8f1062fd24e174e2',
+  label:'production-decisions-timeline-20261114'});
+const acceptedRelease=commit=>commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
+  commit===decisionsRelease.commit?decisionsRelease:
   commit===futureQuickRelease.commit?futureQuickRelease:
   commit===aiReportDayRelease.commit?aiReportDayRelease:
   commit===todoCountNoteRelease.commit?todoCountNoteRelease:
