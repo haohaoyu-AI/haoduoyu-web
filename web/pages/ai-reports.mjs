@@ -3,18 +3,22 @@ import {e} from '../core/dom.mjs';
 import {dailyNotesToday} from '../core/daily-notes-state.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
 import {visibleWorkReminders} from '../core/work-reminders-state.mjs';
+import {decisionCards,decisionCount,decisionHistory} from './ai-decisions.mjs';
 
 export function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">待拍板<span class="ai-tab-count"
+          id="ai-decision-count"></span></button>
         <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
       </div>
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
+        <div class="ai-decision-more"><button class="btn text" type="button" data-ai-decision-history>看前 7 天的待拍板</button>
+        <div id="ai-decision-history"></div></div></section>
       <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
@@ -118,11 +122,21 @@ export function paintAiDailyReminders(data, error = '', loading = false) {
   const root = document.querySelector('#ai-reports');
   if (!root) return;
   root.querySelector('#ai-reminder-status').textContent = error || (loading ? '正在读取工作提醒…' : '');
-  const items = visibleWorkReminders(data?.items || []);
-  root.querySelector('#ai-reminder-list').innerHTML = items.length ? items.map(row =>
-    `<article class="card field-spaced" style="overflow-wrap:anywhere">` +
-    `<div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join('') :
+  const items = visibleWorkReminders(data?.items || []), count = items.length ? decisionCount(items) : 0;
+  const badge = root.querySelector('#ai-decision-count');
+  if (badge) badge.textContent = count ? String(count) : '';
+  const date = data?.date || dailyNotesToday(), day = date === dailyNotesToday() ? `今天 · ${reportDayTitle(date)}` : reportDayTitle(date);
+  root.querySelector('#ai-reminder-list').innerHTML = items.length ?
+    `<h3 class="ai-decision-head">${e(day)}<span> · ${count ? `${count} 件待你拍板` : '没有要你拍板的事'}</span></h3>` +
+    '<p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>' + decisionCards(items) :
     loading || error ? '' : '<p>暂无工作提醒</p>';
+}
+/** Earlier days of 待拍板, loaded only when asked for. */
+export function paintDecisionHistory(days, {loading = false, error = ''} = {}) {
+  const box = document.querySelector('#ai-decision-history');
+  if (!box) return;
+  box.innerHTML = error ? `<p class="body-summary-error">${e(error)}</p>` : loading ? '<p class="muted">正在读取…</p>' :
+    decisionHistory(days, reportDayTitle);
 }
 
 export function paintOpenAiDiary(items = [], {error = '', loading = false, owner = true} = {}) {
@@ -157,6 +171,8 @@ export function paintAiReportTimeline(items, month, {loading = false, error = ''
   root.querySelector('#ai-report-list-status').textContent = error || (loading ? '' : days.size ? '' : '这个月还没有汇报');
   const head = root.querySelector('#ai-report-dayhead');
   if (head) head.innerHTML = '';
+  const today = dailyNotesToday(), pinned = days.get(today) || [];
+  days.delete(today);
   const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, list]) => {
     const preview = list.map(row => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join('\n');
     const authors = [...new Set(list.map(row => reportGroup(row.author)))].join(' · ');
@@ -167,7 +183,23 @@ export function paintAiReportTimeline(items, month, {loading = false, error = ''
       `<span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span>` +
       `<span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list.length} 份</span></span></button>`;
   });
-  root.querySelector('#ai-report-list').innerHTML = loading || error ? '' : `<div class="notes-tl">${rows.join('')}</div>`;
+  const top = month === today.slice(0, 7) ? todayReports(today, pinned) : '';
+  root.querySelector('#ai-report-list').innerHTML = loading || error ? '' :
+    top + (rows.length ? `${top ? '<h3 class="ai-today-more">更早</h3>' : ''}<div class="notes-tl">${rows.join('')}</div>` : '');
+  if (!loading && !error && top) root.querySelector('#ai-report-list-status').textContent = '';
+}
+/** Today's reports, open in full above the timeline; they cover yesterday's work. */
+function todayReports(today, list) {
+  const yesterday = new Date(Date.parse(today + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const head = `<h3 class="ai-today-title">今天 · ${e(reportDayTitle(today))}</h3>` +
+    `<p class="notes-read-sub">汇报的是昨天（${e(reportDayTitle(yesterday))}）做的事</p>`;
+  if (!list.length) return `<section class="ai-today">${head}<p class="muted">今天的汇报还没到。</p></section>`;
+  const order = ['Grok bot', 'Gemini', 'GPT', '其他作者'];
+  const sorted = [...list].sort((a, b) => order.indexOf(reportGroup(a.author)) - order.indexOf(reportGroup(b.author)) ||
+    String(a.created_at).localeCompare(String(b.created_at)));
+  return `<section class="ai-today">${head}${sorted.map(row => `<article class="ai-today-report" style="overflow-wrap:anywhere">` +
+    `<p><strong class="${reportAuthorClass(row.author)}">${e(String(row.author ?? ''))}：</strong></p>` +
+    `<div class="ai-report-markdown">${renderSafeMarkdown(reportContent(row.content).body)}</div></article>`).join('')}</section>`;
 }
 /** Back link and title above one opened day. */
 export function paintAiReportDayHead(date) {

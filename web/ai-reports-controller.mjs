@@ -4,7 +4,8 @@ import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
-import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,reportShownDay,paintAiReportTimeline,paintAiReportDayHead}
+import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,reportShownDay,paintAiReportTimeline,
+  paintDecisionHistory,paintAiReportDayHead}
   from './pages/ai-reports.mjs';
 
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
@@ -91,6 +92,19 @@ export async function loadAiReports({resetDate = false} = {}) {
   await Promise.all([report, reminders]);
 }
 
+/** The seven days before the shown one, read only on request so opening the page stays one reminder read. */
+async function loadDecisionHistory(button) {
+  const base = selectedDate || dailyNotesToday(), session = runtime.sessionEpoch;
+  const dates = Array.from({length: 7}, (_, index) => new Date(Date.parse(base + 'T00:00:00Z') - (index + 1) * 86400000).toISOString().slice(0, 10));
+  button.hidden = true; paintDecisionHistory([], {loading: true});
+  try {
+    const days = await Promise.all(dates.map(date => api('/work-reminders?date=' + encodeURIComponent(date))
+      .then(data => ({date, items: data.items || []}))));
+    if (session === runtime.sessionEpoch) paintDecisionHistory(days);
+  } catch (error) {
+    if (session === runtime.sessionEpoch) { button.hidden = false; paintDecisionHistory([], {error: error.message || '读取失败，请稍后再试'}); }
+  }
+}
 /** The timeline for the visible month, or the opened work day's reports in reading view. */
 function paintReports() {
   if (!allReports) return;
@@ -117,6 +131,7 @@ function registerAiReportEvents() {
       selectDailyTab(tab); updateRoute();
       if (tab === 'openai') void loadAiReports();
     } else if (event.target.closest?.('[data-openai-diary-refresh]')) void loadAiReports();
+    else if (event.target.closest?.('[data-ai-decision-history]')) void loadDecisionHistory(event.target.closest('[data-ai-decision-history]'));
     else if (event.target.closest?.('[data-ai-report-month]')) moveMonth(Number(event.target.closest('[data-ai-report-month]').dataset.aiReportMonth));
     else if (event.target.closest?.('[data-ai-report-open],[data-ai-report-back]')) {
       openReportDay = event.target.closest('[data-ai-report-open]')?.dataset.aiReportOpen || '';

@@ -961,3 +961,23 @@ body.floating-workbench {
 .todo-future-quick .btn.small { min-height:34px; padding-inline:12px; }
 @media (max-width:700px) { #todo-future .todo-future-quick .btn.small { flex:1 1 auto; } }
 @media (max-width:700px) { #todo-future .daily-todo-main { flex:1 1 0; } }
+
+/* AI 日报: 待拍板 has no day calendar; it shows today's questions; AI汇报 opens today's reports above the timeline. */
+#ai-reports[data-ai-tab="reminders"] .ai-calendar-layout { display:none; }
+#ai-reports .ai-tab-count:not(:empty) { display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:999px;
+  background:var(--accent); color:#fff; font-size:12px; line-height:18px; text-align:center; }
+#ai-reports .ai-decision-head, #ai-reports .ai-today-title { margin:4px 0 2px; font-size:18px; }
+#ai-reports .ai-decision-head span { font-weight:400; color:var(--accent); font-size:15px; }
+#ai-reports .ai-decision-how { margin:0 0 10px; font-size:13px; color:var(--muted); }
+#ai-reports .ai-decision-list { margin:0; padding-left:1.4em; display:grid; gap:10px; }
+#ai-reports .ai-decision-list li { line-height:1.75; }
+#ai-reports .ai-decision-list li p { margin:0; }
+#ai-reports .ai-decision-full { margin-top:10px; font-size:13px; color:var(--muted); }
+#ai-reports .ai-decision-full summary { cursor:pointer; }
+#ai-reports .ai-decision-full .ai-report-markdown { color:var(--text); font-size:14px; margin-top:8px; }
+#ai-reports .ai-decision-more { margin-top:14px; }
+#ai-reports .ai-decision-day h4 { margin:16px 0 6px; font-size:15px; }
+#ai-reports .ai-today { margin-bottom:18px; }
+#ai-reports .ai-today-report { padding:12px 0; border-bottom:1px solid var(--line); }
+#ai-reports .ai-today-report .ai-report-markdown { font-size:16px; line-height:1.85; }
+#ai-reports .ai-today-more { margin:6px 0 4px; font-size:15px; color:var(--muted); font-weight:500; }

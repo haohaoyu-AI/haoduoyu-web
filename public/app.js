@@ -1614,8 +1614,8 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
       return conflict;
     });
   }
-  const list2 = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
-  return { record, list: list2 };
+  const list3 = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
+  return { record, list: list3 };
 }
 var init_conflict = __esm({
   "web/offline/conflict.mjs"() {
@@ -2378,7 +2378,7 @@ function createContext(options4) {
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
   };
-  const list2 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
+  const list3 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
   const cooldown = async (scope) => {
     checkScope(scope);
     const item = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", rateLimitKey(scope)));
@@ -2402,7 +2402,7 @@ function createContext(options4) {
       return value;
     });
   };
-  const retryable = (scope) => retryableOperations({ db, list: list2, canDispatch }, scope);
+  const retryable = (scope) => retryableOperations({ db, list: list3, canDispatch }, scope);
   async function lease(scope) {
     checkScope(scope);
     return db.transaction(["meta"], "readwrite", async (tx) => {
@@ -2451,7 +2451,7 @@ function createContext(options4) {
     cooldown,
     setCooldown,
     checkScope,
-    list: list2,
+    list: list3,
     lease,
     network,
     readNetwork,
@@ -2460,8 +2460,8 @@ function createContext(options4) {
     retryable
   };
 }
-async function retryableOperations({ db, list: list2, canDispatch }, scope) {
-  const rows = await list2(scope), first = /* @__PURE__ */ new Map(), ready = [];
+async function retryableOperations({ db, list: list3, canDispatch }, scope) {
+  const rows = await list3(scope), first = /* @__PURE__ */ new Map(), ready = [];
   for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
   for (const row of first.values()) {
     if (!canDispatch(row) || !["queued", "unknown", "sending"].includes(row.status)) continue;
@@ -2761,7 +2761,7 @@ async function dependenciesReady(context, operation2, rows) {
   return state2 === "ready";
 }
 function executionMethods(context) {
-  const { getScope, lease, state: state2, list: list2, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch, cooldown } = context;
+  const { getScope, lease, state: state2, list: list3, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch, cooldown } = context;
   let running = null;
   async function run2() {
     const scope = getScope();
@@ -2770,7 +2770,7 @@ function executionMethods(context) {
       context.rateLimitScope = scope;
       context.rateLimitedUntil = 0;
     }
-    if (!await lease(scope)) return { phase: "busy", pending: (await list2(scope)).length };
+    if (!await lease(scope)) return { phase: "busy", pending: (await list3(scope)).length };
     state2.phase = "syncing";
     state2.error = null;
     state2.rateLimitedUntil = 0;
@@ -2782,7 +2782,7 @@ function executionMethods(context) {
           state2.rateLimitedUntil = blockedUntil;
           break;
         }
-        const rows = await list2(scope);
+        const rows = await list3(scope);
         let operation2;
         for (const candidate of await retryable(scope)) {
           if (candidate.next_attempt_at <= now() && await dependenciesReady(context, candidate, rows)) {
@@ -2793,7 +2793,7 @@ function executionMethods(context) {
         if (!operation2) break;
         await process(operation2);
       }
-      const pending = await list2(scope);
+      const pending = await list3(scope);
       state2.pending = pending.length;
       state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
       state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
@@ -2867,8 +2867,8 @@ function createOutbox(options4) {
     }
   }
   context.conflicts.resolve = resolve;
-  const { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
-  return { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
+  const { enqueue, drain, resume, list: list3, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
+  return { enqueue, drain, resume, list: list3, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
 }
 var RETRY_DELAYS, STORED_COOLDOWN_MAX_MS, storedPause, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
 var init_outbox = __esm({
@@ -4218,7 +4218,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  async function list2(kind) {
+  async function list3(kind) {
     return (await records(kind)).map((row) => row.data);
   }
   const tools = { db, getScope, getGeneration, pending };
@@ -4226,7 +4226,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   const purgeUserDeleted = (raw, snapshots2, value, stillActive) => purgeUserDeletedDrafts(tools, raw, snapshots2, value, stillActive);
   const discardUnsent = (raw) => discardUnsentDraft(tools, raw);
   const discardSelected = (snapshot) => discardSelectedDraft(tools, snapshot);
-  return { capture, list: list2, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
+  return { capture, list: list3, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
 }
 var fields, unresolved, eligible;
 var init_drafts = __esm({
@@ -4423,14 +4423,14 @@ function checkedInput(raw, kind, createId) {
   const body3 = structuredClone(raw || {});
   if (!body3.save_id) body3.save_id = createId();
   const fields5 = ["title", "position", "version", "save_id", ...kind === "notes" ? ["group_id", "body"] : []];
-  const plain2 = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+  const plain3 = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
   const invalid4 = () => {
     throw Object.assign(fail3("备忘录字段无效，输入仍保留。"), { status: 400 });
   };
-  if (Object.keys(body3).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body3.save_id) || !Number.isSafeInteger(body3.version) || body3.version < 0 || body3.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body3.position) || body3.position < 0 || body3.position > 1e6 || !plain2(body3.title) || !body3.title.trim() || [...body3.title.trim()].length > 120 || /[\r\n\t]/.test(body3.title)) invalid4();
+  if (Object.keys(body3).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body3.save_id) || !Number.isSafeInteger(body3.version) || body3.version < 0 || body3.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body3.position) || body3.position < 0 || body3.position > 1e6 || !plain3(body3.title) || !body3.title.trim() || [...body3.title.trim()].length > 120 || /[\r\n\t]/.test(body3.title)) invalid4();
   body3.title = body3.title.trim();
   if (kind === "notes") {
-    if (!uuid4.test(body3.group_id) || !plain2(body3.body)) invalid4();
+    if (!uuid4.test(body3.group_id) || !plain3(body3.body)) invalid4();
     body3.body = body3.body.replace(/\r\n?/g, "\n");
     if (new TextEncoder().encode(body3.body).length > 65536) invalid4();
   }
@@ -5801,14 +5801,14 @@ function paintFutureList() {
   const v = current(), root3 = $("#todo-future");
   if (!root3) return;
   root3.hidden = !visible();
-  const input = $("#todo-future-text", root3), button3 = $("#todo-future-form button", root3), status = $("#todo-future-status", root3), error2 = $("#todo-future-error", root3), list2 = $("#todo-future-items", root3);
+  const input = $("#todo-future-text", root3), button3 = $("#todo-future-form button", root3), status = $("#todo-future-status", root3), error2 = $("#todo-future-error", root3), list3 = $("#todo-future-items", root3);
   if (input && document.activeElement !== input && input.value !== v.draft) input.value = v.draft;
   if (button3) button3.disabled = v.pending;
   if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error2) error2.textContent = v.error;
   const live2 = document.activeElement;
   const keep = live2?.matches?.('[data-todo-note-input][data-future="1"]') && live2.isConnected && v.noteEdit?.id === live2.dataset.id;
-  if (list2 && !keep) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map(futureRow).join("");
+  if (list3 && !keep) list3.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map(futureRow).join("");
 }
 async function loadUnscheduledTodos() {
   if (!visible()) return;
@@ -6643,7 +6643,7 @@ function inline(value) {
 }
 function renderSafeMarkdown(value) {
   const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
-  let out = "", list2 = "", paragraph = [], code = false;
+  let out = "", list3 = "", paragraph = [], code = false;
   const flushParagraph = () => {
     if (paragraph.length) {
       out += "<p>" + paragraph.map(inline).join("<br>") + "</p>";
@@ -6651,9 +6651,9 @@ function renderSafeMarkdown(value) {
     }
   };
   const closeList = () => {
-    if (list2) {
-      out += `</${list2}>`;
-      list2 = "";
+    if (list3) {
+      out += `</${list3}>`;
+      list3 = "";
     }
   };
   for (const line of lines) {
@@ -6672,9 +6672,9 @@ function renderSafeMarkdown(value) {
     if (item) {
       flushParagraph();
       const type = item[2] ? "ol" : "ul";
-      if (list2 !== type) {
+      if (list3 !== type) {
         closeList();
-        list2 = type;
+        list3 = type;
         out += type === "ol" ? `<ol start="${Number(item[2])}">` : "<ul>";
       }
       out += `<li>${inline(item[3])}</li>`;
@@ -10473,19 +10473,19 @@ function createEntryPersistActions(context) {
       emit2();
       try {
         if (!loadVerified) throw new Error("无法直接核对线上记录");
-        const list2 = checkedCollection(await loadVerified(item.date), category, item.date);
+        const list3 = checkedCollection(await loadVerified(item.date), category, item.date);
         if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
-        if (list2.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
-        const same3 = list2.entries.find((value) => value.id === id2);
+        if (list3.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
+        const same3 = list3.entries.find((value) => value.id === id2);
         if (same3 && same3.text === snapshot.draft && equalLabels(labelsOf(same3), snapshot.labels)) {
           item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
           return;
         }
-        if (list2.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
+        if (list3.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
           item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
           return;
         }
-        if (!list2.can_edit || same3 && (same3.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same3.content_hash !== item.recoveredBaseline.contentHash) || !same3 && snapshot.version !== 0) {
+        if (!list3.can_edit || same3 && (same3.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same3.content_hash !== item.recoveredBaseline.contentHash) || !same3 && snapshot.version !== 0) {
           item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
           return;
         }
@@ -10899,8 +10899,8 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
     return result;
   }
   function paintHistory() {
-    const rows = visibleRows(selected), list2 = find("#notes-month-history");
-    list2.replaceChildren();
+    const rows = visibleRows(selected), list3 = find("#notes-month-history");
+    list3.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
       const card2 = node3("article", "", "note-entry note-entry-saved"), head = node3("div", "", "note-entry-head");
@@ -10915,9 +10915,9 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
         if (active6()) void selectDate(selected, item.category);
       });
       card2.append(open);
-      list2.append(card2);
+      list3.append(card2);
     }
-    if (!rows.length) list2.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+    if (!rows.length) list3.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
   function paint3() {
     const grid = find("#notes-month-grid");
@@ -11220,7 +11220,7 @@ function paintRetainedDrafts(root3, current3, drafts) {
     return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date2) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date2) + "</button>";
   }).join("");
 }
-function paintOtherLegacy(root3, list2, legacy2, category) {
+function paintOtherLegacy(root3, list3, legacy2, category) {
   let node3 = root3.querySelector("#notes-legacy-other");
   if (!node3) {
     node3 = document.createElement("article");
@@ -11228,7 +11228,7 @@ function paintOtherLegacy(root3, list2, legacy2, category) {
     node3.className = "note-entry note-entry-saved notes-legacy-saved";
     node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
   }
-  list2.append(node3);
+  list3.append(node3);
   const draft = legacy2 && retainedLegacy(legacy2);
   node3.hidden = !legacy2 || !(legacy2.version > 0 || draft);
   if (!legacy2) return;
@@ -11255,7 +11255,7 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   labels: labels4 = [],
   labelsVerified = true
 } = {}) {
-  const find = (selector) => root3.querySelector(selector), list2 = find("#notes-entry-list");
+  const find = (selector) => root3.querySelector(selector), list3 = find("#notes-entry-list");
   root3.dataset.date = current3.date;
   const dateInput = find("#notes-date");
   if (dateInput.value !== current3.date) dateInput.value = current3.date;
@@ -11268,19 +11268,19 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   const items = current3.ids.map((id2) => store.entry(id2)).filter(Boolean);
   const saved = items.filter((item) => !item.deleted && item.id !== active6 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished2 = find("#notes-unpublished");
-  const nodes = new Map([...list2.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
+  const nodes = new Map([...list3.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
   for (const [id2, node3] of nodes) if (!wanted.has(id2)) node3.remove();
   for (const item of saved) {
     const node3 = nodes.get(item.id) || createEntryElement(item, false);
-    (noteDraftNeedsAttention(item) ? unpublished2 : list2).append(node3);
+    (noteDraftNeedsAttention(item) ? unpublished2 : list3).append(node3);
     paintSavedEntry(node3, item);
     node3.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
   paintActiveEditor(root3, store, active6, legacy2, confirmId, labels4, labelsVerified);
   paintLegacySummary(root3, legacy2, active6);
-  (retainedLegacy(legacy2) ? unpublished2 : list2).append(root3.querySelector("#notes-legacy-saved"));
+  (retainedLegacy(legacy2) ? unpublished2 : list3).append(root3.querySelector("#notes-legacy-saved"));
   root3.querySelector("#notes-legacy-saved").dataset.sortTime = legacy2.updatedAt || "";
-  paintOtherLegacy(root3, list2, otherLegacy, otherCategory);
+  paintOtherLegacy(root3, list3, otherLegacy, otherCategory);
   root3.querySelector("#notes-legacy-other").dataset.sortTime = otherLegacy?.updatedAt || "";
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished2.append(root3.querySelector("#notes-legacy-other"));
   const composer = find("#notes-composer"), activeItem = active6 === "legacy" ? legacy2 : store.entry(active6);
@@ -11290,8 +11290,8 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   unpublished2.hidden = Boolean(activeItem);
   find('[data-notes-action="new"]').hidden = !canEdit || current3.date !== dailyNotesToday() || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
-  const ordered2 = [...list2.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
-  list2.append(...ordered2);
+  const ordered2 = [...list3.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
+  list3.append(...ordered2);
   find("#notes-entry-empty").hidden = !(current3.allLoaded ?? current3.loaded) || Boolean(activeItem) || saved.length > 0 || legacy2.version > 0 || noteDraftNeedsAttention(legacy2) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy2);
   const status = find("#notes-status");
@@ -11399,9 +11399,9 @@ function body2(summary2) {
   }
   nodes.push(el2("p", "body-summary-headline", summary2.headline), ...stats(summary2));
   for (const part of summary2.sections || []) {
-    const block = el2("div", "body-summary-section"), list2 = el2("ul");
-    list2.append(...part.points.map((point) => el2("li", "", point)));
-    block.append(el2("h4", "", part.title), list2);
+    const block = el2("div", "body-summary-section"), list3 = el2("ul");
+    list3.append(...part.points.map((point) => el2("li", "", point)));
+    block.append(el2("h4", "", part.title), list3);
     nodes.push(block);
   }
   return nodes;
@@ -12067,8 +12067,8 @@ function paintDailyNotesPage() {
   const archivedNames = new Set(notesArchivedLabels.map((row) => row.name));
   const activeLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archivedNames.has(name));
   const paintLabels = (selector, names, action, buttonText) => {
-    const list2 = root3.querySelector(selector);
-    list2.replaceChildren(...names.map((name) => {
+    const list3 = root3.querySelector(selector);
+    list3.replaceChildren(...names.map((name) => {
       const item = document.createElement("li"), text = document.createElement("span"), button3 = document.createElement("button");
       text.textContent = name;
       button3.type = "button";
@@ -12373,27 +12373,27 @@ function timelineDay(date2, items) {
   button3.append(when, node("span", "notes-tl-dot"), card2);
   return button3;
 }
-function paintTimeline(list2, shown2, order, open) {
+function paintTimeline(list3, shown2, order, open) {
   const direction = order === "asc" ? 1 : -1;
   if (open) {
     const rows = (historyDays.get(open) || []).filter(shown2).sort(byTime(1));
     const back = node("button", "notes-read-back", "← 返回时间轴");
     back.type = "button";
     back.dataset.historyBack = "1";
-    list2.replaceChildren(back, node("h3", "notes-read-title", dayLine(open, rows.length)), ...rows.map(historyCard));
+    list3.replaceChildren(back, node("h3", "notes-read-title", dayLine(open, rows.length)), ...rows.map(historyCard));
     return rows;
   }
   const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date2, items]) => [date2, items.filter(shown2).sort(byTime(1))]).filter(([, items]) => items.length);
   const wrap = node("div", "notes-tl");
   wrap.append(...groups.map(([date2, items]) => timelineDay(date2, items)));
-  list2.replaceChildren(wrap);
+  list3.replaceChildren(wrap);
   return groups.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root3) {
   const label3 = root3.querySelector("#notes-history-label").value;
   paintBodySummary(root3, label3);
   historyDate = root3.querySelector("#notes-history-date").value;
-  const list2 = root3.querySelector("#notes-history-list");
+  const list3 = root3.querySelector("#notes-history-list");
   const shown2 = (item) => !label3 || rowLabels(item).includes(label3);
   const order = root3.dataset.historySort === "asc" ? "asc" : "desc";
   const orderButton = root3.querySelector("[data-history-order]");
@@ -12401,7 +12401,7 @@ function paintHistoryRows(root3) {
   orderButton.textContent = order === "asc" ? "↑ 旧到新" : "↓ 新到旧";
   const open = historyDays.has(root3.dataset.historyOpenDay) ? root3.dataset.historyOpenDay : "";
   orderButton.hidden = Boolean(open);
-  const rows = paintTimeline(list2, shown2, order, open);
+  const rows = paintTimeline(list3, shown2, order, open);
   const total = [...historyDays.values()].flat().filter(shown2).length;
   root3.querySelector("#notes-history-summary").textContent = `${Number(historyMonth.slice(5))}月${label3 ? `「${label3}」` : ""}共 ${total} 条`;
   root3.querySelector("#notes-history-status").textContent = rows.length ? "" : label3 ? "这个月没有这个标签的记录。" : "这个月还没有记录（未同步的内容在当天页面查看）。";
@@ -12905,8 +12905,8 @@ function paintLists(root3, store) {
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;
   });
   const html = notes.map((note) => flatNoteRow(note, store)).join("") || '<p class="memo-empty">' + (s.trash ? "回收站是空的。" : "点 ＋ 开始记录。") + "</p>";
-  const list2 = find("#memo-group-list");
-  if (list2.innerHTML !== html) list2.innerHTML = html;
+  const list3 = find("#memo-group-list");
+  if (list3.innerHTML !== html) list3.innerHTML = html;
   find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash;
   root3.querySelectorAll('.memo-flat-row button,[data-memo-action="new-note"]').forEach((button3) => {
     button3.disabled = Boolean(s.operation?.pending);
@@ -13145,12 +13145,12 @@ function makeContext(options4) {
     return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
   };
   context.upsert = (kind, value) => {
-    const list2 = state2[kind], index = list2.findIndex((row2) => row2.id === value.id);
+    const list3 = state2[kind], index = list3.findIndex((row2) => row2.id === value.id);
     const row = { ...value };
     if (kind === "notes") delete row.body;
-    if (index < 0) list2.push(row);
-    else list2[index] = row;
-    list2.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    if (index < 0) list3.push(row);
+    else list3[index] = row;
+    list3.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     if (kind === "notes") for (const group of state2.groups)
       group.active_note_count = state2.notes.filter((note) => note.group_id === group.id && !note.deleted_at && (note.version > 0 || note.localVersion > 0)).length;
   };
@@ -14840,6 +14840,47 @@ function registerReminderEvents() {
   });
 }
 
+// web/pages/ai-decisions.mjs
+init_dom();
+var DECISION_HEADING = /待你拍板/;
+var plain2 = (line) => line.replace(/^[\s#>*_]+|[\s*_:：]+$/g, "").trim();
+var isHeading = (line) => /^#{1,6}\s/.test(line) || /^\s*\*\*[^*]+\*\*\s*[:：]?\s*$/.test(line) || /^\s*[^\s\d-].{0,12}[:：]\s*$/.test(line);
+var ENDS_SECTION = /^\s*(已按你的决定执行|已执行)/;
+function decisionsFrom(summary2) {
+  const lines = String(summary2 ?? "").split(/\r?\n/);
+  const start = lines.findIndex((line) => DECISION_HEADING.test(line) && (isHeading(line) || plain2(line).length <= 12));
+  if (start < 0) return null;
+  const items = [];
+  for (const line of lines.slice(start + 1)) {
+    if (isHeading(line) || ENDS_SECTION.test(line)) break;
+    const item = /^\s*(?:\d{1,2}[.、)]|[-*•])\s+(.*)$/.exec(line);
+    if (item) items.push(item[1]);
+    else if (line.trim() && items.length) items[items.length - 1] += line.trim();
+    else if (line.trim()) items.push(line.trim());
+  }
+  return items;
+}
+function dayDecisions(items = []) {
+  return visibleWorkReminders(items).map((row) => ({ row, decisions: decisionsFrom(row.summary) }));
+}
+function decisionCount(items = []) {
+  return dayDecisions(items).reduce((sum, { decisions }) => sum + (decisions?.length || 0), 0);
+}
+var list = (decisions) => `<ol class="ai-decision-list">${decisions.map((text) => `<li class="ai-report-markdown">${renderSafeMarkdown(text)}</li>`).join("")}</ol>`;
+function decisionCards(items = []) {
+  return dayDecisions(items).map(({ row, decisions }) => {
+    if (decisions === null) return `<article class="card field-spaced ai-decision-card" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`;
+    return `<article class="card field-spaced ai-decision-card">${decisions.length ? list(decisions) : '<p class="muted">这次没有要你拍板的事。</p>'}<details class="ai-decision-full"><summary>看完整提醒</summary><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></details></article>`;
+  }).join("");
+}
+function decisionHistory(days = [], titleFor = (date2) => date2) {
+  const rows = days.filter((day6) => visibleWorkReminders(day6.items).length).map((day6) => {
+    const count3 = decisionCount(day6.items);
+    return `<section class="ai-decision-day"><h4>${e(titleFor(day6.date))}<span class="muted"> · ${count3 ? `${count3} 件` : "无"}</span></h4>` + decisionCards(day6.items) + "</section>";
+  });
+  return rows.length ? rows.join("") : '<p class="muted">前 7 天没有提醒。</p>';
+}
+
 // web/pages/ai-reports.mjs
 init_dom();
 init_daily_notes_state();
@@ -14847,13 +14888,16 @@ function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">待拍板<span class="ai-tab-count"
+          id="ai-decision-count"></span></button>
         <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
       </div>
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
+        <div class="ai-decision-more"><button class="btn text" type="button" data-ai-decision-history>看前 7 天的待拍板</button>
+        <div id="ai-decision-history"></div></div></section>
       <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
@@ -14952,8 +14996,16 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   const root3 = document.querySelector("#ai-reports");
   if (!root3) return;
   root3.querySelector("#ai-reminder-status").textContent = error2 || (loading ? "正在读取工作提醒…" : "");
-  const items = visibleWorkReminders(data3?.items || []);
-  root3.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error2 ? "" : "<p>暂无工作提醒</p>";
+  const items = visibleWorkReminders(data3?.items || []), count3 = items.length ? decisionCount(items) : 0;
+  const badge = root3.querySelector("#ai-decision-count");
+  if (badge) badge.textContent = count3 ? String(count3) : "";
+  const date2 = data3?.date || dailyNotesToday(), day6 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
+  root3.querySelector("#ai-reminder-list").innerHTML = items.length ? `<h3 class="ai-decision-head">${e(day6)}<span> · ${count3 ? `${count3} 件待你拍板` : "没有要你拍板的事"}</span></h3><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>` + decisionCards(items) : loading || error2 ? "" : "<p>暂无工作提醒</p>";
+}
+function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
+  const box = document.querySelector("#ai-decision-history");
+  if (!box) return;
+  box.innerHTML = error2 ? `<p class="body-summary-error">${e(error2)}</p>` : loading ? '<p class="muted">正在读取…</p>' : decisionHistory(days, reportDayTitle);
 }
 function paintOpenAiDiary(items = [], { error: error2 = "", loading = false, owner: owner2 = true } = {}) {
   const root3 = document.querySelector("#ai-diagnosis");
@@ -14980,13 +15032,25 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
   const head = root3.querySelector("#ai-report-dayhead");
   if (head) head.innerHTML = "";
-  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
-    const preview = list2.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
-    const authors = [...new Set(list2.map((row) => reportGroup(row.author)))].join(" · ");
-    const covered = [...new Set(list2.map(reportDay))].sort().map(shortDay2).join("、");
-    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list2.length} 份</span></span></button>`;
+  const today2 = dailyNotesToday(), pinned = days.get(today2) || [];
+  days.delete(today2);
+  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list3]) => {
+    const preview = list3.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
+    const authors = [...new Set(list3.map((row) => reportGroup(row.author)))].join(" · ");
+    const covered = [...new Set(list3.map(reportDay))].sort().map(shortDay2).join("、");
+    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list3.length} 份</span></span></button>`;
   });
-  root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : `<div class="notes-tl">${rows.join("")}</div>`;
+  const top = month === today2.slice(0, 7) ? todayReports(today2, pinned) : "";
+  root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : top + (rows.length ? `${top ? '<h3 class="ai-today-more">更早</h3>' : ""}<div class="notes-tl">${rows.join("")}</div>` : "");
+  if (!loading && !error2 && top) root3.querySelector("#ai-report-list-status").textContent = "";
+}
+function todayReports(today2, list3) {
+  const yesterday = new Date(Date.parse(today2 + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
+  const head = `<h3 class="ai-today-title">今天 · ${e(reportDayTitle(today2))}</h3><p class="notes-read-sub">汇报的是昨天（${e(reportDayTitle(yesterday))}）做的事</p>`;
+  if (!list3.length) return `<section class="ai-today">${head}<p class="muted">今天的汇报还没到。</p></section>`;
+  const order = ["Grok bot", "Gemini", "GPT", "其他作者"];
+  const sorted = [...list3].sort((a, b) => order.indexOf(reportGroup(a.author)) - order.indexOf(reportGroup(b.author)) || String(a.created_at).localeCompare(String(b.created_at)));
+  return `<section class="ai-today">${head}${sorted.map((row) => `<article class="ai-today-report" style="overflow-wrap:anywhere"><p><strong class="${reportAuthorClass(row.author)}">${e(String(row.author ?? ""))}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(reportContent(row.content).body)}</div></article>`).join("")}</section>`;
 }
 function paintAiReportDayHead(date2) {
   const head = document.querySelector("#ai-reports #ai-report-dayhead");
@@ -15336,12 +15400,12 @@ function inline2(value, depth = 0) {
   const text = String(value);
   if (depth >= 8) return e(text);
   const last = new Map(["[/red]", "[/blue]", "[/green]", "[/amber]", "**", "`"].map((token) => [token, text.lastIndexOf(token)]));
-  let out = "", plain2 = 0, pos = 0;
+  let out = "", plain3 = 0, pos = 0;
   let linkMiddle = text.indexOf("]("), linkEnd = linkMiddle < 0 ? -1 : text.indexOf(")", linkMiddle + 2);
   const emit2 = (end, html) => {
-    out += e(text.slice(plain2, pos)) + html;
+    out += e(text.slice(plain3, pos)) + html;
     pos = end;
-    plain2 = end;
+    plain3 = end;
   };
   while (pos < text.length) {
     const color = text[pos] === "[" ? text.slice(pos, pos + 7).match(/^\[(red|blue|green|amber)\]/) : null;
@@ -15372,16 +15436,16 @@ function inline2(value, depth = 0) {
     }
     pos++;
   }
-  return out + e(text.slice(plain2));
+  return out + e(text.slice(plain3));
 }
 function renderReviewMarkdown(value) {
   const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
-  let list2 = false, code = false, out = "";
+  let list3 = false, code = false, out = "";
   for (const line of lines) {
     if (/^\s*```/.test(line)) {
-      if (list2) {
+      if (list3) {
         out += "</ul>";
-        list2 = false;
+        list3 = false;
       }
       out += code ? "</code></pre>" : "<pre><code>";
       code = !code;
@@ -15393,16 +15457,16 @@ function renderReviewMarkdown(value) {
     }
     const item = line.match(/^\s*[-*]\s+(.+)$/);
     if (item) {
-      if (!list2) {
+      if (!list3) {
         out += "<ul>";
-        list2 = true;
+        list3 = true;
       }
       out += `<li>${inline2(item[1])}</li>`;
       continue;
     }
-    if (list2) {
+    if (list3) {
       out += "</ul>";
-      list2 = false;
+      list3 = false;
     }
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
@@ -15410,7 +15474,7 @@ function renderReviewMarkdown(value) {
       out += `<h${h}>${inline2(heading[2])}</h${h}>`;
     } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline2(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline2(line)}</p>`;
   }
-  return out + (list2 ? "</ul>" : "") + (code ? "</code></pre>" : "");
+  return out + (list3 ? "</ul>" : "") + (code ? "</code></pre>" : "");
 }
 
 // web/pages/review-ai.mjs
@@ -15567,14 +15631,14 @@ function renderBenchmarkBreakdown(data3, vm3) {
       return "";
     }
   };
-  const list2 = items.map((item) => {
+  const list3 = items.map((item) => {
     const url = safe(item.url), title = e(item.title || "未命名文章");
     return `<li class="review-breakdown-item"><div class="review-breakdown-title">${url ? `<a href="${e(url)}" target="_blank"
       rel="noopener noreferrer">${title}</a>` : title}
       <span class="review-note">${e(accounts.get(String(item.benchmark_account_id)) || "")} · 阅读 ${e(reads(item.reads))}${used.has(String(item.id)) ? " · 已仿写" : ""}</span></div>
       ${benchmarkAiNote(vm3, item.id)}</li>`;
   }).join("");
-  return `${benchmarkAiBar(vm3)}${list2 ? `<ul class="review-breakdown-list">${list2}</ul>` : ""}`;
+  return `${benchmarkAiBar(vm3)}${list3 ? `<ul class="review-breakdown-list">${list3}</ul>` : ""}`;
 }
 function benchmarkAiNote(vm3, id2) {
   const note = vm3.ai?.data?.benchmarks?.[id2];
@@ -15600,10 +15664,10 @@ function renderAiSettings(ai2) {
   )}</section>`;
   const data3 = ai2.data, draft = ai2.draft || data3.settings, models = ai2.models || [];
   const modelSelect = (feature, value) => {
-    const list2 = [.../* @__PURE__ */ new Set([...value && value !== "off" ? [value] : [], ...models])];
+    const list3 = [.../* @__PURE__ */ new Set([...value && value !== "off" ? [value] : [], ...models])];
     const off = feature === "todo" ? `<option value="off"${value === "off" ? " selected" : ""}>关闭（按原文添加）</option>` : "";
     return `<select class="input" data-ai-setting="model" data-ai-feature="${feature}" aria-label="${AI_FEATURE_LABELS[feature]}的模型">
-      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list2.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}${off}</select>`;
+      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list3.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}${off}</select>`;
   };
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
@@ -15927,6 +15991,21 @@ async function loadAiReports({ resetDate = false } = {}) {
   void loadExperimentsPanel();
   await Promise.all([report, reminders]);
 }
+async function loadDecisionHistory(button3) {
+  const base = selectedDate || dailyNotesToday(), session2 = runtime.sessionEpoch;
+  const dates = Array.from({ length: 7 }, (_, index) => new Date(Date.parse(base + "T00:00:00Z") - (index + 1) * 864e5).toISOString().slice(0, 10));
+  button3.hidden = true;
+  paintDecisionHistory([], { loading: true });
+  try {
+    const days = await Promise.all(dates.map((date2) => api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => ({ date: date2, items: data3.items || [] }))));
+    if (session2 === runtime.sessionEpoch) paintDecisionHistory(days);
+  } catch (error2) {
+    if (session2 === runtime.sessionEpoch) {
+      button3.hidden = false;
+      paintDecisionHistory([], { error: error2.message || "读取失败，请稍后再试" });
+    }
+  }
+}
 function paintReports() {
   if (!allReports) return;
   const root3 = document.querySelector("#ai-reports");
@@ -15962,6 +16041,7 @@ function registerAiReportEvents() {
       updateRoute();
       if (tab === "openai") void loadAiReports();
     } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
+    else if (event.target.closest?.("[data-ai-decision-history]")) void loadDecisionHistory(event.target.closest("[data-ai-decision-history]"));
     else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
     else if (event.target.closest?.("[data-ai-report-open],[data-ai-report-back]")) {
       openReportDay = event.target.closest("[data-ai-report-open]")?.dataset.aiReportOpen || "";
@@ -16119,41 +16199,41 @@ function shiftDay4(value, amount) {
   if (!date2 || !Number.isFinite(amount)) return "";
   return new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
 }
-function list(value) {
+function list2(value) {
   return Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 }
 function object3(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function rules(value) {
-  return list(parseJson(value, [])).filter((rule) => rule && typeof rule === "object" && typeof rule.rule_id === "string");
+  return list2(parseJson(value, [])).filter((rule) => rule && typeof rule === "object" && typeof rule.rule_id === "string");
 }
 function normalizeReviewData(input = {}) {
   return {
-    benchmarkAccounts: list(input.benchmarkAccounts || input["benchmark-accounts"]).filter(Boolean),
-    benchmarkArticles: list(input.benchmarkArticles || input["benchmark-articles"]).filter(Boolean),
-    notes: list(input.notes).filter(Boolean),
-    accountHealth: list(input.accountHealth || input["account-health"]).filter(Boolean),
-    articles: list(input.articles).filter(Boolean).map((article) => ({ ...article, image_count: finiteNumber2(article.image_count) })),
-    snapshots: list(input.snapshots).filter(Boolean).map((snapshot) => {
+    benchmarkAccounts: list2(input.benchmarkAccounts || input["benchmark-accounts"]).filter(Boolean),
+    benchmarkArticles: list2(input.benchmarkArticles || input["benchmark-articles"]).filter(Boolean),
+    notes: list2(input.notes).filter(Boolean),
+    accountHealth: list2(input.accountHealth || input["account-health"]).filter(Boolean),
+    articles: list2(input.articles).filter(Boolean).map((article) => ({ ...article, image_count: finiteNumber2(article.image_count) })),
+    snapshots: list2(input.snapshots).filter(Boolean).map((snapshot) => {
       const normalized = { ...snapshot };
       for (const field2 of SNAPSHOT_NUMBERS) normalized[field2] = finiteNumber2(snapshot[field2]);
       for (const field2 of SNAPSHOT_JSON) normalized[field2] = parseJson(snapshot[field2]);
       return normalized;
     }),
-    reports: list(input.reports).filter(Boolean).map((report) => ({
+    reports: list2(input.reports).filter(Boolean).map((report) => ({
       ...report,
       verdicts: object3(parseJson(report.verdicts, {})),
       findings: object3(parseJson(report.findings, {})),
       metrics: object3(parseJson(report.metrics, {}))
     })),
-    prompts: list(input.prompts || input["prompts/current"]).filter(Boolean),
-    playbooks: list(input.playbooks).filter(Boolean).map((playbook2) => ({ ...playbook2, rules: rules(playbook2.rules) }))
+    prompts: list2(input.prompts || input["prompts/current"]).filter(Boolean),
+    playbooks: list2(input.playbooks).filter(Boolean).map((playbook2) => ({ ...playbook2, rules: rules(playbook2.rules) }))
   };
 }
 function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
   const result = /* @__PURE__ */ new Map();
-  for (const snapshot of list(snapshots2)) {
+  for (const snapshot of list2(snapshots2)) {
     const date2 = day5(snapshot.snapshot_date);
     if (!date2 || date2 > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
     const key = String(snapshot.article_id);
@@ -16164,7 +16244,7 @@ function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
 }
 function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
   const result = /* @__PURE__ */ new Map();
-  const ordered2 = list(reports).filter((report) => (!periodType || report.period_type === periodType) && day5(report.period_end) && day5(report.period_end) <= end).sort((a, b) => day5(a.period_end).localeCompare(day5(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
+  const ordered2 = list2(reports).filter((report) => (!periodType || report.period_type === periodType) && day5(report.period_end) && day5(report.period_end) <= end).sort((a, b) => day5(a.period_end).localeCompare(day5(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
   for (const report of ordered2) {
     for (const [id2, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
       const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
@@ -16177,7 +16257,7 @@ function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
 function articleRows2(data3 = {}, { start = "", end = "9999-12-31", periodType } = {}) {
   const snapshots2 = latestSnapshots(data3.snapshots, end);
   const verdicts = verdictMap(data3.reports, { end, periodType });
-  return list(data3.articles).filter((article) => {
+  return list2(data3.articles).filter((article) => {
     const published = day5(article.published_at);
     return published && (!start || published >= start) && published <= end;
   }).map((article) => ({
@@ -16254,10 +16334,10 @@ function groupPerformance(rows = [], field2 = "topic_category") {
   }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
-  const dates = [...new Set(list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
-  const articles = new Map(list(data3.articles).map((article) => [String(article.id), article]));
+  const dates = [...new Set(list2(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
+  const articles = new Map(list2(data3.articles).map((article) => [String(article.id), article]));
   return dates.map((date2) => {
-    const sameDay = list(data3.snapshots).filter((snapshot) => day5(snapshot.snapshot_date) === date2);
+    const sameDay = list2(data3.snapshots).filter((snapshot) => day5(snapshot.snapshot_date) === date2);
     const snapshots2 = latestSnapshots(sameDay, date2);
     const rows = [...snapshots2.entries()].filter(([id2]) => articles.has(id2)).map(([id2, snapshot]) => ({ ...articles.get(id2), snapshot }));
     return { date: date2, ...aggregate(rows) };
@@ -16311,14 +16391,14 @@ function metricDiscrepancies(report = {}, computed = {}) {
 }
 function periodsFor(data3 = {}, type = "daily") {
   const periods = /* @__PURE__ */ new Map();
-  for (const report of list(data3.reports)) {
+  for (const report of list2(data3.reports)) {
     if (report.period_type !== type) continue;
     const start = day5(report.period_start), end = day5(report.period_end);
     if (!start || !end || start > end) continue;
     periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
   }
   if (!periods.size) {
-    const dates = [...new Set([...list(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
+    const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
       const start = shiftDay4(end, -(duration3 - 1));
@@ -17350,12 +17430,12 @@ function articleLibrary(rows, vm3, data3 = {}) {
   };
   const wide = columns.length > 1;
   const minimum = wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : "";
-  const table2 = (list2) => `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${minimum}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
+  const table2 = (list3) => `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${minimum}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
     "发布时间",
     "标题",
     ...columns.map((metric) => metric.label),
     "判定"
-  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list2.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body3]) => `<td data-label="${e(label3)}">${body3}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list3.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body3]) => `<td data-label="${e(label3)}">${body3}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   if (view2 === TIMELINE_VIEW) return top + articleTimeline(selected, data3, vm3);
   return top + (view2 === GROUP_VIEW ? groupedArticles(selected, vm3, activeGroup(vm3), table2) : table2(selected));
 }
@@ -17378,14 +17458,14 @@ function articleTimeline(rows, data3, vm3) {
     if (date2) days.set(date2, [...days.get(date2) || [], row]);
   }
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString();
-  const lines = (list2) => list2.map((row) => {
+  const lines = (list3) => list3.map((row) => {
     const observation = reviewListObservation(row, data3.snapshots, now);
     const reads3 = observation.kind === "immature" ? "未满24h" : "阅读 " + readsText(row.reads_24h);
     return `<span class="review-tl-article"><button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button><small>${e([reviewDateTime2(row.published_at).slice(11), reads3].filter(Boolean).join(" · "))}${row.verdict ? " · " + e(row.verdict) : ""}</small></span>`;
   }).join("");
-  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list2]) => {
-    const hits = list2.filter((row) => row.verdict === "爆").length;
-    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}</span><span class="notes-tl-week">${Number(date2.slice(5, 7))}月</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list2)}` + (list2.length > 1 || hits ? `<span class="notes-tl-foot">${[list2.length > 1 ? list2.length + " 篇" : "", hits ? "爆 " + hits : ""].filter(Boolean).join(" · ")}</span>` : "") + "</span></div>";
+  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list3]) => {
+    const hits = list3.filter((row) => row.verdict === "爆").length;
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()]}</span><span class="notes-tl-week">${Number(date2.slice(5, 7))}月</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list3)}` + (list3.length > 1 || hits ? `<span class="notes-tl-foot">${[list3.length > 1 ? list3.length + " 篇" : "", hits ? "爆 " + hits : ""].filter(Boolean).join(" · ")}</span>` : "") + "</span></div>";
   }).join("")}</div>`;
 }
 function activeGroup(vm3) {
@@ -17398,8 +17478,8 @@ function groupPicker(vm3) {
   return `<label>套路维度<select class="input" data-review-filter="group">${options3(choices, activeGroup(vm3))}</select></label>`;
 }
 var middle = (values) => {
-  const list2 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
-  return list2.length ? list2.length % 2 ? list2[(list2.length - 1) / 2] : (list2[list2.length / 2 - 1] + list2[list2.length / 2]) / 2 : null;
+  const list3 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
+  return list3.length ? list3.length % 2 ? list3[(list3.length - 1) / 2] : (list3[list3.length / 2 - 1] + list3[list3.length / 2]) / 2 : null;
 };
 function groupedArticles(rows, vm3, dimension, table2) {
   const groups = /* @__PURE__ */ new Map(), tags = vm3.tags?.tags || {};
@@ -17409,13 +17489,13 @@ function groupedArticles(rows, vm3, dimension, table2) {
     groups.get(name).push(row);
   }
   const ordered2 = [...groups.entries()].sort(([a, x], [b, y]) => (a === "未分类") - (b === "未分类") || y.length - x.length || (middle(y.map((row) => row.reads_24h)) ?? 0) - (middle(x.map((row) => row.reads_24h)) ?? 0));
-  return `<div class="review-article-groups">${ordered2.map(([name, list2]) => {
-    const measured2 = list2.filter((row) => row.reads_24h !== null);
-    const ctr = middle(list2.map((row) => row.ctr_24h)), few = measured2.length < 3;
-    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few ? ' <small class="review-note">样本少</small>' : ""}</span><span class="review-article-group-figures"><span><b>${list2.length}</b> 篇</span>
+  return `<div class="review-article-groups">${ordered2.map(([name, list3]) => {
+    const measured2 = list3.filter((row) => row.reads_24h !== null);
+    const ctr = middle(list3.map((row) => row.ctr_24h)), few = measured2.length < 3;
+    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few ? ' <small class="review-note">样本少</small>' : ""}</span><span class="review-article-group-figures"><span><b>${list3.length}</b> 篇</span>
       <span>阅读中位数 <b>${e(readsText(middle(measured2.map((row) => row.reads_24h))))}</b></span>
-      <span>点击率 <b>${ctr === null ? "—" : e(ctr.toFixed(1)) + "%"}</b></span><span>爆款 <b>${list2.filter((row) => row.verdict === "爆").length}</b></span></span>
-      </summary>${table2(list2)}</details>`;
+      <span>点击率 <b>${ctr === null ? "—" : e(ctr.toFixed(1)) + "%"}</b></span><span>爆款 <b>${list3.filter((row) => row.verdict === "爆").length}</b></span></span>
+      </summary>${table2(list3)}</details>`;
   }).join("")}</div>
     <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
 }
