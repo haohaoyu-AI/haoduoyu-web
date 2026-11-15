@@ -343,7 +343,15 @@ export const uiPass1Release=Object.freeze({
   baseline:'8e03d93c-982d-486a-a827-98393e9ae8ba',
   bytes:3192687,sha256:'95c3bfd1a03d8261fa468310913ea702ad6fec366cf071ff35672c7567b838cc',
   label:'production-ui-pass-1-20261115'});
-const acceptedRelease=commit=>commit===uiPass1Release.commit?uiPass1Release:
+// UI pass 2: denser to-do page on phones, on top of the deployed f8c2e2f.
+export const uiPass2Release=Object.freeze({
+  commit:'951f4f98b193a537de060e392eb4388671d79da0',
+  tree:'bc6aee6500ef0178c7d282fbfa14f57086ad0619',
+  baseline:'2085bc42-07b9-434f-a5a6-0f722c6a2180',
+  bytes:3194113,sha256:'d9e2ee20c7fb858f05df65fec384e10219c9e58e96b1413a66c152b5d01a18ca',
+  label:'production-ui-pass-2-20261115'});
+const acceptedRelease=commit=>commit===uiPass2Release.commit?uiPass2Release:
+  commit===uiPass1Release.commit?uiPass1Release:
   commit===weeklyFoldRelease.commit?weeklyFoldRelease:
   commit===weeklyReviewRelease.commit?weeklyReviewRelease:
   commit===articleRemarksRelease.commit?articleRemarksRelease:
