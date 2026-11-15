@@ -322,7 +322,15 @@ export const articleRemarksRelease=Object.freeze({
   // Run 43579073579 uploaded this version but stopped before deploying (CONFIGURATION_CHANGED at verify_upload).
   uploadedVersion:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
   label:'production-article-remarks-20261114'});
-const acceptedRelease=commit=>commit===articleRemarksRelease.commit?articleRemarksRelease:
+// 周复盘 at the top of the review cockpit, on top of the deployed 700e458 (run 43579186282).
+export const weeklyReviewRelease=Object.freeze({
+  commit:'e8f182992d1f91cf42a91985572b30f12dbb554a',
+  tree:'7fb809eaa4a21cab19d719be58cf6c90f18bf4bf',
+  baseline:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
+  bytes:3190963,sha256:'c9883acbbd3cfaf2bc87f718b5cfbd35b023507041941964f04137a46623f74a',
+  label:'production-weekly-review-20261115'});
+const acceptedRelease=commit=>commit===weeklyReviewRelease.commit?weeklyReviewRelease:
+  commit===articleRemarksRelease.commit?articleRemarksRelease:
   commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
   commit===decisionsRelease.commit?decisionsRelease:
   commit===futureQuickRelease.commit?futureQuickRelease:
