@@ -372,13 +372,13 @@ function syncTodoDay(now = Date.now()) {
 function todoSessionActive(owner2) {
   return Boolean(state.me) && owner2 === todoOwner() && owner2 === todosState.owner;
 }
-function mergeTodo(day6, item) {
-  const index = day6.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day6.items.push(item);
-  else if (day6.items[index].version <= item.version) day6.items[index] = item;
+function mergeTodo(day7, item) {
+  const index = day7.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day7.items.push(item);
+  else if (day7.items[index].version <= item.version) day7.items[index] = item;
 }
-function todoTemplateAdded(day6, id2) {
-  return day6.items.some((item) => item.date === day6.date && item.template_id === id2 && !item.deleted_at);
+function todoTemplateAdded(day7, id2) {
+  return day7.items.some((item) => item.date === day7.date && item.template_id === id2 && !item.deleted_at);
 }
 var todosState;
 var init_todos_state = __esm({
@@ -518,7 +518,7 @@ function closePopover({ restoreFocus = true } = {}) {
   trigger.setAttribute("aria-expanded", "false");
   if (restoreFocus && trigger.isConnected) trigger.focus();
 }
-function popover(trigger, body3, { menu = false, label: label3 = "说明" } = {}) {
+function popover(trigger, body4, { menu = false, label: label3 = "说明" } = {}) {
   if (runtime.activePopover?.trigger === trigger) {
     closePopover();
     return;
@@ -532,7 +532,7 @@ function popover(trigger, body3, { menu = false, label: label3 = "说明" } = {}
   node3.setAttribute("role", menu ? "menu" : "dialog");
   node3.setAttribute("aria-label", label3);
   node3.tabIndex = -1;
-  node3.innerHTML = body3;
+  node3.innerHTML = body4;
   (trigger.closest("[role=dialog]") || document.body).append(node3);
   runtime.activePopover = { node: node3, trigger, menu };
   const anchor = trigger.getBoundingClientRect(), r = node3.getBoundingClientRect();
@@ -578,12 +578,12 @@ var init_login = __esm({
 });
 
 // web/ui/modal.mjs
-function openModal(title, body3, { drawer: drawer2 = false, context = "" } = {}) {
+function openModal(title, body4, { drawer: drawer2 = false, context = "" } = {}) {
   cancelModalRequests();
   closePopover();
   runtime.modalRequestVersion++;
   if (!$("#overlay").contains(document.activeElement)) runtime.lastFocus = document.activeElement;
-  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer2 ? "drawer-backdrop" : ""}"><section class="modal ${drawer2 ? "drawer" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h2></div><button class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-body">${body3}</div></section></div>`;
+  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer2 ? "drawer-backdrop" : ""}"><section class="modal ${drawer2 ? "drawer" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h2></div><button class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-body">${body4}</div></section></div>`;
   document.body.style.overflow = "hidden";
   requestAnimationFrame(() => {
     const field2 = $("input:not([type=checkbox]),select,textarea,button", $("#overlay"));
@@ -1693,15 +1693,15 @@ function contextFor({ conflict, remote, choice: choice2, uuid: uuid5 }) {
   };
   return { type, scope, id: id2, local, remote, choice: choice2, fresh, reserve };
 }
-function operation(context, id2, method2, path, body3, value, base = null, deleted2 = false) {
-  const local = { ...value, id: id2, version: (body3.version || 0) + 1, can_edit: true, deleted: deleted2, deleted_at: null };
+function operation(context, id2, method2, path, body4, value, base = null, deleted2 = false) {
+  const local = { ...value, id: id2, version: (body4.version || 0) + 1, can_edit: true, deleted: deleted2, deleted_at: null };
   return {
     scope: context.scope,
     entity_type: context.type,
     entity_id: id2,
     method: method2,
     path,
-    body: body3,
+    body: body4,
     base: base ? structuredClone(base) : null,
     local
   };
@@ -1718,11 +1718,11 @@ function todoPlan(context, value) {
   const { id: id2, remote, local, choice: choice2, fresh } = context, path = "/todos/" + id2;
   if (choice2 === "use-local" && remote && !removed2(remote) && remote.date === value.date && remote.text === value.text) {
     const method2 = removed2(local) ? "DELETE" : "PATCH";
-    const body3 = method2 === "DELETE" ? { date: value.date, version: remote.version } : { completed: value.completed, version: remote.version };
+    const body4 = method2 === "DELETE" ? { date: value.date, version: remote.version } : { completed: value.completed, version: remote.version };
     return {
       mode: "replace",
       target_id: id2,
-      operations: [operation(context, id2, method2, path, body3, value, remote, method2 === "DELETE")]
+      operations: [operation(context, id2, method2, path, body4, value, remote, method2 === "DELETE")]
     };
   }
   const target = fresh(), created = { ...value, completed: false };
@@ -1734,8 +1734,8 @@ function undatedPlan(context, value) {
   const { id: id2, remote, local, choice: choice2, fresh } = context, path = "/unscheduled-todos/" + id2;
   if (choice2 === "use-local" && remote && !removed2(remote) && remote.text === value.text) {
     const method2 = removed2(local) ? "DELETE" : "PATCH";
-    const body3 = method2 === "DELETE" ? { version: remote.version } : { completed: value.completed, version: remote.version };
-    return { mode: "replace", target_id: id2, operations: [operation(context, id2, method2, path, body3, value, remote, method2 === "DELETE")] };
+    const body4 = method2 === "DELETE" ? { version: remote.version } : { completed: value.completed, version: remote.version };
+    return { mode: "replace", target_id: id2, operations: [operation(context, id2, method2, path, body4, value, remote, method2 === "DELETE")] };
   }
   const target = fresh(), created = { ...value, completed: false };
   const operations2 = [operation(context, target, "POST", "/unscheduled-todos", { id: target, text: value.text }, created)];
@@ -1745,10 +1745,10 @@ function undatedPlan(context, value) {
 function templatePlan(context, value) {
   const { id: id2, remote, local, choice: choice2, fresh } = context;
   if (choice2 === "use-local" && remote && !removed2(remote)) {
-    const method2 = removed2(local) ? "DELETE" : "PATCH", body3 = { version: remote.version };
-    if (method2 === "PATCH") body3.text = value.text;
+    const method2 = removed2(local) ? "DELETE" : "PATCH", body4 = { version: remote.version };
+    if (method2 === "PATCH") body4.text = value.text;
     return { mode: "replace", target_id: id2, operations: [
-      operation(context, id2, method2, "/todo-templates/" + id2, body3, value, remote, method2 === "DELETE")
+      operation(context, id2, method2, "/todo-templates/" + id2, body4, value, remote, method2 === "DELETE")
     ] };
   }
   const target = fresh();
@@ -1757,25 +1757,25 @@ function templatePlan(context, value) {
 function notePlan(context, value) {
   const { id: id2, remote, local, choice: choice2, fresh } = context;
   if (choice2 === "use-local" && remote && !removed2(remote) && remote.category === value.category && remote.date === value.date && (local.labels_version !== 1 || remote.labels_version === 1 && remote.label === (value.label ?? null))) {
-    const method2 = removed2(local) ? "DELETE" : "PUT", body4 = { version: remote.version, save_id: fresh() };
+    const method2 = removed2(local) ? "DELETE" : "PUT", body5 = { version: remote.version, save_id: fresh() };
     if (method2 === "PUT") {
       const { label: label3, ...fields5 } = value;
-      Object.assign(body4, fields5);
+      Object.assign(body5, fields5);
     }
     return { mode: "replace", target_id: id2, operations: [
-      operation(context, id2, method2, "/note-entries/" + id2, body4, value, remote, method2 === "DELETE")
+      operation(context, id2, method2, "/note-entries/" + id2, body5, value, remote, method2 === "DELETE")
     ] };
   }
-  const target = fresh(), body3 = { ...value, version: 0, save_id: fresh() };
-  return copyResult(context, target, [operation(context, target, "PUT", "/note-entries/" + target, body3, value)]);
+  const target = fresh(), body4 = { ...value, version: 0, save_id: fresh() };
+  return copyResult(context, target, [operation(context, target, "PUT", "/note-entries/" + target, body4, value)]);
 }
 function liveMemoGroup(group) {
   return group && uuidPattern3.test(group.id) && revision(group.version) && group.deleted_at === null && !group.deleted && (group.position === void 0 || Number.isSafeInteger(group.position) && group.position >= 0 && group.position <= 1e6);
 }
-function memoOperation(context, id2, body3, value, base = null) {
+function memoOperation(context, id2, body4, value, base = null) {
   const kind = context.type === "memo_note" ? "notes" : "groups";
-  const result = operation(context, id2, "PUT", "/memos/" + kind + "/" + id2, body3, value, base);
-  if (context.type === "memo_note") Object.assign(result, { protocol: 2, depends_on: ["memo-group:" + body3.group_id] });
+  const result = operation(context, id2, "PUT", "/memos/" + kind + "/" + id2, body4, value, base);
+  if (context.type === "memo_note") Object.assign(result, { protocol: 2, depends_on: ["memo-group:" + body4.group_id] });
   return result;
 }
 function memoParentCopy(context, value, groups) {
@@ -1789,8 +1789,8 @@ function memoParentCopy(context, value, groups) {
     operations2.push(memoOperation({ ...context, type: "memo_group" }, parent, groupBody, groupValue));
   }
   const target = context.fresh(), local = { ...value, group_id: parent };
-  const body3 = { ...local, version: 0, save_id: context.fresh() };
-  operations2.push(memoOperation(context, target, body3, local));
+  const body4 = { ...local, version: 0, save_id: context.fresh() };
+  operations2.push(memoOperation(context, target, body4, local));
   return {
     ...copyResult(context, target, operations2),
     explanation: "原笔记所在位置已不可用，将本机正文另存为新笔记，原内容保留。"
@@ -1807,8 +1807,8 @@ function memoPlan(context, value, groups) {
   if (type === "memo_note" && !groups.some((group) => group?.id === value.group_id && liveMemoGroup(group)))
     return memoParentCopy(context, value, groups);
   const replace = choice2 === "use-local" && remote && !removed2(remote) && (type !== "memo_note" || remote.group_id === value.group_id);
-  const target = replace ? id2 : fresh(), body3 = { ...value, version: replace ? remote.version : 0, save_id: fresh() };
-  const operations2 = [memoOperation(context, target, body3, value, replace ? remote : null)];
+  const target = replace ? id2 : fresh(), body4 = { ...value, version: replace ? remote.version : 0, save_id: fresh() };
+  const operations2 = [memoOperation(context, target, body4, value, replace ? remote : null)];
   return replace ? { mode: "replace", target_id: target, operations: operations2 } : copyResult(context, target, operations2);
 }
 function planConflictResolution({ conflict, remote = null, choice: choice2, groups = [], uuid: uuid5 = () => crypto.randomUUID() }) {
@@ -2270,24 +2270,24 @@ function operationFor(input, uuid5, time3) {
   if (!allowed.includes(method2)) throw new TypeError("Unsupported offline mutation");
   const path = create ? base : base + "/" + id2 + (restore ? "/restore" : "");
   if (input.path && input.path !== path) throw new TypeError("Offline mutation path does not match its entity");
-  const body3 = structuredClone(input.body || {});
-  if (typeof body3.text === "string") {
-    body3.text = ["todo", "template", "unscheduled_todo"].includes(type) ? body3.text.trim() : body3.text.replace(/\r\n?/g, "\n");
+  const body4 = structuredClone(input.body || {});
+  if (typeof body4.text === "string") {
+    body4.text = ["todo", "template", "unscheduled_todo"].includes(type) ? body4.text.trim() : body4.text.replace(/\r\n?/g, "\n");
   }
-  if (typeof body3.title === "string") body3.title = body3.title.trim();
-  if (typeof body3.body === "string") body3.body = body3.body.replace(/\r\n?/g, "\n");
+  if (typeof body4.title === "string") body4.title = body4.title.trim();
+  if (typeof body4.body === "string") body4.body = body4.body.replace(/\r\n?/g, "\n");
   if (create) {
-    if (body3.id && body3.id.toLowerCase() !== id2) throw new TypeError("Client UUID cannot change");
-    body3.id = id2;
+    if (body4.id && body4.id.toLowerCase() !== id2) throw new TypeError("Client UUID cannot change");
+    body4.id = id2;
   }
-  const expected = create ? 0 : body3.version;
+  const expected = create ? 0 : body4.version;
   if (!Number.isSafeInteger(expected) || expected < 0 || expected >= Number.MAX_SAFE_INTEGER) {
     throw new TypeError("Offline mutation requires an expected version");
   }
-  const saveId = body3.save_id || uuid5();
+  const saveId = body4.save_id || uuid5();
   if (!uuidPattern4.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
-  if (!["todo", "template", "unscheduled_todo"].includes(type)) body3.save_id = saveId.toLowerCase();
-  else delete body3.save_id;
+  if (!["todo", "template", "unscheduled_todo"].includes(type)) body4.save_id = saveId.toLowerCase();
+  else delete body4.save_id;
   const operation2 = {
     id: uuid5(),
     scope: input.scope,
@@ -2297,7 +2297,7 @@ function operationFor(input, uuid5, time3) {
     protocol: input.protocol === void 0 ? 1 : input.protocol,
     method: method2,
     path,
-    body: body3,
+    body: body4,
     expected_version: expected,
     save_id: saveId.toLowerCase(),
     created_at: time3,
@@ -2305,7 +2305,7 @@ function operationFor(input, uuid5, time3) {
     next_attempt_at: 0,
     status: initialStatus,
     base: input.base || null,
-    local: { ...structuredClone(input.local || body3), id: id2, version: expected + 1 },
+    local: { ...structuredClone(input.local || body4), id: id2, version: expected + 1 },
     claim_owner: null,
     error: null
   };
@@ -2617,8 +2617,8 @@ function remoteMethods(context) {
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
     const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
-    const day6 = operation2.body.date || operation2.base?.date || operation2.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?date=" + day6);
+    const day7 = operation2.body.date || operation2.base?.date || operation2.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?date=" + day7);
     if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
       throw new Error("Todo absence could not be verified completely");
     }
@@ -3851,28 +3851,28 @@ function noteMutationRoute(path, options4, features) {
   const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method2 = (options4.method || "GET").toUpperCase();
   return features.notes && match && uuid2.test(match[1]) && ["PUT", "DELETE"].includes(method2) ? { type: "note_entry", id: match[1].toLowerCase(), method: method2 } : null;
 }
-function checked(body3, method2, labelsV1) {
+function checked(body4, method2, labelsV1) {
   const fields5 = method2 === "PUT" ? [
     "category",
     "date",
     "text",
     "version",
     "save_id",
-    ...labelsV1 && Object.hasOwn(body3 || {}, "label") ? ["label"] : []
+    ...labelsV1 && Object.hasOwn(body4 || {}, "label") ? ["label"] : []
   ] : ["version", "save_id"];
-  if (!body3 || Object.keys(body3).sort().join(",") !== fields5.sort().join(",") || !uuid2.test(body3.save_id) || !Number.isSafeInteger(body3.version) || body3.version < (method2 === "PUT" ? 0 : 1) || body3.version >= Number.MAX_SAFE_INTEGER)
+  if (!body4 || Object.keys(body4).sort().join(",") !== fields5.sort().join(",") || !uuid2.test(body4.save_id) || !Number.isSafeInteger(body4.version) || body4.version < (method2 === "PUT" ? 0 : 1) || body4.version >= Number.MAX_SAFE_INTEGER)
     throw failure2("保存字段或原保存标识不完整，本次修改未保存。");
   if (method2 === "PUT") {
-    if (Object.hasOwn(body3, "label")) {
-      const label3 = body3.label;
-      if (body3.category !== "life" || typeof label3 !== "string" || !label3.isWellFormed() || !label3.trim() || [...label3.trim()].length > 32 || /[\u0000-\u001f\u007f]/.test(label3) || ["生活", "工作"].includes(label3.trim().normalize("NFC"))) throw failure2("标签无效，草稿已保留。");
-      body3 = { ...body3, label: label3.trim().normalize("NFC") };
+    if (Object.hasOwn(body4, "label")) {
+      const label3 = body4.label;
+      if (body4.category !== "life" || typeof label3 !== "string" || !label3.isWellFormed() || !label3.trim() || [...label3.trim()].length > 32 || /[\u0000-\u001f\u007f]/.test(label3) || ["生活", "工作"].includes(label3.trim().normalize("NFC"))) throw failure2("标签无效，草稿已保留。");
+      body4 = { ...body4, label: label3.trim().normalize("NFC") };
     }
-    const day6 = /* @__PURE__ */ new Date(body3.date + "T00:00:00Z");
-    if (!["life", "work"].includes(body3.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body3.date) || !Number.isFinite(day6.getTime()) || day6.toISOString().slice(0, 10) !== body3.date || typeof body3.text !== "string" || !body3.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body3.text) || new TextEncoder().encode(body3.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+    const day7 = /* @__PURE__ */ new Date(body4.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body4.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(day7.getTime()) || day7.toISOString().slice(0, 10) !== body4.date || typeof body4.text !== "string" || !body4.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body4.text) || new TextEncoder().encode(body4.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
       throw failure2("分类、日期或正文无效，草稿已保留。");
   }
-  return structuredClone(body3);
+  return structuredClone(body4);
 }
 function createNoteMutations(context) {
   async function mutate(path, options4, route2, guard) {
@@ -3883,23 +3883,23 @@ function createNoteMutations(context) {
         throw failure2("身份范围已变化，本次修改未保存。", "OFFLINE_SCOPE_CHANGED");
     };
     active6();
-    const body3 = checked(options4.body, route2.method, context.features.labelsV1 === true);
+    const body4 = checked(options4.body, route2.method, context.features.labelsV1 === true);
     if (!await cache2.noteCapability()) throw failure2("请先联网核实碎碎念编辑能力。", "OFFLINE_SCOPE_REQUIRED");
     active6();
     const stored = await cache2.entity("note-entry:" + route2.id), visible4 = offlineValue(stored);
     active6();
-    if (route2.method === "PUT" && body3.version === 0 && !visible4 && body3.date !== dailyNotesToday())
+    if (route2.method === "PUT" && body4.version === 0 && !visible4 && body4.date !== dailyNotesToday())
       throw failure2("只能新增北京时间当天的碎碎念，草稿已保留。", "OFFLINE_NOTES_TODAY_ONLY");
-    if (route2.method === "PUT" && body3.version === 0 && !visible4) {
+    if (route2.method === "PUT" && body4.version === 0 && !visible4) {
       const existing = await cache2.entities();
       active6();
-      if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body3.category && (row.dirty ? row.local : row.server)?.date === body3.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
+      if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body4.category && (row.dirty ? row.local : row.server)?.date === body4.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
         throw failure2("本机该日记录已达 200 条，草稿已保留。", "OFFLINE_CACHE_LIMIT");
     }
-    if (!options4.offlineUnknown && body3.version !== (visible4?.version || 0))
+    if (!options4.offlineUnknown && body4.version !== (visible4?.version || 0))
       throw failure2("本机已有更新，请重新读取后保存，草稿已保留。", "OFFLINE_CACHE_CHANGED");
     if (route2.method === "DELETE" && !visible4) throw failure2("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
-    if (visible4 && route2.method === "PUT" && (visible4.category !== body3.category || visible4.date !== body3.date))
+    if (visible4 && route2.method === "PUT" && (visible4.category !== body4.category || visible4.date !== body4.date))
       throw failure2("记录的分类和日期不可更改。");
     const labelMode = context.features.labelsV1 === true;
     const persisted = stored?.label_evidence;
@@ -3907,13 +3907,13 @@ function createNoteMutations(context) {
     const evidence2 = visible4?.labels_version === 1 && Object.hasOwn(visible4, "label") ? visible4 : stored?.api_server?.labels_version === 1 && stored.api_server.version === visible4?.version && stored.api_server.category === visible4?.category && stored.api_server.date === visible4?.date && stored.api_server.created_at === visible4?.created_at ? stored.api_server : matches2 ? persisted : null;
     if (labelMode && visible4 && !evidence2)
       throw failure2("标签尚未核实，请联网读取后再保存，原文已保留。", "OFFLINE_LABEL_UNVERIFIED");
-    if (labelMode && visible4 && Object.hasOwn(body3, "label") && body3.label !== evidence2.label)
+    if (labelMode && visible4 && Object.hasOwn(body4, "label") && body4.label !== evidence2.label)
       throw failure2("已有记录的标签不可更改，原文已保留。");
-    const label3 = visible4 ? evidence2?.label : body3.label ?? null;
+    const label3 = visible4 ? evidence2?.label : body4.label ?? null;
     const stamp3 = new Date(now()).toISOString();
     const local = {
       ...visible4,
-      ...body3,
+      ...body4,
       ...labelMode ? { labels_version: 1, label: label3 } : {},
       id: route2.id,
       can_edit: true,
@@ -3930,7 +3930,7 @@ function createNoteMutations(context) {
         entity_id: route2.id,
         method: route2.method,
         path,
-        body: body3,
+        body: body4,
         base: stored?.server || null,
         local,
         ...labelMode ? { protocol: 5 } : {},
@@ -4420,21 +4420,21 @@ function scoped(context, assertActive = () => {
   } };
 }
 function checkedInput(raw, kind, createId) {
-  const body3 = structuredClone(raw || {});
-  if (!body3.save_id) body3.save_id = createId();
+  const body4 = structuredClone(raw || {});
+  if (!body4.save_id) body4.save_id = createId();
   const fields5 = ["title", "position", "version", "save_id", ...kind === "notes" ? ["group_id", "body"] : []];
   const plain3 = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
   const invalid4 = () => {
     throw Object.assign(fail3("备忘录字段无效，输入仍保留。"), { status: 400 });
   };
-  if (Object.keys(body3).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body3.save_id) || !Number.isSafeInteger(body3.version) || body3.version < 0 || body3.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body3.position) || body3.position < 0 || body3.position > 1e6 || !plain3(body3.title) || !body3.title.trim() || [...body3.title.trim()].length > 120 || /[\r\n\t]/.test(body3.title)) invalid4();
-  body3.title = body3.title.trim();
+  if (Object.keys(body4).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body4.save_id) || !Number.isSafeInteger(body4.version) || body4.version < 0 || body4.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body4.position) || body4.position < 0 || body4.position > 1e6 || !plain3(body4.title) || !body4.title.trim() || [...body4.title.trim()].length > 120 || /[\r\n\t]/.test(body4.title)) invalid4();
+  body4.title = body4.title.trim();
   if (kind === "notes") {
-    if (!uuid4.test(body3.group_id) || !plain3(body3.body)) invalid4();
-    body3.body = body3.body.replace(/\r\n?/g, "\n");
-    if (new TextEncoder().encode(body3.body).length > 65536) invalid4();
+    if (!uuid4.test(body4.group_id) || !plain3(body4.body)) invalid4();
+    body4.body = body4.body.replace(/\r\n?/g, "\n");
+    if (new TextEncoder().encode(body4.body).length > 65536) invalid4();
   }
-  return body3;
+  return body4;
 }
 function memoReads(context) {
   async function project(path) {
@@ -4525,7 +4525,7 @@ function memoWrites(context) {
     if (!route2 || !["notes", "groups"].includes(route2.kind) || options4.method?.toUpperCase() !== "PUT") {
       throw fail3("备忘录删除和恢复需联网确认。", "OFFLINE_UNSUPPORTED");
     }
-    const body3 = checkedInput(options4.body, route2.kind, context.uuid);
+    const body4 = checkedInput(options4.body, route2.kind, context.uuid);
     const cap = await context.db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(guard.scope, "memo-capability")));
     guard.check();
     if (cap?.can_edit !== true) throw fail3("请先联网确认备忘录编辑权限。", "OFFLINE_SCOPE_REQUIRED");
@@ -4536,9 +4536,9 @@ function memoWrites(context) {
     if (visible4?.deleted_at || visible4?.deleted) throw fail3("笔记已删除，请联网核对后恢复。", "OFFLINE_MEMO_DELETED");
     const local = {
       ...visible4,
-      ...body3,
+      ...body4,
       id: route2.id,
-      version: body3.version + 1,
+      version: body4.version + 1,
       created_at: visible4?.created_at || new Date(context.now()).toISOString(),
       updated_at: new Date(context.now()).toISOString(),
       deleted_at: null
@@ -4549,11 +4549,11 @@ function memoWrites(context) {
       entity_id: route2.id,
       method: "PUT",
       path,
-      body: body3,
+      body: body4,
       base: old?.server || null,
       local,
       assertActive: guard.check,
-      ...route2.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body3.group_id] } : {},
+      ...route2.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body4.group_id] } : {},
       ...options4.offlineUnknown ? { initial_status: "unknown" } : {}
     });
     guard.check();
@@ -4641,23 +4641,23 @@ function writableRoute(path, options4, features) {
   };
 }
 function checkedBody(route2, options4, uuid5) {
-  const body3 = structuredClone(options4.body || {}), method2 = (options4.method || "GET").toUpperCase();
+  const body4 = structuredClone(options4.body || {}), method2 = (options4.method || "GET").toUpperCase();
   const required = route2.create ? route2.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route2.type === "todo" ? route2.restore || method2 === "DELETE" ? ["date", "version"] : ["completed", "version"] : route2.type === "unscheduled_todo" ? route2.restore || method2 === "DELETE" ? ["version"] : ["completed", "version"] : method2 === "DELETE" ? ["version"] : ["text", "version"];
-  if (route2.create && !body3.id) body3.id = uuid5();
+  if (route2.create && !body4.id) body4.id = uuid5();
   const allowed = [...required, ...route2.create && route2.type === "todo" ? ["template_id"] : []];
-  if (required.some((key) => !Object.hasOwn(body3, key)) || Object.keys(body3).some((key) => !allowed.includes(key)))
+  if (required.some((key) => !Object.hasOwn(body4, key)) || Object.keys(body4).some((key) => !allowed.includes(key)))
     throw fail4("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  if (body3.id && !uuidPattern5.test(body3.id) || body3.template_id && !uuidPattern5.test(body3.template_id))
+  if (body4.id && !uuidPattern5.test(body4.id) || body4.template_id && !uuidPattern5.test(body4.template_id))
     throw fail4("事项标识无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  if (body3.date && (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body3.date) || !Number.isFinite(Date.parse(body3.date + "T00:00:00Z")) || (/* @__PURE__ */ new Date(body3.date + "T00:00:00Z")).toISOString().slice(0, 10) !== body3.date))
+  if (body4.date && (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(Date.parse(body4.date + "T00:00:00Z")) || (/* @__PURE__ */ new Date(body4.date + "T00:00:00Z")).toISOString().slice(0, 10) !== body4.date))
     throw fail4("请选择有效日期。", "OFFLINE_INVALID_MUTATION");
-  if (Object.hasOwn(body3, "text") && (typeof body3.text !== "string" || !body3.text.trim() || body3.text.length > 500 || body3.text.includes("\0")))
+  if (Object.hasOwn(body4, "text") && (typeof body4.text !== "string" || !body4.text.trim() || body4.text.length > 500 || body4.text.includes("\0")))
     throw fail4("请填写 1–500 字的内容。", "OFFLINE_INVALID_MUTATION");
-  if (Object.hasOwn(body3, "completed") && typeof body3.completed !== "boolean")
+  if (Object.hasOwn(body4, "completed") && typeof body4.completed !== "boolean")
     throw fail4("完成状态无效。", "OFFLINE_INVALID_MUTATION");
-  if (!route2.create && (!Number.isSafeInteger(body3.version) || body3.version < 1 || body3.version >= Number.MAX_SAFE_INTEGER))
+  if (!route2.create && (!Number.isSafeInteger(body4.version) || body4.version < 1 || body4.version >= Number.MAX_SAFE_INTEGER))
     throw fail4("版本无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  return body3;
+  return body4;
 }
 function runtimeContext(options4) {
   const {
@@ -5193,18 +5193,18 @@ function mutationActions(context) {
       if (owner2 !== state2.scope || generation !== context.generation)
         throw fail4("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
-    const body3 = checkedBody(route2, options4, uuid5), id2 = route2.id || body3.id;
+    const body4 = checkedBody(route2, options4, uuid5), id2 = route2.id || body4.id;
     const old = await cache2.entity(route2.type + ":" + id2), base = old?.server || null, visible4 = offlineValue(old);
     active6();
     if (route2.create && route2.type === "todo" && visible4) {
-      if (!visible4.deleted_at && !visible4.deleted && visible4.date === body3.date && visible4.text === body3.text && (visible4.template_id || void 0) === (body3.template_id || void 0)) return structuredClone(visible4);
+      if (!visible4.deleted_at && !visible4.deleted && visible4.date === body4.date && visible4.text === body4.text && (visible4.template_id || void 0) === (body4.template_id || void 0)) return structuredClone(visible4);
       throw fail4(visible4.date ? `此待办已安排到 ${visible4.date}，原未来待办仍保留。` : "该待办标识已使用，原未来待办仍保留。", "TODO_ID_IN_USE");
     }
     if (!route2.create && !visible4) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
     const stamp3 = new Date(now()).toISOString(), method2 = options4.method.toUpperCase();
     const local = {
       ...visible4,
-      ...body3,
+      ...body4,
       id: id2,
       created_at: visible4?.created_at || stamp3,
       updated_at: stamp3,
@@ -5212,8 +5212,8 @@ function mutationActions(context) {
       ...route2.create ? { completed: false, ...route2.type === "template" ? { completed_days: 0, habit_status: "todo" } : {} } : {},
       ...route2.restore ? { deleted: false } : {}
     };
-    if (body3.template_id) {
-      const template = offlineValue(await cache2.entity("template:" + body3.template_id));
+    if (body4.template_id) {
+      const template = offlineValue(await cache2.entity("template:" + body4.template_id));
       active6();
       if (!template || template.deleted) throw fail4("常用待办尚未保存在本机，请联网读取。", "OFFLINE_CACHE_MISS");
       local.template_version = template.version;
@@ -5226,7 +5226,7 @@ function mutationActions(context) {
       entity_id: id2,
       method: method2,
       path,
-      body: body3,
+      body: body4,
       base,
       local,
       ...route2.type === "unscheduled_todo" ? { protocol: 4 } : {},
@@ -5405,9 +5405,9 @@ async function acceptMovedTodo(context, { source, todo }, token) {
       });
     }
     if (!active6()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+    const day7 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
     if (!active6()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
+    return Array.isArray(day7?.data?.items) ? "saved" : "refresh";
   });
 }
 function createOfflineRuntime(options4) {
@@ -5848,12 +5848,12 @@ async function verifyFutureMove(row, date2, { readSource, readDay, guard = () =>
   try {
     const source = await readSource(row.id);
     guard();
-    const day6 = await readDay(date2);
+    const day7 = await readDay(date2);
     guard();
-    const todo = Array.isArray(day6?.items) ? day6.items.find((item) => item.id === row.id) : null;
+    const todo = Array.isArray(day7?.items) ? day7.items.find((item) => item.id === row.id) : null;
     if (moved(row, date2, source, todo, complete)) return { state: "confirmed", source, todo };
     const compatible = !todo || todo.date === date2 && todo.text === row.text && (complete || todo.completed === row.completed) && todo.deleted_at === null && !todo.template_id;
-    return unchanged(row, source) && day6?.date === date2 && Array.isArray(day6.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
+    return unchanged(row, source) && day7?.date === date2 && Array.isArray(day7.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
   } catch {
     return { state: "unknown" };
   }
@@ -5901,8 +5901,8 @@ function timedNetwork(path, options4 = {}) {
   return apiNetwork(path, { ...options4, signal: controller.signal }).finally(() => clearTimeout(timer2));
 }
 function formatMovedDate(date2) {
-  const [, month, day6] = date2.split("-");
-  return `${Number(month)}月${Number(day6)}日`;
+  const [, month, day7] = date2.split("-");
+  return `${Number(month)}月${Number(day7)}日`;
 }
 async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   if (!visible()) return;
@@ -5926,13 +5926,13 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
       throw Object.assign(new Error("账号或数据范围已变化"), { staleSession: true });
   };
   const readSource = (sourceId) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId));
-  const readDay = (day6) => timedNetwork("/todos?date=" + encodeURIComponent(day6));
+  const readDay = (day7) => timedNetwork("/todos?date=" + encodeURIComponent(day7));
   const services = {
     guard,
     readSource,
     readDay,
     complete: finishing,
-    move: (sourceId, body3) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + (finishing ? "/complete-today" : "/move"), { method: "POST", body: body3 }),
+    move: (sourceId, body4) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + (finishing ? "/complete-today" : "/move"), { method: "POST", body: body4 }),
     async checkReady(item) {
       guard();
       const index = await timedNetwork("/workbench-snapshot/index?version=2");
@@ -5978,10 +5978,10 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
         return;
       }
       if (cacheStatus === "saved" && todosState.owner === todoOwner()) {
-        const day6 = todosState.days.get(date2);
-        if (day6) {
-          mergeTodo(day6, result.todo);
-          day6.revision++;
+        const day7 = todosState.days.get(date2);
+        if (day7) {
+          mergeTodo(day7, result.todo);
+          day7.revision++;
         }
       }
       const note = cacheStatus === "pending" ? "；本地仍有待处理内容，请在设置中处理" : cacheStatus === "saved" ? "" : "；本地缓存待刷新";
@@ -6035,7 +6035,7 @@ async function submitUnscheduledTodo({ data: data3 }) {
     }
   }
 }
-async function change(id2, method2, body3) {
+async function change(id2, method2, body4) {
   if (!visible()) return;
   const v = current(), key = v.owner, row = v.items.find((x) => x.id === id2);
   if (!row || v.pending) return;
@@ -6043,7 +6043,7 @@ async function change(id2, method2, body3) {
   v.error = "";
   paintUnscheduledTodos();
   try {
-    const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2), { method: method2, body: { ...body3, version: row.version } });
+    const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2), { method: method2, body: { ...body4, version: row.version } });
     if (v.owner === key && owner() === key) v.items = v.items.map((x) => x.id === id2 ? updated : x);
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
@@ -7790,7 +7790,7 @@ function dashboardInfoBody(kind, id2) {
   if (kind === "publication") return `<p>${e(d.publication_note)}</p>`;
   if (kind === "trend") return `<p>只用真实每日新增，不以累计快照补零或插值。</p>${(d.accounts || []).map((a) => `<p>${e(
     accountLabel(a)
-  )}：${e(num((d.trend || []).filter((day6) => day6.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
+  )}：${e(num((d.trend || []).filter((day7) => day7.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
   return `<p>${e(c.metric_note || "likes为点赞，approvals为赞同，分别记录；未采集、未取得和真实0分开。")}</p><p>周期仅使用真实每日新增，不补零、不插值。累计快照不补每日数据。</p>`;
 }
 function renderPublicationTrend(data3) {
@@ -7891,8 +7891,8 @@ function normalizeAccountProfile(value, expectedPlatform) {
   if (expectedPlatform && expectedPlatform !== platform) invalid3("主页链接与所选平台不一致，请修改平台或主页链接");
   return { platform, profile_url, platform_identity };
 }
-var hasAccountProfileInput = (body3) => Object.hasOwn(body3, "profile_url");
-var hasAccountProfileValue = (body3) => hasAccountProfileInput(body3) && body3.profile_url !== "" && body3.profile_url !== null;
+var hasAccountProfileInput = (body4) => Object.hasOwn(body4, "profile_url");
+var hasAccountProfileValue = (body4) => hasAccountProfileInput(body4) && body4.profile_url !== "" && body4.profile_url !== null;
 
 // web/pages/settings.mjs
 init_constants();
@@ -7993,10 +7993,10 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label3) last.rows.push(row);
     else groups.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
   }
-  let day6 = "";
+  let day7 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
-    const heading = day6 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day6 = g.day;
+    const heading = day7 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day7 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><span class="article-title">${e(article.entity_label)}</span>` : ""}</li>`;
@@ -8097,8 +8097,8 @@ function todoMonthSeed(month, snapshot, loaded) {
       days[date2] = snapshot.days[date2] || [];
     }
   }
-  for (const day6 of loaded) {
-    if (!snapshot?.days || day6.pending || day6.readAt > snapshot.verified_at) days[day6.date] = day6.items;
+  for (const day7 of loaded) {
+    if (!snapshot?.days || day7.pending || day7.readAt > snapshot.verified_at) days[day7.date] = day7.items;
   }
   return days;
 }
@@ -8271,18 +8271,18 @@ init_requests();
 init_format();
 init_state();
 init_todos_state();
-function templateUnavailable(store, day6, id2) {
-  return !store.loaded || !day6.loaded || day6.loading || day6.adding || store.pending.has(id2) || todoTemplateAdded(day6, id2) || [...day6.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
+function templateUnavailable(store, day7, id2) {
+  return !store.loaded || !day7.loaded || day7.loading || day7.adding || store.pending.has(id2) || todoTemplateAdded(day7, id2) || [...day7.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
 }
 function inlineTodoTemplateContent(store) {
-  const day6 = todoDay(), label3 = day6.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day7 = todoDay(), label3 = day7.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = "";
   const error2 = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error2 + store.items.map((item) => {
-    const added = todoTemplateAdded(day6, item.id);
+    const added = todoTemplateAdded(day7, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day6, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day7, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label3}</span>` : ""}</button>`;
   }).join("");
 }
@@ -8303,12 +8303,12 @@ function paintInlineTodoTemplates(store) {
   root3.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day6 = todoDay();
-  const added = (id2) => todoTemplateAdded(day6, id2);
-  const addedLabel = day6.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day7 = todoDay();
+  const added = (id2) => todoTemplateAdded(day7, id2);
+  const addedLabel = day7.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day6, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day7, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-archive" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>归档</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
@@ -8568,13 +8568,13 @@ init_state();
 init_todos_state();
 init_popover();
 init_modal();
-function todoBusy(day6, id2) {
-  return day6.updates.has(id2) || day6.removals.has(id2) || day6.templateWrites.has(id2);
+function todoBusy(day7, id2) {
+  return day7.updates.has(id2) || day7.removals.has(id2) || day7.templateWrites.has(id2);
 }
 function todoActionContext({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date2) || date2 !== todoDate() || !todoSessionActive(owner2)) return null;
-  const day6 = todoDay(date2), item = day6.items.find((row) => row.id === id2);
-  return item ? { day: day6, item, owner: owner2 } : null;
+  const day7 = todoDay(date2), item = day7.items.find((row) => row.id === id2);
+  return item ? { day: day7, item, owner: owner2 } : null;
 }
 function canOpenTodoMenu({ id: id2, date: date2, anchor }) {
   const context = todoActionContext({ id: id2, date: date2 });
@@ -8601,21 +8601,21 @@ ${count3.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一�
 async function changeTodoCount(options4, action, target = 0) {
   const context = todoActionContext({ ...options4, owner: options4.owner || todoOwner() });
   if (!context || todoBusy(context.day, context.item.id) || context.day.countWrites?.has(context.item.id)) return false;
-  const { day: day6, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
+  const { day: day7, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
   if (note === null) return false;
-  (day6.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
+  (day7.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
   try {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
     if (!todoSessionActive(owner2)) return false;
-    mergeTodo(day6, saved);
-    day6.noteError = "";
+    mergeTodo(day7, saved);
+    day7.noteError = "";
     return true;
   } catch (error2) {
     if (isRequestAbort(error2) || !todoSessionActive(owner2)) return false;
-    setTodoNotice(day6, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
+    setTodoNotice(day7, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
     return false;
   } finally {
-    day6.countWrites.delete(item.id);
+    day7.countWrites.delete(item.id);
     if (todoSessionActive(owner2)) paintTodos();
   }
 }
@@ -8664,11 +8664,11 @@ function placeNoteCaret(node3) {
     node3.setSelectionRange?.(end, end);
     return;
   }
-  const range = document.createRange();
-  range.selectNodeContents(node3);
-  range.collapse(false);
+  const range2 = document.createRange();
+  range2.selectNodeContents(node3);
+  range2.collapse(false);
   selection.removeAllRanges();
-  selection.addRange(range);
+  selection.addRange(range2);
 }
 function rememberNote(node3) {
   const text = readNote(node3);
@@ -8683,8 +8683,8 @@ function rememberNote(node3) {
     if (view2.noteEdit?.id === node3.dataset.id) view2.noteEdit.text = text;
     return;
   }
-  const day6 = todoDay(node3.dataset.date);
-  if (day6.noteEdit?.id === node3.dataset.id) day6.noteEdit.text = text;
+  const day7 = todoDay(node3.dataset.date);
+  if (day7.noteEdit?.id === node3.dataset.id) day7.noteEdit.text = text;
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
@@ -8704,10 +8704,10 @@ function watchTodoNotes() {
     const text = (event.clipboardData?.getData("text/plain") || "").replace(/\r?\n/g, "");
     const selection = window.getSelection();
     if (!selection?.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    range.collapse(false);
+    const range2 = selection.getRangeAt(0);
+    range2.deleteContents();
+    range2.insertNode(document.createTextNode(text));
+    range2.collapse(false);
     node3.dispatchEvent(new Event("input", { bubbles: true }));
   });
   document.addEventListener("input", (event) => {
@@ -8737,9 +8737,9 @@ function openTodoNote(options4) {
   if (options4.target?.dataset.future === "1") return openFutureNote(options4);
   const context = todoActionContext({ ...options4, date: options4.date || options4.target?.dataset.date, owner: options4.owner || options4.target?.dataset.owner });
   if (!context || todoBusy(context.day, context.item.id)) return;
-  const { item, day: day6 } = context;
-  day6.noteEdit = { id: item.id, text: item.note || "" };
-  day6.noteError = "";
+  const { item, day: day7 } = context;
+  day7.noteEdit = { id: item.id, text: item.note || "" };
+  day7.noteError = "";
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -8777,33 +8777,33 @@ async function commitTodoNote(input) {
   if (todoRepainting()) return;
   const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
   if (!context) return;
-  const { day: day6, item, owner: owner2 } = context;
-  if (day6.noteEdit?.id !== item.id || day6.noteEdit.committing) return;
+  const { day: day7, item, owner: owner2 } = context;
+  if (day7.noteEdit?.id !== item.id || day7.noteEdit.committing) return;
   const text = readNote(input);
   if (text === (item.note || "")) {
-    day6.noteEdit = null;
-    day6.noteError = "";
+    day7.noteEdit = null;
+    day7.noteError = "";
     paintTodos();
     return;
   }
-  day6.noteEdit.committing = true;
-  day6.noteEdit.text = text;
+  day7.noteEdit.committing = true;
+  day7.noteEdit.text = text;
   try {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note: text, version: item.version } });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day6, saved);
-    if (day6.noteEdit?.id === item.id) day6.noteEdit = null;
-    day6.noteError = "";
+    mergeTodo(day7, saved);
+    if (day7.noteEdit?.id === item.id) day7.noteEdit = null;
+    day7.noteError = "";
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    if (day6.noteEdit?.id === item.id) {
-      day6.noteEdit.committing = false;
-      day6.noteError = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
+    if (day7.noteEdit?.id === item.id) {
+      day7.noteEdit.committing = false;
+      day7.noteError = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
     }
   }
   if (todoSessionActive(owner2)) {
     paintTodos();
-    if (day6.noteEdit?.id === item.id) document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+    if (day7.noteEdit?.id === item.id) document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
   }
 }
 async function submitTodoNote({ form, data: data3 }) {
@@ -8830,69 +8830,69 @@ async function submitTodoNote({ form, data: data3 }) {
     button3.disabled = false;
   }
 }
-function renderTodoUndo(day6) {
-  return [...day6.removals.entries()].map(([id2, ticket2]) => {
+function renderTodoUndo(day7) {
+  return [...day7.removals.entries()].map(([id2, ticket2]) => {
     const label3 = ticket2.phase === "deleting" ? "删除中…" : ticket2.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label3}：${e(ticket2.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day6.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day7.date)}"
 data-owner="${e(todoOwner())}" ${ticket2.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day6, id2, ticket2, owner2) {
+function expireTodoUndo(day7, id2, ticket2, owner2) {
   clearTimeout(ticket2.timer);
   ticket2.timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day6.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
-    day6.removals.delete(id2);
+    if (!todoSessionActive(owner2) || day7.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
+    day7.removals.delete(id2);
     paintTodos();
   }, 8e3);
   ticket2.timer?.unref?.();
 }
-async function todoActionFailure(day6, error2, owner2) {
+async function todoActionFailure(day7, error2, owner2) {
   if (!todoSessionActive(owner2) || isRequestAbort(error2) || error2.staleSession) return;
-  day6.error = error2.message;
-  if ([404, 409].includes(error2.status) && day6.date === todoDate()) {
-    day6.error = "这项计划已更新，请核对最新内容后再操作。";
+  day7.error = error2.message;
+  if ([404, 409].includes(error2.status) && day7.date === todoDate()) {
+    day7.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
 async function deleteTodo(options4) {
   const context = todoActionContext(options4);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day6, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
-  day6.removals.set(item.id, ticket2);
-  day6.error = "";
-  day6.notice = "";
-  day6.revision++;
+  const { day: day7, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
+  day7.removals.set(item.id, ticket2);
+  day7.error = "";
+  day7.notice = "";
+  day7.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day6.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day7.date, version: item.version } });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day6, saved);
+    mergeTodo(day7, saved);
     ticket2.item = saved;
     ticket2.phase = "ready";
-    expireTodoUndo(day6, item.id, ticket2, owner2);
+    expireTodoUndo(day7, item.id, ticket2, owner2);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day6.removals.delete(item.id);
-    await todoActionFailure(day6, error2, owner2);
+    day7.removals.delete(item.id);
+    await todoActionFailure(day7, error2, owner2);
     if (todoSessionActive(owner2) && item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day6.revision++;
+      day7.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date2 !== todoDate() || !todoSessionActive(owner2)) return;
-  const day6 = todoDay(date2), ticket2 = day6.removals.get(id2);
+  const day7 = todoDay(date2), ticket2 = day7.removals.get(id2);
   if (!ticket2 || ticket2.phase !== "ready") return;
   clearTimeout(ticket2.timer);
   ticket2.phase = "restoring";
-  mergeTodo(day6, ticket2.item);
-  day6.error = "";
-  day6.revision++;
+  mergeTodo(day7, ticket2.item);
+  day7.error = "";
+  day7.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id2)}/restore`, {
@@ -8900,73 +8900,73 @@ async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }
       body: { date: date2, version: ticket2.item.version }
     });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day6, saved);
-    day6.removals.delete(id2);
-    setTodoNotice(day6, "已恢复");
+    mergeTodo(day7, saved);
+    day7.removals.delete(id2);
+    setTodoNotice(day7, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    if (error2.status === 409) day6.removals.delete(id2);
+    if (error2.status === 409) day7.removals.delete(id2);
     else {
       ticket2.phase = "ready";
-      expireTodoUndo(day6, id2, ticket2, owner2);
+      expireTodoUndo(day7, id2, ticket2, owner2);
     }
-    await todoActionFailure(day6, error2, owner2);
+    await todoActionFailure(day7, error2, owner2);
     if (todoSessionActive(owner2) && ticket2.item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day6.revision++;
+      day7.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day6, item) {
-  let request2 = day6.templateLinks.get(item.id);
+function todoTemplateRequest(day7, item) {
+  let request2 = day7.templateLinks.get(item.id);
   if (!request2 || request2.version !== item.version || request2.template_version !== (item.template_version || 0)) {
     request2 = {
-      date: day6.date,
+      date: day7.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day6.templateLinks.set(item.id, request2);
+    day7.templateLinks.set(item.id, request2);
   }
   return request2;
 }
 async function changeTodoTemplate(options4, remove = false) {
   const context = todoActionContext(options4);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day6, item, owner: owner2 } = context;
+  const { day: day7, item, owner: owner2 } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day6.templateWrites.add(item.id);
-  day6.error = "";
-  day6.notice = "";
-  day6.revision++;
+  day7.templateWrites.add(item.id);
+  day7.error = "";
+  day7.notice = "";
+  day7.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day6, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day7, item)
     });
     if (!todoSessionActive(owner2)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day6, saved.todo);
+      mergeTodo(day7, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day6.templateLinks.delete(item.id);
-    setTodoNotice(day6, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day7.templateLinks.delete(item.id);
+    setTodoNotice(day7, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day6.date === todoDate()) await loadTodos();
+    if (remove && day7.date === todoDate()) await loadTodos();
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      await todoActionFailure(day6, error2, owner2);
+      await todoActionFailure(day7, error2, owner2);
       if (todoSessionActive(owner2) && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day6.templateWrites.delete(item.id);
-      day6.revision++;
+      day7.templateWrites.delete(item.id);
+      day7.revision++;
       paintTodos();
     }
   }
@@ -9012,10 +9012,10 @@ function clearSmartTodo() {
   smart.sequence++;
   Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false });
 }
-async function startSmartTodo(day6, sentence, given) {
+async function startSmartTodo(day7, sentence, given) {
   hooks = given;
   const sequence5 = ++smart.sequence;
-  Object.assign(smart, { sentence, date: day6.date, status: "reading", proposal: null, error: "", busy: false });
+  Object.assign(smart, { sentence, date: day7.date, status: "reading", proposal: null, error: "", busy: false });
   hooks.repaint();
   try {
     const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence } });
@@ -9023,7 +9023,7 @@ async function startSmartTodo(day6, sentence, given) {
     if (!data3.needs_model) {
       clearSmartTodo();
       hooks.repaint();
-      await hooks.plain(day6, sentence);
+      await hooks.plain(day7, sentence);
       return;
     }
     smart.status = "ready";
@@ -9035,7 +9035,7 @@ async function startSmartTodo(day6, sentence, given) {
   }
   hooks.repaint();
 }
-async function confirmSmartTodo(day6) {
+async function confirmSmartTodo(day7) {
   const proposal = smart.proposal;
   if (!proposal || smart.busy || !hooks) return;
   smart.busy = true;
@@ -9043,9 +9043,9 @@ async function confirmSmartTodo(day6) {
   hooks.repaint();
   const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence;
   try {
-    if (proposal.kind === "daily") await hooks.saveDaily(day6, text, note);
-    else if (proposal.date === day6.date) await hooks.save(day6, { id: crypto.randomUUID(), date: day6.date, text }, note);
-    else await hooks.saveElsewhere(day6, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
+    if (proposal.kind === "daily") await hooks.saveDaily(day7, text, note);
+    else if (proposal.date === day7.date) await hooks.save(day7, { id: crypto.randomUUID(), date: day7.date, text }, note);
+    else await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
     if (sequence5 === smart.sequence) clearSmartTodo();
   } catch (error2) {
     if (sequence5 === smart.sequence) {
@@ -9055,11 +9055,11 @@ async function confirmSmartTodo(day6) {
   }
   hooks.repaint();
 }
-async function plainSmartTodo(day6) {
+async function plainSmartTodo(day7) {
   const sentence = smart.sentence;
   clearSmartTodo();
   hooks.repaint();
-  await hooks.plain(day6, sentence);
+  await hooks.plain(day7, sentence);
 }
 function summary(proposal) {
   const text = smartTodoText(proposal), count3 = countLabel(proposal);
@@ -9067,10 +9067,10 @@ function summary(proposal) {
   if (count3) parts2.push([`计数：${count3}`, "todo-smart-count"]);
   return parts2;
 }
-function paintSmartTodo(root3, day6) {
+function paintSmartTodo(root3, day7) {
   const form = root3.querySelector("#todo-form");
   let row = root3.querySelector("#todo-smart");
-  if (!smart.status || smart.date !== day6.date || !form) {
+  if (!smart.status || smart.date !== day7.date || !form) {
     row?.remove();
     return;
   }
@@ -9099,8 +9099,8 @@ function paintSmartTodo(root3, day6) {
     node3.addEventListener("click", run2);
     actions2.append(node3);
   };
-  if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day6));
-  if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day6));
+  if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day7));
+  if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day7));
   button3("取消", "btn text", () => {
     clearSmartTodo();
     hooks?.repaint();
@@ -9222,10 +9222,10 @@ var monthLoader = createTodoMonthLoader({
   active: (owner2) => owner2 === monthOwner() && todoSessionActive(todoOwner()),
   async seed(month, owner2, { refresh = false } = {}) {
     const loaded = [];
-    if (todosState.owner === todoOwner()) for (const [date2, day6] of todosState.days) {
-      const stamp3 = monthDayOwners.get(day6);
-      if (date2.startsWith(month + "-") && day6.loaded && stamp3?.owner === owner2 && (!refresh || todoPending(day6))) {
-        loaded.push({ date: date2, items: monthDayItems(day6), readAt: stamp3.at, pending: todoPending(day6) });
+    if (todosState.owner === todoOwner()) for (const [date2, day7] of todosState.days) {
+      const stamp3 = monthDayOwners.get(day7);
+      if (date2.startsWith(month + "-") && day7.loaded && stamp3?.owner === owner2 && (!refresh || todoPending(day7))) {
+        loaded.push({ date: date2, items: monthDayItems(day7), readAt: stamp3.at, pending: todoPending(day7) });
       }
     }
     const offline = getOfflineRuntime(), scope = offline?.state.scope;
@@ -9300,15 +9300,15 @@ function todoCalendar(date2) {
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
 <div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats2}
 <div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day6) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day6}</span>`).join("")}
-${visible4.map((day6) => day6 ? todoCalendarDay(day6, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day7) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day7}</span>`).join("")}
+${visible4.map((day7) => day7 ? todoCalendarDay(day7, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day6 = todoDay(), month = todoCalendarMonth(day6.date);
+  const day7 = todoDay(), month = todoCalendarMonth(day7.date);
   if (todosState.calendarView === "week") {
-    const anchor = day6.date.startsWith(month) ? day6.date : `${month}-01`;
+    const anchor = day7.date.startsWith(month) ? day7.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
     weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
     const next = weekDate.toISOString().slice(0, 10);
@@ -9322,7 +9322,7 @@ function moveTodoMonth(offset) {
   todosState.calendarMonth = nextMonth;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day6.date);
+  paintTodoCalendar(day7.date);
   void loadTodoMonth2(nextMonth);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
@@ -9390,55 +9390,55 @@ function todoDateControls(date2) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoNoteField2(item, day6, pending) {
-  return todoNoteField(item, { date: day6.date, pending, editing: day6.noteEdit, error: day6.noteError });
+function todoNoteField2(item, day7, pending) {
+  return todoNoteField(item, { date: day7.date, pending, editing: day7.noteEdit, error: day7.noteError });
 }
-function todoCountButton(item, day6, pending) {
+function todoCountButton(item, day7, pending) {
   const count3 = todoCount(item.note);
-  if (!count3 || day6.noteEdit?.id === item.id) return "";
+  if (!count3 || day7.noteEdit?.id === item.id) return "";
   const full = count3.target !== null && count3.done >= count3.target;
   const so = count3.target === null ? `${count3.done} 次` : `${count3.done}/${count3.target} 次`;
-  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day6.date)}"
+  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day7.date)}"
 aria-label="${full ? `已记满 ${count3.target} 次` : `记一次，目前 ${so}`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
 }
-function todoRow(item, day6) {
-  const pending = todoBusy(day6, item.id);
-  const completed = day6.updates.has(item.id) ? day6.updates.get(item.id) : item.completed;
-  const removal = day6.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day7) {
+  const pending = todoBusy(day7, item.id);
+  const completed = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
+  const removal = day7.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
   const check2 = `todo-check-${e(item.id)}`;
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day6.date)}">
-<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}"
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day7.date)}">
+<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day7.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check2}">${e(item.text)}</label>
-${todoNoteField2(item, day6, pending)}</div>${todoCountButton(item, day6, pending)}
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day6.date)}"
+${todoNoteField2(item, day7, pending)}</div>${todoCountButton(item, day7, pending)}
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day7.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day6) {
-  const label3 = day6.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day6.date)}" aria-label="添加 ${e(day6.date)} 的计划">
+function todoForm(day7) {
+  const label3 = day7.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day7.date)}" aria-label="添加 ${e(day7.date)} 的计划">
 <label for="todo-text" class="sr-only">${label3}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label3}" value="${e(day6.draft)}" >
-<button class="btn primary" type="submit" ${day6.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label3}" value="${e(day7.draft)}" >
+<button class="btn primary" type="submit" ${day7.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day6) {
-  const today2 = day6.date === bjtDate();
-  return `<time datetime="${e(day6.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day6.date)}</time>`;
+function todoCaption(day7) {
+  const today2 = day7.date === bjtDate();
+  return `<time datetime="${e(day7.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day7.date)}</time>`;
 }
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
-function todoHeading(day6) {
+function todoHeading(day7) {
   const selected = state.todoPanel || "today";
-  return `<span id="todo-caption" hidden>${todoCaption(day6)}</span><nav class="todo-page-tabs" aria-label="待办页面">
+  return `<span id="todo-caption" hidden>${todoCaption(day7)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["templates", "常用"]].map(([panel2, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
   aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>`;
 }
-function renderTodoHistory(day6) {
+function renderTodoHistory(day7) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day6.date)}" data-today="${bjtDate()}">
-${todoCalendar(day6.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day6.date))}</h3></section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day7.date)}" data-today="${bjtDate()}">
+${todoCalendar(day7.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day7.date))}</h3></section>`;
 }
 function paintTodoPanels(root3) {
   const panel2 = state.todoPanel || "";
@@ -9465,61 +9465,61 @@ async function setTodoPanel(panel2) {
   const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day6) {
-  return Boolean(day6.adding || day6.updates.size || day6.templateWrites.size || [...day6.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
+function todoPending(day7) {
+  return Boolean(day7.adding || day7.updates.size || day7.templateWrites.size || [...day7.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day6) {
-  if (todoPending(day6) || day6.error || todoPreferences().error) return "";
-  return day6.loading && !day6.loaded ? "" : day6.notice;
+function todoStatus(day7) {
+  if (todoPending(day7) || day7.error || todoPreferences().error) return "";
+  return day7.loading && !day7.loaded ? "" : day7.notice;
 }
-function paintTodoSaving(root3, day6) {
-  const busy2 = todoPending(day6);
+function paintTodoSaving(root3, day7) {
+  const busy2 = todoPending(day7);
   root3.setAttribute("aria-busy", String(busy2));
   if (!busy2) {
-    clearTimeout(savingTimers.get(day6));
-    savingTimers.delete(day6);
-    savingTimes.delete(day6);
+    clearTimeout(savingTimers.get(day7));
+    savingTimers.delete(day7);
+    savingTimes.delete(day7);
     return;
   }
-  if (!savingTimes.has(day6)) {
-    savingTimes.set(day6, Date.now());
-    savingTimers.set(day6, setTimeout(() => {
-      if (todosVisible() && todoDay() === day6) paintTodos();
+  if (!savingTimes.has(day7)) {
+    savingTimes.set(day7, Date.now());
+    savingTimers.set(day7, setTimeout(() => {
+      if (todosVisible() && todoDay() === day7) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day6) >= 900) $("#todo-status", root3).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day7) >= 900) $("#todo-status", root3).textContent = "正在同步…";
 }
-function pendingTodo(day6) {
-  return day6.adding && day6.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day6.submitting.text)}</span></li>` : "";
+function pendingTodo(day7) {
+  return day7.adding && day7.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day7.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day6) {
-  const error2 = [day6.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error2 ? `${e(error2)} ${day6.failedCreate ? `<span>「${e(day6.failedCreate.text)}」</span>
+function todoFeedback(day7) {
+  const error2 = [day7.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error2 ? `${e(error2)} ${day7.failedCreate ? `<span>「${e(day7.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day6) {
-  return state.todoPanel === "history" && day6.loaded && !day6.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day7) {
+  return state.todoPanel === "history" && day7.loaded && !day7.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day6 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day6.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day6)}</div>
-${renderTodoHistory(day6)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day6)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day6)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day6)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day6)}</div>
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day6)}</p>
-<ul id="todo-items" class="daily-todo-items">${day6.items.map((item) => todoRow(item, day6)).join("")}${pendingTodo(day6)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day6) : ""}</div>
+  const day7 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day7.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day7)}</div>
+${renderTodoHistory(day7)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day7)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day7)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day7)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day7)}</div>
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day7)}</p>
+<ul id="todo-items" class="daily-todo-items">${day7.items.map((item) => todoRow(item, day7)).join("")}${pendingTodo(day7)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day7) : ""}</div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
-function monthDayItems(day6) {
-  return day6.items.filter((item) => {
-    const removal = day6.removals.get(item.id);
+function monthDayItems(day7) {
+  return day7.items.filter((item) => {
+    const removal = day7.removals.get(item.id);
     return !removal || removal.phase === "restoring";
-  }).map((item) => day6.updates.has(item.id) ? { ...item, completed: day6.updates.get(item.id) } : item);
+  }).map((item) => day7.updates.has(item.id) ? { ...item, completed: day7.updates.get(item.id) } : item);
 }
 var repaintingTodos = false;
 function todoRepainting() {
@@ -9537,20 +9537,20 @@ function paintTodoDom() {
   notifyTodoChanges();
   const root3 = $("#daily-todos");
   if (!root3 || !todosVisible()) return;
-  const day6 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
-  const stamp3 = monthDayOwners.get(day6);
-  if (day6.loaded && stamp3?.owner === monthOwner()) {
-    if (stamp3.revision !== day6.revision) {
+  const day7 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const stamp3 = monthDayOwners.get(day7);
+  if (day7.loaded && stamp3?.owner === monthOwner()) {
+    if (stamp3.revision !== day7.revision) {
       stamp3.at = Date.now();
-      stamp3.revision = day6.revision;
+      stamp3.revision = day7.revision;
     }
-    if (monthLoader.update(monthOwner(), day6.date, monthDayItems(day6))) {
+    if (monthLoader.update(monthOwner(), day7.date, monthDayItems(day7))) {
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
   }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root3.dataset.date !== day6.date) {
+  if (root3.dataset.date !== day7.date) {
     root3.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
@@ -9558,44 +9558,44 @@ function paintTodoDom() {
   const form = $("#todo-form", root3), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root3);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
   const liveNote = document.activeElement?.matches?.("[data-todo-note-input]:not([data-future])") ? document.activeElement : null;
-  const keepNote = liveNote?.isConnected && day6.noteEdit?.id === liveNote.dataset.id;
+  const keepNote = liveNote?.isConnected && day7.noteEdit?.id === liveNote.dataset.id;
   const parts2 = {
-    "todo-caption": todoCaption(day6),
-    "todo-status": todoStatus(day6),
-    "todo-undo": renderTodoUndo(day6),
-    "todo-items": day6.items.map((item) => todoRow(item, day6)).join("") + pendingTodo(day6),
-    "todo-feedback": todoFeedback(day6),
-    "todo-history-empty": todoHistoryEmpty(day6)
+    "todo-caption": todoCaption(day7),
+    "todo-status": todoStatus(day7),
+    "todo-undo": renderTodoUndo(day7),
+    "todo-items": day7.items.map((item) => todoRow(item, day7)).join("") + pendingTodo(day7),
+    "todo-feedback": todoFeedback(day7),
+    "todo-history-empty": todoHistoryEmpty(day7)
   };
   for (const [id2, html] of Object.entries(parts2)) {
     if (id2 === "todo-items" && keepNote) continue;
     const node3 = $("#" + id2, root3);
     if (node3 && node3.innerHTML !== html) node3.innerHTML = html;
   }
-  paintTodoCalendar(day6.date);
+  paintTodoCalendar(day7.date);
   const input = $("#todo-text", root3), button3 = $("#todo-form button[type=submit]", root3);
-  const prompt = day6.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root3);
-  if (input && input.value !== day6.draft) input.value = day6.draft;
+  const prompt = day7.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root3);
+  if (input && input.value !== day7.draft) input.value = day7.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label3) label3.textContent = prompt;
   if (button3) {
-    button3.disabled = day6.adding;
+    button3.disabled = day7.adding;
     button3.textContent = "添加";
-    button3.setAttribute("aria-busy", String(day6.adding));
+    button3.setAttribute("aria-busy", String(day7.adding));
   }
-  paintTodoSaving(root3, day6);
+  paintTodoSaving(root3, day7);
   paintTodoPanels(root3);
   paintUnscheduledTodos();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root3) || $("[data-todo-id]", root3) || $("#todo-text", root3))?.focus();
   paintTodoTemplates();
-  paintSmartTodo(root3, day6);
+  paintSmartTodo(root3, day7);
 }
-function todoReadActive(owner2, version2, date2, day6, sequence5) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day6.sequence === sequence5 && todosVisible();
+function todoReadActive(owner2, version2, date2, day7, sequence5) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day7.sequence === sequence5 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -9607,20 +9607,20 @@ async function loadTodos(context) {
     return;
   }
   void loadTodoTemplates({ ensure: true });
-  const day6 = todoDay(), date2 = day6.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
-  const sequence5 = ++day6.sequence, revision2 = day6.revision;
-  day6.loading = true;
-  day6.error = "";
+  const day7 = todoDay(), date2 = day7.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
+  const sequence5 = ++day7.sequence, revision2 = day7.revision;
+  day7.loading = true;
+  day7.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`, { context });
-    if (!todoReadActive(owner2, version2, date2, day6, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
-    if (day6.revision !== revision2) return loadTodos(context);
+    if (!todoReadActive(owner2, version2, date2, day7, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
+    if (day7.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day6.items = data3.items;
-    day6.loaded = true;
-    monthDayOwners.set(day6, { owner: monthOwner(), at: Date.now(), revision: day6.revision });
-    if (date2 === bjtDate()) void carryUnfinishedTodos(day6, owner2);
+    day7.items = data3.items;
+    day7.loaded = true;
+    monthDayOwners.set(day7, { owner: monthOwner(), at: Date.now(), revision: day7.revision });
+    if (date2 === bjtDate()) void carryUnfinishedTodos(day7, owner2);
     if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date2, data3.items);
       const calendar = $("#todo-calendar");
@@ -9628,11 +9628,11 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error2) {
-    if (todoReadActive(owner2, version2, date2, day6, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day6.error = error2.message;
+    if (todoReadActive(owner2, version2, date2, day7, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
   } finally {
-    if (todoSessionActive(owner2) && day6.sequence === sequence5) {
-      const visible4 = todoReadActive(owner2, version2, date2, day6, sequence5);
-      day6.loading = false;
+    if (todoSessionActive(owner2) && day7.sequence === sequence5) {
+      const visible4 = todoReadActive(owner2, version2, date2, day7, sequence5);
+      day7.loading = false;
       paintTodos();
       if (visible4 && state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(date2));
       if (!visible4 && todoObservers.size && date2 === bjtDate()) void loadFloatingToday();
@@ -9640,17 +9640,17 @@ async function loadTodos(context) {
   }
 }
 var carriedDays = /* @__PURE__ */ new Map();
-async function carryUnfinishedTodos(day6, owner2) {
-  if (carriedDays.get(owner2) === day6.date) return;
-  carriedDays.set(owner2, day6.date);
+async function carryUnfinishedTodos(day7, owner2) {
+  if (carriedDays.get(owner2) === day7.date) return;
+  carriedDays.set(owner2, day7.date);
   try {
     const result = await apiNetwork("/todo-carry", { method: "POST", body: {} });
-    if (!todoSessionActive(owner2) || !result?.carried?.length || day6.date !== bjtDate()) return;
-    day6.revision++;
-    setTodoNotice(day6, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
+    if (!todoSessionActive(owner2) || !result?.carried?.length || day7.date !== bjtDate()) return;
+    day7.revision++;
+    setTodoNotice(day7, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
     void loadTodos();
   } catch (error2) {
-    if (carriedDays.get(owner2) === day6.date && !error2?.staleSession) carriedDays.delete(owner2);
+    if (carriedDays.get(owner2) === day7.date && !error2?.staleSession) carriedDays.delete(owner2);
   }
 }
 function inputTodo(target) {
@@ -9660,104 +9660,104 @@ function inputTodo(target) {
     notifyTodoChanges();
   }
 }
-function showTodoFailure(day6, error2) {
-  if (!isRequestAbort(error2) && !error2.staleSession) day6.error = error2.message;
+function showTodoFailure(day7, error2) {
+  if (!isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
 }
-function setTodoNotice(day6, text) {
-  const owner2 = todoOwner(), version2 = ++day6.noticeVersion;
-  day6.notice = text;
+function setTodoNotice(day7, text) {
+  const owner2 = todoOwner(), version2 = ++day7.noticeVersion;
+  day7.notice = text;
   const timer2 = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day6.noticeVersion !== version2) return;
-    day6.notice = "";
-    if (day6.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner2) || day7.noticeVersion !== version2) return;
+    day7.notice = "";
+    if (day7.date === todoDate()) paintTodos();
   }, 2500);
   timer2?.unref?.();
 }
-async function saveTodo(day6, request2, templateId = "") {
-  const owner2 = todoOwner(), submittedDraft = day6.draft;
-  day6.adding = true;
-  day6.submitting = request2;
-  day6.failedCreate = null;
-  day6.error = "";
-  day6.notice = "";
-  day6.revision++;
+async function saveTodo(day7, request2, templateId = "") {
+  const owner2 = todoOwner(), submittedDraft = day7.draft;
+  day7.adding = true;
+  day7.submitting = request2;
+  day7.failedCreate = null;
+  day7.error = "";
+  day7.notice = "";
+  day7.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request2 });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day6, item);
-    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day6.date.slice(0, 7)) {
-      monthSnapshot.days.set(day6.date, [...day6.items]);
+    mergeTodo(day7, item);
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day7.date.slice(0, 7)) {
+      monthSnapshot.days.set(day7.date, [...day7.items]);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
-    if (templateId) day6.templateCreates.delete(templateId);
+    if (templateId) day7.templateCreates.delete(templateId);
     else {
-      if (day6.draft === submittedDraft && submittedDraft.trim() === request2.text) day6.draft = "";
-      day6.create = null;
+      if (day7.draft === submittedDraft && submittedDraft.trim() === request2.text) day7.draft = "";
+      day7.create = null;
     }
-    setTodoNotice(day6, "已添加");
+    setTodoNotice(day7, "已添加");
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      day6.failedCreate = request2;
-      showTodoFailure(day6, error2);
+      day7.failedCreate = request2;
+      showTodoFailure(day7, error2);
       if (error2.status === 410) {
-        if (templateId) day6.templateCreates.delete(templateId);
-        else day6.create = null;
-        day6.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day7.templateCreates.delete(templateId);
+        else day7.create = null;
+        day7.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day6.adding = false;
-      day6.submitting = null;
-      day6.revision++;
+      day7.adding = false;
+      day7.submitting = null;
+      day7.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day6 = todoDay();
-  if (todosVisible() && day6.failedCreate && !day6.adding)
-    await saveTodo(day6, day6.failedCreate, day6.failedCreate.template_id || "");
+  const day7 = todoDay();
+  if (todosVisible() && day7.failedCreate && !day7.adding)
+    await saveTodo(day7, day7.failedCreate, day7.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data: data3 }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day6 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
-  if (day6.adding) return;
-  day6.draft = String(data3.text || "");
-  if (day6.date !== todoDate()) {
+  const day7 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
+  if (day7.adding) return;
+  day7.draft = String(data3.text || "");
+  if (day7.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day6.error = "请填写 1–500 字的计划。";
+    day7.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (smartTodoReady(text)) return confirmSmartTodo(day6);
-  if (smartTodoWanted(text)) return startSmartTodo(day6, text, smartHooks);
-  await addTypedTodo(day6, text);
+  if (smartTodoReady(text)) return confirmSmartTodo(day7);
+  if (smartTodoWanted(text)) return startSmartTodo(day7, text, smartHooks);
+  await addTypedTodo(day7, text);
 }
-async function addTypedTodo(day6, text) {
-  if (!day6.create || day6.create.text !== text) day6.create = { id: crypto.randomUUID(), date: day6.date, text };
-  await saveTodo(day6, day6.create);
+async function addTypedTodo(day7, text) {
+  if (!day7.create || day7.create.text !== text) day7.create = { id: crypto.randomUUID(), date: day7.date, text };
+  await saveTodo(day7, day7.create);
 }
 var smartHooks = {
   repaint: () => paintTodos(),
-  plain: (day6, text) => addTypedTodo(day6, text),
-  async save(day6, request2, note) {
-    await saveTodo(day6, request2);
-    if (day6.failedCreate === request2) {
-      day6.failedCreate = null;
-      throw new Error(day6.error || "添加失败，请稍后再试");
+  plain: (day7, text) => addTypedTodo(day7, text),
+  async save(day7, request2, note) {
+    await saveTodo(day7, request2);
+    if (day7.failedCreate === request2) {
+      day7.failedCreate = null;
+      throw new Error(day7.error || "添加失败，请稍后再试");
     }
-    day6.draft = "";
-    day6.error = "";
-    await startCount(day6, day6.items.find((row) => row.id === request2.id), note);
+    day7.draft = "";
+    day7.error = "";
+    await startCount(day7, day7.items.find((row) => row.id === request2.id), note);
     paintTodos();
   },
-  async saveElsewhere(day6, request2, label3, note) {
+  async saveElsewhere(day7, request2, label3, note) {
     let item = await api("/todos", { method: "POST", body: request2 });
     if (note) item = await countNote(item, note);
     const other = todoDay(item.date);
@@ -9771,26 +9771,26 @@ var smartHooks = {
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
-    day6.draft = "";
-    setTodoNotice(day6, `已添加到 ${label3}`);
+    day7.draft = "";
+    setTodoNotice(day7, `已添加到 ${label3}`);
   },
-  async saveDaily(day6, text, note) {
+  async saveDaily(day7, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
     refreshOpenTodoTemplates();
-    day6.draft = "";
+    day7.draft = "";
     await submitTodoTemplate(template);
-    if (day6.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
-    await startCount(day6, day6.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
+    if (day7.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+    await startCount(day7, day7.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
     paintTodos();
   }
 };
-async function startCount(day6, item, note) {
+async function startCount(day7, item, note) {
   if (!note || !item) return;
   try {
-    mergeTodo(day6, await countNote(item, note));
-    day6.revision++;
+    mergeTodo(day7, await countNote(item, note));
+    day7.revision++;
   } catch {
-    setTodoNotice(day6, "已添加，但计数没设上，可以在“⋯”里设置次数");
+    setTodoNotice(day7, "已添加，但计数没设上，可以在“⋯”里设置次数");
   }
 }
 async function countNote(item, note, tries = 8) {
@@ -9805,79 +9805,79 @@ async function countNote(item, note, tries = 8) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day6 = todoDay();
-  if (day6.adding || todoTemplateAdded(day6, template.id)) return;
-  let request2 = day6.templateCreates.get(template.id);
+  const day7 = todoDay();
+  if (day7.adding || todoTemplateAdded(day7, template.id)) return;
+  let request2 = day7.templateCreates.get(template.id);
   if (!request2 || request2.text !== template.text) {
-    request2 = { id: crypto.randomUUID(), date: day6.date, text: template.text, template_id: template.id };
-    day6.templateCreates.set(template.id, request2);
+    request2 = { id: crypto.randomUUID(), date: day7.date, text: template.text, template_id: template.id };
+    day7.templateCreates.set(template.id, request2);
   }
-  await saveTodo(day6, request2, template.id);
+  await saveTodo(day7, request2, template.id);
 }
 async function toggleTodo(target, { floating = false } = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
-  const day6 = todoDay(target.dataset.date), owner2 = todoOwner();
-  const item = day6.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day6.date !== (floating ? bjtDate() : todoDate())) return;
-  if (todoBusy(day6, item.id)) {
-    target.checked = day6.updates.has(item.id) ? day6.updates.get(item.id) : item.completed;
+  const day7 = todoDay(target.dataset.date), owner2 = todoOwner();
+  const item = day7.items.find((row) => row.id === target.dataset.todoId);
+  if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) return;
+  if (todoBusy(day7, item.id)) {
+    target.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  day6.updates.set(item.id, completed);
-  day6.error = "";
-  day6.notice = "";
-  day6.revision++;
+  day7.updates.set(item.id, completed);
+  day7.error = "";
+  day7.notice = "";
+  day7.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner2)) {
-      mergeTodo(day6, updated);
+      mergeTodo(day7, updated);
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day6.updates.set(item.id, item.completed);
-    showTodoFailure(day6, error2);
-    if (error2.status === 409 && (floating || day6.date === todoDate())) {
-      day6.error = "这项计划已更新，已重新读取，请核对后再操作。";
+    day7.updates.set(item.id, item.completed);
+    showTodoFailure(day7, error2);
+    if (error2.status === 409 && (floating || day7.date === todoDate())) {
+      day7.error = "这项计划已更新，已重新读取，请核对后再操作。";
       if (floating) {
         await loadFloatingToday();
-        if (todoSessionActive(owner2)) day6.error = "这项计划已更新，已重新读取，请核对后再操作。";
+        if (todoSessionActive(owner2)) day7.error = "这项计划已更新，已重新读取，请核对后再操作。";
       } else await loadTodos();
       if (todoSessionActive(owner2) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day6.updates.delete(item.id);
-      day6.revision++;
+      day7.updates.delete(item.id);
+      day7.revision++;
       paintTodos();
     }
   }
 }
 async function loadFloatingToday() {
   if (!state.me) return;
-  const date2 = bjtDate(), day6 = todoDay(date2), owner2 = todoOwner();
-  const sequence5 = ++day6.sequence, revision2 = day6.revision;
-  const current3 = () => todoSessionActive(owner2) && date2 === bjtDate() && day6.sequence === sequence5;
-  day6.loading = true;
-  day6.error = "";
+  const date2 = bjtDate(), day7 = todoDay(date2), owner2 = todoOwner();
+  const sequence5 = ++day7.sequence, revision2 = day7.revision;
+  const current3 = () => todoSessionActive(owner2) && date2 === bjtDate() && day7.sequence === sequence5;
+  day7.loading = true;
+  day7.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`);
     if (!current3()) return;
-    if (day6.revision !== revision2) {
+    if (day7.revision !== revision2) {
       void loadFloatingToday();
       return;
     }
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day6.items = data3.items;
-    day6.loaded = true;
+    day7.items = data3.items;
+    day7.loaded = true;
   } catch (error2) {
-    if (current3() && !isRequestAbort(error2) && !error2.staleSession) day6.error = error2.message;
+    if (current3() && !isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
   } finally {
     if (current3()) {
-      day6.loading = false;
+      day7.loading = false;
       paintTodos();
     }
   }
@@ -10609,10 +10609,10 @@ function createEntryWritingActions(context) {
     item.writeEpoch++;
     emit2();
     try {
-      const body3 = { version: operation2.version, save_id: operation2.saveId };
+      const body4 = { version: operation2.version, save_id: operation2.saveId };
       const options4 = operation2.uncertain ? { offlineUnknown: true } : void 0;
-      const raw = operation2.kind === "delete" ? await remove(item.id, body3, options4) : operation2.kind === "restore" ? await restore(item.id, body3, options4) : await put(item.id, {
-        ...body3,
+      const raw = operation2.kind === "delete" ? await remove(item.id, body4, options4) : operation2.kind === "restore" ? await restore(item.id, body4, options4) : await put(item.id, {
+        ...body4,
         category: item.category,
         date: item.date,
         text: operation2.text,
@@ -10851,8 +10851,8 @@ function noteMonthWeeks(month) {
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
   const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
-  for (let day6 = 1; day6 <= last.getUTCDate(); day6++)
-    weeks[Math.floor((offset + day6 - 1) / 7)][(offset + day6 - 1) % 7] = month + "-" + String(day6).padStart(2, "0");
+  for (let day7 = 1; day7 <= last.getUTCDate(); day7++)
+    weeks[Math.floor((offset + day7 - 1) / 7)][(offset + day7 - 1) % 7] = month + "-" + String(day7).padStart(2, "0");
   return weeks;
 }
 function checkedNoteMonth(data3, month) {
@@ -10862,16 +10862,16 @@ function checkedNoteMonth(data3, month) {
   if (!validNoteMonth(month) || !data3 || data3.month !== month || data3.complete !== true || ![1, 2, 3].includes(data3.labels_version) || !Array.isArray(data3.days) || data3.days.length > 31) fail6();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
-  for (const day6 of data3.days) {
-    if (!day6 || !validDailyNotesDate(day6.date) || !day6.date.startsWith(month + "-") || result.has(day6.date) || !Array.isArray(day6.items)) fail6();
-    const items = day6.items.map((item) => {
+  for (const day7 of data3.days) {
+    if (!day7 || !validDailyNotesDate(day7.date) || !day7.date.startsWith(month + "-") || result.has(day7.date) || !Array.isArray(day7.items)) fail6();
+    const items = day7.items.map((item) => {
       if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data3.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data3.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => data3.labels_version === 3 ? !validNoteLabel(label3) : item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
       ids.add(item.entity_id);
       total++;
       const displayLabels = data3.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
       return { ...item, displayLabels, displayLabel: displayLabels.join("、") };
     });
-    result.set(day6.date, items);
+    result.set(day7.date, items);
   }
   if (total > 2e3) fail6();
   return result;
@@ -11117,9 +11117,9 @@ function paintEntrySummary(node3, item) {
 function paintSavedEntry(node3, item) {
   paintEntrySummary(node3, item);
   node3.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
-  const draft = noteDraftNeedsAttention(item), body3 = node3.querySelector(".note-entry-reader");
-  body3.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
-  body3.classList.toggle("note-entry-draft-label", draft);
+  const draft = noteDraftNeedsAttention(item), body4 = node3.querySelector(".note-entry-reader");
+  body4.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
+  body4.classList.toggle("note-entry-draft-label", draft);
   node3.dataset.draft = String(draft);
   const edit = node3.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
@@ -11771,9 +11771,9 @@ function archiveBox(root3, expected) {
   status.className = "notes-retained-status";
   status.setAttribute("role", "status");
   box.append(status);
-  const body3 = document.createElement("div");
-  body3.className = "notes-retained-texts";
-  box.append(body3);
+  const body4 = document.createElement("div");
+  body4.className = "notes-retained-texts";
+  box.append(body4);
   box.addEventListener("toggle", async () => {
     if (!box.open || expected !== notesIdentityNow()) return;
     void showRetainedArchive();
@@ -11870,10 +11870,10 @@ function dailyNotesTransport(category, expected, active6) {
       return await noteRequest(path, options4);
     } catch (error2) {
       if (error2.code !== "NETWORK_UNAVAILABLE") throw error2;
-      const body3 = options4.body || {}, labels4 = body3.labels;
+      const body4 = options4.body || {}, labels4 = body4.labels;
       if (labels4)
         throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
-      const { labels: ignored, ...legacyBody } = body3;
+      const { labels: ignored, ...legacyBody } = body4;
       return request2(path, { ...options4, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
     }
   };
@@ -11934,9 +11934,9 @@ function openCategoryNotes(category, expected) {
     loadVerified: (date2) => noteRequest("/note-entries?category=" + category + "&date=" + encodeURIComponent(date2)),
     loadEntry: (id2) => noteRead("/note-entries/" + encodeURIComponent(id2)),
     loadOperation: (id2) => noteRequest("/note-entries/operations/" + encodeURIComponent(id2)),
-    put: (id2, body3, options4) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options4, method: "PUT", body: body3 }),
-    remove: (id2, body3, options4) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options4, method: "DELETE", body: body3 }),
-    restore: (id2, body3, options4) => noteRequest("/note-entries/" + encodeURIComponent(id2) + "/restore", { ...options4, method: "POST", body: body3 }),
+    put: (id2, body4, options4) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options4, method: "PUT", body: body4 }),
+    remove: (id2, body4, options4) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options4, method: "DELETE", body: body4 }),
+    restore: (id2, body4, options4) => noteRequest("/note-entries/" + encodeURIComponent(id2) + "/restore", { ...options4, method: "POST", body: body4 }),
     prepareDelete: async (item) => {
       const offline = getOfflineRuntime();
       if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries)) return null;
@@ -12237,7 +12237,7 @@ var scoreTrend = /* @__PURE__ */ new Map(), scoreTrendMonths = /* @__PURE__ */ n
 var scoreDayBefore = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") - days * 864e5).toISOString().slice(0, 10);
 function scoreTrendSvg(date2) {
   const days = Array.from({ length: 7 }, (_, index) => scoreDayBefore(date2, 6 - index));
-  const points = days.map((day6, index) => scoreTrend.has(day6) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day6) - 1) * 2, day: day6 } : null);
+  const points = days.map((day7, index) => scoreTrend.has(day7) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day7) - 1) * 2, day: day7 } : null);
   if (points.filter(Boolean).length < 2) return "";
   let lines = "";
   for (let index = 1; index < points.length; index++) {
@@ -12245,7 +12245,7 @@ function scoreTrendSvg(date2) {
     if (from && to) lines += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"/>';
   }
   const dots = points.filter(Boolean).map((point) => '<circle cx="' + point.x + '" cy="' + point.y + '" r="' + (point.day === date2 ? 3 : 2) + '"/>').join("");
-  const spoken = days.filter((day6) => scoreTrend.has(day6)).map((day6) => day6.slice(5) + " " + scoreTrend.get(day6) + " 分").join("，");
+  const spoken = days.filter((day7) => scoreTrend.has(day7)).map((day7) => day7.slice(5) + " " + scoreTrend.get(day7) + " 分").join("，");
   return '<svg width="84" height="24" viewBox="0 0 84 24" role="img" aria-label="近 7 天打分：' + spoken + '">' + lines + dots + "</svg>";
 }
 async function readScoreTrend(date2, expected = notesIdentityNow()) {
@@ -13441,13 +13441,13 @@ function editing(context) {
       return;
     }
     const snapshot = Object.fromEntries(noteFields.map((field2) => [field2, item[field2]]));
-    const body3 = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
+    const body4 = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
     return sendNote(item, {
       kind: "notes",
       id: id2,
       path: "/memos/notes/" + id2,
       method: "PUT",
-      body: { ...body3, version: item.localQueued ? item.localVersion : item.version, save_id: context.uuid() },
+      body: { ...body4, version: item.localQueued ? item.localVersion : item.version, save_id: context.uuid() },
       snapshot
     });
   }
@@ -13579,7 +13579,7 @@ function operations(context) {
       context.emit();
     }
   }
-  async function operation2(kind, id2, method2, body3) {
+  async function operation2(kind, id2, method2, body4) {
     if (!context.writable() || context.state.operation?.pending) return;
     if (!context.online() && !(context.durable && method2 === "PUT")) {
       context.state.operation = { phase: "offline", pending: null, error: "当前离线，请联网后重试此操作。" };
@@ -13591,7 +13591,7 @@ function operations(context) {
       id: id2,
       method: method2,
       path: "/memos/" + kind + "/" + id2 + (method2 === "POST" ? "/restore" : ""),
-      body: { ...body3, save_id: context.uuid() }
+      body: { ...body4, save_id: context.uuid() }
     });
   }
   async function checkOperation() {
@@ -14888,9 +14888,9 @@ function decisionCards(items = []) {
 }
 var WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function decisionHistory(days = []) {
-  const rows = days.filter((day6) => visibleWorkReminders(day6.items).length).map((day6) => {
-    const count3 = decisionCount(day6.items), week = WEEK[(/* @__PURE__ */ new Date(day6.date + "T00:00:00Z")).getUTCDay()];
-    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day6.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day6.items)}<span class="notes-tl-foot">${Number(day6.date.slice(5, 7))}月${Number(day6.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
+  const rows = days.filter((day7) => visibleWorkReminders(day7.items).length).map((day7) => {
+    const count3 = decisionCount(day7.items), week = WEEK[(/* @__PURE__ */ new Date(day7.date + "T00:00:00Z")).getUTCDay()];
+    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day7.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day7.items)}<span class="notes-tl-foot">${Number(day7.date.slice(5, 7))}月${Number(day7.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
   });
   return rows.length ? `<div class="notes-tl">${rows.join("")}</div>` : '<p class="muted">前 7 天没有提醒。</p>';
 }
@@ -14952,8 +14952,8 @@ function reportDay(row) {
   return `${parts2.year}-${parts2.month}-${parts2.day}`;
 }
 function reportShownDay(row) {
-  const day6 = reportDay(row);
-  return day6 ? new Date(Date.parse(day6 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
+  const day7 = reportDay(row);
+  return day7 ? new Date(Date.parse(day7 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
 }
 var shortDay2 = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
 function reportGroup(author) {
@@ -14975,9 +14975,9 @@ function paintAiCalendar(selectedDate2, visibleMonth2 = selectedDate2.slice(0, 7
   const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
   let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
   calendar += "<span></span>".repeat(first.getUTCDay());
-  for (let day6 = 1; day6 <= days; day6++) {
-    const date2 = `${visibleMonth2}-${String(day6).padStart(2, "0")}`;
-    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day6}</button>`;
+  for (let day7 = 1; day7 <= days; day7++) {
+    const date2 = `${visibleMonth2}-${String(day7).padStart(2, "0")}`;
+    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day7}</button>`;
   }
   root3.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
 }
@@ -14993,11 +14993,11 @@ function paintAiReports(items, error2 = "", loading = false, selectedDate2 = dai
     const date2 = new Date(row.created_at);
     const validDate = Number.isFinite(date2.getTime());
     const submissionDay = validDate ? dateFormatter.format(date2) : "日期未知";
-    const { body: body3 } = reportContent(row.content);
+    const { body: body4 } = reportContent(row.content);
     const stamp3 = validDate ? `${submissionDay} ${timeFormatter.format(date2)}（北京时间）` : String(row.created_at ?? "未知");
     const author = String(row.author ?? "");
     const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body3)}</div></article>`);
+    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body4)}</div></article>`);
   }
   for (const [name, entries] of Object.entries(groups)) {
     if (name === "其他作者" && !entries.length) continue;
@@ -15013,8 +15013,8 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   const items = visibleWorkReminders(data3?.items || []), count3 = items.length ? decisionCount(items) : 0;
   const badge = root3.querySelector("#ai-decision-count");
   if (badge) badge.textContent = count3 ? String(count3) : "";
-  const date2 = data3?.date || dailyNotesToday(), day6 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
-  root3.querySelector("#ai-reminder-list").innerHTML = items.length ? `<h3 class="ai-decision-head">${e(day6)}<span> · ${count3 ? `${count3} 件待你拍板` : "没有要你拍板的事"}</span></h3><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>` + decisionCards(items) : loading || error2 ? "" : "<p>暂无工作提醒</p>";
+  const date2 = data3?.date || dailyNotesToday(), day7 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
+  root3.querySelector("#ai-reminder-list").innerHTML = items.length ? `<h3 class="ai-decision-head">${e(day7)}<span> · ${count3 ? `${count3} 件待你拍板` : "没有要你拍板的事"}</span></h3><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>` + decisionCards(items) : loading || error2 ? "" : "<p>暂无工作提醒</p>";
 }
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
@@ -15040,8 +15040,8 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   paintAiCalendar(`${month}-01`, month);
   const days = /* @__PURE__ */ new Map();
   for (const row of items) {
-    const day6 = reportShownDay(row);
-    if (day6.startsWith(month)) days.set(day6, [...days.get(day6) || [], row]);
+    const day7 = reportShownDay(row);
+    if (day7.startsWith(month)) days.set(day7, [...days.get(day7) || [], row]);
   }
   root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
   const head = root3.querySelector("#ai-report-dayhead");
@@ -15250,8 +15250,8 @@ function weeklyConclusion(reports, account3, bounds, week) {
   return firstSentence(report?.summary_md) || `${week === "last" ? "上周" : "本周"}尚未生成周报`;
 }
 function buildOverview(data3 = {}, options4 = {}) {
-  const { account: account3, week = "this", range = "7d", now = (/* @__PURE__ */ new Date()).toISOString() } = options4;
-  if (!["7d", "30d"].includes(range)) throw new TypeError("range must be 7d or 30d");
+  const { account: account3, week = "this", range: range2 = "7d", now = (/* @__PURE__ */ new Date()).toISOString() } = options4;
+  if (!["7d", "30d"].includes(range2)) throw new TypeError("range must be 7d or 30d");
   const bounds = weekBounds(now, week), allRows = enrichArticles(data3, { account: account3 });
   const cohort = (start, end) => allRows.filter((row) => {
     const published = day4(row.published_at);
@@ -15267,7 +15267,7 @@ function buildOverview(data3 = {}, options4 = {}) {
       unit: ["hit_rate", "flop_rate", "miss_rate", "median_ctr", "ctr_median"].includes(field2) ? "percentage_points" : "count"
     };
   }
-  const trendDays = range === "30d" ? 30 : 7;
+  const trendDays = range2 === "30d" ? 30 : 7;
   const trend = Array.from({ length: trendDays }, (_, index) => {
     const date2 = shiftDay3(bounds.today, index - trendDays + 1), daily = cohort(date2, date2), result = { date: date2, count: daily.length, published_count: daily.length };
     for (const field2 of ["reads_24h", "ctr_24h", "completion_24h"]) {
@@ -15298,7 +15298,7 @@ function buildOverview(data3 = {}, options4 = {}) {
   });
   const summary2 = summarySentence(current3, week);
   const conclusion = weeklyConclusion(data3.reports, account3, bounds, week);
-  return { account: account3 ?? null, week, range, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary: summary2, conclusion };
+  return { account: account3 ?? null, week, range: range2, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary: summary2, conclusion };
 }
 
 // shared/review-experiments.mjs
@@ -15593,11 +15593,11 @@ function weeklySection(vm3) {
   if (!ai2 || ai2.status === "loading") return '<p class="review-note">正在读取历史周报…</p>';
   if (ai2.status === "error") return `<p class="review-ai-message is-error" role="alert">${e(ai2.error || "历史周报读取失败")} ${button2("重试", "reload")}</p>`;
   const reports = ai2.data?.weekly || [];
-  const body3 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>
+  const body4 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>
     <p class="review-note">${e(report.period_start)} 至 ${e(report.period_end)} · ${e(report.model || "")}${report.effort ? " · 强度" + e(AI_EFFORT_LABELS.find(([id2]) => id2 === report.effort)?.[1] || "") : ""}</p>`;
   return `<details class="review-ai-block review-weekly-old"><summary>历史周报</summary>
     <p class="review-note">独立周报已停止生成，日常汇报与决策请在这里查看。</p>${reports.length ? reports.map((report) => `<details
-      class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body3(report)}</details>`).join("") : '<p class="review-note">暂无历史周报。</p>'}</details>`;
+      class="review-weekly-old"><summary>${e(report.period_start)} 至 ${e(report.period_end)}</summary>${body4(report)}</details>`).join("") : '<p class="review-note">暂无历史周报。</p>'}</details>`;
 }
 function patternSection(data3, vm3) {
   const ai2 = vm3.ai, gate = unavailable(ai2), rows = enrichArticles(data3, { account: vm3.account });
@@ -15786,8 +15786,8 @@ async function runFeature(feature, once = {}) {
   say(feature, "");
   emit();
   try {
-    const body3 = { account, ...once.model ? { model: once.model } : {}, ...once.effort ? { effort: once.effort } : {} };
-    const result = await request("/review/ai/" + feature, { method: "POST", body: body3 });
+    const body4 = { account, ...once.model ? { model: once.model } : {}, ...once.effort ? { effort: once.effort } : {} };
+    const result = await request("/review/ai/" + feature, { method: "POST", body: body4 });
     say(feature, done[feature](result));
   } catch (error2) {
     say(feature, error2.message || "没有完成，请稍后重试。", true);
@@ -16062,11 +16062,11 @@ function registerAiReportEvents() {
       paintReports();
       document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
     } else {
-      const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-      if (day6 && validDailyNotesDate(day6)) {
-        selectedDate = day6;
-        visibleMonth = day6.slice(0, 7);
-        state.aiDailyDate = day6;
+      const day7 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+      if (day7 && validDailyNotesDate(day7)) {
+        selectedDate = day7;
+        visibleMonth = day7.slice(0, 7);
+        state.aiDailyDate = day7;
         state.openAiRun = "";
         updateRoute();
         void loadAiReports();
@@ -16483,19 +16483,19 @@ var statusOf = (row) => row.publication_status ?? row.publish_status ?? row.stat
 var unpublishedStatuses = ["draft", "drafting", "illustrated", "draft_saved", "scheduled", "pending", "failed", "unpublished", "deleted", "retracted"];
 var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
-function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+function trendBounds({ range: range2 = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const today2 = day5(now);
   if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
-  if (!["7d", "30d", "custom"].includes(range)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
-  const start = range === "custom" ? from : shiftDay4(today2, range === "30d" ? -29 : -6);
-  const end = range === "custom" ? to : today2;
+  if (!["7d", "30d", "custom"].includes(range2)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
+  const start = range2 === "custom" ? from : shiftDay4(today2, range2 === "30d" ? -29 : -6);
+  const end = range2 === "custom" ? to : today2;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day5(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day5(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
   const days = (Date.parse(end) - Date.parse(start)) / DAY_MS + 1;
   if (days < 1) throw new TypeError("结束日期不能早于开始日期。");
   if (end > today2) throw new TypeError("结束日期不能晚于今天。");
   if (days > 366) throw new TypeError("自定义范围最多 366 天。");
-  return { range, start, end, today: today2, days };
+  return { range: range2, start, end, today: today2, days };
 }
 function summarize(rows) {
   const sample = (key, max) => rows.map((row) => number(row.sample24h?.[key], max)).filter((value) => value !== null);
@@ -16659,12 +16659,12 @@ var readsTick = (value) => value >= 1e4 ? `${value / 1e4} 万` : value.toLocaleS
 var percentTick = (value) => `${value}%`;
 var count2 = (value) => known2(value) ? value.toLocaleString("zh-CN") : "—";
 var options2 = (values, selected) => values.map(([value, label3]) => `<option value="${e(value)}"${value === selected ? " selected" : ""}>${e(label3)}</option>`).join("");
-function controls({ range, from, to, today: today2 }) {
-  const dates = range === "custom" ? `<label>开始日期<input class="input" type="date" data-review-trend="from"
+function controls({ range: range2, from, to, today: today2 }) {
+  const dates = range2 === "custom" ? `<label>开始日期<input class="input" type="date" data-review-trend="from"
     value="${e(from)}" max="${e(today2)}"></label><label>结束日期<input class="input" type="date"
     data-review-trend="to" value="${e(to)}" max="${e(today2)}"></label>` : "";
   return `<div class="review-filters review-trend-controls"><label>时间范围<select class="input" data-review-trend="range"
-    >${options2(RANGES, range)}</select></label>${dates}
+    >${options2(RANGES, range2)}</select></label>${dates}
     <button class="btn text" type="button" data-review-action="refresh">刷新数据</button></div>`;
 }
 function change2(tile) {
@@ -16698,7 +16698,7 @@ function scale(values, kind, top, bottom) {
   return { y: (value) => bottom - value / max * height, ticks: [0, max / 2, max] };
 }
 function dateLabels(series) {
-  const plotted = series.filter((day6) => day6.position !== null), step = Math.ceil(plotted.length / 6);
+  const plotted = series.filter((day7) => day7.position !== null), step = Math.ceil(plotted.length / 6);
   return plotted.filter((_, index) => (plotted.length - 1 - index) % step === 0);
 }
 function readout(point) {
@@ -16707,17 +16707,17 @@ function readout(point) {
   return `${when}《${point.title || "未命名"}》阅读 ${reads2(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
 function figure(result, { key, rolling, kind, title, hint, format, tick, height, threshold, daily = true }) {
-  const plotted = result.series.filter((day6) => day6.position !== null);
-  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day6) => day6[rolling] !== null);
+  const plotted = result.series.filter((day7) => day7.position !== null);
+  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day7) => day7[rolling] !== null);
   const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint)}</span></div>`;
   if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
     <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
   const top = 16, bottom = height - 30;
-  const values = [...points.map((point) => point[key]), ...curve.map((day6) => day6[rolling]), ...known2(threshold) ? [threshold] : []];
+  const values = [...points.map((point) => point[key]), ...curve.map((day7) => day7[rolling]), ...known2(threshold) ? [threshold] : []];
   const { y, ticks } = scale(values, kind, top, bottom), x = (position) => `${(position * 100).toFixed(2)}%`;
   const grid = ticks.map((mark) => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join("");
-  const days = dateLabels(result.series).map((day6) => `<text x="${x(day6.position)}" y="${height - 8}" text-anchor="middle">${e(day6.date.slice(5))}</text>`).join("");
+  const days = dateLabels(result.series).map((day7) => `<text x="${x(day7.position)}" y="${height - 8}" text-anchor="middle">${e(day7.date.slice(5))}</text>`).join("");
   const hitLine = known2(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" y2="${y(threshold).toFixed(2)}"/>` : "";
   const hitLabel = known2(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
     text-anchor="end">爆款线 ${e(format(threshold))}</text>` : "";
@@ -16725,12 +16725,12 @@ function figure(result, { key, rolling, kind, title, hint, format, tick, height,
       cx="${x(point.position)}" cy="${y(point[key]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
       data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join("");
   let previous = null, lines = "";
-  for (const day6 of plotted) {
-    if (day6[rolling] === null) {
+  for (const day7 of plotted) {
+    if (day7[rolling] === null) {
       previous = null;
       continue;
     }
-    const now = { x: x(day6.position), y: y(day6[rolling]).toFixed(2) };
+    const now = { x: x(day7.position), y: y(day7[rolling]).toFixed(2) };
     if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${now.x}" y2="${now.y}"/>`;
     previous = now;
   }
@@ -16810,13 +16810,13 @@ function renderCockpitTrends(data3, vm3, window2) {
 }
 function renderReviewTrends(data3, vm3) {
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day5(now), t = vm3.trends || {};
-  const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
-  const from = range === "custom" ? t.from || "" : shiftDay4(today2, range === "30d" ? -29 : -6);
-  const to = range === "custom" ? t.to || "" : today2;
-  const filters = controls({ range, from, to, today: today2 });
+  const range2 = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
+  const from = range2 === "custom" ? t.from || "" : shiftDay4(today2, range2 === "30d" ? -29 : -6);
+  const to = range2 === "custom" ? t.to || "" : today2;
+  const filters = controls({ range: range2, from, to, today: today2 });
   let result;
   try {
-    result = reviewTrends(data3, { account: vm3.account, range, from, to, now });
+    result = reviewTrends(data3, { account: vm3.account, range: range2, from, to, now });
   } catch (error2) {
     return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2></div>${filters}
       <p role="alert">${e(error2.message)}</p></section>`;
@@ -17006,16 +17006,16 @@ function mondayOf(today2) {
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
   return shiftDay4(today2, -((weekday + 6) % 7));
 }
-function metricWindow(range, today2) {
+function metricWindow(range2, today2) {
   const monday = mondayOf(today2);
-  if (range === "24h") return { rolling: true };
-  if (range === "30d") return {
+  if (range2 === "24h") return { rolling: true };
+  if (range2 === "30d") return {
     start: shiftDay4(today2, -29),
     end: today2,
     label: "较前30天",
     previous: { start: shiftDay4(today2, -59), end: shiftDay4(today2, -30), closed: true }
   };
-  if (range === "last") return {
+  if (range2 === "last") return {
     start: shiftDay4(monday, -7),
     end: shiftDay4(monday, -1),
     closed: true,
@@ -17069,10 +17069,10 @@ function dailySeries2(rows, bounds, nowMs) {
   }
   return days;
 }
-function reviewOverviewMetrics(data3, { account: account3, range = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+function reviewOverviewMetrics(data3, { account: account3, range: range2 = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const nowMs = instant2(now);
   if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
-  const bounds = metricWindow(range, day5(now));
+  const bounds = metricWindow(range2, day5(now));
   const rows = enrichArticles(data3, { account: account3 });
   const current3 = summarize2(rows.filter((row) => publishedIn(row, bounds, nowMs)));
   if (!bounds.previous) return current3;
@@ -17157,6 +17157,26 @@ function renderArticleRemarks(row, notes) {
   return `<section class="review-remarks" aria-label="备注"><h3>备注</h3><ul>${items.map((note) => `<li><p class="review-remark-head"><span class="review-note">${e(shortDate(note.note_date))}</span><strong>${e(note.title)}</strong></p>${note.body_md ? `<div class="review-remark-body">${renderReviewMarkdown(note.body_md)}</div>` : ""}</li>`).join("")}</ul></section>`;
 }
 
+// web/pages/review-weekly.mjs
+init_dom();
+var day6 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
+var range = (report) => `${day6(report.period_start)} 至 ${day6(report.period_end)}`;
+function weeklyReviews(reports = [], account3) {
+  return reports.filter((report) => report && report.period_type === "weekly" && report.account === account3 && !report.deleted_at).sort((a, b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.created_at).localeCompare(String(a.created_at)));
+}
+function weeklyPreview(markdown) {
+  const line = String(markdown ?? "").split(/\r?\n/).map((text) => text.trim()).find((text) => text && !/^#{1,6}\s/.test(text)) || "";
+  const plain3 = line.replace(/[*_`>#]/g, "").replace(/^[-\d.、\s]+/, "").trim();
+  return plain3.length > 90 ? plain3.slice(0, 90) + "…" : plain3;
+}
+var body3 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>`;
+function renderWeeklyReview(data3, vm3) {
+  const [latest2, ...older] = weeklyReviews(data3.reports, vm3.account);
+  if (!latest2) return "";
+  const earlier = older.length ? `<h3 class="review-weekly-more">往期</h3><div class="review-weekly-tl">${older.map((report) => `<details class="review-weekly-week"><summary><span class="review-weekly-date">${e(range(report))}</span><span class="review-weekly-preview">${e(weeklyPreview(report.summary_md))}</span></summary>${body3(report)}</details>`).join("")}</div>` : "";
+  return `<section class="review-weekly" aria-label="周复盘"><details class="review-weekly-latest" open><summary><span class="review-weekly-title">周复盘</span><span class="review-weekly-date">${e(range(latest2))}</span></summary>${body3(latest2)}</details>${earlier}</section>`;
+}
+
 // web/pages/review-benchmark-library.mjs
 init_dom();
 function safeUrl2(value) {
@@ -17206,7 +17226,7 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
   });
   if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
   const headers = ["对标账号", "样本标题", "样本阅读", "仿写标题", "仿写数据"];
-  const body3 = samples.flatMap(({ item, used }) => used.map((article, index) => {
+  const body4 = samples.flatMap(({ item, used }) => used.map((article, index) => {
     const owner2 = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl2(item.url);
     const title = e(item.title || "未命名文章");
@@ -17221,7 +17241,7 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
     const id2 = index === 0 ? ` id="review-benchmark-${e(encodeURIComponent(item.id))}"` : "";
     return `<tr${id2} tabindex="-1">${cells.map((cell, cellIndex) => `<td data-label="${headers[cellIndex]}">${cell}</td>`).join("")}</tr>`;
   })).join("");
-  return `<section class="review-benchmark-library"><h2>爆文库</h2><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body3}</tbody></table></div></section>`;
+  return `<section class="review-benchmark-library"><h2>爆文库</h2><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body4}</tbody></table></div></section>`;
 }
 
 // web/core/review-list-observation.mjs
@@ -17269,7 +17289,7 @@ function reviewNumber(value, key = "") {
   return Math.abs(n) >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
 var empty2 = (title, text = "") => `<div class="review-empty"><strong>${e(title)}</strong>${text ? `<p>${e(text)}</p>` : ""}</div>`;
-var panel = (title, body3, note = "", css = "") => `<section class="review-panel ${css}"><div class="review-panel-head"><h2>${e(title)}</h2>${note ? `<span class="review-note">${e(note)}</span>` : ""}</div>${body3}</section>`;
+var panel = (title, body4, note = "", css = "") => `<section class="review-panel ${css}"><div class="review-panel-head"><h2>${e(title)}</h2>${note ? `<span class="review-note">${e(note)}</span>` : ""}</div>${body4}</section>`;
 var options3 = (rows, value) => rows.map(([id2, label3]) => `<option value="${e(id2)}"${String(id2) === String(value) ? " selected" : ""}>${e(label3)}</option>`).join("");
 var firstSentence2 = (value) => String(value || "").replace(/^#+\s*/gm, "").trim().match(/^[\s\S]*?[。！？!?](?:[”」』])?|^[^\n]+/)?.[0] || "";
 function external(url, label3) {
@@ -17346,10 +17366,10 @@ function healthRows(data3, account3) {
 function healthLabel(row) {
   return { normal: "正常", "限流": "限流", "降权": "降权", "封禁": "封禁" }[row?.judgement] || "未记录";
 }
-function collapsed(title, body3, id2 = "") {
+function collapsed(title, body4, id2 = "") {
   return `<details class="review-panel review-extra"${id2 ? ` id="${e(id2)}"` : ""}><summary>${e(
     title
-  )}</summary>${body3}</details>`;
+  )}</summary>${body4}</details>`;
 }
 var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["library", "爆文库"]];
 function activeSection(vm3) {
@@ -17389,8 +17409,8 @@ function sectionBody(selected, data3, vm3, rows) {
 }
 function archives(data3, vm3, rows, override) {
   const selected = activeSection(vm3);
-  const body3 = override ?? sectionBody(selected, data3, vm3, rows);
-  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body3}</div></section>`;
+  const body4 = override ?? sectionBody(selected, data3, vm3, rows);
+  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body4}</div></section>`;
 }
 function metricChange(label3, current3, previous, prefix = "") {
   const delta2 = metricDelta(current3, previous);
@@ -17400,13 +17420,13 @@ function metricChange(label3, current3, previous, prefix = "") {
   const tone = delta2 > 0 ? " up" : " down";
   return `<small class="review-stat-change${tone}">${e(head)} ${delta2 > 0 ? "+" : ""}${delta2}%</small>`;
 }
-function statCard(label3, body3, change3) {
-  return `<article class="review-stat"><span>${label3}</span>${body3}${change3}</article>`;
+function statCard(label3, body4, change3) {
+  return `<article class="review-stat"><span>${label3}</span>${body4}${change3}</article>`;
 }
 function overview(data3, vm3) {
-  const range = ["this", "last", "30d"].includes(vm3.filters?.metricsRange) ? vm3.filters.metricsRange : "this";
-  const current3 = reviewOverviewMetrics(data3, { account: vm3.account, range, now: vm3.now || (/* @__PURE__ */ new Date()).toISOString() });
-  const noSample = range !== "last" && current3.observedCount === 0;
+  const range2 = ["this", "last", "30d"].includes(vm3.filters?.metricsRange) ? vm3.filters.metricsRange : "this";
+  const current3 = reviewOverviewMetrics(data3, { account: vm3.account, range: range2, now: vm3.now || (/* @__PURE__ */ new Date()).toISOString() });
+  const noSample = range2 !== "last" && current3.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const earlier = current3.previous || {};
   const change3 = (left, right, prefix = "") => current3.comparisonLabel ? metricChange(current3.comparisonLabel, left, right, prefix) : "";
@@ -17422,7 +17442,7 @@ function overview(data3, vm3) {
     statCard("平均阅读时长", value(reviewDuration(current3.avgReadSeconds)), change3(current3.avgReadSeconds, earlier.avgReadSeconds)),
     statCard("平均阅读完成率", value(reviewNumber(current3.completion, "completion_rate")), change3(current3.completion, earlier.completion))
   ].join("");
-  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${renderCockpitTrends(data3, vm3, current3.window)}</section>`;
+  return renderWeeklyReview(data3, vm3) + `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range2)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${renderCockpitTrends(data3, vm3, current3.window)}</section>`;
 }
 function articleListPanel(rows, vm3, data3) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
@@ -17432,7 +17452,7 @@ function articleListPanel(rows, vm3, data3) {
 }
 function articleLibrary(rows, vm3, data3 = {}) {
   const view2 = articleView(vm3);
-  const f = vm3.filters || {}, range = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay4(today2, range === "7d" ? -6 : -29);
+  const f = vm3.filters || {}, range2 = f.range || "30d", today2 = day5(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range2 === "all" ? "" : shiftDay4(today2, range2 === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day5(r.published_at) && day5(r.published_at) >= from && day5(r.published_at) <= today2) && (!f.from || day5(r.published_at) >= f.from && day5(r.published_at)) && (!f.to || day5(r.published_at) <= f.to && day5(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
   const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
@@ -17440,7 +17460,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options3([["7d", "近 7 天"], ["30d", "近 30 天"], [
     "all",
     "全部时间"
-  ]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options3(
+  ]], range2)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options3(
     [["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]],
     f.verdict || ""
   )}</select></label>${view2 === GROUP_VIEW ? groupPicker(vm3) : ""}${view2 === TABLE_VIEW ? picker : ""}</div>`;
@@ -17466,7 +17486,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
     "标题",
     ...columns.map((metric) => metric.label),
     "判定"
-  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list3.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body3]) => `<td data-label="${e(label3)}">${body3}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list3.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body4]) => `<td data-label="${e(label3)}">${body4}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   if (view2 === TIMELINE_VIEW) return top + articleTimeline(selected, data3, vm3);
   return top + (view2 === GROUP_VIEW ? groupedArticles(selected, vm3, activeGroup(vm3), table2) : table2(selected));
 }
@@ -17576,11 +17596,11 @@ function v13RuleRow(rule, index, prefix = "") {
   const overridden = rule.overriddenByScope;
   const state2 = overridden ? "overridden" : "effective";
   const id2 = e(encodeURIComponent(`${prefix}:${rule.section || ""}:${rule.rule_id || ""}:${index}`));
-  const body3 = overridden ? `<details class="review-overridden-rule">
+  const body4 = overridden ? `<details class="review-overridden-rule">
     <summary>已被${e(scopeLabel(overridden))}覆盖 · 查看原文</summary>${text}</details>` : `${rule.overridesScopes?.length ? '<p class="review-note">当前生效 · 覆盖上层同 ID 规则</p>' : ""}${text}`;
   return `<article class="review-v13-rule-row" id="review-rule-${id2}" data-rule-state="${state2}">
     <span class="review-v13-rule-id">${e(rule.rule_id || index)}</span>
-    <div class="review-v13-rule-text review-markdown">${body3}</div>
+    <div class="review-v13-rule-text review-markdown">${body4}</div>
     <span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span>
   </article>`;
 }
@@ -17661,8 +17681,8 @@ function renderContentReviewContent(data3, vm3) {
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key) => (data3[key] || []).length);
   const selected = activeSection(vm3);
   const quiet = !hasData && selected !== "trends";
-  const body3 = archives(data3, vm3, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
-  return `<div class="review-body"${vm3.article ? " inert" : ""}>${body3}</div>${drawer(data3, rows, vm3)}`;
+  const body4 = archives(data3, vm3, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
+  return `<div class="review-body"${vm3.article ? " inert" : ""}>${body4}</div>${drawer(data3, rows, vm3)}`;
 }
 
 // web/ai-settings-controller.mjs
@@ -18773,9 +18793,9 @@ function bindArticleVerification(article, { isCurrent, render }) {
     article,
     isCurrent: () => binding === value && epoch === runtime.sessionEpoch && isCurrent(),
     load: (id2) => api(`/articles/${encodeURIComponent(id2)}`),
-    put: (id2, body3, key) => api(`/articles/${encodeURIComponent(id2)}`, {
+    put: (id2, body4, key) => api(`/articles/${encodeURIComponent(id2)}`, {
       method: "PUT",
-      body: body3,
+      body: body4,
       headers: { "Idempotency-Key": key }
     }),
     onChange: (state2) => {
@@ -19311,25 +19331,25 @@ function makeView(pip) {
   };
 }
 function paintTodo(view2) {
-  const day6 = todoDay(bjtDate());
-  view2.head.querySelector("time").textContent = day6.date;
-  view2.todoMessage.textContent = day6.error || (!day6.loaded && day6.loading ? "正在读取待办…" : "");
+  const day7 = todoDay(bjtDate());
+  view2.head.querySelector("time").textContent = day7.date;
+  view2.todoMessage.textContent = day7.error || (!day7.loaded && day7.loading ? "正在读取待办…" : "");
   const fragment = view2.doc.createDocumentFragment();
-  for (const item of day6.items) {
-    const removal = day6.removals.get(item.id);
+  for (const item of day7.items) {
+    const removal = day7.removals.get(item.id);
     if (item.deleted_at || removal && removal.phase !== "restoring") continue;
     const li = node2(view2.doc, "li"), label3 = node2(view2.doc, "label"), check2 = node2(view2.doc, "input");
     check2.type = "checkbox";
     check2.dataset.todoId = item.id;
-    check2.dataset.date = day6.date;
-    check2.checked = day6.updates.has(item.id) ? day6.updates.get(item.id) : Boolean(item.completed);
-    check2.disabled = !day6.loaded || todoBusy(day6, item.id);
+    check2.dataset.date = day7.date;
+    check2.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : Boolean(item.completed);
+    check2.disabled = !day7.loaded || todoBusy(day7, item.id);
     label3.append(check2, node2(view2.doc, "span", item.text));
     li.append(label3);
     if (check2.checked) li.classList.add("is-complete");
     fragment.append(li);
   }
-  if (!day6.items.some((item) => !item.deleted_at) && day6.loaded) fragment.append(node2(view2.doc, "li", "今天还没有待办。", "floating-empty"));
+  if (!day7.items.some((item) => !item.deleted_at) && day7.loaded) fragment.append(node2(view2.doc, "li", "今天还没有待办。", "floating-empty"));
   view2.todoList.replaceChildren(fragment);
 }
 function paintNotes(view2) {
@@ -20127,11 +20147,11 @@ async function actionCopyToken({}) {
     await navigator.clipboard.writeText(token);
     toast("凭证已复制，请在安全位置保存。");
   } catch {
-    const range = document.createRange();
-    range.selectNodeContents($("#created-token"));
+    const range2 = document.createRange();
+    range2.selectNodeContents($("#created-token"));
     const selection = window.getSelection();
     selection.removeAllRanges();
-    selection.addRange(range);
+    selection.addRange(range2);
     toast("已选中凭证，请手动复制。");
   }
   return;
@@ -20308,7 +20328,7 @@ function publicationFields(data3, original, status) {
 function buildArticleFormPayload(data3, original = {}) {
   const status = choice(data3.status, statusLabels, "文章状态");
   if (!status) throw new Error("请明确选择文章状态，未确认的状态不会自动保存为草稿或已发布。");
-  const body3 = {
+  const body4 = {
     account_id: textValue(data3.account_id),
     title: textValue(data3.title),
     status,
@@ -20328,20 +20348,20 @@ function buildArticleFormPayload(data3, original = {}) {
     subheading_count: nullableNumber(data3.subheading_count, "小标题数"),
     image_count: nullableNumber(data3.image_count, "图数")
   };
-  if (!body3.account_id || !body3.title) throw new Error("请填写文章标题并选择所属运营账号。");
-  if (body3.published_at && body3.started_at && body3.started_at > body3.published_at) {
+  if (!body4.account_id || !body4.title) throw new Error("请填写文章标题并选择所属运营账号。");
+  if (body4.published_at && body4.started_at && body4.started_at > body4.published_at) {
     throw new Error("流水线开始时间不能晚于发布时间。");
   }
   const editor = textValue(data3.draft_editor_url);
   if (editor && !safeLedgerURL(editor)) throw new Error("草稿编辑链接请使用有效的 HTTP/HTTPS 地址。");
-  body3.draft_ref = mergedObject(original.draft_ref, {
+  body4.draft_ref = mergedObject(original.draft_ref, {
     pgc_id: textValue(data3.draft_pgc_id) || null,
     appmsgid: textValue(data3.draft_appmsgid) || null,
     editor_url: editor || null
   });
-  body3.timings = mergedObject(original.timings, { finished_at: articleTime(data3.finished_at, "流水线结束", original.timings?.finished_at) });
-  if (original.id) body3.version = original.version;
-  return body3;
+  body4.timings = mergedObject(original.timings, { finished_at: articleTime(data3.finished_at, "流水线结束", original.timings?.finished_at) });
+  if (original.id) body4.version = original.version;
+  return body4;
 }
 function equalValue(a, b) {
   if (a === b) return true;
@@ -20372,13 +20392,13 @@ async function reconcileArticleSave(cache2, request2, isCurrent) {
 async function saveArticleForm({ form, data: data3 }, { request: request2 = api, uuid: uuid5 = () => crypto.randomUUID() } = {}) {
   const cache2 = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache2);
   if (cache2.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
-  const body3 = buildArticleFormPayload(data3, cache2.record), id2 = form.dataset.id || "";
-  cache2.saveAttempt = { id: id2, body: structuredClone(body3), key: uuid5(), phase: "saving" };
+  const body4 = buildArticleFormPayload(data3, cache2.record), id2 = form.dataset.id || "";
+  cache2.saveAttempt = { id: id2, body: structuredClone(body4), key: uuid5(), phase: "saving" };
   let value;
   try {
     value = await request2(id2 ? `/articles/${encodeURIComponent(id2)}` : "/articles", {
       method: id2 ? "PUT" : "POST",
-      body: body3,
+      body: body4,
       headers: { "Idempotency-Key": cache2.saveAttempt.key }
     });
   } catch (error2) {
@@ -20441,15 +20461,15 @@ async function submitReviewForm({ form, data: data3 }) {
     if (value !== "" && value != null) m[key] = Number(value);
   }
   if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
-  let body3, path;
+  let body4, path;
   if (form.dataset.type === "daily") {
     path = "/daily-metrics";
-    body3 = { account_id: data3.account_id, article_id: data3.article_id || null, date: data3.date, metrics: m, source: data3.source.trim() };
+    body4 = { account_id: data3.account_id, article_id: data3.article_id || null, date: data3.date, metrics: m, source: data3.source.trim() };
   } else {
     path = "/observations";
-    body3 = { article_id: data3.article_id, kind: data3.kind, as_of: iso(data3.as_of), collected_at: iso(data3.collected_at), metrics: m, source: data3.source.trim(), note: data3.note };
+    body4 = { article_id: data3.article_id, kind: data3.kind, as_of: iso(data3.as_of), collected_at: iso(data3.collected_at), metrics: m, source: data3.source.trim(), note: data3.note };
   }
-  await api(path, { method: "POST", body: body3 });
+  await api(path, { method: "POST", body: body4 });
   closeModal();
   await renderPage();
   return;
@@ -20457,16 +20477,16 @@ async function submitReviewForm({ form, data: data3 }) {
 async function submitAccountForm({ form, data: data3, values }) {
   const id2 = form.dataset.id, epoch = runtime.sessionEpoch, ticket2 = runtime.modalRequestVersion;
   const profile = String(data3.profile_url || "").trim();
-  const body3 = id2 ? { name: data3.name.trim(), active: values.has("active") } : {};
-  if (profile || id2 && (state.accountProfiles || []).some((row) => row.account_id === id2)) body3.profile_url = profile;
-  const signature2 = JSON.stringify(body3);
+  const body4 = id2 ? { name: data3.name.trim(), active: values.has("active") } : {};
+  if (profile || id2 && (state.accountProfiles || []).some((row) => row.account_id === id2)) body4.profile_url = profile;
+  const signature2 = JSON.stringify(body4);
   if (form.accountSaveSignature !== signature2) {
     form.accountSaveSignature = signature2;
     form.accountSaveKey = crypto.randomUUID();
   }
   const saved = await api(id2 ? `/accounts/${encodeURIComponent(id2)}` : "/accounts", {
     method: id2 ? "PUT" : "POST",
-    body: body3,
+    body: body4,
     headers: { "Idempotency-Key": form.accountSaveKey }
   });
   if (epoch !== runtime.sessionEpoch || ticket2 !== runtime.modalRequestVersion) return;

@@ -7,6 +7,7 @@ import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderArticleRemarks} from './review-remarks.mjs';
+import {renderWeeklyReview} from './review-weekly.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
@@ -180,7 +181,8 @@ function overview(data,vm) {
     statCard('平均阅读时长',value(reviewDuration(current.avgReadSeconds)),change(current.avgReadSeconds,earlier.avgReadSeconds)),
     statCard('平均阅读完成率',value(reviewNumber(current.completion,'completion_rate')),change(current.completion,earlier.completion)),
   ].join('');
-  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
+  return renderWeeklyReview(data,vm) +
+    `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
     `<div class="review-stats">${cards}</div>${renderCockpitTrends(data,vm,current.window)}</section>`;

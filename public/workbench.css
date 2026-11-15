@@ -1000,3 +1000,23 @@ body.floating-workbench {
 .review-remark-head { margin:0; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
 .review-remark-body { margin-top:2px; font-size:14px; line-height:1.7; overflow-wrap:anywhere; }
 .review-remark-body p { margin:0; }
+
+/* 复盘驾驶舱: 周复盘. The newest week is open at the top; earlier weeks are a timeline of foldable rows. */
+.review-weekly { margin:0 0 18px; }
+.review-weekly-latest { padding:14px 16px; border-radius:16px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); }
+.review-weekly summary { cursor:pointer; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+.review-weekly-title { font-size:17px; font-weight:700; }
+.review-weekly-date { font-size:13px; color:var(--accent); font-weight:600; white-space:nowrap; }
+.review-weekly-body { margin-top:10px; font-size:15px; line-height:1.8; overflow-wrap:anywhere; }
+.review-weekly-body h1 { font-size:16px; margin:0 0 8px; }
+.review-weekly-body h2, .review-weekly-body h3 { font-size:15px; margin:14px 0 6px; }
+.review-weekly-more { margin:16px 0 8px; font-size:14px; font-weight:500; color:var(--muted); }
+.review-weekly-tl { border-left:2px solid var(--line); margin-left:6px; padding-left:16px; display:grid; gap:10px; }
+.review-weekly-week { position:relative; padding:10px 14px; border-radius:12px; background:var(--surface); border:1px solid var(--line); }
+.review-weekly-week::before { content:""; position:absolute; left:-23px; top:16px; width:10px; height:10px; border-radius:50%; background:var(--accent); }
+.review-weekly-preview { flex:1 1 200px; min-width:0; font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.review-weekly-week[open] .review-weekly-preview { display:none; }
+.review-weekly .review-weekly-body.review-markdown { background:none; border:0; box-shadow:none; padding:0; border-radius:0; }
+.review-weekly-tl { grid-template-columns:minmax(0,1fr); margin-left:10px; }
+.review-weekly-week { min-width:0; }
+.review-weekly-week summary { min-width:0; }
