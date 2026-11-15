@@ -1023,3 +1023,24 @@ body.floating-workbench {
 .review-weekly-latest > summary { min-width:0; }
 .review-weekly-latest[open] > summary .review-weekly-preview { display:none; }
 .review-weekly-latest:not([open]) { padding-block:10px; }
+
+/* UI pass 2: 待办. Less empty space above the list, 常用 as one row that scrolls sideways on phones, upright note text. */
+#daily-todos .daily-todo-toolbar { margin-bottom:14px; }
+#daily-todos .todo-page-tabs { margin-bottom:0; }
+#daily-todos .daily-todo-status:empty { display:none; }
+#daily-todos .daily-todo-status { margin-top:8px; }
+#daily-todos .todo-inline-templates { margin:10px 0 10px; }
+.todo-note-text, .todo-note-input { font-style:normal; font-size:.86em; }
+@media (max-width:767px) {
+  #daily-todos .todo-inline-templates {
+    flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none;
+    margin-inline:calc(-1 * var(--space-16, 16px)); padding-inline:var(--space-16, 16px); scroll-padding-inline:var(--space-16, 16px);
+  }
+  #daily-todos .todo-inline-templates::-webkit-scrollbar { display:none; }
+  #daily-todos .todo-template-chip { flex:none; flex-wrap:nowrap; min-height:40px; max-width:70vw; }
+  #daily-todos .todo-template-chip-text { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+}
+/* A long note drops under the title as a whole instead of breaking into a narrow column beside it. */
+#daily-todos .daily-todo-main { flex-wrap:wrap; row-gap:2px; }
+#daily-todos .daily-todo-main > .daily-todo-text { max-width:100%; }
+#daily-todos .daily-todo-main > button.todo-note-hit:not(.is-empty) { flex:0 0 auto; max-width:100%; text-align:left; }
