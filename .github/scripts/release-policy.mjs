@@ -350,7 +350,15 @@ export const uiPass2Release=Object.freeze({
   baseline:'2085bc42-07b9-434f-a5a6-0f722c6a2180',
   bytes:3194113,sha256:'d9e2ee20c7fb858f05df65fec384e10219c9e58e96b1413a66c152b5d01a18ca',
   label:'production-ui-pass-2-20261115'});
-const acceptedRelease=commit=>commit===uiPass2Release.commit?uiPass2Release:
+// UI pass 3: notes toolbar row and AI report card, on top of the deployed 951f4f9.
+export const uiPass3Release=Object.freeze({
+  commit:'5a3085ccee7a0d1b56c98420dfbd486bd2d50839',
+  tree:'f7ee2925418a547462e28a1d84184a0b148fecf0',
+  baseline:'8c77f66c-d2ec-446b-8797-4d2b53b1b1f2',
+  bytes:3195712,sha256:'0098bfdd066624af330280911c6fa86d21b7bea4baca344ab28bda63b85470ee',
+  label:'production-ui-pass-3-20261115'});
+const acceptedRelease=commit=>commit===uiPass3Release.commit?uiPass3Release:
+  commit===uiPass2Release.commit?uiPass2Release:
   commit===uiPass1Release.commit?uiPass1Release:
   commit===weeklyFoldRelease.commit?weeklyFoldRelease:
   commit===weeklyReviewRelease.commit?weeklyReviewRelease:
