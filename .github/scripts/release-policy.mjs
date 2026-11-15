@@ -336,7 +336,15 @@ export const weeklyFoldRelease=Object.freeze({
   baseline:'5ae01eb8-cb10-4e3a-87e2-a0c34f3838f8',
   bytes:3191226,sha256:'e7e90936313fcd567cbee84bab29644471f6f8aaf19078fc09c4581c702d82ed',
   label:'production-weekly-fold-20261115'});
-const acceptedRelease=commit=>commit===weeklyFoldRelease.commit?weeklyFoldRelease:
+// UI pass 1: one tab style and a slimmer top bar on phones, on top of the deployed 4f8e73d.
+export const uiPass1Release=Object.freeze({
+  commit:'f8c2e2f4c670496513b842454e1487fb5f38822c',
+  tree:'8a8b92b6891ec82a32ad0073e1465962ead0eaa4',
+  baseline:'8e03d93c-982d-486a-a827-98393e9ae8ba',
+  bytes:3192687,sha256:'95c3bfd1a03d8261fa468310913ea702ad6fec366cf071ff35672c7567b838cc',
+  label:'production-ui-pass-1-20261115'});
+const acceptedRelease=commit=>commit===uiPass1Release.commit?uiPass1Release:
+  commit===weeklyFoldRelease.commit?weeklyFoldRelease:
   commit===weeklyReviewRelease.commit?weeklyReviewRelease:
   commit===articleRemarksRelease.commit?articleRemarksRelease:
   commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
