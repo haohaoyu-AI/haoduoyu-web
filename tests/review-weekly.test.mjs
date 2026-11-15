@@ -10,10 +10,11 @@ const reports=[report('2026-10-23','2026-10-30','# 合成周复盘一\n\n合成�
   report('2026-11-14','2026-11-14','合成日报',{period_type:'daily'}),
   report('2026-11-09','2026-11-15','合成：别的账号',{account:'鱼见'})];
 
-test('the newest weekly review is open at the top and earlier weeks follow, newest first',()=>{
+test('the newest weekly review is one folded row at the top; earlier weeks follow inside, newest first',()=>{
   assert.deepEqual(weeklyReviews(reports,'V字').map(item=>item.period_end),['2026-11-15','2026-11-08','2026-10-30']);
   const html=renderWeeklyReview({reports},{account:'V字'});
-  assert.match(html,/<details class="review-weekly-latest" open><summary><span class="review-weekly-title">周复盘<\/span><span class="review-weekly-date">11月9日 至 11月15日<\/span>/);
+  assert.match(html,/<details class="review-weekly-latest"><summary><span class="review-weekly-title">周复盘<\/span><span class="review-weekly-date">11月9日 至 11月15日<\/span><span class="review-weekly-preview">合成：本周发了 5 篇。<\/span>/);
+  assert.doesNotMatch(html,/<details[^>]* open/,'everything starts folded');
   assert.match(html,/合成：本周发了 5 篇/);assert.doesNotMatch(html,/合成日报|别的账号/);
   assert.match(html,/&lt;b&gt;x&lt;\/b&gt;/,'report text is escaped');
   const older=html.split('往期')[1];

@@ -1020,3 +1020,6 @@ body.floating-workbench {
 .review-weekly-tl { grid-template-columns:minmax(0,1fr); margin-left:10px; }
 .review-weekly-week { min-width:0; }
 .review-weekly-week summary { min-width:0; }
+.review-weekly-latest > summary { min-width:0; }
+.review-weekly-latest[open] > summary .review-weekly-preview { display:none; }
+.review-weekly-latest:not([open]) { padding-block:10px; }

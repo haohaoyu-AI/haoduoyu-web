@@ -2,7 +2,7 @@ import {renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {e} from '../core/dom.mjs';
 
 // 周复盘: the weekly review the bot writes as a review report with period_type "weekly".
-// The newest week is open at the top of the cockpit; earlier weeks follow as a timeline.
+// The newest week is one folded row at the top of the cockpit; opening it shows the full text and earlier weeks.
 const day = date => /^\d{4}-\d{2}-\d{2}$/.test(String(date)) ? `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日` : String(date ?? '');
 const range = report => `${day(report.period_start)} 至 ${day(report.period_end)}`;
 /** Weekly reports of one account, newest week first. */
@@ -23,6 +23,9 @@ export function renderWeeklyReview(data, vm) {
   const earlier = older.length ? `<h3 class="review-weekly-more">往期</h3><div class="review-weekly-tl">${older.map(report =>
     `<details class="review-weekly-week"><summary><span class="review-weekly-date">${e(range(report))}</span>` +
     `<span class="review-weekly-preview">${e(weeklyPreview(report.summary_md))}</span></summary>${body(report)}</details>`).join('')}</div>` : '';
-  return `<section class="review-weekly" aria-label="周复盘"><details class="review-weekly-latest" open><summary><span class="review-weekly-title">周复盘</span>` +
-    `<span class="review-weekly-date">${e(range(latest))}</span></summary>${body(latest)}</details>${earlier}</section>`;
+  // Folded by default so the cockpit numbers stay in view: one row with the week and its first sentence.
+  // Earlier weeks sit inside the same fold.
+  return `<section class="review-weekly" aria-label="周复盘"><details class="review-weekly-latest"><summary><span class="review-weekly-title">周复盘</span>` +
+    `<span class="review-weekly-date">${e(range(latest))}</span><span class="review-weekly-preview">${e(weeklyPreview(latest.summary_md))}</span>` +
+    `</summary>${body(latest)}${earlier}</details></section>`;
 }

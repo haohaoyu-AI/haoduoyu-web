@@ -17174,7 +17174,7 @@ function renderWeeklyReview(data3, vm3) {
   const [latest2, ...older] = weeklyReviews(data3.reports, vm3.account);
   if (!latest2) return "";
   const earlier = older.length ? `<h3 class="review-weekly-more">往期</h3><div class="review-weekly-tl">${older.map((report) => `<details class="review-weekly-week"><summary><span class="review-weekly-date">${e(range(report))}</span><span class="review-weekly-preview">${e(weeklyPreview(report.summary_md))}</span></summary>${body3(report)}</details>`).join("")}</div>` : "";
-  return `<section class="review-weekly" aria-label="周复盘"><details class="review-weekly-latest" open><summary><span class="review-weekly-title">周复盘</span><span class="review-weekly-date">${e(range(latest2))}</span></summary>${body3(latest2)}</details>${earlier}</section>`;
+  return `<section class="review-weekly" aria-label="周复盘"><details class="review-weekly-latest"><summary><span class="review-weekly-title">周复盘</span><span class="review-weekly-date">${e(range(latest2))}</span><span class="review-weekly-preview">${e(weeklyPreview(latest2.summary_md))}</span></summary>${body3(latest2)}${earlier}</details></section>`;
 }
 
 // web/pages/review-benchmark-library.mjs
