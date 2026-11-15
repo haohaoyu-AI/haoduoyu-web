@@ -356,6 +356,8 @@ export const uiPass3Release=Object.freeze({
   tree:'f7ee2925418a547462e28a1d84184a0b148fecf0',
   baseline:'8c77f66c-d2ec-446b-8797-4d2b53b1b1f2',
   bytes:3195712,sha256:'0098bfdd066624af330280911c6fa86d21b7bea4baca344ab28bda63b85470ee',
+  // Run 43707746389 uploaded this version but stopped before deploying (LATEST_VERSION_CHANGED).
+  uploadedVersion:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
   label:'production-ui-pass-3-20261115'});
 const acceptedRelease=commit=>commit===uiPass3Release.commit?uiPass3Release:
   commit===uiPass2Release.commit?uiPass2Release:
