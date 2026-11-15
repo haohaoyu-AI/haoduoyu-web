@@ -1044,3 +1044,26 @@ body.floating-workbench {
 #daily-todos .daily-todo-main { flex-wrap:wrap; row-gap:2px; }
 #daily-todos .daily-todo-main > .daily-todo-text { max-width:100%; }
 #daily-todos .daily-todo-main > button.todo-note-hit:not(.is-empty) { flex:0 0 auto; max-width:100%; text-align:left; }
+
+/* UI pass 3: 碎碎念 and AI 日报. */
+#daily-notes > .segmented { margin-bottom:14px; }
+#daily-notes .notes-toolbar { margin-bottom:16px; }
+@media (max-width:760px) {
+  /* The date row and ＋ 写一条 share one line; on a very narrow phone the button wraps to its own line. */
+  #daily-notes .notes-toolbar { gap:10px 8px; }
+  #daily-notes .notes-date-controls { flex-wrap:nowrap; gap:6px; flex:0 1 auto; }
+  #daily-notes .notes-date-controls > .btn:not(.text) { width:32px; min-width:32px; padding-inline:0; }
+  #daily-notes .notes-date-controls > .btn.text { padding-inline:4px; min-width:0; }
+  #daily-notes .notes-date-label, #daily-notes .notes-date-controls .input { width:152px; min-width:0; padding-inline:8px 6px; }
+  #daily-notes #notes-date::-webkit-calendar-picker-indicator { margin-left:0; padding:0; }
+  #daily-notes .notes-entry-toolbar { margin-left:auto; }
+  #daily-notes .notes-add-entry { padding-inline:10px; white-space:nowrap; }
+}
+/* AI 汇报: today's reports sit in a card like every other page; calmer month row. */
+#ai-reports .ai-today { padding:16px 16px 6px; border-radius:18px; background:var(--surface); border:1px solid var(--line); }
+#ai-reports .ai-today-title { margin:0 0 4px; }
+#ai-reports .ai-today .notes-read-sub { margin:0 0 6px; }
+#ai-reports .ai-today-report:last-child { border-bottom:0; }
+#ai-reports .ai-today-report > p:first-child { margin:0 0 4px; }
+#ai-reports .ai-calendar-layout { margin-bottom:10px; }
+#ai-reports .ai-calendar-step { width:38px; min-width:38px; height:38px; min-height:38px; padding:0; }
