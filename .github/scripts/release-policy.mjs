@@ -359,7 +359,15 @@ export const uiPass3Release=Object.freeze({
   // Run 43707746389 uploaded this version but stopped before deploying (LATEST_VERSION_CHANGED).
   uploadedVersion:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
   label:'production-ui-pass-3-20261115'});
-const acceptedRelease=commit=>commit===uiPass3Release.commit?uiPass3Release:
+// UI pass 4: wide-screen tabs and reading column, on top of the deployed 5a3085c.
+export const uiPass4Release=Object.freeze({
+  commit:'c900549313ba36f009a57cd60d4b7c55f579ed66',
+  tree:'3497596375f99d083a18326ece935b4c4ca8cb0f',
+  baseline:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
+  bytes:3197417,sha256:'d08541579f8b99d217b14e4db84d6f10523908860367db1bda0c15879e8f5229',
+  label:'production-ui-pass-4-20261115'});
+const acceptedRelease=commit=>commit===uiPass4Release.commit?uiPass4Release:
+  commit===uiPass3Release.commit?uiPass3Release:
   commit===uiPass2Release.commit?uiPass2Release:
   commit===uiPass1Release.commit?uiPass1Release:
   commit===weeklyFoldRelease.commit?weeklyFoldRelease:
