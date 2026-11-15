@@ -664,3 +664,25 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-article-group-figures { display:flex; flex-wrap:wrap; gap:2px 16px; padding-left:1.1em; font-size:13px; color:var(--color-text-secondary); font-variant-numeric:tabular-nums; }
 .review-article-group-figures b { color:var(--color-text); font-weight:var(--font-weight-semibold); }
 .review-article-group > .review-table-wrap { margin:0 8px 8px; }
+
+/* UI pass 1 (phone): one tab style on every page, and a slimmer top bar. Loaded last on purpose. */
+@media (max-width:767px) {
+  .mobile-bar { min-height:48px; padding-top:calc(4px + env(safe-area-inset-top)); padding-bottom:4px; }
+  .mobile-bar > span { font-size:15px; font-weight:600; letter-spacing:.01em; }
+  .mobile-bar .icon-button.mobile-settings-trigger { width:40px; min-width:40px; height:40px; }
+  .mobile-bar .mobile-settings-trigger svg { width:18px; height:18px; }
+  .content { padding-top:14px; }
+  /* 复盘 sections: the same pill row as 待办 / 碎碎念 / AI 日报, scrolling sideways instead of two rows of boxes. */
+  .content-review .review-secondary-tabs {
+    display:flex; flex-wrap:nowrap; gap:6px; width:fit-content; max-width:100%; overflow-x:auto; padding:5px; margin-bottom:12px;
+    border:1px solid var(--glass-edge); border-radius:18px; background:var(--color-white-a-28);
+  }
+  .content-review .review-secondary-tabs > button {
+    flex:none; min-height:44px; padding:0 16px; border:1px solid transparent; border-radius:18px; background:transparent;
+    color:var(--ink-2); white-space:nowrap; line-height:1.2;
+  }
+  .content-review .review-secondary-tabs > button[aria-selected="true"] {
+    background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent); font-weight:var(--font-weight-heading);
+  }
+  .content-review .review-secondary-panel { border-radius:20px; }
+}
