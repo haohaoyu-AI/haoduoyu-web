@@ -332,3 +332,5 @@ cf4a79871aee70f0aa4217c58d39db30cd9cfb94:tests/todo-parse.test.mjs:generic-api-k
 700e45863c78400d77fec3f628807f245b3623f7:tests/todo-parse.test.mjs:generic-api-key:24
 # Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
 e8f182992d1f91cf42a91985572b30f12dbb554a:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+4f8e73d4b630c9190889bb55264b248dc8a9d592:tests/todo-parse.test.mjs:generic-api-key:24

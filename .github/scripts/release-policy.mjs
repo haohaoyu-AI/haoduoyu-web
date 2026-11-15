@@ -329,7 +329,15 @@ export const weeklyReviewRelease=Object.freeze({
   baseline:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
   bytes:3190963,sha256:'c9883acbbd3cfaf2bc87f718b5cfbd35b023507041941964f04137a46623f74a',
   label:'production-weekly-review-20261115'});
-const acceptedRelease=commit=>commit===weeklyReviewRelease.commit?weeklyReviewRelease:
+// 周复盘 folded by default, on top of the deployed e8f1829 (run 43674712772).
+export const weeklyFoldRelease=Object.freeze({
+  commit:'4f8e73d4b630c9190889bb55264b248dc8a9d592',
+  tree:'4e25066deb3b3d2bdeedab1d709ccdd46d80faa5',
+  baseline:'5ae01eb8-cb10-4e3a-87e2-a0c34f3838f8',
+  bytes:3191226,sha256:'e7e90936313fcd567cbee84bab29644471f6f8aaf19078fc09c4581c702d82ed',
+  label:'production-weekly-fold-20261115'});
+const acceptedRelease=commit=>commit===weeklyFoldRelease.commit?weeklyFoldRelease:
+  commit===weeklyReviewRelease.commit?weeklyReviewRelease:
   commit===articleRemarksRelease.commit?articleRemarksRelease:
   commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
   commit===decisionsRelease.commit?decisionsRelease:
