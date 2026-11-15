@@ -686,3 +686,28 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   }
   .content-review .review-secondary-panel { border-radius:20px; }
 }
+
+/* UI pass 4 (wide screens): the same pill tabs as on phones, and one left-aligned reading column for the text pages. */
+@media (min-width:768px) {
+  .content-review .review-secondary-tabs {
+    display:flex; flex-wrap:nowrap; gap:6px; width:fit-content; max-width:100%; overflow-x:auto; padding:5px; margin-bottom:14px;
+    border:1px solid var(--glass-edge); border-radius:18px; background:var(--color-white-a-28);
+  }
+  .content-review .review-secondary-tabs > button {
+    flex:none; min-height:44px; padding:0 18px; border:1px solid transparent; border-radius:18px; background:transparent;
+    color:var(--ink-2); white-space:nowrap;
+  }
+  .content-review .review-secondary-tabs > button[aria-selected="true"] {
+    background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent); font-weight:var(--font-weight-heading);
+  }
+  .content-review .review-secondary-panel { border-radius:20px; }
+  #page-content > #daily-todos, #page-content > #daily-notes { max-width:880px; margin-inline:0; }
+  #ai-reports .ai-calendar-layout, #ai-reports [data-ai-daily-panel], #ai-reports #ai-report-list,
+  #ai-reports #ai-reminder-list, #ai-reports .ai-decision-more { max-width:880px; margin-inline:0; }
+  #ai-reports .notes-tl, #notes-history .notes-tl, #notes-history #notes-history-list { max-width:880px; margin-inline:0; }
+  /* The month and its two arrows sit together at the left instead of spreading across the column. */
+  #ai-reports .ai-calendar-layout { justify-content:flex-start; gap:10px; }
+  #ai-reports .ai-calendar-body { flex:0 0 auto; }
+  #ai-reports .ai-calendar-layout > .ai-calendar-step:first-child { order:0; }
+}
+.review-weekly-latest > summary { min-height:0; }
