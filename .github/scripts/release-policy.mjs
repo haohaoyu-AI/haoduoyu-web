@@ -380,7 +380,15 @@ export const futurePeriodWordsRelease=Object.freeze({
   baseline:'02e252ec-485a-41e5-b6b1-d04668503ebb',
   bytes:3215695,sha256:'01a8cbfa9f27d5cb0443d1584f5ff9099e9adeb85f2c2418ff2f6f1fd84a7781',
   label:'production-future-period-words-20261116'});
-const acceptedRelease=commit=>commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
+// 未来待办 reads 每周/每月 and retries a new item's period, on top of the deployed aba444b.
+export const futurePeriodEveryRelease=Object.freeze({
+  commit:'84fe7c66b1b0977d8761851559c7c60fbcec6b1a',
+  tree:'135504ef7eff03898ece29ea906cc04a26fbe750',
+  baseline:'b6f9d335-ad95-4a42-b73b-141357d05362',
+  bytes:3217246,sha256:'64593348f28142986e71b473dd7a5917dd2ed961a87810df1c680bf97631e802',
+  label:'production-future-period-every-20261116'});
+const acceptedRelease=commit=>commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
+  commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
   commit===futurePeriodRelease.commit?futurePeriodRelease:
   commit===uiPass4Release.commit?uiPass4Release:
   commit===uiPass3Release.commit?uiPass3Release:
