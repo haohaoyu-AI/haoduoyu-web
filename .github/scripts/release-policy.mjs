@@ -387,7 +387,15 @@ export const futurePeriodEveryRelease=Object.freeze({
   baseline:'b6f9d335-ad95-4a42-b73b-141357d05362',
   bytes:3217246,sha256:'64593348f28142986e71b473dd7a5917dd2ed961a87810df1c680bf97631e802',
   label:'production-future-period-every-20261116'});
-const acceptedRelease=commit=>commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
+// 未来待办 每周/每月 repeat, on top of the deployed 84fe7c6.
+export const futureRepeatRelease=Object.freeze({
+  commit:'fad9f98ae1ab95087d47fced89fda2b22865192b',
+  tree:'8e787070c1d9bb1bd488b6f4062319ef2d718753',
+  baseline:'2fbe403d-820c-4d9e-9990-2337c2653fce',
+  bytes:3223486,sha256:'eb51f65f1ace10b96e703fbe39245e0216706ea14638b010356e1ac2c4c78c6f',
+  label:'production-future-repeat-20261116'});
+const acceptedRelease=commit=>commit===futureRepeatRelease.commit?futureRepeatRelease:
+  commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
   commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
   commit===futurePeriodRelease.commit?futurePeriodRelease:
   commit===uiPass4Release.commit?uiPass4Release:
