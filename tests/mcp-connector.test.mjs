@@ -27,5 +27,5 @@ test('approving checks that the form came from this site, also when the browser 
   await assert.rejects(post({Origin:'https://evil.test'}),error=>error.code==='CSRF');
   await assert.rejects(post({Origin:'null','Sec-Fetch-Site':'cross-site'}),error=>error.code==='CSRF');
   // Past the origin check, without a logged-in owner (no database here) the page asks to log in first.
-  assert.match(await (await post({Origin:'null','Sec-Fetch-Site':'same-origin'})).text(),/请先登录/);
+  assert.match(await (await post({Origin:'null','Sec-Fetch-Site':'same-origin'})).text(),/需要管理员登录/);
 });

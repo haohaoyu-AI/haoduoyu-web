@@ -62,7 +62,7 @@ function consent(params,origin) {
   return page(origin,`<h1>让 Claude 连接好多鱼工作台？</h1><p>同意后，Claude 可以：</p><ul><li>读和写碎碎念</li><li>读和写待办（今日、未来待办）</li></ul>
 <p class="muted">不能改密码、文章数据和设置。以后可以在网站的 API 凭证里撤销「Claude 连接器」。</p>
 <form method="post" action="/oauth/authorize">${hidden}<button type="submit">同意并连接</button></form>
-<p class="muted">需要先在这个浏览器里登录好多鱼工作台。</p>`);
+<p class="muted">需要先在这个浏览器里用管理员账号登录（<a href="/?page=login" target="_blank" rel="noopener">登录页</a>）。</p>`);
 }
 async function approve(request,db,origin) {
   // The site sends Referrer-Policy: no-referrer, under which a browser may send "Origin: null" for its own form;
@@ -71,8 +71,12 @@ async function approve(request,db,origin) {
   if(from!==origin&&!((from===null||from==='null')&&site==='same-origin'))throw fail(403,'CSRF','请从授权页面提交');
   const form=new URLSearchParams(await request.text()),input=authorizeParams(form);
   let actor=null;try {actor=await authenticate(storeFor(db),request);requireAdmin(actor);} catch {actor=null;}
-  if(!actor)return page(origin,`<h1>请先登录</h1><p>在这个浏览器里<a href="/" target="_blank" rel="noopener">打开好多鱼工作台并登录</a>，再回到这一页点「同意并连接」。</p>
-<form method="post" action="/oauth/authorize">${Object.entries(input).map(([n,v])=>`<input type="hidden" name="${n}" value="${esc(v)}">`).join('')}<button>我已登录，继续</button></form>`);
+  // The site works in public mode without signing in, so "logged in" there is easy to mistake for the admin login needed here.
+  if(!actor)return page(origin,`<h1>需要管理员登录</h1>${form.get('retry')?'<p style="color:#b91c1c">还没检测到管理员登录。</p>':''}
+<p>网站平时的公开模式不算登录。请<a href="/?page=login" target="_blank" rel="noopener">打开管理员登录页</a>，用管理员账号和密码登录，然后回到这一页点下面的按钮。</p>
+<form method="post" action="/oauth/authorize">${Object.entries(input).map(([n,v])=>`<input type="hidden" name="${n}" value="${esc(v)}">`).join('')}
+<input type="hidden" name="retry" value="1"><button>我已登录，继续</button></form>
+<p class="muted">登录要在同一个浏览器里完成。</p>`);
   const code=hex(32),stamp=now(),expires=new Date(Date.now()+CODE_MINUTES*60000).toISOString();
   await db.batch([
     db.prepare("DELETE FROM matrix_api_keys WHERE permissions_json LIKE ? AND created_at<?").bind(`["${PENDING}"%`,new Date(Date.now()-3600000).toISOString()),
