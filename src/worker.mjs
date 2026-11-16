@@ -1,4 +1,5 @@
 import {readArticleReconciliation} from './article-reconciliation.mjs';
+import {MCP_PATHS,handleMcp,internalDispatch} from './mcp.mjs';
 import { randomUUID,randomBytes } from 'node:crypto';
 import { hashPassword,verifyPassword } from '../shared/auth.mjs';
 import { createRecords } from './records.mjs';
@@ -260,6 +261,14 @@ async function handle(request,env,trace) {
   const url=new URL(request.url),path=url.pathname,method=request.method;
   trace.route=traceRoute(path);
   if(path==='/health'&&method==='GET') return json({status:'ok',application:'haoduoyu-matrix'});
+  if(MCP_PATHS.includes(path)) {
+    if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
+    const origin=originFor(env);
+    // Tool calls re-enter this handler; an error there becomes the same JSON error a browser would get.
+    const inner=r=>handle(r,env,requestTrace(r.method)).catch(error=>Response.json({error:{code:error.code||'INTERNAL_ERROR',
+      message:error.status?error.message:'服务暂时不可用'}},{status:error.status||500}));
+    return handleMcp(request,env,{origin,db:env.DB,dispatch:internalDispatch(origin,inner)});
+  }
   // No app handlers are registered for dispatch-owned sign-in/callback routes.
   if(path.startsWith(prefix+'/')) {
     if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
@@ -360,7 +369,8 @@ export default {
     if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');
     for(const [key,value] of Object.entries({
       'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
-      'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      // A page that brings its own policy (the Claude connector's approval page) keeps it.
+      'Content-Security-Policy':response.headers.get('Content-Security-Policy')||"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
     })) response.headers.set(key,value);
     if(response.status===500) logServerFailure(trace,caughtError,!didThrow);
