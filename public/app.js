@@ -5763,7 +5763,19 @@ var WORDS = {
     "这周末",
     "本周末",
     "这个周末",
-    "这礼拜末"
+    "这礼拜末",
+    // A weekly plan ("每周看一部电影") is kept as this week's item.
+    "每周",
+    "每一周",
+    "每个周",
+    "每礼拜",
+    "每个礼拜",
+    "每一个礼拜",
+    "每星期",
+    "每个星期",
+    "每一个星期",
+    "每周末",
+    "每个周末"
   ],
   next_week: [
     "下周",
@@ -5780,7 +5792,35 @@ var WORDS = {
     "下周末",
     "下个周末"
   ],
-  month: ["本月", "这月", "这个月", "这一个月", "月底", "月末", "这个月底", "本月底", "这个月末", "本月末", "月中", "中旬", "下旬", "这个月中旬", "本月中旬", "这个月下旬", "本月下旬"],
+  month: [
+    "本月",
+    "这月",
+    "这个月",
+    "这一个月",
+    "月底",
+    "月末",
+    "这个月底",
+    "本月底",
+    "这个月末",
+    "本月末",
+    "月中",
+    "中旬",
+    "下旬",
+    "这个月中旬",
+    "本月中旬",
+    "这个月下旬",
+    "本月下旬",
+    // A monthly plan ("每月体检一次") is kept as this month's item.
+    "每月",
+    "每个月",
+    "每一个月",
+    "每月底",
+    "每个月底",
+    "每月末",
+    "每个月末",
+    "每月初",
+    "每个月初"
+  ],
   next_month: [
     "下月",
     "下个月",
@@ -6216,26 +6256,34 @@ async function submitUnscheduledTodo({ data: data3 }) {
     }
   }
 }
+var transient = (error2) => error2.status === 404 || error2.status === 409 || error2.status === 429 || error2.status >= 500 || error2.code === "NETWORK_UNAVAILABLE" || !error2.status;
 async function addPeriod(id2, period, key) {
-  const v = current();
-  for (let attempt = 0; attempt < 8; attempt++) {
+  const v = current(), live2 = () => v.owner === key && owner() === key, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let last = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    if (attempt) await wait(Math.min(400 * attempt, 2e3));
     const row = v.items.find((x) => x.id === id2);
-    if (!row || v.owner !== key || owner() !== key) return;
+    if (!row || !live2()) return;
     try {
-      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { period, version: row.version } });
-      if (v.owner === key && owner() === key) {
+      const saved = await api("/unscheduled-todos/" + encodeURIComponent(id2));
+      if (!live2()) return;
+      if (saved.period === period) {
+        v.items = v.items.map((x) => x.id === id2 ? saved : x);
+        paintUnscheduledTodos();
+        return;
+      }
+      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { period, version: saved.version } });
+      if (live2()) {
         v.items = v.items.map((x) => x.id === id2 ? updated : x);
         paintUnscheduledTodos();
       }
       return;
     } catch (error2) {
-      if (error2.status !== 404 || error2.staleSession || attempt === 7) {
-        undo(id2, key, error2);
-        return;
-      }
+      last = error2;
+      if (error2.staleSession || !transient(error2)) break;
     }
-    await new Promise((resolve) => setTimeout(resolve, 800));
   }
+  undo(id2, key, last);
 }
 function undo(id2, key, error2) {
   const v = current();
@@ -6245,7 +6293,7 @@ function undo(id2, key, error2) {
     const { period, ...rest } = x;
     return rest;
   });
-  v.error = `时间段没保存上：${error2.message}`;
+  v.error = `时间段没保存上，这条先放在「不定」，可以点 ▾ 再选一次（${error2?.message || "请稍后再试"}）`;
   paintUnscheduledTodos();
 }
 async function change(id2, method2, body4) {

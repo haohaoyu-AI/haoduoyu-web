@@ -30,10 +30,12 @@ test('Chinese time words put a future to-do in its week or month and leave the r
     '下一个礼拜去银行': ['next_week', '去银行'], '下周之内回复邮件': ['next_week', '回复邮件'], '下周一起吃饭': ['next_week', '一起吃饭'],
     '这礼拜把书架整理了': ['week', '把书架整理了'], '这周末去爬山': ['week', '去爬山'], '这星期内交稿': ['week', '交稿'],
     '月底前交房租': ['month', '交房租'], '这个月中旬体检': ['month', '体检'],
+    '每周看一部电影': ['week', '看一部电影'], '每个礼拜打一次球': ['week', '打一次球'], '每月去一次图书馆': ['month', '去一次图书馆'],
+    '每个月底对账': ['month', '对账'],
     '下个月去医院复查': ['next_month', '去医院复查'], '下个月底前办签证': ['next_month', '办签证'],
   };
   for (const [sentence, [period, text]] of Object.entries(cases)) assert.deepEqual(readPeriodWords(sentence), {period, text}, sentence);
   // A weekday is a concrete day, and last week or month is not a plan.
-  for (const sentence of ['下周五交表', '这礼拜三开会', '上个月底的账', '上周末的照片整理', '整理书架', 'next week 看电影'])
+  for (const sentence of ['下周五交表', '这礼拜三开会', '每周三游泳', '上个月底的账', '上周末的照片整理', '整理书架', 'next week 看电影'])
     assert.equal(readPeriodWords(sentence), null, sentence);
 });

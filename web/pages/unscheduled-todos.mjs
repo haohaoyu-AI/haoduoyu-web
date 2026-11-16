@@ -304,22 +304,30 @@ export async function submitUnscheduledTodo({data}) {
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }
-// A new to-do is created first (that request may wait in the offline queue), then gets its period;
-// until the queued create reaches the server the period request finds nothing, so it retries for a few seconds.
+// A new to-do is created first (that request may wait in the offline queue), then gets its period.
+// Until the queued create reaches the server the period request finds nothing (404) or meets a busy connection,
+// so it keeps trying for about ten seconds; before giving up it reads the row back, because a lost reply may still have saved.
+const transient=error=>error.status===404||error.status===409||error.status===429||error.status>=500||
+  error.code==='NETWORK_UNAVAILABLE'||!error.status;
 async function addPeriod(id,period,key) {
-  const v=current();
-  for(let attempt=0;attempt<8;attempt++) {
-    const row=v.items.find(x=>x.id===id);if(!row||v.owner!==key||owner()!==key)return;
-    try {const updated=await api('/unscheduled-todos/'+encodeURIComponent(id)+'/period',{method:'PATCH',body:{period,version:row.version}});
-      if(v.owner===key&&owner()===key){v.items=v.items.map(x=>x.id===id?updated:x);paintUnscheduledTodos();}return;}
-    catch(error){if(error.status!==404||error.staleSession||attempt===7){undo(id,key,error);return;}}
-    await new Promise(resolve=>setTimeout(resolve,800));
+  const v=current(),live=()=>v.owner===key&&owner()===key,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  let last=null;
+  for(let attempt=0;attempt<10;attempt++) {
+    if(attempt)await wait(Math.min(400*attempt,2000));
+    const row=v.items.find(x=>x.id===id);if(!row||!live())return;
+    try {
+      const saved=await api('/unscheduled-todos/'+encodeURIComponent(id));if(!live())return;
+      if(saved.period===period){v.items=v.items.map(x=>x.id===id?saved:x);paintUnscheduledTodos();return;}
+      const updated=await api('/unscheduled-todos/'+encodeURIComponent(id)+'/period',{method:'PATCH',body:{period,version:saved.version}});
+      if(live()){v.items=v.items.map(x=>x.id===id?updated:x);paintUnscheduledTodos();}return;
+    } catch(error){last=error;if(error.staleSession||!transient(error))break;}
   }
+  undo(id,key,last);
 }
 function undo(id,key,error) {
   const v=current();if(v.owner!==key||owner()!==key)return;
   v.items=v.items.map(x=>{if(x.id!==id)return x;const {period,...rest}=x;return rest;});
-  v.error=`时间段没保存上：${error.message}`;paintUnscheduledTodos();
+  v.error=`时间段没保存上，这条先放在「不定」，可以点 ▾ 再选一次（${error?.message||'请稍后再试'}）`;paintUnscheduledTodos();
 }
 async function change(id,method,body) {
   if(!visible())return;const v=current(),key=v.owner,row=v.items.find(x=>x.id===id);if(!row||v.pending)return;
