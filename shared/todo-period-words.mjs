@@ -2,15 +2,14 @@
 // A phrase that names a weekday ("下周五", "这礼拜三") is a concrete day, not a period, so it is left alone.
 const WORDS = {
   week: ['本周', '这周', '这个周', '本礼拜', '这礼拜', '这个礼拜', '本星期', '这星期', '这个星期', '这一周', '这一个礼拜', '这一个星期',
-    '周末', '这周末', '本周末', '这个周末', '这礼拜末',
-    // A weekly plan ("每周看一部电影") is kept as this week's item.
-    '每周', '每一周', '每个周', '每礼拜', '每个礼拜', '每一个礼拜', '每星期', '每个星期', '每一个星期', '每周末', '每个周末'],
+    '周末', '这周末', '本周末', '这个周末', '这礼拜末'],
+  // 每周 / 每月 are repeating plans, not this week or this month: the words stay in the text.
+  every_week: ['每周', '每一周', '每个周', '每礼拜', '每个礼拜', '每一个礼拜', '每星期', '每个星期', '每一个星期', '每周末', '每个周末'],
   next_week: ['下周', '下个周', '下一周', '下礼拜', '下个礼拜', '下一个礼拜', '下星期', '下个星期', '下一个星期', '下周内', '下礼拜内',
     '下周末', '下个周末'],
   month: ['本月', '这月', '这个月', '这一个月', '月底', '月末', '这个月底', '本月底', '这个月末', '本月末', '月中', '中旬', '下旬',
-    '这个月中旬', '本月中旬', '这个月下旬', '本月下旬',
-    // A monthly plan ("每月体检一次") is kept as this month's item.
-    '每月', '每个月', '每一个月', '每月底', '每个月底', '每月末', '每个月末', '每月初', '每个月初'],
+    '这个月中旬', '本月中旬', '这个月下旬', '本月下旬'],
+  every_month: ['每月', '每个月', '每一个月', '每月底', '每个月底', '每月末', '每个月末', '每月初', '每个月初'],
   next_month: ['下月', '下个月', '下一个月', '下月初', '下个月初', '下月底', '下个月底', '下月末', '下个月末',
     '下月中', '下个月中', '下月中旬', '下个月中旬', '下月下旬', '下个月下旬', '下个月上旬', '下月上旬'],
 };
@@ -30,7 +29,7 @@ export function readPeriodWords(sentence) {
     if (/(上|上个|上一个|前)$/.test(source.slice(0, match.index))) continue; // 上个月底, 上周末 are past
     const key = ENTRIES.find(([word]) => word === match[1])[1];
     const rest = (source.slice(0, match.index) + ' ' + source.slice(match.index + match[0].length)).replace(/\s+/g, ' ').replace(EDGE, '').trim();
-    return {period: key, text: rest || source.trim()};
+    return {period: key, text: key.startsWith('every_') ? source.trim() : rest || source.trim()};
   }
   return null;
 }

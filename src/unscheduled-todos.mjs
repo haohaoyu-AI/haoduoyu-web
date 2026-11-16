@@ -2,12 +2,16 @@ import {bodyFor,fail,now} from './security.mjs';
 import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,requireBusinessCsrf as requireCsrf} from './business-access.mjs';
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay} from './lib/time.mjs';
-import {validPeriod} from '../shared/todo-period.mjs';
+import {RECURRENCES,nextPeriod,periodFits,validPeriod} from '../shared/todo-period.mjs';
 
 const baseFields='id,text,completed,version,created_at,updated_at,deleted_at';
 async function selectedFields(store) {
   const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)'),has=name=>info.some(column=>column.name===name);
-  return baseFields+(has('note')?',note':'')+(has('period')?',period':'');
+  return baseFields+(has('note')?',note':'')+(has('period')?',period':'')+(has('recurrence')?',recurrence':'');
+}
+// 每周 / 每月 (0026): a repeating to-do makes its next one when it is done or given a day.
+async function hasRecurrence(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='recurrence');
 }
 // The period column (0025) may be missing on a database that has not been migrated yet; then periods are refused.
 async function hasPeriod(store) {
@@ -18,7 +22,7 @@ function periodOf(value) {
   return value;
 }
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;return value;};
+const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;if(!value.recurrence)delete value.recurrence;return value;};
 function idOf(value) {
   if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
     throw fail(400,'VALIDATION_ERROR','待办标识需要使用 UUID');
@@ -45,7 +49,12 @@ function inputFor(body,operation) {
       throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
     return {id:idOf(body.id),text:body.text.trim()};
   }
-  if(operation==='period') {exact(body,['period','version']);versionOf(body.version);periodOf(body.period);return body;}
+  if(operation==='period') {
+    exact(body,'recurrence' in body?['period','recurrence','version']:['period','version']);versionOf(body.version);periodOf(body.period);
+    if('recurrence' in body&&body.recurrence!==null&&(!RECURRENCES.includes(body.recurrence)||!periodFits(body.period,body.recurrence)))
+      throw fail(400,'VALIDATION_ERROR','每周重复需要一周的时间段，每月重复需要一个月的时间段');
+    return body;
+  }
   exact(body,operation==='completed'?['completed','version']:['move','complete-today'].includes(operation)?['date','version']:['version']);versionOf(body.version);
   if(['move','complete-today'].includes(operation))dateOf(body.date);
   if(operation==='completed'&&typeof body.completed!=='boolean')throw fail(400,'VALIDATION_ERROR','完成状态需要为布尔值');
@@ -94,17 +103,34 @@ async function write(store,actor,operation,id,input) {
     }
     store.queue('UPDATE matrix_unscheduled_todos SET completed=?,deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',Number(completed),stamp,stamp,actor.id,id,input.version);
     store.expectChange();
-    return {actor,response:json({todo:item(todo),source:item({...current,completed,deleted_at:stamp,version:current.version+1,updated_at:stamp})})};
+    const result={todo:item(todo),source:item({...current,completed,deleted_at:stamp,version:current.version+1,updated_at:stamp})};
+    // A repeating to-do leaves its next one behind, in the same batch, for the next week or month.
+    if(current.recurrence&&RECURRENCES.includes(current.recurrence)) {
+      const next={id:crypto.randomUUID(),text:current.text,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null,
+        period:nextPeriod(current.period,current.recurrence,beijingDay(Date.now())),recurrence:current.recurrence};
+      store.queue('INSERT INTO matrix_unscheduled_todos(user_id,id,text,completed,version,created_at,updated_at,period,recurrence) VALUES(?,?,?,0,1,?,?,?,?)',
+        actor.id,next.id,next.text,stamp,stamp,next.period,next.recurrence);
+      result.next=item(next);
+    }
+    return {actor,response:json(result)};
   }
   if(operation==='period') {
     if(!await hasPeriod(store))throw fail(409,'PERIOD_UNAVAILABLE','数据库还没有时间段字段');
     if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
-    if(current.version===input.version+1&&(current.period??null)===input.period)return {replayed:true,response:json(item(current))};
+    const repeats=await hasRecurrence(store);
+    if('recurrence' in input&&input.recurrence!==null&&!repeats)throw fail(409,'RECURRENCE_UNAVAILABLE','数据库还没有重复字段');
+    // Without a recurrence in the request the old one stays, unless the new period no longer fits it.
+    const recurrence=!repeats?null:'recurrence' in input?input.recurrence:
+      current.recurrence&&periodFits(input.period,current.recurrence)?current.recurrence:null;
+    if(current.version===input.version+1&&(current.period??null)===input.period&&(current.recurrence??null)===recurrence)
+      return {replayed:true,response:json(item(current))};
     if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
     const stamp=now();
-    store.queue('UPDATE matrix_unscheduled_todos SET period=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.period,stamp,actor.id,id,input.version);
+    if(repeats)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
+      input.period,recurrence,stamp,actor.id,id,input.version);
+    else store.queue('UPDATE matrix_unscheduled_todos SET period=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.period,stamp,actor.id,id,input.version);
     store.expectChange();
-    return {actor,response:json(item({...current,period:input.period,version:current.version+1,updated_at:stamp}))};
+    return {actor,response:json(item({...current,period:input.period,recurrence,version:current.version+1,updated_at:stamp}))};
   }
   if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
   const deleted=operation==='delete',restoring=operation==='restore';

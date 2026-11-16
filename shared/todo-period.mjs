@@ -49,3 +49,15 @@ export function periodPast(period, today) {
   if (!validPeriod(period)) return false;
   return period.includes('W') ? period < weekOf(today) : period < monthOf(today);
 }
+export const RECURRENCES = ['week', 'month'];
+/** True when a period fits a repeat: a week for 每周, a month for 每月. */
+export const periodFits = (period, recurrence) => validPeriod(period) && (recurrence === 'week') === period.includes('W');
+/** The period the next one of a repeating to-do goes to: after this one, and never before the week or month after today's. */
+export function nextPeriod(period, recurrence, today) {
+  if (recurrence === 'week') {
+    const now = weekOf(today), base = validPeriod(period) && period.includes('W') && period > now ? period : now;
+    return weekOf(iso(parse(weekStart(base)) + 7 * DAY));
+  }
+  const now = monthOf(today), base = validPeriod(period) && !period.includes('W') && period > now ? period : now;
+  return nextMonth(base);
+}

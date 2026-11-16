@@ -183,6 +183,13 @@
       "when": 1793171400016,
       "tag": "0025_unscheduled_todo_period",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1793171400017,
+      "tag": "0026_unscheduled_todo_recurrence",
+      "breakpoints": true
     }
   ]
 }

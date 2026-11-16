@@ -5743,6 +5743,16 @@ function periodPast(period, today2) {
   if (!validPeriod(period)) return false;
   return period.includes("W") ? period < weekOf(today2) : period < monthOf(today2);
 }
+var RECURRENCES = ["week", "month"];
+var periodFits = (period, recurrence) => validPeriod(period) && recurrence === "week" === period.includes("W");
+function nextPeriod(period, recurrence, today2) {
+  if (recurrence === "week") {
+    const now2 = weekOf(today2), base2 = validPeriod(period) && period.includes("W") && period > now2 ? period : now2;
+    return weekOf(iso2(parse(weekStart(base2)) + 7 * DAY));
+  }
+  const now = monthOf(today2), base = validPeriod(period) && !period.includes("W") && period > now ? period : now;
+  return nextMonth(base);
+}
 
 // shared/todo-period-words.mjs
 var WORDS = {
@@ -5763,20 +5773,10 @@ var WORDS = {
     "这周末",
     "本周末",
     "这个周末",
-    "这礼拜末",
-    // A weekly plan ("每周看一部电影") is kept as this week's item.
-    "每周",
-    "每一周",
-    "每个周",
-    "每礼拜",
-    "每个礼拜",
-    "每一个礼拜",
-    "每星期",
-    "每个星期",
-    "每一个星期",
-    "每周末",
-    "每个周末"
+    "这礼拜末"
   ],
+  // 每周 / 每月 are repeating plans, not this week or this month: the words stay in the text.
+  every_week: ["每周", "每一周", "每个周", "每礼拜", "每个礼拜", "每一个礼拜", "每星期", "每个星期", "每一个星期", "每周末", "每个周末"],
   next_week: [
     "下周",
     "下个周",
@@ -5809,18 +5809,9 @@ var WORDS = {
     "这个月中旬",
     "本月中旬",
     "这个月下旬",
-    "本月下旬",
-    // A monthly plan ("每月体检一次") is kept as this month's item.
-    "每月",
-    "每个月",
-    "每一个月",
-    "每月底",
-    "每个月底",
-    "每月末",
-    "每个月末",
-    "每月初",
-    "每个月初"
+    "本月下旬"
   ],
+  every_month: ["每月", "每个月", "每一个月", "每月底", "每个月底", "每月末", "每个月末", "每月初", "每个月初"],
   next_month: [
     "下月",
     "下个月",
@@ -5854,7 +5845,7 @@ function readPeriodWords(sentence) {
     if (/(上|上个|上一个|前)$/.test(source.slice(0, match.index))) continue;
     const key = ENTRIES.find(([word]) => word === match[1])[1];
     const rest = (source.slice(0, match.index) + " " + source.slice(match.index + match[0].length)).replace(/\s+/g, " ").replace(EDGE, "").trim();
-    return { period: key, text: rest || source.trim() };
+    return { period: key, text: key.startsWith("every_") ? source.trim() : rest || source.trim() };
   }
   return null;
 }
@@ -5866,6 +5857,13 @@ init_state();
 init_todos_state();
 init_format();
 init_runtime();
+var ADD_CHOICES = [...PERIOD_GROUPS.slice(0, 4), ["every_week", "每周"], ["every_month", "每月"], PERIOD_GROUPS[4]];
+var REPEAT_OF = { every_week: "week", every_month: "month" }, REPEAT_LABEL = { week: "每周", month: "每月" };
+function choiceValue(choice2, today2 = bjtDate()) {
+  const choices = periodChoices(today2), recurrence = REPEAT_OF[choice2] || null;
+  const period = recurrence === "week" ? choices.week : recurrence === "month" ? choices.month : choices[choice2] || null;
+  return { period, recurrence };
+}
 var cache = {
   owner: "",
   items: [],
@@ -5916,7 +5914,7 @@ function renderUnscheduledTodos() {
   return `<section id="todo-future" aria-label="未来待办" ${visible() ? "" : "hidden"}>
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
-<label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` + PERIOD_GROUPS.map(([key, label3]) => `<option value="${key}" ${v.newPeriod === key ? "selected" : ""}>${label3}</option>`).join("") + `</select>
+<label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` + ADD_CHOICES.map(([key, label3]) => `<option value="${key}" ${v.newPeriod === key ? "selected" : ""}>${label3}</option>`).join("") + `</select>
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
 <p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
 <p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点右边的 ▾ 定具体日子，或改成本周、下周这类大概时间。</p>
@@ -5948,11 +5946,15 @@ function futurePanel(item, v, off) {
     const name = label3 === "周末" ? WEEK[6] : label3;
     return `<button class="btn small" type="button" data-action="todo-future-quick" data-id="${id2}" data-date="${date2}" aria-label="把 ${e(item.text)} 移到${name}（${shortDay(date2)}）" ${off}>${name} <span class="todo-future-day">${shortDay(date2)}</span></button>`;
   }).join("") + `<button class="btn small text" type="button" data-action="todo-future-pick" data-id="${id2}" ${off}>选日期…</button>`;
+  const repeats = [["", "不重复"], ["week", "每周"], ["month", "每月"]].map(([value, label3]) => {
+    const on = (item.recurrence || "") === value;
+    return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-repeat" data-id="${id2}" data-repeat="${value}" aria-pressed="${on}" ${off}>${label3}</button>`;
+  }).join("");
   const periods = PERIOD_GROUPS.map(([key, label3]) => {
     const value = key === "none" ? "" : choices[key], on = (mine || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-period" data-id="${id2}" data-period="${value}" aria-pressed="${on}" ${off}>${label3}</button>`;
   }).join("");
-  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
+  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
 }
 function quickScheduleUnscheduledTodo(id2, date2) {
   if (!validTodoDate(date2)) return;
@@ -5972,8 +5974,9 @@ function toggleUnscheduledTodoPanel(id2) {
 function futureRow(item) {
   const v = current(), busy2 = v.pending || v.uncertain[item.id], off = busy2 ? "disabled" : "", check2 = `future-check-${item.id}`, open = v.open === item.id;
   const note = todoNoteField(item, { pending: busy2, editing: v.noteEdit, error: v.noteError, future: true });
-  const late = periodPast(item.period, bjtDate()) ? `<span class="todo-future-late">${item.period.includes("W") ? "上周" : "上个月"}没做完</span>` : "";
-  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${late}${note}</div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` + (v.uncertain[item.id] ? dateField(item, v, "") : open ? futurePanel(item, v, off) : "") + `</li>`;
+  const badge = item.recurrence ? `<span class="todo-future-repeat">${REPEAT_LABEL[item.recurrence] || ""}</span>` : "";
+  const late = !item.recurrence && periodPast(item.period, bjtDate()) ? `<span class="todo-future-late">${item.period.includes("W") ? "上周" : "上个月"}没做完</span>` : "";
+  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${badge}${late}${note}</div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` + (v.uncertain[item.id] ? dateField(item, v, "") : open ? futurePanel(item, v, off) : "") + `</li>`;
 }
 function futureGroups(items, today2 = bjtDate()) {
   const groups = new Map(PERIOD_GROUPS.map(([key]) => [key, []]));
@@ -6024,10 +6027,11 @@ async function loadUnscheduledTodos() {
     }
   }
 }
-var GROUP_NAME = Object.fromEntries(PERIOD_GROUPS);
+var GROUP_NAME = Object.fromEntries(ADD_CHOICES);
 function heardText(v) {
   const heard = readPeriodWords(v.draft);
-  return heard && v.newPeriod === heard.period ? `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」` : "";
+  if (!heard || v.newPeriod !== heard.period) return "";
+  return REPEAT_OF[heard.period] ? `认出「${GROUP_NAME[heard.period]}」重复，做完会自动出现${heard.period === "every_week" ? "下周" : "下个月"}的一条` : `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」`;
 }
 function paintHeard(v) {
   const select = $("#todo-future-period"), line = $("#todo-future-heard");
@@ -6179,6 +6183,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
     if (result.state === "confirmed") {
       delete v.uncertain[id2];
       v.items = v.items.filter((item) => item.id !== id2);
+      if (result.next?.id && !v.items.some((item) => item.id === result.next.id)) v.items = [...v.items, result.next];
       let cacheStatus = "refresh";
       try {
         cacheStatus = await offline.acceptMovedTodo({ source: result.source, todo: result.todo }, token);
@@ -6227,7 +6232,7 @@ async function submitUnscheduledTodo({ data: data3 }) {
     paintUnscheduledTodos();
     return;
   }
-  const choice2 = String(data3.period || "none"), period = choice2 === "none" ? null : periodChoices(bjtDate())[choice2] || null;
+  const choice2 = String(data3.period || "none"), { period, recurrence } = choiceValue(choice2);
   if (!v.request || v.request.text !== text) v.request = { id: crypto.randomUUID(), text };
   const submitted = v.request;
   v.pending = true;
@@ -6236,7 +6241,7 @@ async function submitUnscheduledTodo({ data: data3 }) {
   try {
     const row = await api("/unscheduled-todos", { method: "POST", body: submitted });
     if (v.owner !== key || owner() !== key) return;
-    v.items = [...v.items.filter((x) => x.id !== row.id), period ? { ...row, period } : row];
+    v.items = [...v.items.filter((x) => x.id !== row.id), period ? { ...row, period, ...recurrence ? { recurrence } : {} } : row];
     v.request = null;
     if (v.draft.trim() === typed) {
       v.draft = "";
@@ -6244,7 +6249,7 @@ async function submitUnscheduledTodo({ data: data3 }) {
       v.manualPeriod = false;
       paintHeard(v);
     }
-    if (period) void addPeriod(row.id, period, key);
+    if (period) void addPeriod(row.id, period, key, recurrence);
     const input = $("#todo-future-text");
     if (input && input.value.trim() === typed) input.value = "";
   } catch (error2) {
@@ -6257,7 +6262,7 @@ async function submitUnscheduledTodo({ data: data3 }) {
   }
 }
 var transient = (error2) => error2.status === 404 || error2.status === 409 || error2.status === 429 || error2.status >= 500 || error2.code === "NETWORK_UNAVAILABLE" || !error2.status;
-async function addPeriod(id2, period, key) {
+async function addPeriod(id2, period, key, recurrence = null) {
   const v = current(), live2 = () => v.owner === key && owner() === key, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let last = null;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -6267,12 +6272,15 @@ async function addPeriod(id2, period, key) {
     try {
       const saved = await api("/unscheduled-todos/" + encodeURIComponent(id2));
       if (!live2()) return;
-      if (saved.period === period) {
+      if (saved.period === period && (saved.recurrence || null) === recurrence) {
         v.items = v.items.map((x) => x.id === id2 ? saved : x);
         paintUnscheduledTodos();
         return;
       }
-      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { period, version: saved.version } });
+      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", {
+        method: "PATCH",
+        body: recurrence ? { period, recurrence, version: saved.version } : { period, version: saved.version }
+      });
       if (live2()) {
         v.items = v.items.map((x) => x.id === id2 ? updated : x);
         paintUnscheduledTodos();
@@ -6323,12 +6331,23 @@ function deleteUnscheduledTodo(id2) {
   if (v.open === id2) v.open = "";
   return change(id2, "DELETE", {});
 }
-async function setUnscheduledTodoPeriod(id2, period) {
+function setUnscheduledTodoRepeat(id2, repeat) {
+  const v = current(), row = v.items.find((x) => x.id === id2);
+  if (!row) return;
+  const recurrence = repeat || null, choices = periodChoices(bjtDate());
+  const period = !recurrence ? row.period || null : periodFits(row.period, recurrence) ? row.period : recurrence === "week" ? choices.week : choices.month;
+  return savePeriod(id2, { period, recurrence });
+}
+function setUnscheduledTodoPeriod(id2, period) {
+  const row = current().items.find((x) => x.id === id2);
+  if (!row) return;
+  return savePeriod(id2, { period: period || null });
+}
+async function savePeriod(id2, change3) {
   if (!visible()) return;
   const v = current(), key = v.owner, row = v.items.find((x) => x.id === id2);
   if (!row || v.pending) return;
-  const value = period || null;
-  if ((row.period || null) === value) {
+  if ((row.period || null) === change3.period && (!("recurrence" in change3) || (row.recurrence || null) === change3.recurrence)) {
     v.open = "";
     paintUnscheduledTodos();
     return;
@@ -6337,7 +6356,7 @@ async function setUnscheduledTodoPeriod(id2, period) {
   v.error = "";
   paintUnscheduledTodos();
   try {
-    const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { period: value, version: row.version } });
+    const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { ...change3, version: row.version } });
     if (v.owner === key && owner() === key) {
       v.items = v.items.map((x) => x.id === id2 ? updated : x);
       v.open = "";
@@ -20501,6 +20520,7 @@ var actions = {
   "todo-future-pick": ({ id: id2 }) => pickUnscheduledTodoDate(id2),
   "todo-future-menu": ({ id: id2 }) => toggleUnscheduledTodoPanel(id2),
   "todo-future-period": ({ id: id2, target }) => setUnscheduledTodoPeriod(id2, target.dataset.period),
+  "todo-future-repeat": ({ id: id2, target }) => setUnscheduledTodoRepeat(id2, target.dataset.repeat),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
