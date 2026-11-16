@@ -19,3 +19,13 @@ test('the approval page needs PKCE and a Claude callback, and allows its form to
   await assert.rejects(call('/oauth/authorize?'+query({redirect_uri:'https://evil.test/cb'})),error=>error.status===400);
   await assert.rejects(call('/oauth/authorize?'+query({code_challenge_method:'plain'})),error=>error.status===400);
 });
+
+test('approving checks that the form came from this site, also when the browser sends Origin: null',async()=>{
+  const body=new URLSearchParams({response_type:'code',client_id:'claude-1',redirect_uri:'https://claude.ai/api/mcp/auth_callback',
+    code_challenge:'a'.repeat(43),code_challenge_method:'S256'}).toString();
+  const post=headers=>call('/oauth/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',...headers},body});
+  await assert.rejects(post({Origin:'https://evil.test'}),error=>error.code==='CSRF');
+  await assert.rejects(post({Origin:'null','Sec-Fetch-Site':'cross-site'}),error=>error.code==='CSRF');
+  // Past the origin check, without a logged-in owner (no database here) the page asks to log in first.
+  assert.match(await (await post({Origin:'null','Sec-Fetch-Site':'same-origin'})).text(),/请先登录/);
+});

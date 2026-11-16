@@ -51,7 +51,7 @@ function authorizeParams(params) {
   return out;
 }
 const page=(origin,body)=>new Response(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>连接 Claude · 好多鱼工作台</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:12vh auto;padding:0 20px;line-height:1.6;color:#2a2a2a}
+<meta name="referrer" content="same-origin"><title>连接 Claude · 好多鱼工作台</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:12vh auto;padding:0 20px;line-height:1.6;color:#2a2a2a}
 h1{font-size:20px}ul{padding-left:20px}button{font-size:16px;padding:10px 22px;border-radius:999px;border:0;background:#a34a34;color:#fff}
 .muted{color:#777;font-size:13px}a{color:#a34a34}</style></head><body>${body}</body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8',
   // The approve form ends in a redirect to Claude, which form-action has to allow.
@@ -65,7 +65,10 @@ function consent(params,origin) {
 <p class="muted">需要先在这个浏览器里登录好多鱼工作台。</p>`);
 }
 async function approve(request,db,origin) {
-  if(request.headers.get('origin')!==origin)throw fail(403,'CSRF','请从授权页面提交');
+  // The site sends Referrer-Policy: no-referrer, under which a browser may send "Origin: null" for its own form;
+  // Sec-Fetch-Site, which a page cannot forge, then shows that the form was submitted from this site.
+  const from=request.headers.get('origin'),site=request.headers.get('sec-fetch-site');
+  if(from!==origin&&!((from===null||from==='null')&&site==='same-origin'))throw fail(403,'CSRF','请从授权页面提交');
   const form=new URLSearchParams(await request.text()),input=authorizeParams(form);
   let actor=null;try {actor=await authenticate(storeFor(db),request);requireAdmin(actor);} catch {actor=null;}
   if(!actor)return page(origin,`<h1>请先登录</h1><p>在这个浏览器里<a href="/" target="_blank" rel="noopener">打开好多鱼工作台并登录</a>，再回到这一页点「同意并连接」。</p>
