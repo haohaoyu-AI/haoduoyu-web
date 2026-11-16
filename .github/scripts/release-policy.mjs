@@ -429,7 +429,15 @@ export const connectorLoginRelease=Object.freeze({
   baseline:'056137f2-2d8e-40ee-8d1d-93fa8849f764',
   bytes:3261612,sha256:'396aa6d990a29ffc8580e32fc1491bc9dd8afe6743e404a3019d7d7f48fd2efc',
   label:'production-connector-login-20261116'});
-const acceptedRelease=commit=>commit===connectorLoginRelease.commit?connectorLoginRelease:
+// connector for ChatGPT and Codex, on top of the deployed 80a0b72.
+export const connectorClientsRelease=Object.freeze({
+  commit:'f8420b3787f083109986685a64cd9edd4c29278c',
+  tree:'399b4832bbf2ccd8800a6df49abad96b78785519',
+  baseline:'cc0ba62d-6a20-4645-86ef-01da4be789da',
+  bytes:3262292,sha256:'a1acc8d241ae3e9ae25bf5a58be374b9f999b66b9053e1e82fc792e8b2149594',
+  label:'production-connector-clients-20261116'});
+const acceptedRelease=commit=>commit===connectorClientsRelease.commit?connectorClientsRelease:
+  commit===connectorLoginRelease.commit?connectorLoginRelease:
   commit===connectorAllRelease.commit?connectorAllRelease:
   commit===connectorOriginRelease.commit?connectorOriginRelease:
   commit===claudeConnectorRelease.commit?claudeConnectorRelease:
