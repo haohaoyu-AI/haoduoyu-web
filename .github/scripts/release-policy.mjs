@@ -415,7 +415,15 @@ export const connectorOriginRelease=Object.freeze({
   baseline:'e78bd453-fda3-4a77-addb-9c4b962c2313',
   bytes:3257128,sha256:'0ab9f0bb90a865ca4a8f489098c645be3dbc6bc22ac46a19d5d849e6a38766d2',
   label:'production-connector-origin-20261116'});
-const acceptedRelease=commit=>commit===connectorOriginRelease.commit?connectorOriginRelease:
+// connector api_request for all routes, on top of the deployed 0ab490e.
+export const connectorAllRelease=Object.freeze({
+  commit:'0630f4302603b574577563d8ecad2b81391b63a0',
+  tree:'eef6fe9c735e06578dab06116daa3c8a1a01dfee',
+  baseline:'5563d93b-c2e1-4c3e-8bb1-f6f1f2196855',
+  bytes:3261122,sha256:'9d6e9c03cc4a9d51861cf81e64c2172eb00c1bcee4ae4a5abebd73124449a987',
+  label:'production-connector-all-20261116'});
+const acceptedRelease=commit=>commit===connectorAllRelease.commit?connectorAllRelease:
+  commit===connectorOriginRelease.commit?connectorOriginRelease:
   commit===claudeConnectorRelease.commit?claudeConnectorRelease:
   commit===smartDueRelease.commit?smartDueRelease:
   commit===futureRepeatRelease.commit?futureRepeatRelease:
