@@ -700,16 +700,16 @@ function idbTransaction(database, names, mode, callback) {
       } catch {
       }
     }, 1e4);
-    const done2 = () => {
+    const done3 = () => {
       keeper.stop();
       clearTimeout(timer2);
     };
     tx.oncomplete = () => {
-      done2();
+      done3();
       finished ? resolve(result) : reject(new Error("Offline transaction became inactive"));
     };
     tx.onabort = () => {
-      done2();
+      done3();
       reject(tx.error || new Error("Offline transaction aborted"));
     };
     tx.onerror = () => {
@@ -719,7 +719,7 @@ function idbTransaction(database, names, mode, callback) {
       finished = true;
       keeper.finish();
     }).catch((error2) => {
-      done2();
+      done3();
       try {
         tx.abort();
       } catch {
@@ -5753,6 +5753,196 @@ function nextPeriod(period, recurrence, today2) {
   const now = monthOf(today2), base = validPeriod(period) && !period.includes("W") && period > now ? period : now;
   return nextMonth(base);
 }
+var daysUntil = (due, today2) => Math.round((parse(due) - parse(today2)) / DAY);
+var DUE_LEAD = 3;
+var dueSoon = (due, today2) => typeof due === "string" && daysUntil(due, today2) <= DUE_LEAD;
+function dueLabel(due, today2) {
+  const days = daysUntil(due, today2), day7 = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
+  return days > 0 ? `${day7} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day7} 截止 · 已过期 ${-days} 天`;
+}
+function dueGroup(due, today2) {
+  const choices = periodChoices(today2), week = weekOf(due);
+  if (week <= choices.week) return "week";
+  if (week === choices.next_week) return "next_week";
+  return monthOf(due) <= choices.month ? "month" : "next_month";
+}
+
+// shared/todo-parse-hint.mjs
+var TODO_PARSE_HINT = /明天|明早|明晚|后天|下周|下星期|下个?月|本周|这周|周[一二三四五六日天末]|星期[一二三四五六日天]|礼拜[一二三四五六日天]|\d{1,2}\s*[号日]|\d{1,2}\s*月|\d{1,2}[/.-]\d{1,2}|每天|每日|天天|每晚|每早|\d+\s*次|[一二两三四五六七八九十]+\s*次|月底|月初|不限次|次数不限|无限次|随时记|礼拜|星期|周末|每周|每个?月|下下|月中|[上中下]旬|年底|年前|年后|过年|春节|国庆|元旦|圣诞|节前|节后|之前|以前|截止|期限|[号日底]前|本月|这个?月/;
+
+// web/pages/todo-smart.mjs
+init_api();
+init_format();
+var WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+var FUTURE_SCOPE = "future";
+var smart = { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, sequence: 0 };
+var hooks = null;
+var el = (tag2, className, text) => {
+  const node3 = document.createElement(tag2);
+  if (className) node3.className = className;
+  if (text !== void 0) node3.textContent = text;
+  return node3;
+};
+var shiftDay = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
+function smartDayLabel(date2, today2 = bjtDate()) {
+  if (date2 === today2) return "今天";
+  if (date2 === shiftDay(today2, 1)) return "明天";
+  if (date2 === shiftDay(today2, 2)) return "后天";
+  const weekday = WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()];
+  return `${date2.slice(0, 4) === today2.slice(0, 4) ? "" : date2.slice(0, 4) + "年"}${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 周${weekday}`;
+}
+function smartTodoText(proposal) {
+  return proposal.text;
+}
+function smartTodoNote(proposal) {
+  return proposal.count ? `0/${proposal.count} 次` : "";
+}
+var countLabel = (proposal) => proposal.count === "∞" ? "不限次数" : proposal.count ? `${proposal.count} 次` : "";
+var FUTURE_LABEL = {
+  this_week: "本周",
+  next_week: "下周",
+  this_month: "本月",
+  next_month: "下个月",
+  every_week: "每周重复",
+  every_month: "每月重复"
+};
+function smartTarget(proposal, scope) {
+  if (proposal.kind === "daily") return "daily";
+  if (proposal.when === "day" && proposal.date) return scope !== FUTURE_SCOPE && proposal.date === scope ? "today" : "day";
+  if (FUTURE_LABEL[proposal.when] || proposal.when === "deadline") return "future";
+  return scope === FUTURE_SCOPE ? "future" : "today";
+}
+function smartPlace(proposal, scope, today2 = bjtDate()) {
+  const target = smartTarget(proposal, scope);
+  if (target === "daily") return "存为常用并加到今天";
+  if (target === "today") return `加到 ${smartDayLabel(scope === FUTURE_SCOPE ? today2 : scope, today2)}`;
+  if (target === "day") return `加到 ${smartDayLabel(proposal.date, today2)}`;
+  if (proposal.when === "deadline") return `加到 未来 · ${Number(proposal.due_date.slice(5, 7))}/${Number(proposal.due_date.slice(8))} 截止`;
+  return `加到 未来 · ${FUTURE_LABEL[proposal.when] || "不定"}`;
+}
+function smartTodoWanted(text) {
+  return TODO_PARSE_HINT.test(text);
+}
+function smartTodoReady(text, scope) {
+  return smart.status === "ready" && smart.sentence === text && !smart.busy && (scope === void 0 || smart.date === scope);
+}
+function smartTodoActive(scope) {
+  return Boolean(smart.status) && smart.date === scope;
+}
+function clearSmartTodo() {
+  smart.sequence++;
+  Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false });
+}
+async function startSmartTodo(day7, sentence, given) {
+  hooks = given;
+  const sequence5 = ++smart.sequence;
+  Object.assign(smart, { sentence, date: day7.date, status: "reading", proposal: null, error: "", busy: false });
+  hooks.repaint();
+  try {
+    const context = day7.date === FUTURE_SCOPE ? "future" : "today";
+    const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence, context } });
+    if (sequence5 !== smart.sequence) return;
+    if (!data3.needs_model) {
+      clearSmartTodo();
+      hooks.repaint();
+      await hooks.plain(day7, sentence, data3);
+      return;
+    }
+    smart.status = "ready";
+    smart.proposal = data3;
+  } catch (error2) {
+    if (sequence5 !== smart.sequence) return;
+    smart.status = "error";
+    smart.error = error2?.message || "没能读懂这句话";
+  }
+  hooks.repaint();
+}
+async function confirmSmartTodo(day7) {
+  const proposal = smart.proposal;
+  if (!proposal || smart.busy || !hooks || smart.date !== day7.date) return;
+  smart.busy = true;
+  smart.error = "";
+  hooks.repaint();
+  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence, target = smartTarget(proposal, day7.date);
+  try {
+    if (target === "daily") await hooks.saveDaily(day7, text, note);
+    else if (target === "today") {
+      const date2 = day7.date === FUTURE_SCOPE ? bjtDate() : day7.date;
+      if (day7.date === FUTURE_SCOPE) await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: date2, text }, "今天", note);
+      else await hooks.save(day7, { id: crypto.randomUUID(), date: date2, text }, note);
+    } else if (target === "day") await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
+    else await hooks.saveFuture(day7, proposal, smartPlace(proposal, day7.date).replace(/^加到 /, ""));
+    if (sequence5 === smart.sequence) clearSmartTodo();
+  } catch (error2) {
+    if (sequence5 === smart.sequence) {
+      smart.busy = false;
+      smart.error = error2?.message || "添加失败，请稍后再试";
+    }
+  }
+  hooks.repaint();
+}
+async function plainSmartTodo(day7) {
+  const sentence = smart.sentence;
+  clearSmartTodo();
+  hooks.repaint();
+  await hooks.plain(day7, sentence);
+}
+function summary(proposal, scope) {
+  const text = smartTodoText(proposal), count3 = countLabel(proposal);
+  const parts2 = [[smartPlace(proposal, scope), "todo-smart-day"], [text, "todo-smart-text"]];
+  if (count3) parts2.push([`计数：${count3}`, "todo-smart-count"]);
+  return parts2;
+}
+function hint(proposal, scope) {
+  if (proposal.kind === "daily") return proposal.count ? "常用里一点就能加到当天，计数会自动从 0 开始。" : "常用里一点就能加到当天，不会自动每天出现。";
+  if (smartTarget(proposal, scope) !== "future") return "";
+  if (proposal.when === "deadline") return "截止前三天起，每天都会出现在今日，直到你点完成。";
+  if (proposal.recurrence) return `做完后会自动出现${proposal.recurrence === "week" ? "下周" : "下个月"}的一条。`;
+  return "";
+}
+function paintSmartTodo(root3, day7) {
+  const future = day7.date === FUTURE_SCOPE, id2 = future ? "todo-smart-future" : "todo-smart";
+  const form = root3.querySelector(future ? "#todo-future-form" : "#todo-form");
+  let row = root3.querySelector("#" + id2);
+  if (!smart.status || smart.date !== day7.date || !form) {
+    row?.remove();
+    return;
+  }
+  if (!row) {
+    row = el("div", "todo-smart");
+    row.id = id2;
+    row.setAttribute("role", "status");
+  }
+  if (form.nextElementSibling !== row) form.after(row);
+  const key = [smart.sequence, smart.status, smart.busy, smart.error].join("|");
+  if (row.dataset.key === key) return;
+  row.dataset.key = key;
+  const parts2 = [];
+  if (smart.status === "reading") parts2.push(el("span", "todo-smart-wait", "正在看这句话…"));
+  else if (smart.status === "ready") {
+    const line = el("p", "todo-smart-line");
+    for (const [text, className] of summary(smart.proposal, day7.date)) line.append(el("span", className, text));
+    parts2.push(line);
+    const tip = hint(smart.proposal, day7.date);
+    if (tip) parts2.push(el("p", "todo-smart-hint", tip));
+  } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
+  if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
+  const actions2 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
+    const node3 = el("button", className, label3);
+    node3.type = "button";
+    node3.disabled = smart.busy;
+    node3.addEventListener("click", run2);
+    actions2.append(node3);
+  };
+  if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day7));
+  if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day7));
+  button3("取消", "btn text", () => {
+    clearSmartTodo();
+    hooks?.repaint();
+  });
+  parts2.push(actions2);
+  row.replaceChildren(...parts2);
+}
 
 // shared/todo-period-words.mjs
 var WORDS = {
@@ -5881,7 +6071,8 @@ var cache = {
   picking: {},
   open: "",
   newPeriod: "none",
-  manualPeriod: false
+  manualPeriod: false,
+  dues: {}
 };
 var paintingFuture = false;
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
@@ -5904,11 +6095,13 @@ function current() {
     picking: {},
     open: "",
     newPeriod: "none",
-    manualPeriod: false
+    manualPeriod: false,
+    dues: {}
   });
   return cache;
 }
 var visible = () => Boolean(state.me) && state.page === "todos" && state.todoPanel === "future";
+var onTodos = () => Boolean(state.me) && state.page === "todos";
 function renderUnscheduledTodos() {
   const v = current();
   return `<section id="todo-future" aria-label="未来待办" ${visible() ? "" : "hidden"}>
@@ -5917,7 +6110,7 @@ function renderUnscheduledTodos() {
 <label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` + ADD_CHOICES.map(([key, label3]) => `<option value="${key}" ${v.newPeriod === key ? "selected" : ""}>${label3}</option>`).join("") + `</select>
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
 <p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
-<p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点右边的 ▾ 定具体日子，或改成本周、下周这类大概时间。</p>
+<p class="todo-future-help">可以直接说「下周看电影」「每周跑步」「12月16号之前退订会员」；勾选＝做完了，移到今日；点 ▾ 定日子、改时间或截止日。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -5927,12 +6120,12 @@ function futureTodoView() {
 function futureRepainting() {
   return paintingFuture;
 }
-var shiftDay = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
+var shiftDay2 = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
 var shortDay = (date2) => `${Number(date2.slice(5, 7))}/${Number(date2.slice(8))}`;
 function futureQuickDates(today2 = bjtDate()) {
   const weekday = (/* @__PURE__ */ new Date(today2 + "T00:00:00Z")).getUTCDay();
-  const third = weekday === 5 ? ["周日", shiftDay(today2, 2)] : weekday === 6 ? ["下周六", shiftDay(today2, 7)] : ["周末", shiftDay(today2, (6 - weekday + 7) % 7 || 7)];
-  return [["今天", today2], ["明天", shiftDay(today2, 1)], third];
+  const third = weekday === 5 ? ["周日", shiftDay2(today2, 2)] : weekday === 6 ? ["下周六", shiftDay2(today2, 7)] : ["周末", shiftDay2(today2, (6 - weekday + 7) % 7 || 7)];
+  return [["今天", today2], ["明天", shiftDay2(today2, 1)], third];
 }
 var GROUP_LABEL = Object.fromEntries(PERIOD_GROUPS);
 var WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -5954,7 +6147,7 @@ function futurePanel(item, v, off) {
     const value = key === "none" ? "" : choices[key], on = (mine || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-period" data-id="${id2}" data-period="${value}" aria-pressed="${on}" ${off}>${label3}</button>`;
   }).join("");
-  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
+  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
 }
 function quickScheduleUnscheduledTodo(id2, date2) {
   if (!validTodoDate(date2)) return;
@@ -5975,18 +6168,21 @@ function futureRow(item) {
   const v = current(), busy2 = v.pending || v.uncertain[item.id], off = busy2 ? "disabled" : "", check2 = `future-check-${item.id}`, open = v.open === item.id;
   const note = todoNoteField(item, { pending: busy2, editing: v.noteEdit, error: v.noteError, future: true });
   const badge = item.recurrence ? `<span class="todo-future-repeat">${REPEAT_LABEL[item.recurrence] || ""}</span>` : "";
-  const late = !item.recurrence && periodPast(item.period, bjtDate()) ? `<span class="todo-future-late">${item.period.includes("W") ? "上周" : "上个月"}没做完</span>` : "";
-  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${badge}${late}${note}</div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` + (v.uncertain[item.id] ? dateField(item, v, "") : open ? futurePanel(item, v, off) : "") + `</li>`;
+  const today2 = bjtDate(), due = item.due_date ? `<span class="todo-future-due${dueSoon(item.due_date, today2) ? " is-soon" : ""}${daysUntil(item.due_date, today2) < 0 ? " is-over" : ""}">${dueLabel(item.due_date, today2)}</span>` : "";
+  const late = !item.recurrence && !item.due_date && periodPast(item.period, today2) ? `<span class="todo-future-late">${item.period.includes("W") ? "上周" : "上个月"}没做完</span>` : "";
+  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${badge}${due}${late}${note}</div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` + (v.uncertain[item.id] ? dateField(item, v, "") : open ? futurePanel(item, v, off) : "") + `</li>`;
 }
 function futureGroups(items, today2 = bjtDate()) {
   const groups = new Map(PERIOD_GROUPS.map(([key]) => [key, []]));
-  for (const item of items) groups.get(periodGroup(item.period, today2)).push(item);
+  for (const item of items) groups.get(item.due_date ? dueGroup(item.due_date, today2) : periodGroup(item.period, today2)).push(item);
+  for (const rows of groups.values()) rows.sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : (a.due_date || "9999") > (b.due_date || "9999") ? 1 : 0);
   return [...groups].filter(([, rows]) => rows.length);
 }
 function paintUnscheduledTodos() {
   paintingFuture = true;
   try {
     paintFutureList();
+    paintDueList();
   } finally {
     paintingFuture = false;
   }
@@ -6004,6 +6200,39 @@ function paintFutureList() {
   const keep = live2?.matches?.('[data-todo-note-input][data-future="1"]') && live2.isConnected && v.noteEdit?.id === live2.dataset.id;
   const rows = v.items.filter((x) => !x.deleted_at && !x.deleted), groups = futureGroups(rows), only = groups.length === 1 && groups[0][0] === "none";
   if (list3 && !keep) list3.innerHTML = groups.map(([key, items]) => (only ? "" : `<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}<span class="todo-future-count">${items.length}</span></li>`) + items.map(futureRow).join("")).join("");
+  paintSmartTodo(root3, { date: FUTURE_SCOPE });
+}
+function dueTodos(items, today2 = bjtDate()) {
+  return items.filter((x) => !x.deleted_at && !x.deleted && !x.completed && dueSoon(x.due_date, today2)).sort((a, b) => a.due_date < b.due_date ? -1 : 1);
+}
+function paintDueList() {
+  const list3 = $("#todo-due");
+  if (!list3) return;
+  const v = current(), today2 = bjtDate(), show = !state.todoPanel && (!state.todoDate || state.todoDate === today2);
+  const html = show ? dueTodos(v.items, today2).map((item) => {
+    const check2 = `due-check-${item.id}`, busy2 = v.pending || v.uncertain[item.id], over = daysUntil(item.due_date, today2) < 0;
+    return `<li class="daily-todo-row todo-due-row${over ? " is-over" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${busy2 ? "disabled" : ""}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label><span class="todo-future-due is-soon${over ? " is-over" : ""}">${dueLabel(item.due_date, today2)}</span></div></li>`;
+  }).join("") : "";
+  if (list3.innerHTML !== html) list3.innerHTML = html;
+  list3.hidden = !html;
+}
+async function loadDueTodos() {
+  if (!onTodos() || state.todoPanel || state.todoDate && state.todoDate !== bjtDate()) return;
+  const v = current(), key = v.owner;
+  if (v.loading || v.loaded) return paintDueList();
+  v.loading = true;
+  try {
+    const data3 = await api("/unscheduled-todos");
+    if (v.owner !== key || owner() !== key || !Array.isArray(data3.items)) return;
+    v.items = data3.items;
+    v.loaded = true;
+  } catch {
+  } finally {
+    if (v.owner === key && owner() === key) {
+      v.loading = false;
+      paintUnscheduledTodos();
+    }
+  }
 }
 async function loadUnscheduledTodos() {
   if (!visible()) return;
@@ -6029,6 +6258,7 @@ async function loadUnscheduledTodos() {
 }
 var GROUP_NAME = Object.fromEntries(ADD_CHOICES);
 function heardText(v) {
+  if (smartTodoActive(FUTURE_SCOPE)) return "";
   const heard = readPeriodWords(v.draft);
   if (!heard || v.newPeriod !== heard.period) return "";
   return REPEAT_OF[heard.period] ? `认出「${GROUP_NAME[heard.period]}」重复，做完会自动出现${heard.period === "every_week" ? "下周" : "下个月"}的一条` : `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」`;
@@ -6052,6 +6282,7 @@ function inputUnscheduledTodo(el3) {
     paintHeard(v);
   }
   if (el3.dataset?.futureDateId) current().dates[el3.dataset.futureDateId] = el3.value;
+  if (el3.dataset?.futureDueId) current().dues[el3.dataset.futureDueId] = el3.value;
 }
 function moved(row, date2, source, todo, complete = false) {
   const completed = complete ? true : row.completed;
@@ -6122,7 +6353,7 @@ function formatMovedDate(date2) {
   return `${Number(month)}月${Number(day7)}日`;
 }
 async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
-  if (!visible()) return;
+  if (!onTodos()) return;
   const v = current(), key = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
   if (!row || v.pending) return;
   const unresolved2 = v.uncertain[id2], original = unresolved2?.row || structuredClone(row), finishing = unresolved2?.complete ?? complete, date2 = unresolved2?.date || (finishing ? bjtDate() : v.dates[id2] || "");
@@ -6222,17 +6453,67 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
     }
   }
 }
+var bridge = null;
+function setFutureBridge(given) {
+  bridge = given;
+}
+var FUTURE_DAY = { date: FUTURE_SCOPE };
+var done = (v, typed, message) => {
+  if (v.draft.trim() === typed) {
+    v.draft = "";
+    v.newPeriod = "none";
+    v.manualPeriod = false;
+    paintHeard(v);
+  }
+  const input = $("#todo-future-text");
+  if (input && input.value.trim() === typed) input.value = "";
+  if (message) {
+    v.notice = message;
+    toast(message);
+  }
+};
+var futureHooks = {
+  repaint: () => paintUnscheduledTodos(),
+  plain: (day7, text) => addTyped(text, "none"),
+  async saveElsewhere(day7, request2, label3, note) {
+    const v = current();
+    await bridge.toDay(request2, note);
+    done(v, smartSentence(v), `已添加到 ${label3}`);
+  },
+  async saveDaily(day7, text, note) {
+    const v = current();
+    await bridge.daily(text, note);
+    done(v, smartSentence(v), "已存为常用并加到今天");
+  },
+  async saveFuture(day7, proposal, label3) {
+    const v = current();
+    await addFutureTodo(proposal);
+    done(v, smartSentence(v), `已加到 ${label3}`);
+  }
+};
+var smartSentence = (v) => v.smartTyped || "";
 async function submitUnscheduledTodo({ data: data3 }) {
   if (!visible()) return;
-  const v = current(), key = v.owner, typed = String(data3.text || "").trim(), heard = readPeriodWords(typed);
-  const text = heard && heard.period === String(data3.period || "none") ? heard.text : typed;
+  const v = current(), typed = String(data3.text || "").trim();
   if (v.pending) return;
-  if (!text || text.length > 500) {
+  if (!typed || typed.length > 500) {
     v.error = "请填写 1–500 字的内容。";
     paintUnscheduledTodos();
     return;
   }
-  const choice2 = String(data3.period || "none"), { period, recurrence } = choiceValue(choice2);
+  if (!v.manualPeriod && smartTodoReady(typed, FUTURE_SCOPE)) return confirmSmartTodo(FUTURE_DAY);
+  if (!v.manualPeriod && smartTodoWanted(typed)) {
+    v.smartTyped = typed;
+    v.error = "";
+    return startSmartTodo(FUTURE_DAY, typed, futureHooks);
+  }
+  return addTyped(typed, String(data3.period || "none"));
+}
+async function addTyped(typed, choice2) {
+  const v = current(), key = v.owner, heard = readPeriodWords(typed);
+  if (choice2 === "none" && !v.manualPeriod && heard) choice2 = heard.period;
+  const text = heard && heard.period === choice2 ? heard.text : typed;
+  const { period, recurrence } = choiceValue(choice2);
   if (!v.request || v.request.text !== text) v.request = { id: crypto.randomUUID(), text };
   const submitted = v.request;
   v.pending = true;
@@ -6243,15 +6524,8 @@ async function submitUnscheduledTodo({ data: data3 }) {
     if (v.owner !== key || owner() !== key) return;
     v.items = [...v.items.filter((x) => x.id !== row.id), period ? { ...row, period, ...recurrence ? { recurrence } : {} } : row];
     v.request = null;
-    if (v.draft.trim() === typed) {
-      v.draft = "";
-      v.newPeriod = "none";
-      v.manualPeriod = false;
-      paintHeard(v);
-    }
-    if (period) void addPeriod(row.id, period, key, recurrence);
-    const input = $("#todo-future-text");
-    if (input && input.value.trim() === typed) input.value = "";
+    done(v, typed);
+    if (period) void addMeta(row.id, recurrence ? { period, recurrence } : { period }, key);
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
   } finally {
@@ -6261,8 +6535,20 @@ async function submitUnscheduledTodo({ data: data3 }) {
     }
   }
 }
+async function addFutureTodo(proposal) {
+  const v = current(), key = v.owner, change3 = { period: proposal.period || null };
+  if (proposal.recurrence) change3.recurrence = proposal.recurrence;
+  if (proposal.due_date) change3.due_date = proposal.due_date;
+  const row = await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text: proposal.text } });
+  if (v.owner !== key || owner() !== key) return row;
+  v.items = [...v.items.filter((x) => x.id !== row.id), { ...row, ...Object.fromEntries(Object.entries(change3).filter(([, value]) => value)) }];
+  paintUnscheduledTodos();
+  if (change3.period || change3.recurrence || change3.due_date) void addMeta(row.id, change3, key);
+  return row;
+}
 var transient = (error2) => error2.status === 404 || error2.status === 409 || error2.status === 429 || error2.status >= 500 || error2.code === "NETWORK_UNAVAILABLE" || !error2.status;
-async function addPeriod(id2, period, key, recurrence = null) {
+var same2 = (saved, change3) => Object.entries(change3).every(([name, value]) => (saved[name] ?? null) === value);
+async function addMeta(id2, change3, key) {
   const v = current(), live2 = () => v.owner === key && owner() === key, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let last = null;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -6272,15 +6558,12 @@ async function addPeriod(id2, period, key, recurrence = null) {
     try {
       const saved = await api("/unscheduled-todos/" + encodeURIComponent(id2));
       if (!live2()) return;
-      if (saved.period === period && (saved.recurrence || null) === recurrence) {
+      if (same2(saved, change3)) {
         v.items = v.items.map((x) => x.id === id2 ? saved : x);
         paintUnscheduledTodos();
         return;
       }
-      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", {
-        method: "PATCH",
-        body: recurrence ? { period, recurrence, version: saved.version } : { period, version: saved.version }
-      });
+      const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { ...change3, version: saved.version } });
       if (live2()) {
         v.items = v.items.map((x) => x.id === id2 ? updated : x);
         paintUnscheduledTodos();
@@ -6298,10 +6581,10 @@ function undo(id2, key, error2) {
   if (v.owner !== key || owner() !== key) return;
   v.items = v.items.map((x) => {
     if (x.id !== id2) return x;
-    const { period, ...rest } = x;
+    const { period, recurrence, due_date, ...rest } = x;
     return rest;
   });
-  v.error = `时间段没保存上，这条先放在「不定」，可以点 ▾ 再选一次（${error2?.message || "请稍后再试"}）`;
+  v.error = `时间没保存上，这条先放在「不定」，可以点 ▾ 再选一次（${error2?.message || "请稍后再试"}）`;
   paintUnscheduledTodos();
 }
 async function change(id2, method2, body4) {
@@ -6338,6 +6621,18 @@ function setUnscheduledTodoRepeat(id2, repeat) {
   const period = !recurrence ? row.period || null : periodFits(row.period, recurrence) ? row.period : recurrence === "week" ? choices.week : choices.month;
   return savePeriod(id2, { period, recurrence });
 }
+function setUnscheduledTodoDue(id2, clear = false) {
+  const v = current(), row = v.items.find((x) => x.id === id2);
+  if (!row) return;
+  const value = clear ? null : v.dues[id2] ?? row.due_date ?? "";
+  if (!clear && !validTodoDate(value)) {
+    v.error = "请先选一个截止日。";
+    paintUnscheduledTodos();
+    return;
+  }
+  delete v.dues[id2];
+  return savePeriod(id2, { period: row.period || null, due_date: value });
+}
 function setUnscheduledTodoPeriod(id2, period) {
   const row = current().items.find((x) => x.id === id2);
   if (!row) return;
@@ -6347,7 +6642,7 @@ async function savePeriod(id2, change3) {
   if (!visible()) return;
   const v = current(), key = v.owner, row = v.items.find((x) => x.id === id2);
   if (!row || v.pending) return;
-  if ((row.period || null) === change3.period && (!("recurrence" in change3) || (row.recurrence || null) === change3.recurrence)) {
+  if (same2(row, change3)) {
     v.open = "";
     paintUnscheduledTodos();
     return;
@@ -8361,9 +8656,9 @@ var TODO_COUNT_OPEN_MAX = 999;
 function read2(text) {
   const match = tally.exec(text);
   if (!match) return null;
-  const done2 = Number(match[1]), target = match[2] === "∞" ? null : Number(match[2]);
-  if (target !== null && (target < 1 || target > TODO_COUNT_MAX || done2 > target)) return null;
-  return { done: done2, target, length: match[0].length };
+  const done3 = Number(match[1]), target = match[2] === "∞" ? null : Number(match[2]);
+  if (target !== null && (target < 1 || target > TODO_COUNT_MAX || done3 > target)) return null;
+  return { done: done3, target, length: match[0].length };
 }
 function todoCount(note) {
   const text = String(note ?? ""), first = read2(text);
@@ -8372,15 +8667,15 @@ function todoCount(note) {
   for (let stale = read2(rest); stale; stale = read2(rest)) rest = rest.slice(stale.length);
   return { done: first.done, target: first.target, rest: rest.trim() };
 }
-function todoCountNote(done2, target, rest = "") {
-  return `${done2}/${target ?? "∞"} 次${rest ? ` · ${rest}` : ""}`;
+function todoCountNote(done3, target, rest = "") {
+  return `${done3}/${target ?? "∞"} 次${rest ? ` · ${rest}` : ""}`;
 }
 function todoCountChange(note, action, target = 0) {
   const current3 = todoCount(note), text = String(note ?? "").trim();
   if (action === "set") {
     if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) return null;
-    const done2 = current3?.done ?? 0;
-    return todoCountNote(target === null ? done2 : Math.min(done2, target), target, current3 ? current3.rest : text);
+    const done3 = current3?.done ?? 0;
+    return todoCountNote(target === null ? done3 : Math.min(done3, target), target, current3 ? current3.rest : text);
   }
   if (!current3) return null;
   if (action === "clear") return current3.rest;
@@ -9282,143 +9577,6 @@ async function changeTodoTemplate(options4, remove = false) {
   }
 }
 
-// shared/todo-parse-hint.mjs
-var TODO_PARSE_HINT = /明天|明早|明晚|后天|下周|下星期|下个?月|本周|这周|周[一二三四五六日天末]|星期[一二三四五六日天]|礼拜[一二三四五六日天]|\d{1,2}\s*[号日]|\d{1,2}\s*月|\d{1,2}[/.-]\d{1,2}|每天|每日|天天|每晚|每早|\d+\s*次|[一二两三四五六七八九十]+\s*次|月底|月初|不限次|次数不限|无限次|随时记/;
-
-// web/pages/todo-smart.mjs
-init_api();
-init_format();
-var WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-var smart = { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, sequence: 0 };
-var hooks = null;
-var el = (tag2, className, text) => {
-  const node3 = document.createElement(tag2);
-  if (className) node3.className = className;
-  if (text !== void 0) node3.textContent = text;
-  return node3;
-};
-var shiftDay2 = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") + days * 864e5).toISOString().slice(0, 10);
-function smartDayLabel(date2, today2 = bjtDate()) {
-  if (date2 === today2) return "今天";
-  if (date2 === shiftDay2(today2, 1)) return "明天";
-  if (date2 === shiftDay2(today2, 2)) return "后天";
-  const weekday = WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()];
-  return `${date2.slice(0, 4) === today2.slice(0, 4) ? "" : date2.slice(0, 4) + "年"}${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日 周${weekday}`;
-}
-function smartTodoText(proposal) {
-  return proposal.text;
-}
-function smartTodoNote(proposal) {
-  return proposal.count ? `0/${proposal.count} 次` : "";
-}
-var countLabel = (proposal) => proposal.count === "∞" ? "不限次数" : proposal.count ? `${proposal.count} 次` : "";
-function smartTodoWanted(text) {
-  return TODO_PARSE_HINT.test(text);
-}
-function smartTodoReady(text) {
-  return smart.status === "ready" && smart.sentence === text && !smart.busy;
-}
-function clearSmartTodo() {
-  smart.sequence++;
-  Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false });
-}
-async function startSmartTodo(day7, sentence, given) {
-  hooks = given;
-  const sequence5 = ++smart.sequence;
-  Object.assign(smart, { sentence, date: day7.date, status: "reading", proposal: null, error: "", busy: false });
-  hooks.repaint();
-  try {
-    const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence } });
-    if (sequence5 !== smart.sequence) return;
-    if (!data3.needs_model) {
-      clearSmartTodo();
-      hooks.repaint();
-      await hooks.plain(day7, sentence);
-      return;
-    }
-    smart.status = "ready";
-    smart.proposal = data3;
-  } catch (error2) {
-    if (sequence5 !== smart.sequence) return;
-    smart.status = "error";
-    smart.error = error2?.message || "没能读懂这句话";
-  }
-  hooks.repaint();
-}
-async function confirmSmartTodo(day7) {
-  const proposal = smart.proposal;
-  if (!proposal || smart.busy || !hooks) return;
-  smart.busy = true;
-  smart.error = "";
-  hooks.repaint();
-  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence;
-  try {
-    if (proposal.kind === "daily") await hooks.saveDaily(day7, text, note);
-    else if (proposal.date === day7.date) await hooks.save(day7, { id: crypto.randomUUID(), date: day7.date, text }, note);
-    else await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
-    if (sequence5 === smart.sequence) clearSmartTodo();
-  } catch (error2) {
-    if (sequence5 === smart.sequence) {
-      smart.busy = false;
-      smart.error = error2?.message || "添加失败，请稍后再试";
-    }
-  }
-  hooks.repaint();
-}
-async function plainSmartTodo(day7) {
-  const sentence = smart.sentence;
-  clearSmartTodo();
-  hooks.repaint();
-  await hooks.plain(day7, sentence);
-}
-function summary(proposal) {
-  const text = smartTodoText(proposal), count3 = countLabel(proposal);
-  const parts2 = [[proposal.kind === "daily" ? "存为常用并加到今天" : `加到 ${smartDayLabel(proposal.date)}`, "todo-smart-day"], [text, "todo-smart-text"]];
-  if (count3) parts2.push([`计数：${count3}`, "todo-smart-count"]);
-  return parts2;
-}
-function paintSmartTodo(root3, day7) {
-  const form = root3.querySelector("#todo-form");
-  let row = root3.querySelector("#todo-smart");
-  if (!smart.status || smart.date !== day7.date || !form) {
-    row?.remove();
-    return;
-  }
-  if (!row) {
-    row = el("div", "todo-smart");
-    row.id = "todo-smart";
-    row.setAttribute("role", "status");
-  }
-  if (form.nextElementSibling !== row) form.after(row);
-  const key = [smart.sequence, smart.status, smart.busy, smart.error].join("|");
-  if (row.dataset.key === key) return;
-  row.dataset.key = key;
-  const parts2 = [];
-  if (smart.status === "reading") parts2.push(el("span", "todo-smart-wait", "正在看这句话…"));
-  else if (smart.status === "ready") {
-    const line = el("p", "todo-smart-line");
-    for (const [text, className] of summary(smart.proposal)) line.append(el("span", className, text));
-    parts2.push(line);
-    if (smart.proposal.kind === "daily") parts2.push(el("p", "todo-smart-hint", smart.proposal.count ? "常用里一点就能加到当天，计数会自动从 0 开始。" : "常用里一点就能加到当天，不会自动每天出现。"));
-  } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
-  if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
-  const actions2 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
-    const node3 = el("button", className, label3);
-    node3.type = "button";
-    node3.disabled = smart.busy;
-    node3.addEventListener("click", run2);
-    actions2.append(node3);
-  };
-  if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day7));
-  if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day7));
-  button3("取消", "btn text", () => {
-    clearSmartTodo();
-    hooks?.repaint();
-  });
-  parts2.push(actions2);
-  row.replaceChildren(...parts2);
-}
-
 // web/pages/todo-preferences.mjs
 init_api();
 init_dom();
@@ -9580,11 +9738,11 @@ function todoCalendarDay(date2, selected) {
   const items = (monthSnapshot.month === date2.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date2) || [] : []).filter((item) => !item.deleted_at);
   const shown2 = items.filter((item) => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
   const loaded = monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && monthSnapshot.days.has(date2);
-  const done2 = items.filter((item) => item.completed).length;
-  const tone = !items.length ? " is-blank" : done2 === items.length ? " is-all-done" : "";
+  const done3 = items.filter((item) => item.completed).length;
+  const tone = !items.length ? " is-blank" : done3 === items.length ? " is-all-done" : "";
   const content2 = shown2.slice(0, 4).map((item) => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
   const more = shown2.length > 4 ? `<span class="todo-calendar-more">还有 ${shown2.length - 4} 项</span>` : "";
-  const count3 = loaded && items.length ? `${done2}/${items.length}` : "";
+  const count3 = loaded && items.length ? `${done3}/${items.length}` : "";
   return `<button class="todo-calendar-day${active6 ? " is-selected" : ""}${today2 ? " is-today" : ""}${loaded ? tone : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date2)}" aria-label="${e(date2)}${count3 ? `，完成 ${count3}` : ""}" aria-pressed="${active6}"
 ${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date2.slice(-2))}</strong><small>${count3}</small></span>${content2}${more}</button>`;
@@ -9601,10 +9759,10 @@ function todoCalendar(date2) {
   const weekIndex = Math.floor(index / 7);
   const visible4 = todosState.calendarView === "week" ? cells.slice(weekIndex * 7, weekIndex * 7 + 7) : cells;
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7).filter(Boolean));
-  const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done2 = all.filter((item) => item.completed).length;
+  const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done3 = all.filter((item) => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === monthOwner();
   const activeDays = [...monthSnapshot.days.values()].filter((items) => items.some((item) => !item.deleted_at)).length;
-  const stats2 = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done2], ["未完成", all.length - done2], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done2 / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  const stats2 = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done3], ["未完成", all.length - done3], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done3 / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
   return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
 <label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
@@ -9769,6 +9927,7 @@ async function setTodoPanel(panel2) {
   paintTodos();
   if (state.todoPanel === "future") await loadUnscheduledTodos();
   else {
+    void loadDueTodos();
     await loadTodos();
     if (state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(todoDay().date));
   }
@@ -9819,6 +9978,7 @@ ${renderTodoHistory(day7)}<div id="todo-main" ${["templates", "future"].includes
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day7)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day7)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day7)}</p>
+<ul id="todo-due" class="daily-todo-items todo-due-items" aria-label="快到期的未来待办" hidden></ul>
 <ul id="todo-items" class="daily-todo-items">${day7.items.map((item) => todoRow(item, day7)).join("")}${pendingTodo(day7)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day7) : ""}</div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
@@ -9917,6 +10077,7 @@ async function loadTodos(context) {
     return;
   }
   void loadTodoTemplates({ ensure: true });
+  void loadDueTodos();
   const day7 = todoDay(), date2 = day7.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
   const sequence5 = ++day7.sequence, revision2 = day7.revision;
   day7.loading = true;
@@ -10068,21 +10229,14 @@ var smartHooks = {
     paintTodos();
   },
   async saveElsewhere(day7, request2, label3, note) {
-    let item = await api("/todos", { method: "POST", body: request2 });
-    if (note) item = await countNote(item, note);
-    const other = todoDay(item.date);
-    if (other.loaded) {
-      mergeTodo(other, item);
-      other.revision++;
-    }
-    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
-      monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter((row) => row.id !== item.id), item]);
-      monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
-      const calendar = $("#todo-calendar");
-      if (calendar) calendar.dataset.month = "";
-    }
+    await addToOtherDay(request2, note);
     day7.draft = "";
     setTodoNotice(day7, `已添加到 ${label3}`);
+  },
+  async saveFuture(day7, proposal, label3) {
+    await addFutureTodo(proposal);
+    day7.draft = "";
+    setTodoNotice(day7, `已加到未来待办 · ${label3}`);
   },
   async saveDaily(day7, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
@@ -10094,6 +10248,26 @@ var smartHooks = {
     paintTodos();
   }
 };
+async function addToOtherDay(request2, note) {
+  let item = await api("/todos", { method: "POST", body: request2 });
+  if (note) item = await countNote(item, note);
+  const other = todoDay(item.date);
+  if (other.loaded) {
+    mergeTodo(other, item);
+    other.revision++;
+  }
+  if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
+    monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter((row) => row.id !== item.id), item]);
+    monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
+    const calendar = $("#todo-calendar");
+    if (calendar) calendar.dataset.month = "";
+  }
+  return item;
+}
+setFutureBridge({
+  toDay: (request2, note) => addToOtherDay(request2, note),
+  daily: (text, note) => smartHooks.saveDaily(todoDay(bjtDate()), text, note)
+});
 async function startCount(day7, item, note) {
   if (!note || !item) return;
   try {
@@ -10786,8 +10960,8 @@ function createEntryPersistActions(context) {
         const list3 = checkedCollection(await loadVerified(item.date), category, item.date);
         if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
         if (list3.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
-        const same3 = list3.entries.find((value) => value.id === id2);
-        if (same3 && same3.text === snapshot.draft && equalLabels(labelsOf(same3), snapshot.labels)) {
+        const same4 = list3.entries.find((value) => value.id === id2);
+        if (same4 && same4.text === snapshot.draft && equalLabels(labelsOf(same4), snapshot.labels)) {
           item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
           return;
         }
@@ -10795,7 +10969,7 @@ function createEntryPersistActions(context) {
           item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
           return;
         }
-        if (!list3.can_edit || same3 && (same3.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same3.content_hash !== item.recoveredBaseline.contentHash) || !same3 && snapshot.version !== 0) {
+        if (!list3.can_edit || same4 && (same4.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same4.content_hash !== item.recoveredBaseline.contentHash) || !same4 && snapshot.version !== 0) {
           item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
           return;
         }
@@ -12005,8 +12179,8 @@ async function restoreLegacyAfterDiscard(row, expected) {
   if (row?.kind !== "legacy" || expected !== notesIdentityNow()) return;
   const remaining = await getOfflineRuntime().retainedDraftRecords("legacy");
   const item = notesStores.get(row.category)?.pages.get(row.date);
-  const same3 = ({ data: data3 }) => data3?.category === row.category && data3?.date === row.date && data3?.draft === row.draft;
-  if (expected === notesIdentityNow() && !remaining.some(same3) && item && legacyRecoveryGuard.unchanged(item) && item.draft === row.draft && !item.pending && !item.remote) {
+  const same4 = ({ data: data3 }) => data3?.category === row.category && data3?.date === row.date && data3?.draft === row.draft;
+  if (expected === notesIdentityNow() && !remaining.some(same4) && item && legacyRecoveryGuard.unchanged(item) && item.draft === row.draft && !item.pending && !item.remote) {
     item.draft = item.serverText;
     item.dirty = false;
     item.error = "";
@@ -15889,7 +16063,7 @@ function renderExperiments(data3, vm3, { compact: compact2 = false } = {}) {
   const waiting = rules2.filter((rule) => rule.status === "candidate").slice(0, 8), running = rules2.filter((rule) => rule.status === "trial");
   if (compact2 && !waiting.length && !running.length) return "";
   const message = ai2?.messages?.rules;
-  const group = (title, hint, items, none) => `<div class="review-exp-group"><h3>${title} <small>${items.length} 条</small></h3>${items.length ? `<p class="review-note">${hint}</p><div class="review-exp-list">${items.map((rule) => ruleCard(
+  const group = (title, hint2, items, none) => `<div class="review-exp-group"><h3>${title} <small>${items.length} 条</small></h3>${items.length ? `<p class="review-note">${hint2}</p><div class="review-exp-list">${items.map((rule) => ruleCard(
     rule,
     ai2
   )).join("")}</div>` : `<p class="review-note">${none}</p>`}</div>`;
@@ -16086,19 +16260,19 @@ function loadReviewAiModels() {
 var say = (key, text, error2 = false) => {
   ai = { ...ai, messages: { ...ai.messages, [key]: text ? { text, error: error2 } : null } };
 };
-var done = {
+var done2 = {
   titles: (data3) => data3.labelled ? `已归类 ${data3.labelled} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要归类的标题。",
   benchmarks: (data3) => data3.done ? `已拆解 ${data3.done} 篇${data3.remaining ? `，还剩 ${data3.remaining} 篇` : ""}。` : "没有需要拆解的爆文。"
 };
 async function runFeature(feature, once = {}) {
-  if (ai.busy || !done[feature]) return;
+  if (ai.busy || !done2[feature]) return;
   ai = { ...ai, busy: feature, options: "" };
   say(feature, "");
   emit();
   try {
     const body4 = { account, ...once.model ? { model: once.model } : {}, ...once.effort ? { effort: once.effort } : {} };
     const result = await request("/review/ai/" + feature, { method: "POST", body: body4 });
-    say(feature, done[feature](result));
+    say(feature, done2[feature](result));
   } catch (error2) {
     say(feature, error2.message || "没有完成，请稍后重试。", true);
   }
@@ -17016,10 +17190,10 @@ function readout(point) {
   const when = point.timed ? reviewDateTime2(point.published_at) : point.date;
   return `${when}《${point.title || "未命名"}》阅读 ${reads2(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
-function figure(result, { key, rolling, kind, title, hint, format, tick, height, threshold, daily = true }) {
+function figure(result, { key, rolling, kind, title, hint: hint2, format, tick, height, threshold, daily = true }) {
   const plotted = result.series.filter((day7) => day7.position !== null);
   const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day7) => day7[rolling] !== null);
-  const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint)}</span></div>`;
+  const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint2)}</span></div>`;
   if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
     <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
   const top = 16, bottom = height - 30;
@@ -18763,8 +18937,8 @@ function handleResponsiveLayout() {
 }
 function navigateLink(page) {
   const target = mobilePage(page);
-  const same3 = target === state.page && (target !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
-  if (same3 && !$("#overlay")?.firstChild && !runtime.activePopover) {
+  const same4 = target === state.page && (target !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+  if (same4 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
   }
@@ -18964,12 +19138,12 @@ async function init({ freshLogin = false } = {}) {
 init_api();
 init_state();
 var copy = (value) => structuredClone(value);
-var same2 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+var same3 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 function validArticle(value, id2) {
   return value?.id === id2 && Number.isSafeInteger(value.version) && value.version > 0 && (value.verify_items === null || Array.isArray(value.verify_items));
 }
-function verificationIntent(index, done2) {
-  return `第 ${index + 1} 项设为${done2 ? "已处理" : "待处理"}`;
+function verificationIntent(index, done3) {
+  return `第 ${index + 1} 项设为${done3 ? "已处理" : "待处理"}`;
 }
 function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
@@ -18996,7 +19170,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       message = "详情读取不完整，保存结果尚未确认。";
       return false;
     }
-    if (pending && remote.version > pending.body.version && same2(remote.verify_items, pending.body.verify_items)) {
+    if (pending && remote.version > pending.body.version && same3(remote.verify_items, pending.body.verify_items)) {
       received(remote);
       pending = null;
       phase = "saved";
@@ -19015,7 +19189,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
     }
     received(remote);
     phase = pending ? "unknown" : "idle";
-    retryReady = !!pending && same2(remote.verify_items, pending.before);
+    retryReady = !!pending && same3(remote.verify_items, pending.before);
     message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
     return retryReady;
   }
@@ -19036,7 +19210,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       } else await reconcile(error2.status === 409);
       return;
     }
-    if (!validArticle(response, current3.id) || response.version <= pending.body.version || !same2(response.verify_items, pending.body.verify_items)) {
+    if (!validArticle(response, current3.id) || response.version <= pending.body.version || !same3(response.verify_items, pending.body.verify_items)) {
       await reconcile();
       return;
     }
@@ -19047,7 +19221,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
     try {
       const remote = await load2(current3.id);
       if (validArticle(remote, current3.id) && remote.version >= current3.version) {
-        const matches2 = same2(remote.verify_items, current3.verify_items);
+        const matches2 = same3(remote.verify_items, current3.verify_items);
         received(remote);
         if (!matches2) {
           phase = "conflict";
@@ -19058,12 +19232,12 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       message = "已保存，最新详情暂未读取。";
     }
   }
-  async function save(index, done2) {
-    if (busy2 || pending || !Number.isSafeInteger(index) || typeof done2 !== "boolean" || !Array.isArray(current3.verify_items) || !current3.verify_items[index] || typeof current3.verify_items[index] !== "object") return;
-    if (current3.verify_items[index].done === done2) return;
+  async function save(index, done3) {
+    if (busy2 || pending || !Number.isSafeInteger(index) || typeof done3 !== "boolean" || !Array.isArray(current3.verify_items) || !current3.verify_items[index] || typeof current3.verify_items[index] !== "object") return;
+    if (current3.verify_items[index].done === done3) return;
     const items = copy(current3.verify_items);
-    items[index].done = done2;
-    pending = { index, done: done2, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid5() };
+    items[index].done = done3;
+    pending = { index, done: done3, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid5() };
     busy2 = true;
     try {
       await send();
@@ -20521,6 +20695,8 @@ var actions = {
   "todo-future-menu": ({ id: id2 }) => toggleUnscheduledTodoPanel(id2),
   "todo-future-period": ({ id: id2, target }) => setUnscheduledTodoPeriod(id2, target.dataset.period),
   "todo-future-repeat": ({ id: id2, target }) => setUnscheduledTodoRepeat(id2, target.dataset.repeat),
+  "todo-future-due": ({ id: id2 }) => setUnscheduledTodoDue(id2),
+  "todo-future-due-clear": ({ id: id2 }) => setUnscheduledTodoDue(id2, true),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
@@ -20960,7 +21136,7 @@ function handleChange(event) {
     toggleUnscheduledTodo(el3);
     return;
   }
-  if (el3.dataset?.futureDateId) {
+  if (el3.dataset?.futureDateId || el3.dataset?.futureDueId) {
     inputUnscheduledTodo(el3);
     return;
   }

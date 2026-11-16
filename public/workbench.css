@@ -1110,3 +1110,12 @@ body.floating-workbench {
 .todo-future-heard:empty { display:none; }
 .todo-future-repeat { display:inline-block; margin-left:8px; padding:0 7px; border-radius:999px; font-size:11px; line-height:18px;
   color:var(--accent); border:1px solid currentColor; vertical-align:2px; }
+/* 截止日 (Claude 修改 2026-11-16): a deadline badge on 未来待办; from three days before, the item also shows on 今日. */
+.todo-future-due { display:inline-block; margin-left:8px; font-size:12px; color:var(--color-text-secondary); font-variant-numeric:tabular-nums; }
+.todo-future-due.is-soon { color:#b45309; font-weight:600; }
+.todo-future-due.is-over { color:#b91c1c; }
+.todo-due-items { margin-bottom:var(--space-8, 8px); }
+.todo-due-items[hidden] { display:none; }
+.todo-due-row { background:rgba(245,158,11,.08); border-radius:10px; padding-inline:8px; }
+.todo-due-row.is-over { background:rgba(220,38,38,.07); }
+.todo-future-panel .todo-future-schedule .btn.text { border-color:transparent; background:transparent; box-shadow:none; }

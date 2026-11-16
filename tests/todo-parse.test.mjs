@@ -48,7 +48,19 @@ test('a sentence with a day is read once and returned as a proposal; nothing is 
   assert.deepEqual((await call({text:'每天喝水 8 次'})).date,null,'a daily item has no date');
   text=JSON.stringify({kind:'once',date:'2020-01-01',text:'交表',count:2000});
   const past=await call({text:'周五前交表'});
-  assert.equal(past.date,today,'a past date falls back to today');assert.equal(past.count,null,'an absurd count is dropped');
+  assert.equal(past.date,null,'a past date is dropped');assert.equal(past.when,'none','and the page puts it on the day it was typed for');assert.equal(past.count,null,'an absurd count is dropped');
+  // Rough times, repeats and deadlines become a period, a repeat or a due date for 未来待办.
+  const later=new Date(Date.parse(today+'T00:00:00Z')+30*86400000).toISOString().slice(0,10);
+  text=JSON.stringify({kind:'once',when:'deadline',date:later,text:'退订会员',count:null});
+  const due=await call({text:later.slice(5,7)+'月'+later.slice(8)+'号之前退订会员',context:'future'});
+  assert.equal(due.when,'deadline');assert.equal(due.due_date,later);assert.equal(due.date,null);
+  text=JSON.stringify({kind:'once',when:'every_week',date:null,text:'每周看一部电影',count:null});
+  const weekly=await call({text:'每周看一部电影'});assert.equal(weekly.recurrence,'week');assert.match(weekly.period,/^\d{4}-W\d{2}$/);
+  text=JSON.stringify({kind:'once',when:'next_month',date:null,text:'体检',count:null});
+  assert.match((await call({text:'下个月体检'})).period,/^\d{4}-\d{2}$/);
+  text=JSON.stringify({kind:'once',when:'deadline',date:tomorrow,text:'交表',count:null});
+  assert.deepEqual([(await call({text:'明天之前交表'})).when],['day'],'a deadline within three days is simply that day');
+  await assert.rejects(call({text:'明天',context:'later'}),error=>error.status===400);
   text=JSON.stringify({kind:'daily',date:null,text:'上厕所',count:'unlimited'});
   const unlimited=await call({text:'每天上厕所次数不限'});
   assert.equal(unlimited.kind,'daily');assert.equal(unlimited.count,'∞','no ceiling becomes the counter\'s own ∞');
@@ -70,6 +82,6 @@ test('bad input and signed-out visitors are refused',async t=>{
 });
 
 test('the hint picks sentences that name a day, a count or a daily habit',()=>{
-  for(const text of ['明天交电费','下周三体检','20号还信用卡','每天喝水','上厕所 4 次','周五前交稿','11月20日开会','上厕所次数不限'])assert.match(text,TODO_PARSE_HINT,text);
+  for(const text of ['明天交电费','下周三体检','20号还信用卡','每天喝水','上厕所 4 次','周五前交稿','11月20日开会','上厕所次数不限','12月16号之前退订会员','每周看一部电影','圣诞节前买礼物'])assert.match(text,TODO_PARSE_HINT,text);
   for(const text of ['买牛奶','给妈妈打电话','今天洗衣服'])assert.doesNotMatch(text,TODO_PARSE_HINT,text);
 });

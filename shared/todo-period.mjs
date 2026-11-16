@@ -61,3 +61,19 @@ export function nextPeriod(period, recurrence, today) {
   const now = monthOf(today), base = validPeriod(period) && !period.includes('W') && period > now ? period : now;
   return nextMonth(base);
 }
+/** Days from today to a due date: 0 on the day, negative once it has passed. */
+export const daysUntil = (due, today) => Math.round((parse(due) - parse(today)) / DAY);
+export const DUE_LEAD = 3;
+/** From three days before its due date, until it is done, a future to-do is shown on 今日. */
+export const dueSoon = (due, today) => typeof due === 'string' && daysUntil(due, today) <= DUE_LEAD;
+export function dueLabel(due, today) {
+  const days = daysUntil(due, today), day = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
+  return days > 0 ? `${day} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day} 截止 · 已过期 ${-days} 天`;
+}
+/** The group a due date falls in: the week it is in when that is this or next week, otherwise its month. */
+export function dueGroup(due, today) {
+  const choices = periodChoices(today), week = weekOf(due);
+  if (week <= choices.week) return 'week';
+  if (week === choices.next_week) return 'next_week';
+  return monthOf(due) <= choices.month ? 'month' : 'next_month';
+}

@@ -1,4 +1,4 @@
-import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
+import { addFutureTodo, loadDueTodos, loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos, setFutureBridge } from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
 import { todoCount } from "../core/todo-count.mjs";
 import { api, apiNetwork } from "../core/api.mjs";
@@ -260,7 +260,7 @@ async function setTodoPanel(panel) {
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true); paintTodos();
   if (state.todoPanel === "future") await loadUnscheduledTodos();
-  else { await loadTodos(); if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date)); }
+  else { void loadDueTodos(); await loadTodos(); if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date)); }
   const selector = state.todoPanel === 'future' ? '#todo-future-text' : state.todoPanel ?
     state.todoPanel === 'history' ? '#todo-calendar-month-input' : '#todo-template-text' : '#todo-text';
   $(selector)?.focus();
@@ -306,6 +306,7 @@ ${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
+<ul id="todo-due" class="daily-todo-items todo-due-items" aria-label="快到期的未来待办" hidden></ul>
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul><div ` +
   `id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day) : ""}</div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
@@ -385,6 +386,7 @@ async function loadTodos(context) {
   }
   if (state.todoPanel === "future") { await loadUnscheduledTodos(); return; }
   void loadTodoTemplates({ ensure: true });
+  void loadDueTodos();
   const day = todoDay(), date = day.date, owner = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
@@ -528,16 +530,12 @@ const smartHooks = {
     paintTodos();
   },
   async saveElsewhere(day, request, label, note) {
-    let item = await api("/todos", { method: "POST", body: request });
-    if (note) item = await countNote(item, note);
-    const other = todoDay(item.date);
-    if (other.loaded) { mergeTodo(other, item); other.revision++; }
-    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
-      monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter(row => row.id !== item.id), item]);
-      monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
-      const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
-    }
+    await addToOtherDay(request, note);
     day.draft = ""; setTodoNotice(day, `已添加到 ${label}`);
+  },
+  async saveFuture(day, proposal, label) {
+    await addFutureTodo(proposal);
+    day.draft = ""; setTodoNotice(day, `已加到未来待办 · ${label}`);
   },
   async saveDaily(day, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
@@ -550,6 +548,24 @@ const smartHooks = {
     paintTodos();
   },
 };
+/** Adds a to-do to a day other than the shown one and keeps that day and the month calendar in step. */
+async function addToOtherDay(request, note) {
+  let item = await api("/todos", { method: "POST", body: request });
+  if (note) item = await countNote(item, note);
+  const other = todoDay(item.date);
+  if (other.loaded) { mergeTodo(other, item); other.revision++; }
+  if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === item.date.slice(0, 7)) {
+    monthSnapshot.days.set(item.date, [...(monthSnapshot.days.get(item.date) || []).filter(row => row.id !== item.id), item]);
+    monthLoader.update(monthOwner(), item.date, monthSnapshot.days.get(item.date));
+    const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
+  }
+  return item;
+}
+// 未来's input reads the same sentences; a reading for a day or for 常用 is saved by 今日's own paths.
+setFutureBridge({
+  toDay: (request, note) => addToOtherDay(request, note),
+  daily: (text, note) => smartHooks.saveDaily(todoDay(bjtDate()), text, note),
+});
 async function startCount(day, item, note) {
   if (!note || !item) return;
   try { mergeTodo(day, await countNote(item, note)); day.revision++; }

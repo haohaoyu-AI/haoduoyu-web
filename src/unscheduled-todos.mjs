@@ -7,7 +7,11 @@ import {RECURRENCES,nextPeriod,periodFits,validPeriod} from '../shared/todo-peri
 const baseFields='id,text,completed,version,created_at,updated_at,deleted_at';
 async function selectedFields(store) {
   const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)'),has=name=>info.some(column=>column.name===name);
-  return baseFields+(has('note')?',note':'')+(has('period')?',period':'')+(has('recurrence')?',recurrence':'');
+  return baseFields+(has('note')?',note':'')+(has('period')?',period':'')+(has('recurrence')?',recurrence':'')+(has('due_date')?',due_date':'');
+}
+// 截止日 (0027): a deadline; from three days before it the to-do is shown on 今日 until it is done.
+async function hasDue(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='due_date');
 }
 // 每周 / 每月 (0026): a repeating to-do makes its next one when it is done or given a day.
 async function hasRecurrence(store) {
@@ -22,7 +26,7 @@ function periodOf(value) {
   return value;
 }
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;if(!value.recurrence)delete value.recurrence;return value;};
+const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;if(!value.recurrence)delete value.recurrence;if(!value.due_date)delete value.due_date;return value;};
 function idOf(value) {
   if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
     throw fail(400,'VALIDATION_ERROR','待办标识需要使用 UUID');
@@ -50,7 +54,8 @@ function inputFor(body,operation) {
     return {id:idOf(body.id),text:body.text.trim()};
   }
   if(operation==='period') {
-    exact(body,'recurrence' in body?['period','recurrence','version']:['period','version']);versionOf(body.version);periodOf(body.period);
+    exact(body,['period','version',...['recurrence','due_date'].filter(key=>key in body)]);versionOf(body.version);periodOf(body.period);
+    if('due_date' in body&&body.due_date!==null)dateOf(body.due_date);
     if('recurrence' in body&&body.recurrence!==null&&(!RECURRENCES.includes(body.recurrence)||!periodFits(body.period,body.recurrence)))
       throw fail(400,'VALIDATION_ERROR','每周重复需要一周的时间段，每月重复需要一个月的时间段');
     return body;
@@ -117,20 +122,25 @@ async function write(store,actor,operation,id,input) {
   if(operation==='period') {
     if(!await hasPeriod(store))throw fail(409,'PERIOD_UNAVAILABLE','数据库还没有时间段字段');
     if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
-    const repeats=await hasRecurrence(store);
+    const repeats=await hasRecurrence(store),dues=await hasDue(store);
     if('recurrence' in input&&input.recurrence!==null&&!repeats)throw fail(409,'RECURRENCE_UNAVAILABLE','数据库还没有重复字段');
+    if('due_date' in input&&input.due_date!==null&&!dues)throw fail(409,'DUE_UNAVAILABLE','数据库还没有截止日字段');
+    const due=!dues?null:'due_date' in input?input.due_date:current.due_date??null;
     // Without a recurrence in the request the old one stays, unless the new period no longer fits it.
     const recurrence=!repeats?null:'recurrence' in input?input.recurrence:
       current.recurrence&&periodFits(input.period,current.recurrence)?current.recurrence:null;
-    if(current.version===input.version+1&&(current.period??null)===input.period&&(current.recurrence??null)===recurrence)
+    if(current.version===input.version+1&&(current.period??null)===input.period&&(current.recurrence??null)===recurrence&&
+      (current.due_date??null)===due)
       return {replayed:true,response:json(item(current))};
     if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
     const stamp=now();
-    if(repeats)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
+    if(repeats&&dues)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,due_date=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
+      input.period,recurrence,due,stamp,actor.id,id,input.version);
+    else if(repeats)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
       input.period,recurrence,stamp,actor.id,id,input.version);
     else store.queue('UPDATE matrix_unscheduled_todos SET period=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.period,stamp,actor.id,id,input.version);
     store.expectChange();
-    return {actor,response:json(item({...current,period:input.period,recurrence,version:current.version+1,updated_at:stamp}))};
+    return {actor,response:json(item({...current,period:input.period,recurrence,due_date:due,version:current.version+1,updated_at:stamp}))};
   }
   if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
   const deleted=operation==='delete',restoring=operation==='restore';

@@ -98,7 +98,8 @@ test('the daily page loads common templates immediately and waits for the day be
       if(options.method){writes.push(options.body);return new Promise(resolve=>finishAdd=resolve)}
       testApiReads.push(path);return new Promise(resolve=>{if(path==='/todo-templates')finishTemplates=resolve;else finishDay=resolve})};
     let reading=loadTodos()`);
-  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')),['/todo-templates','/todos?date=2026-10-23']);
+  // 今日 also reads the future list once, quietly, to show to-dos due within three days.
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')),['/todo-templates','/unscheduled-todos','/todos?date=2026-10-23']);
   c.run("finishTemplates({items:[{id:'common',text:'常用事项'}]})");
   await Promise.resolve();
   await c.run("useTodoTemplate('common')");
@@ -241,19 +242,19 @@ test('future calendar plans save and reload on the chosen date and returning tod
   assert.match(html,/<form id="todo-form"[^>]*data-date="2027-01-01"/);
   assert.doesNotMatch(html,/<form[^>]*hidden[^>]*id="todo-form"/);
   assert.match(html,/data-action="todo-panel" data-panel="history"[^>]*aria-current="page"/);
-  prepareForm(c,{date:'2027-01-01',text:'提前安排元旦计划'});
+  prepareForm(c,{date:'2027-01-01',text:'提前安排新年计划'});
   await c.run('submitTodo({form:syntheticTodoForm,data:todoData})');
   assert.equal(c.run('calls[0].options.body.date'),'2027-01-01');
   assert.equal(c.run("todoDay('2026-10-23').items.length"),0);
   c.run('todoDay().items=[]');
   await c.run('loadTodos()');
-  assert.equal(c.run('todoDay().items[0].text'),'提前安排元旦计划');
+  assert.equal(c.run('todoDay().items[0].text'),'提前安排新年计划');
   await c.run("setTodoPanel('')");
   assert.equal(c.run('todoDate()'),'2026-10-23');
   assert.equal(c.run('state.todoPanel'),'');
   assert.equal(new URL(c.location.href).searchParams.has('date'),false);
   assert.equal(new URL(c.location.href).searchParams.has('todo_panel'),false);
-  assert.equal(c.run("todoDay('2027-01-01').items[0].text"),'提前安排元旦计划');
+  assert.equal(c.run("todoDay('2027-01-01').items[0].text"),'提前安排新年计划');
 });
 
 test('a selected calendar date stays pinned across Beijing midnight and template badges follow the actual day',async()=>{
@@ -455,7 +456,7 @@ test('a stale pre-write read is refreshed before replacing the successfully adde
   // Avoid `let staleRead` — the frontend bundle already binds function staleRead.
   c.run(`let getCount=0,finishRead,created;
     api=(path,options={})=>{
-      if(path==='/todo-templates'||String(path).startsWith('/todo-templates?'))return Promise.resolve({items:[]});
+      if(path==='/todo-templates'||String(path).startsWith('/todo-templates?')||path==='/unscheduled-todos')return Promise.resolve({items:[]});
       if(options.method==='POST'){created={...options.body,completed:false,version:1};return Promise.resolve(created)}
       if(++getCount===1)return new Promise(resolve=>finishRead=resolve);
       return Promise.resolve({date:'2026-10-23',today:'2026-10-23',items:[created]})};
@@ -593,7 +594,7 @@ test('daily plans and content review render independently', async () => {
     api=async path=>{testApiReads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
-  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')), ['/todo-templates','/todos?date=2026-10-23']);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(testApiReads)')), ['/todo-templates','/unscheduled-todos','/todos?date=2026-10-23']);
   c.run(`state.page='review';testApiReads=[];
     api=async path=>{testApiReads.push(path);return {items:[]}}`);
   await c.run('renderPage()');
