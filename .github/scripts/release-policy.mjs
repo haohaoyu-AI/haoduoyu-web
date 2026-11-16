@@ -408,7 +408,15 @@ export const claudeConnectorRelease=Object.freeze({
   baseline:'3637f13d-7fc6-4fb1-bede-08b2fb805cbd',
   bytes:3256950,sha256:'fc2d3abb0d23915bd272737dff710082ce7c66b67adc5b0e617e6ad8683f1340',
   label:'production-claude-connector-20261116'});
-const acceptedRelease=commit=>commit===claudeConnectorRelease.commit?claudeConnectorRelease:
+// connector approval with Origin null, on top of the deployed b0afcfa.
+export const connectorOriginRelease=Object.freeze({
+  commit:'0ab490e73942f84523b03287377ea4f0edc8e859',
+  tree:'a3ccf0e45420a96e89d20629e7a10973e134c94d',
+  baseline:'e78bd453-fda3-4a77-addb-9c4b962c2313',
+  bytes:3257128,sha256:'0ab9f0bb90a865ca4a8f489098c645be3dbc6bc22ac46a19d5d849e6a38766d2',
+  label:'production-connector-origin-20261116'});
+const acceptedRelease=commit=>commit===connectorOriginRelease.commit?connectorOriginRelease:
+  commit===claudeConnectorRelease.commit?claudeConnectorRelease:
   commit===smartDueRelease.commit?smartDueRelease:
   commit===futureRepeatRelease.commit?futureRepeatRelease:
   commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
