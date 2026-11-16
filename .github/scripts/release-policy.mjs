@@ -394,7 +394,15 @@ export const futureRepeatRelease=Object.freeze({
   baseline:'2fbe403d-820c-4d9e-9990-2337c2653fce',
   bytes:3223486,sha256:'eb51f65f1ace10b96e703fbe39245e0216706ea14638b010356e1ac2c4c78c6f',
   label:'production-future-repeat-20261116'});
-const acceptedRelease=commit=>commit===futureRepeatRelease.commit?futureRepeatRelease:
+// 一句话 on both inputs with deadlines on 今日, on top of the deployed fad9f98.
+export const smartDueRelease=Object.freeze({
+  commit:'a6c257cae5726f479d48a8f168d877ca801ee124',
+  tree:'bc887badf0e66c97f726b4e1c53af49f210163db',
+  baseline:'a0ca3bd4-fb32-4dc6-9c03-a1a6d9425ba2',
+  bytes:3238020,sha256:'f717e76a19473774ea8ad49bdafd152770e0ef3d6b79f916d855f41cb24951bf',
+  label:'production-smart-due-20261116'});
+const acceptedRelease=commit=>commit===smartDueRelease.commit?smartDueRelease:
+  commit===futureRepeatRelease.commit?futureRepeatRelease:
   commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
   commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
   commit===futurePeriodRelease.commit?futurePeriodRelease:
