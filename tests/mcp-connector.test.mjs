@@ -29,3 +29,13 @@ test('approving checks that the form came from this site, also when the browser 
   // Past the origin check, without a logged-in owner (no database here) the page asks to log in first.
   assert.match(await (await post({Origin:'null','Sec-Fetch-Site':'same-origin'})).text(),/需要管理员登录/);
 });
+test('ChatGPT and Codex on this computer may connect too; other callbacks may not',async()=>{
+  const register=uri=>call('/oauth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({redirect_uris:[uri]})});
+  for(const uri of ['http://localhost:1455/callback','http://127.0.0.1:5555/callback','https://chatgpt.com/connector_platform_oauth_redirect'])
+    assert.equal((await register(uri)).status,201,uri);
+  for(const uri of ['http://evil.test/callback','https://chatgpt.com.evil.test/connector','http://localhost.evil.test/cb'])
+    assert.equal((await register(uri)).status,400,uri);
+  const page=await call('/oauth/authorize?'+new URLSearchParams({response_type:'code',client_id:'c',redirect_uri:'http://localhost:1455/callback',
+    code_challenge:'a'.repeat(43),code_challenge_method:'S256'}));
+  assert.match(await page.text(),/让 Codex（本机） 连接/);assert.match(page.headers.get('content-security-policy'),/http:\/\/localhost:1455/);
+});

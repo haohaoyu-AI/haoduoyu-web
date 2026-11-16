@@ -11,6 +11,11 @@ import {periodChoices} from '../shared/todo-period.mjs';
 export const MCP_PATHS=['/mcp','/oauth/register','/oauth/authorize','/oauth/token',
   '/.well-known/oauth-authorization-server','/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp'];
 const REDIRECTS=['https://claude.ai/api/mcp/auth_callback','https://claude.com/api/mcp/auth_callback'];
+// Also ChatGPT's connectors and Codex on the owner's own computer (a loopback callback, RFC 8252); PKCE is required either way.
+const allowed=uri=>REDIRECTS.includes(uri)||/^https:\/\/chatgpt\.com\/connector[A-Za-z0-9_/-]*$/.test(uri)||
+  /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?\/[A-Za-z0-9_/-]*$/.test(uri);
+/** Who is asking, from where the answer goes back to. */
+const clientName=uri=>/^https:\/\/claude\./.test(uri)?'Claude':/^https:\/\/chatgpt\./.test(uri)?'ChatGPT':'Codex（本机）';
 const CODE_MINUTES=10,PENDING='mcp-pending';
 const hex=bytes=>randomBytes(bytes).toString('hex');
 const b64url=buffer=>buffer.toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -37,7 +42,7 @@ export async function handleMcp(request,env,{origin,db,dispatch}) {
 async function register(request) {
   let input;try {input=await request.json();} catch {return oauthError('invalid_client_metadata','JSON 格式无效');}
   const uris=Array.isArray(input?.redirect_uris)?input.redirect_uris:[];
-  if(!uris.length||uris.some(uri=>!REDIRECTS.includes(uri)))return oauthError('invalid_redirect_uri','只接受 Claude 的回调地址');
+  if(!uris.length||uris.some(uri=>!allowed(uri)))return oauthError('invalid_redirect_uri','只接受 Claude、ChatGPT 或本机 Codex 的回调地址');
   return Response.json({client_id:'claude-'+hex(8),client_id_issued_at:Math.floor(Date.now()/1000),client_name:String(input.client_name||'Claude').slice(0,80),
     redirect_uris:uris,grant_types:['authorization_code'],response_types:['code'],token_endpoint_auth_method:'none'},{status:201});
 }
@@ -45,24 +50,25 @@ function authorizeParams(params) {
   const value=name=>params.get(name)||'';
   const out={client_id:value('client_id'),redirect_uri:value('redirect_uri'),state:value('state'),code_challenge:value('code_challenge'),
     code_challenge_method:value('code_challenge_method'),response_type:value('response_type')};
-  if(!REDIRECTS.includes(out.redirect_uri))throw fail(400,'VALIDATION_ERROR','回调地址不是 Claude 的');
+  if(!allowed(out.redirect_uri))throw fail(400,'VALIDATION_ERROR','回调地址不是 Claude、ChatGPT 或本机 Codex 的');
   if(out.response_type!=='code'||out.code_challenge_method!=='S256'||!/^[A-Za-z0-9_-]{43,128}$/.test(out.code_challenge)||
     !out.client_id||out.client_id.length>100||out.state.length>500)throw fail(400,'VALIDATION_ERROR','授权参数不完整');
   return out;
 }
-const page=(origin,body)=>new Response(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="referrer" content="same-origin"><title>连接 Claude · 好多鱼工作台</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:12vh auto;padding:0 20px;line-height:1.6;color:#2a2a2a}
+const page=(origin,body,redirect='')=>new Response(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="same-origin"><title>连接 AI · 好多鱼工作台</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:12vh auto;padding:0 20px;line-height:1.6;color:#2a2a2a}
 h1{font-size:20px}ul{padding-left:20px}button{font-size:16px;padding:10px 22px;border-radius:999px;border:0;background:#a34a34;color:#fff}
 .muted{color:#777;font-size:13px}a{color:#a34a34}</style></head><body>${body}</body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8',
   // The approve form ends in a redirect to Claude, which form-action has to allow.
-  'Content-Security-Policy':`default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${REDIRECTS.map(uri=>new URL(uri).origin).join(' ')}; frame-ancestors 'none'; base-uri 'none'`}});
+  'Content-Security-Policy':`default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${[...new Set([...REDIRECTS,...(redirect?[redirect]:[])].map(uri=>new URL(uri).origin))].join(' ')}; frame-ancestors 'none'; base-uri 'none'`}});
 function consent(params,origin) {
   const input=authorizeParams(params);
   const hidden=Object.entries(input).map(([name,value])=>`<input type="hidden" name="${name}" value="${esc(value)}">`).join('');
-  return page(origin,`<h1>让 Claude 连接好多鱼工作台？</h1><p>同意后，Claude 可以：</p><ul><li>读和写碎碎念</li><li>读和写待办（今日、未来待办）</li></ul>
-<p class="muted">不能改密码、文章数据和设置。以后可以在网站的 API 凭证里撤销「Claude 连接器」。</p>
+  const who=clientName(input.redirect_uri);
+  return page(origin,`<h1>让 ${who} 连接好多鱼工作台？</h1><p>同意后，${who} 可以以你的身份读写网站内容：碎碎念、待办、AI 汇报、复盘数据等。</p>
+<p class="muted">不能登录、改密码、管理 API 凭证或恢复备份。以后可以在网站的 API 凭证里撤销「${who} 连接器」。</p>
 <form method="post" action="/oauth/authorize">${hidden}<button type="submit">同意并连接</button></form>
-<p class="muted">需要先在这个浏览器里用管理员账号登录（<a href="/?page=login" target="_blank" rel="noopener">登录页</a>）。</p>`);
+<p class="muted">需要先在这个浏览器里用管理员账号登录（<a href="/?page=login" target="_blank" rel="noopener">登录页</a>）。</p>`,input.redirect_uri);
 }
 async function approve(request,db,origin) {
   // The site sends Referrer-Policy: no-referrer, under which a browser may send "Origin: null" for its own form;
@@ -76,12 +82,12 @@ async function approve(request,db,origin) {
 <p>网站平时的公开模式不算登录。请<a href="/?page=login" target="_blank" rel="noopener">打开管理员登录页</a>，用管理员账号和密码登录，然后回到这一页点下面的按钮。</p>
 <form method="post" action="/oauth/authorize">${Object.entries(input).map(([n,v])=>`<input type="hidden" name="${n}" value="${esc(v)}">`).join('')}
 <input type="hidden" name="retry" value="1"><button>我已登录，继续</button></form>
-<p class="muted">登录要在同一个浏览器里完成。</p>`);
+<p class="muted">登录要在同一个浏览器里完成。</p>`,input.redirect_uri);
   const code=hex(32),stamp=now(),expires=new Date(Date.now()+CODE_MINUTES*60000).toISOString();
   await db.batch([
     db.prepare("DELETE FROM matrix_api_keys WHERE permissions_json LIKE ? AND created_at<?").bind(`["${PENDING}"%`,new Date(Date.now()-3600000).toISOString()),
     db.prepare('INSERT INTO matrix_api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)')
-      .bind(randomUUID(),'Claude 连接器（等待确认）',digest(code),'[]',JSON.stringify([PENDING,input.code_challenge,input.redirect_uri,expires,actor.id]),stamp),
+      .bind(randomUUID(),`${clientName(input.redirect_uri)} 连接器（等待确认）`,digest(code),'[]',JSON.stringify([PENDING,input.code_challenge,input.redirect_uri,expires,actor.id]),stamp),
   ]);
   const target=new URL(input.redirect_uri);target.searchParams.set('code',code);if(input.state)target.searchParams.set('state',input.state);
   return new Response(null,{status:302,headers:{Location:target.toString()}});
@@ -100,8 +106,8 @@ async function token(request,db) {
   const access='hdy_'+hex(32);
   // The code is single use: the row is turned into the real token in one guarded update.
   // The approving owner is kept with the token, so api_request can act as that owner and no one else.
-  const result=await db.prepare("UPDATE matrix_api_keys SET token_hash=?,name='Claude 连接器',permissions_json=? WHERE id=? AND token_hash=?")
-    .bind(digest(access),JSON.stringify(['mcp',...(typeof owner==='string'?['owner:'+owner]:[])]),row.id,row.token_hash).run();
+  const result=await db.prepare("UPDATE matrix_api_keys SET token_hash=?,name=?,permissions_json=? WHERE id=? AND token_hash=?")
+    .bind(digest(access),`${clientName(redirect)} 连接器`,JSON.stringify(['mcp',...(typeof owner==='string'?['owner:'+owner]:[])]),row.id,row.token_hash).run();
   if(result.meta?.changes!==1)return oauthError('invalid_grant','授权码已使用');
   return Response.json({access_token:access,token_type:'Bearer',scope:'mcp'},{headers:{'Cache-Control':'no-store'}});
 }
