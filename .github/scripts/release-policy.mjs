@@ -401,7 +401,15 @@ export const smartDueRelease=Object.freeze({
   baseline:'a0ca3bd4-fb32-4dc6-9c03-a1a6d9425ba2',
   bytes:3238020,sha256:'f717e76a19473774ea8ad49bdafd152770e0ef3d6b79f916d855f41cb24951bf',
   label:'production-smart-due-20261116'});
-const acceptedRelease=commit=>commit===smartDueRelease.commit?smartDueRelease:
+// Claude connector (MCP + OAuth), on top of the deployed a6c257c.
+export const claudeConnectorRelease=Object.freeze({
+  commit:'b0afcfa9efbb11952d42308aec83ececd4c19620',
+  tree:'a95ee7ccf462d0d878c455c5ebba11692355927d',
+  baseline:'3637f13d-7fc6-4fb1-bede-08b2fb805cbd',
+  bytes:3256950,sha256:'fc2d3abb0d23915bd272737dff710082ce7c66b67adc5b0e617e6ad8683f1340',
+  label:'production-claude-connector-20261116'});
+const acceptedRelease=commit=>commit===claudeConnectorRelease.commit?claudeConnectorRelease:
+  commit===smartDueRelease.commit?smartDueRelease:
   commit===futureRepeatRelease.commit?futureRepeatRelease:
   commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
   commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
