@@ -3,7 +3,7 @@
 // ordinary api_keys row whose only permission is "mcp", so it opens /mcp and nothing else, and it can be revoked there.
 // Every tool call is passed on to the site's own /api/v1 routes, so the same checks and limits apply.
 import {randomUUID,createHash,randomBytes} from 'node:crypto';
-import {authenticate,digest,fail,now,requireAdmin} from './security.mjs';
+import {authenticate,csrfFor,digest,fail,now,requireAdmin} from './security.mjs';
 import {storeFor} from './storage.mjs';
 import {beijingDay} from './lib/time.mjs';
 import {periodChoices} from '../shared/todo-period.mjs';
@@ -29,7 +29,7 @@ export async function handleMcp(request,env,{origin,db,dispatch}) {
   if(path==='/oauth/authorize'&&method==='GET')return consent(new URL(request.url).searchParams,origin);
   if(path==='/oauth/authorize'&&method==='POST')return approve(request,db,origin);
   if(path==='/oauth/token'&&method==='POST')return token(request,db);
-  if(path==='/mcp')return mcp(request,db,origin,dispatch);
+  if(path==='/mcp')return mcp(request,db,origin,dispatch,env);
   throw fail(405,'METHOD_NOT_ALLOWED','不支持的请求方法');
 }
 
@@ -77,7 +77,7 @@ async function approve(request,db,origin) {
   await db.batch([
     db.prepare("DELETE FROM matrix_api_keys WHERE permissions_json LIKE ? AND created_at<?").bind(`["${PENDING}"%`,new Date(Date.now()-3600000).toISOString()),
     db.prepare('INSERT INTO matrix_api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)')
-      .bind(randomUUID(),'Claude 连接器（等待确认）',digest(code),'[]',JSON.stringify([PENDING,input.code_challenge,input.redirect_uri,expires]),stamp),
+      .bind(randomUUID(),'Claude 连接器（等待确认）',digest(code),'[]',JSON.stringify([PENDING,input.code_challenge,input.redirect_uri,expires,actor.id]),stamp),
   ]);
   const target=new URL(input.redirect_uri);target.searchParams.set('code',code);if(input.state)target.searchParams.set('state',input.state);
   return new Response(null,{status:302,headers:{Location:target.toString()}});
@@ -89,14 +89,15 @@ async function token(request,db) {
   const row=await db.prepare('SELECT id,token_hash,permissions_json FROM matrix_api_keys WHERE token_hash=? AND revoked_at IS NULL').bind(digest(code)).first();
   let pending=null;try {pending=JSON.parse(row?.permissions_json||'null');} catch {}
   if(!Array.isArray(pending)||pending[0]!==PENDING)return oauthError('invalid_grant','授权码无效或已使用');
-  const [,challenge,redirect,expires]=pending;
+  const [,challenge,redirect,expires,owner]=pending;
   if(Date.parse(expires)<Date.now())return oauthError('invalid_grant','授权码已过期，请重新连接');
   if(form.get('redirect_uri')&&form.get('redirect_uri')!==redirect)return oauthError('invalid_grant','回调地址不一致');
   if(b64url(createHash('sha256').update(verifier).digest())!==challenge)return oauthError('invalid_grant','PKCE 校验失败');
   const access='hdy_'+hex(32);
   // The code is single use: the row is turned into the real token in one guarded update.
-  const result=await db.prepare("UPDATE matrix_api_keys SET token_hash=?,name='Claude 连接器',permissions_json='[\"mcp\"]' WHERE id=? AND token_hash=?")
-    .bind(digest(access),row.id,row.token_hash).run();
+  // The approving owner is kept with the token, so api_request can act as that owner and no one else.
+  const result=await db.prepare("UPDATE matrix_api_keys SET token_hash=?,name='Claude 连接器',permissions_json=? WHERE id=? AND token_hash=?")
+    .bind(digest(access),JSON.stringify(['mcp',...(typeof owner==='string'?['owner:'+owner]:[])]),row.id,row.token_hash).run();
   if(result.meta?.changes!==1)return oauthError('invalid_grant','授权码已使用');
   return Response.json({access_token:access,token_type:'Bearer',scope:'mcp'},{headers:{'Cache-Control':'no-store'}});
 }
@@ -115,18 +116,28 @@ const TOOLS=[
     inputSchema:{type:'object',properties:{text:{type:'string'},when:{type:'string',enum:['this_week','next_week','this_month','next_month','every_week','every_month','none']},
       due_date:{type:'string',description:'YYYY-MM-DD'}},required:['text']}},
   {name:'list_future_todos',description:'读全部未来待办（含大概时间、重复和截止日）。',inputSchema:{type:'object',properties:{}}},
+  {name:'api_request',description:['以网站主人的身份调用网站自己的 /api/v1 接口，能读写网站上的所有内容。path 写 /api/v1 之后的部分。',
+    '常用：/todos?date= · /unscheduled-todos · /note-entries?date=&category=（写入用 PUT /note-entries/{新uuid}，头 X-Note-Labels-Version: 3）·',
+    '/daily-scores/{date} · /ai-reports · /work-reminders?date= · /review/articles · /review/playbooks · /review/notes · /review/ai ·',
+    '/articles · /accounts · /observations · /daily-metrics。不开放：登录、密码、API 凭证、备份恢复、初始化。写之前先读一次，带上 version。'].join(''),
+    inputSchema:{type:'object',properties:{method:{type:'string',enum:['GET','POST','PUT','PATCH','DELETE']},path:{type:'string'},
+      body:{type:'object'},headers:{type:'object',description:'只接受 X-Note-Labels-Version、X-Note-Labels-Archive、Idempotency-Key'}},required:['method','path']}},
   {name:'delete_future_todo',description:'删除一条未来待办（可在网站上恢复）。',inputSchema:{type:'object',properties:{id:{type:'string'}},required:['id']}},
 ];
 const text=(value,isError=false)=>({content:[{type:'text',text:typeof value==='string'?value:JSON.stringify(value,null,1)}],...(isError?{isError:true}:{})});
 
-async function mcp(request,db,origin,dispatch) {
+async function mcp(request,db,origin,dispatch,env) {
   const challenge={'WWW-Authenticate':`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`};
   if(!request.headers.get('authorization'))return Response.json({error:'unauthorized'},{status:401,headers:challenge});
-  try {await authenticate(storeFor(db),request,'mcp');}
+  let key;try {key=await authenticate(storeFor(db),request,'mcp');}
   catch {return Response.json({error:'invalid_token'},{status:401,headers:challenge});}
+  // Tokens from before owners were recorded act for the site's notes owner.
+  const owner=key.permissions.find(value=>value.startsWith('owner:'))?.slice(6)||env.DAILY_NOTES_OWNER_ID||null;
+  dispatch.owner=ownerDispatch(db,origin,dispatch.handle,owner);
   if(request.method!=='POST')return new Response(null,{status:405,headers:{Allow:'POST'}});
   let message;try {message=await request.json();} catch {return Response.json({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Parse error'}},{status:400});}
   const many=Array.isArray(message),replies=[];
+  if(many&&message.length>20)return Response.json({jsonrpc:'2.0',id:null,error:{code:-32600,message:'Too many requests in one batch'}},{status:400});
   for(const item of many?message:[message]) {const reply=await rpc(item,origin,dispatch);if(reply)replies.push(reply);}
   if(!replies.length)return new Response(null,{status:202});
   return Response.json(many?replies:replies[0]);
@@ -171,19 +182,48 @@ async function callTool(name,args,dispatch) {
     return dispatch(`/unscheduled-todos/${row.id}/period`,'PATCH',{...change,version:row.version});
   }
   if(name==='list_future_todos')return dispatch('/unscheduled-todos','GET');
+  if(name==='api_request') {
+    const method=String(args.method||'GET').toUpperCase(),path=String(args.path||'');
+    if(!['GET','POST','PUT','PATCH','DELETE'].includes(method))throw new Error('method 不支持');
+    if(!/^\/[A-Za-z0-9/_.~%-]*(\?[^#\s]*)?$/.test(path)||path.includes('..'))throw new Error('path 需要以 / 开头，例如 /todos?date=2026-11-16');
+    if(BLOCKED.test(path))throw new Error('这个接口不对连接器开放：'+path.split('?')[0]);
+    const extra=Object.fromEntries(Object.entries(args.headers||{}).filter(([name])=>HEADERS.includes(name.toLowerCase())).map(([n,v])=>[n,String(v)]));
+    if(!dispatch.owner)throw new Error('还不知道网站主人是谁，请重新连接一次');
+    return dispatch.owner(path,method,method==='GET'||method==='DELETE'&&!args.body?null:args.body||{},extra);
+  }
   if(name==='delete_future_todo') {
     const row=await dispatch('/unscheduled-todos/'+encodeURIComponent(String(args.id)),'GET');
     return dispatch('/unscheduled-todos/'+encodeURIComponent(row.id),'DELETE',{version:row.version});
   }
   throw new Error('没有这个工具：'+name);
 }
+const BLOCKED=/^\/(auth|api-keys|backup|bootstrap|restore|import|snapshot|workbench-snapshot|integrations)(\/|\?|$)/;
+const HEADERS=['x-note-labels-version','x-note-labels-archive','idempotency-key'];
+/** api_request acts as the owner through a session that lives only for this one call. */
+function ownerDispatch(db,origin,handle,owner) {
+  if(!owner)return null;
+  return async(path,method,body,extra)=>{
+    const token=hex(32),hash=digest(token);
+    await db.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) SELECT ?,id,? FROM matrix_users WHERE id=?')
+      .bind(hash,new Date(Date.now()+120000).toISOString(),owner).run();
+    try {
+      const headers={Origin:origin,Cookie:'matrix_session='+token,'X-CSRF-Token':csrfFor(token),...extra,...(body?{'Content-Type':'application/json'}:{})};
+      return await read(await handle(new Request(origin+'/api/v1'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})})));
+    } finally {await db.prepare('DELETE FROM matrix_sessions WHERE token_hash=?').bind(hash).run();}
+  };
+}
+async function read(response) {
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data?.error?.message||`请求失败（${response.status}）`);
+  return data.data??data;
+}
 /** Tool calls go through the site's own /api/v1 routes as a same-origin public-business request. */
 export function internalDispatch(origin,handle) {
-  return async(path,method,body=null,extra={})=>{
+  const dispatch=async(path,method,body=null,extra={})=>{
     const headers={Origin:origin,'X-Public-Business':'1',...extra,...(body?{'Content-Type':'application/json'}:{})};
     const response=await handle(new Request(origin+'/api/v1'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}));
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data?.error?.message||`请求失败（${response.status}）`);
-    return data.data??data;
+    return read(response);
   };
+  dispatch.handle=handle;
+  return dispatch;
 }
