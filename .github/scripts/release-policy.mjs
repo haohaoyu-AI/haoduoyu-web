@@ -366,7 +366,15 @@ export const uiPass4Release=Object.freeze({
   baseline:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
   bytes:3197417,sha256:'d08541579f8b99d217b14e4db84d6f10523908860367db1bda0c15879e8f5229',
   label:'production-ui-pass-4-20261115'});
-const acceptedRelease=commit=>commit===uiPass4Release.commit?uiPass4Release:
+// 未来待办 by week/month with one ▾ panel per row, on top of the deployed c900549.
+export const futurePeriodRelease=Object.freeze({
+  commit:'5de12fdd815428f5eb71831bd98889affead05d0',
+  tree:'ed82ce93861f424f56daff0826ad432ade37d1b2',
+  baseline:'df2e1360-7787-4627-8837-1570cb7c3628',
+  bytes:3211306,sha256:'d0efc6728afda335f34f576e230a3992284fa93d4eef09156d9ebb7c15a44b89',
+  label:'production-future-period-20261116'});
+const acceptedRelease=commit=>commit===futurePeriodRelease.commit?futurePeriodRelease:
+  commit===uiPass4Release.commit?uiPass4Release:
   commit===uiPass3Release.commit?uiPass3Release:
   commit===uiPass2Release.commit?uiPass2Release:
   commit===uiPass1Release.commit?uiPass1Release:
