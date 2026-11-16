@@ -7,15 +7,16 @@ import {getOfflineRuntime} from '../offline/runtime.mjs';
 import {toast} from '../ui/toast.mjs';
 import {todoNoteField} from './todo-note-field.mjs';
 import {PERIOD_GROUPS,periodChoices,periodGroup,periodPast} from '../../shared/todo-period.mjs';
+import {readPeriodWords} from '../../shared/todo-period-words.mjs';
 
 const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-  uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none'};
+  uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none',manualPeriod:false};
 let paintingFuture=false;
 const owner=()=>JSON.stringify([runtime.sessionEpoch,state.me?.id??null,getOfflineRuntime()?.state.scope??null]);
 function current() {
   const key=owner();
   if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-    uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none'});
+    uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none',manualPeriod:false});
   return cache;
 }
 const visible=()=>Boolean(state.me)&&state.page==='todos'&&state.todoPanel==='future';
@@ -27,6 +28,7 @@ export function renderUnscheduledTodos() {
 <label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` +
   PERIOD_GROUPS.map(([key,label])=>`<option value="${key}" ${v.newPeriod===key?'selected':''}>${label}</option>`).join('') + `</select>
 <button class="btn primary" type="submit" ${v.pending?'disabled':''}>添加</button></form>
+<p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
 <p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点右边的 ▾ 定具体日子，或改成本周、下周这类大概时间。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
@@ -131,8 +133,25 @@ export async function loadUnscheduledTodos() {
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession&&error.name!=='AbortError')v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.loading=false;paintUnscheduledTodos();}}
 }
+const GROUP_NAME=Object.fromEntries(PERIOD_GROUPS);
+/** "认出「下周」，会存成「看电影」" while the sentence names a rough time and the menu still agrees with it. */
+function heardText(v) {
+  const heard=readPeriodWords(v.draft);
+  return heard&&v.newPeriod===heard.period?`认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」`:'';
+}
+function paintHeard(v) {
+  const select=$('#todo-future-period'),line=$('#todo-future-heard');
+  if(select&&select.value!==v.newPeriod)select.value=v.newPeriod;
+  if(line)line.textContent=heardText(v);
+}
 export function inputUnscheduledTodo(el) {
-  if(el.id==='todo-future-text')current().draft=el.value;
+  if(el.id==='todo-future-text') {
+    const v=current();v.draft=el.value;
+    // The menu follows the sentence until it is changed by hand.
+    if(!v.manualPeriod)v.newPeriod=readPeriodWords(el.value)?.period||'none';
+    paintHeard(v);
+  }
+  if(el.id==='todo-future-period') {const v=current();v.newPeriod=el.value;v.manualPeriod=true;paintHeard(v);}
   if(el.dataset?.futureDateId)current().dates[el.dataset.futureDateId]=el.value;
 }
 function moved(row,date,source,todo,complete = false) {
@@ -269,17 +288,19 @@ export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
   } finally { if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();} }
 }
 export async function submitUnscheduledTodo({data}) {
-  if(!visible())return;const v=current(),key=v.owner,text=String(data.text||'').trim();
+  if(!visible())return;const v=current(),key=v.owner,typed=String(data.text||'').trim(),heard=readPeriodWords(typed);
+  // The time words are dropped from the saved text only when the menu still shows what they said.
+  const text=heard&&heard.period===String(data.period||'none')?heard.text:typed;
   if(v.pending)return;if(!text||text.length>500){v.error='请填写 1–500 字的内容。';paintUnscheduledTodos();return;}
   const choice=String(data.period||'none'),period=choice==='none'?null:periodChoices(bjtDate())[choice]||null;
-  v.newPeriod=PERIOD_GROUPS.some(([key])=>key===choice)?choice:'none';
   if(!v.request||v.request.text!==text)v.request={id:crypto.randomUUID(),text};
   const submitted=v.request;v.pending=true;v.error='';paintUnscheduledTodos();
   try {const row=await api('/unscheduled-todos',{method:'POST',body:submitted});if(v.owner!==key||owner()!==key)return;
     // Shown in its group at once; addPeriod saves it and takes the mark back off if that fails.
-    v.items=[...v.items.filter(x=>x.id!==row.id),period?{...row,period}:row];if(v.draft.trim()===text)v.draft='';v.request=null;
+    v.items=[...v.items.filter(x=>x.id!==row.id),period?{...row,period}:row];v.request=null;
+    if(v.draft.trim()===typed){v.draft='';v.newPeriod='none';v.manualPeriod=false;paintHeard(v);}
     if(period)void addPeriod(row.id,period,key);
-    const input=$('#todo-future-text');if(input&&input.value.trim()===text)input.value='';}
+    const input=$('#todo-future-text');if(input&&input.value.trim()===typed)input.value='';}
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }

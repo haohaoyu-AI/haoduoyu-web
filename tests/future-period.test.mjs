@@ -22,3 +22,18 @@ test('ISO weeks and months: choices on a day, groups as time passes', () => {
   const groups = futureGroups([{id:'a', period:'2026-12'}, {id:'b'}, {id:'c', period:'2026-W47'}], '2026-11-16');
   assert.deepEqual(groups.map(([key, rows]) => [key, rows.map(row => row.id)]), [['week', ['c']], ['next_month', ['a']], ['none', ['b']]]);
 });
+
+import {readPeriodWords} from '../shared/todo-period-words.mjs';
+test('Chinese time words put a future to-do in its week or month and leave the rest as its text', () => {
+  const cases = {
+    '下周看一部电影': ['next_week', '看一部电影'], '下个礼拜看电影': ['next_week', '看电影'], '看电影，下星期': ['next_week', '看电影'],
+    '下一个礼拜去银行': ['next_week', '去银行'], '下周之内回复邮件': ['next_week', '回复邮件'], '下周一起吃饭': ['next_week', '一起吃饭'],
+    '这礼拜把书架整理了': ['week', '把书架整理了'], '这周末去爬山': ['week', '去爬山'], '这星期内交稿': ['week', '交稿'],
+    '月底前交房租': ['month', '交房租'], '这个月中旬体检': ['month', '体检'],
+    '下个月去医院复查': ['next_month', '去医院复查'], '下个月底前办签证': ['next_month', '办签证'],
+  };
+  for (const [sentence, [period, text]] of Object.entries(cases)) assert.deepEqual(readPeriodWords(sentence), {period, text}, sentence);
+  // A weekday is a concrete day, and last week or month is not a plan.
+  for (const sentence of ['下周五交表', '这礼拜三开会', '上个月底的账', '上周末的照片整理', '整理书架', 'next week 看电影'])
+    assert.equal(readPeriodWords(sentence), null, sentence);
+});

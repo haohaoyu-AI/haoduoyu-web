@@ -5744,6 +5744,81 @@ function periodPast(period, today2) {
   return period.includes("W") ? period < weekOf(today2) : period < monthOf(today2);
 }
 
+// shared/todo-period-words.mjs
+var WORDS = {
+  week: [
+    "本周",
+    "这周",
+    "这个周",
+    "本礼拜",
+    "这礼拜",
+    "这个礼拜",
+    "本星期",
+    "这星期",
+    "这个星期",
+    "这一周",
+    "这一个礼拜",
+    "这一个星期",
+    "周末",
+    "这周末",
+    "本周末",
+    "这个周末",
+    "这礼拜末"
+  ],
+  next_week: [
+    "下周",
+    "下个周",
+    "下一周",
+    "下礼拜",
+    "下个礼拜",
+    "下一个礼拜",
+    "下星期",
+    "下个星期",
+    "下一个星期",
+    "下周内",
+    "下礼拜内",
+    "下周末",
+    "下个周末"
+  ],
+  month: ["本月", "这月", "这个月", "这一个月", "月底", "月末", "这个月底", "本月底", "这个月末", "本月末", "月中", "中旬", "下旬", "这个月中旬", "本月中旬", "这个月下旬", "本月下旬"],
+  next_month: [
+    "下月",
+    "下个月",
+    "下一个月",
+    "下月初",
+    "下个月初",
+    "下月底",
+    "下个月底",
+    "下月末",
+    "下个月末",
+    "下月中",
+    "下个月中",
+    "下月中旬",
+    "下个月中旬",
+    "下月下旬",
+    "下个月下旬",
+    "下个月上旬",
+    "下月上旬"
+  ]
+};
+var PERIOD_WORDS = WORDS;
+var ENTRIES = Object.entries(WORDS).flatMap(([key, words]) => words.map((word) => [word, key])).sort((a, b) => b[0].length - a[0].length);
+var PATTERN = new RegExp(`(${ENTRIES.map(([word]) => word).join("|")})(?:之前|以前|之内|以内|前|内)?`, "g");
+var DAY_AFTER = /^[一二三四五六日天1-7]/;
+var EDGE = /^[\s,，.。、;；:：!！~～-]+|[\s,，.。、;；:：!！~～-]+$/g;
+function readPeriodWords(sentence) {
+  const source = String(sentence ?? "");
+  for (const match of source.matchAll(PATTERN)) {
+    const after = source.slice(match.index + match[0].length);
+    if (DAY_AFTER.test(after) && !/^一(起|下|趟|次|个|些|块|直)/.test(after)) continue;
+    if (/(上|上个|上一个|前)$/.test(source.slice(0, match.index))) continue;
+    const key = ENTRIES.find(([word]) => word === match[1])[1];
+    const rest = (source.slice(0, match.index) + " " + source.slice(match.index + match[0].length)).replace(/\s+/g, " ").replace(EDGE, "").trim();
+    return { period: key, text: rest || source.trim() };
+  }
+  return null;
+}
+
 // web/pages/unscheduled-todos.mjs
 init_api();
 init_dom();
@@ -5767,7 +5842,8 @@ var cache = {
   noteError: "",
   picking: {},
   open: "",
-  newPeriod: "none"
+  newPeriod: "none",
+  manualPeriod: false
 };
 var paintingFuture = false;
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
@@ -5789,7 +5865,8 @@ function current() {
     noteError: "",
     picking: {},
     open: "",
-    newPeriod: "none"
+    newPeriod: "none",
+    manualPeriod: false
   });
   return cache;
 }
@@ -5801,6 +5878,7 @@ function renderUnscheduledTodos() {
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` + PERIOD_GROUPS.map(([key, label3]) => `<option value="${key}" ${v.newPeriod === key ? "selected" : ""}>${label3}</option>`).join("") + `</select>
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
+<p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
 <p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点右边的 ▾ 定具体日子，或改成本周、下周这类大概时间。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
@@ -5906,8 +5984,29 @@ async function loadUnscheduledTodos() {
     }
   }
 }
+var GROUP_NAME = Object.fromEntries(PERIOD_GROUPS);
+function heardText(v) {
+  const heard = readPeriodWords(v.draft);
+  return heard && v.newPeriod === heard.period ? `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」` : "";
+}
+function paintHeard(v) {
+  const select = $("#todo-future-period"), line = $("#todo-future-heard");
+  if (select && select.value !== v.newPeriod) select.value = v.newPeriod;
+  if (line) line.textContent = heardText(v);
+}
 function inputUnscheduledTodo(el3) {
-  if (el3.id === "todo-future-text") current().draft = el3.value;
+  if (el3.id === "todo-future-text") {
+    const v = current();
+    v.draft = el3.value;
+    if (!v.manualPeriod) v.newPeriod = readPeriodWords(el3.value)?.period || "none";
+    paintHeard(v);
+  }
+  if (el3.id === "todo-future-period") {
+    const v = current();
+    v.newPeriod = el3.value;
+    v.manualPeriod = true;
+    paintHeard(v);
+  }
   if (el3.dataset?.futureDateId) current().dates[el3.dataset.futureDateId] = el3.value;
 }
 function moved(row, date2, source, todo, complete = false) {
@@ -6080,7 +6179,8 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
 }
 async function submitUnscheduledTodo({ data: data3 }) {
   if (!visible()) return;
-  const v = current(), key = v.owner, text = String(data3.text || "").trim();
+  const v = current(), key = v.owner, typed = String(data3.text || "").trim(), heard = readPeriodWords(typed);
+  const text = heard && heard.period === String(data3.period || "none") ? heard.text : typed;
   if (v.pending) return;
   if (!text || text.length > 500) {
     v.error = "请填写 1–500 字的内容。";
@@ -6088,7 +6188,6 @@ async function submitUnscheduledTodo({ data: data3 }) {
     return;
   }
   const choice2 = String(data3.period || "none"), period = choice2 === "none" ? null : periodChoices(bjtDate())[choice2] || null;
-  v.newPeriod = PERIOD_GROUPS.some(([key2]) => key2 === choice2) ? choice2 : "none";
   if (!v.request || v.request.text !== text) v.request = { id: crypto.randomUUID(), text };
   const submitted = v.request;
   v.pending = true;
@@ -6098,11 +6197,16 @@ async function submitUnscheduledTodo({ data: data3 }) {
     const row = await api("/unscheduled-todos", { method: "POST", body: submitted });
     if (v.owner !== key || owner() !== key) return;
     v.items = [...v.items.filter((x) => x.id !== row.id), period ? { ...row, period } : row];
-    if (v.draft.trim() === text) v.draft = "";
     v.request = null;
+    if (v.draft.trim() === typed) {
+      v.draft = "";
+      v.newPeriod = "none";
+      v.manualPeriod = false;
+      paintHeard(v);
+    }
     if (period) void addPeriod(row.id, period, key);
     const input = $("#todo-future-text");
-    if (input && input.value.trim() === text) input.value = "";
+    if (input && input.value.trim() === typed) input.value = "";
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
   } finally {

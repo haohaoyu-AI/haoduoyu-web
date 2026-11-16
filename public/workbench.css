@@ -1106,3 +1106,5 @@ body.floating-workbench {
 @media (max-width:700px) {
   #todo-future .todo-future-panel, #todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { flex-basis:100%; max-width:100%; }
 }
+.todo-future-heard { margin:6px 0 0; font-size:12px; color:var(--accent); min-height:0; }
+.todo-future-heard:empty { display:none; }
