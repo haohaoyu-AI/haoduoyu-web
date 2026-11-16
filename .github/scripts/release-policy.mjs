@@ -422,7 +422,15 @@ export const connectorAllRelease=Object.freeze({
   baseline:'5563d93b-c2e1-4c3e-8bb1-f6f1f2196855',
   bytes:3261122,sha256:'9d6e9c03cc4a9d51861cf81e64c2172eb00c1bcee4ae4a5abebd73124449a987',
   label:'production-connector-all-20261116'});
-const acceptedRelease=commit=>commit===connectorAllRelease.commit?connectorAllRelease:
+// connector approval asks for admin login, on top of the deployed 0630f43.
+export const connectorLoginRelease=Object.freeze({
+  commit:'80a0b72315b3169e4a1f10ee16316dc4f2a0f9be',
+  tree:'4f144bbfc17307c2a89d9a59390821de202ff0ba',
+  baseline:'056137f2-2d8e-40ee-8d1d-93fa8849f764',
+  bytes:3261612,sha256:'396aa6d990a29ffc8580e32fc1491bc9dd8afe6743e404a3019d7d7f48fd2efc',
+  label:'production-connector-login-20261116'});
+const acceptedRelease=commit=>commit===connectorLoginRelease.commit?connectorLoginRelease:
+  commit===connectorAllRelease.commit?connectorAllRelease:
   commit===connectorOriginRelease.commit?connectorOriginRelease:
   commit===claudeConnectorRelease.commit?claudeConnectorRelease:
   commit===smartDueRelease.commit?smartDueRelease:
