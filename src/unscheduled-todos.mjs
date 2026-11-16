@@ -2,14 +2,23 @@ import {bodyFor,fail,now} from './security.mjs';
 import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,requireBusinessCsrf as requireCsrf} from './business-access.mjs';
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay} from './lib/time.mjs';
+import {validPeriod} from '../shared/todo-period.mjs';
 
 const baseFields='id,text,completed,version,created_at,updated_at,deleted_at';
 async function selectedFields(store) {
-  const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)');
-  return info.some(column=>column.name==='note')?baseFields+',note':baseFields;
+  const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)'),has=name=>info.some(column=>column.name===name);
+  return baseFields+(has('note')?',note':'')+(has('period')?',period':'');
+}
+// The period column (0025) may be missing on a database that has not been migrated yet; then periods are refused.
+async function hasPeriod(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='period');
+}
+function periodOf(value) {
+  if(value!==null&&!validPeriod(value))throw fail(400,'VALIDATION_ERROR','时间段需要是 YYYY-Www 或 YYYY-MM');
+  return value;
 }
 const json=(data,status=200)=>Response.json({data},{status});
-const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;return value;};
+const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;return value;};
 function idOf(value) {
   if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
     throw fail(400,'VALIDATION_ERROR','待办标识需要使用 UUID');
@@ -36,6 +45,7 @@ function inputFor(body,operation) {
       throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
     return {id:idOf(body.id),text:body.text.trim()};
   }
+  if(operation==='period') {exact(body,['period','version']);versionOf(body.version);periodOf(body.period);return body;}
   exact(body,operation==='completed'?['completed','version']:['move','complete-today'].includes(operation)?['date','version']:['version']);versionOf(body.version);
   if(['move','complete-today'].includes(operation))dateOf(body.date);
   if(operation==='completed'&&typeof body.completed!=='boolean')throw fail(400,'VALIDATION_ERROR','完成状态需要为布尔值');
@@ -86,6 +96,16 @@ async function write(store,actor,operation,id,input) {
     store.expectChange();
     return {actor,response:json({todo:item(todo),source:item({...current,completed,deleted_at:stamp,version:current.version+1,updated_at:stamp})})};
   }
+  if(operation==='period') {
+    if(!await hasPeriod(store))throw fail(409,'PERIOD_UNAVAILABLE','数据库还没有时间段字段');
+    if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+    if(current.version===input.version+1&&(current.period??null)===input.period)return {replayed:true,response:json(item(current))};
+    if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+    const stamp=now();
+    store.queue('UPDATE matrix_unscheduled_todos SET period=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.period,stamp,actor.id,id,input.version);
+    store.expectChange();
+    return {actor,response:json(item({...current,period:input.period,version:current.version+1,updated_at:stamp}))};
+  }
   if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
   const deleted=operation==='delete',restoring=operation==='restore';
   if((deleted||restoring)&&(current.deleted_at!==null)===deleted&&(current.version===input.version||current.version===input.version+1))
@@ -116,11 +136,11 @@ export async function handleUnscheduledTodos(db,request,route,origin,initialRevi
     return json({items:rows.map(item)});
   },initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireUser(first);
-  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route),complete=/^\/unscheduled-todos\/([^/]+)\/complete-today$/.exec(route);
-  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':method==='POST'&&complete?'complete-today':null;
+  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route),complete=/^\/unscheduled-todos\/([^/]+)\/complete-today$/.exec(route),period=/^\/unscheduled-todos\/([^/]+)\/period$/.exec(route);
+  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':method==='POST'&&complete?'complete-today':method==='PATCH'&&period?'period':null;
   if(!operation)throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
-  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move||complete)[1]),input=inputFor(body,operation);
+  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move||complete||period)[1]),input=inputFor(body,operation);
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireUser(actor);requireCsrf(request,actor,origin);
     return write(store,actor,operation,id,input);

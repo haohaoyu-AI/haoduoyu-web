@@ -1067,3 +1067,42 @@ body.floating-workbench {
 #ai-reports .ai-today-report > p:first-child { margin:0 0 4px; }
 #ai-reports .ai-calendar-layout { margin-bottom:10px; }
 #ai-reports .ai-calendar-step { width:38px; min-width:38px; height:38px; min-height:38px; padding:0; }
+
+/* 未来待办 by rough time (Claude 修改 2026-11-16): one ▾ per row opens 定具体日子 / 大概什么时候 / 删除. */
+#todo-future .daily-todo-row { flex-wrap:wrap; }
+#todo-future .daily-todo-main { flex:1 1 0; min-width:0; }
+#todo-future .todo-future-group { list-style:none; display:flex; align-items:baseline; gap:6px; padding:var(--space-16) 0 var(--space-4);
+  font-size:var(--font-size-13, 13px); font-weight:600; color:var(--color-text-secondary); border-bottom:1px solid var(--line); }
+#todo-future .todo-future-group:first-child { padding-top:var(--space-4); }
+.todo-future-count { font-weight:400; font-variant-numeric:tabular-nums; opacity:.7; }
+.todo-future-more { width:36px; height:36px; flex-shrink:0; font-size:14px; color:var(--color-text-secondary); transition:transform .15s; }
+.is-open > .todo-future-more { transform:rotate(180deg); color:var(--accent); }
+.todo-future-late { display:inline-block; margin-left:8px; font-size:12px; color:var(--color-text-secondary); }
+.todo-future-period { width:auto; flex:0 0 auto; padding-inline:10px; }
+.todo-future-panel { flex:1 0 100%; margin:2px 0 var(--space-12) 32px; padding:10px 12px; border-radius:10px;
+  background:var(--color-white-a-86, rgba(127,127,127,.06)); border:1px solid var(--line); display:grid; gap:10px; }
+.todo-future-panel-row { display:grid; gap:6px; }
+.todo-future-panel-label { font-size:12px; color:var(--color-text-secondary); }
+.todo-future-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.todo-future-chips .btn.small { min-height:34px; padding-inline:12px; }
+.todo-future-chips .btn.small.is-on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.todo-future-day { opacity:.6; font-variant-numeric:tabular-nums; margin-left:2px; }
+.is-on .todo-future-day { opacity:.85; }
+.todo-future-panel .todo-future-schedule { width:100%; }
+.todo-future-panel-foot { display:flex; justify-content:flex-end; border-top:1px dashed var(--line); padding-top:6px; }
+.todo-future-panel-foot .btn.danger { color:#c2410c; }
+#todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { flex:1 0 100%; margin:0 0 var(--space-12) 32px; }
+@media (max-width:700px) {
+  .todo-future-panel { margin-left:0; }
+  #todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { margin-left:0; }
+  #todo-future .todo-future-quick .btn.small, .todo-future-chips .btn.small { flex:0 1 auto; }
+}
+#todo-future .todo-future-more { background:transparent; box-shadow:none; border-color:transparent; }
+#todo-future .todo-future-more:hover, #todo-future .is-open > .todo-future-more { background:var(--surface-2, rgba(127,127,127,.08)); }
+#todo-future .todo-future-period { max-width:92px; }
+#todo-future .todo-future-panel-foot .btn { border-color:transparent; background:transparent; box-shadow:none; }
+#todo-future .todo-future-panel { flex:0 0 calc(100% - 32px); max-width:calc(100% - 32px); box-sizing:border-box; }
+#todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { flex:0 0 calc(100% - 32px); max-width:calc(100% - 32px); }
+@media (max-width:700px) {
+  #todo-future .todo-future-panel, #todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { flex-basis:100%; max-width:100%; }
+}

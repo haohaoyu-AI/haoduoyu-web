@@ -1,5 +1,6 @@
 import {openFloatingWorkbench} from "./floating-workbench.mjs";
 import {deleteUnscheduledTodo,pickUnscheduledTodoDate,quickScheduleUnscheduledTodo,scheduleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
+import {setUnscheduledTodoPeriod,toggleUnscheduledTodoPanel} from "./pages/unscheduled-todos.mjs";
 import { cancelModalRequests } from "./core/requests.mjs";
 import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell, renderMediaOverview } from "./controller.mjs";
 import { api } from "./core/api.mjs";
@@ -314,6 +315,8 @@ const actions = {
   "todo-future-schedule": ({id}) => scheduleUnscheduledTodo(id),
   "todo-future-quick": ({id, target}) => quickScheduleUnscheduledTodo(id, target.dataset.date),
   "todo-future-pick": ({id}) => pickUnscheduledTodoDate(id),
+  "todo-future-menu": ({id}) => toggleUnscheduledTodoPanel(id),
+  "todo-future-period": ({id, target}) => setUnscheduledTodoPeriod(id, target.dataset.period),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,

@@ -6,15 +6,16 @@ import {bjtDate} from '../core/format.mjs';
 import {getOfflineRuntime} from '../offline/runtime.mjs';
 import {toast} from '../ui/toast.mjs';
 import {todoNoteField} from './todo-note-field.mjs';
+import {PERIOD_GROUPS,periodChoices,periodGroup,periodPast} from '../../shared/todo-period.mjs';
 
 const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-  uncertain:{},noteEdit:null,noteError:'',picking:{}};
+  uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none'};
 let paintingFuture=false;
 const owner=()=>JSON.stringify([runtime.sessionEpoch,state.me?.id??null,getOfflineRuntime()?.state.scope??null]);
 function current() {
   const key=owner();
   if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
-    uncertain:{},noteEdit:null,noteError:'',picking:{}});
+    uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none'});
   return cache;
 }
 const visible=()=>Boolean(state.me)&&state.page==='todos'&&state.todoPanel==='future';
@@ -23,8 +24,10 @@ export function renderUnscheduledTodos() {
   return `<section id="todo-future" aria-label="未来待办" ${visible()?'':'hidden'}>
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
+<label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` +
+  PERIOD_GROUPS.map(([key,label])=>`<option value="${key}" ${v.newPeriod===key?'selected':''}>${label}</option>`).join('') + `</select>
 <button class="btn primary" type="submit" ${v.pending?'disabled':''}>添加</button></form>
-<p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点「今天」「明天」这些按钮直接移过去，别的日子点「其它日期…」。</p>
+<p class="todo-future-help">勾选＝做完了，移到今日并标为完成；点右边的 ▾ 定具体日子，或改成本周、下周这类大概时间。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -39,17 +42,34 @@ export function futureQuickDates(today=bjtDate()) {
   const third=weekday===5?['周日',shiftDay(today,2)]:weekday===6?['下周六',shiftDay(today,7)]:['周末',shiftDay(today,(6-weekday+7)%7||7)];
   return [['今天',today],['明天',shiftDay(today,1)],third];
 }
-function futureSchedule(item,v,off) {
+const GROUP_LABEL=Object.fromEntries(PERIOD_GROUPS);
+const WEEK=['周日','周一','周二','周三','周四','周五','周六'];
+/** The date field for "选日期…", and for a move whose result still needs checking. */
+function dateField(item,v,off) {
   const id=e(item.id);
-  // The date field stays for "其它日期…" and for a move whose result still needs checking.
-  if(v.picking[item.id]||v.uncertain[item.id])
-    return `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${id}" value="${e(v.dates[item.id] || '')}" ` +
-      `aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${id}" ` +
-      `${v.pending?'disabled':''}>${v.uncertain[item.id]?'核实移动结果':'移至该日期'}</button></div>`;
-  const quick=futureQuickDates().map(([label,date])=>`<button class="btn small" type="button" data-action="todo-future-quick" data-id="${id}" ` +
-    `data-date="${date}" title="移到 ${shortDay(date)}" aria-label="把 ${e(item.text)} 移到${label}（${shortDay(date)}）" ${off}>${label}</button>`).join('');
-  return `<div class="todo-future-schedule todo-future-quick">${quick}<button class="btn small text" type="button" data-action="todo-future-pick" ` +
-    `data-id="${id}" ${off}>其它日期…</button></div>`;
+  return `<div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${id}" value="${e(v.dates[item.id] || '')}" ` +
+    `aria-label="为 ${e(item.text)} 选择日期" ${off}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${id}" ` +
+    `${v.pending?'disabled':''}>${v.uncertain[item.id]?'核实移动结果':'移至该日期'}</button></div>`;
+}
+/** One ▾ per row opens this panel: a concrete day, a rough time, or delete. */
+function futurePanel(item,v,off) {
+  const id=e(item.id),today=bjtDate(),choices=periodChoices(today),mine=item.period||null;
+  const days=futureQuickDates(today).map(([label,date])=>{
+    const name=label==='周末'?WEEK[6]:label;
+    return `<button class="btn small" type="button" data-action="todo-future-quick" data-id="${id}" data-date="${date}" ` +
+      `aria-label="把 ${e(item.text)} 移到${name}（${shortDay(date)}）" ${off}>${name} <span class="todo-future-day">${shortDay(date)}</span></button>`;
+  }).join('') + `<button class="btn small text" type="button" data-action="todo-future-pick" data-id="${id}" ${off}>选日期…</button>`;
+  const periods=PERIOD_GROUPS.map(([key,label])=>{
+    const value=key==='none'?'':choices[key],on=(mine||'')===value;
+    return `<button class="btn small${on?' is-on':''}" type="button" data-action="todo-future-period" data-id="${id}" data-period="${value}" ` +
+      `aria-pressed="${on}" ${off}>${label}</button>`;
+  }).join('');
+  return `<div class="todo-future-panel" id="todo-future-panel-${id}">` +
+    `<div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` +
+    (v.picking[item.id]?dateField(item,v,off):'') +
+    `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div>` +
+    `<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" ` +
+    `data-id="${id}" ${off}>删除</button></div></div>`;
 }
 /** One tap: the chosen day goes through the same checked move as the date field. */
 export function quickScheduleUnscheduledTodo(id,date) {
@@ -61,15 +81,26 @@ export function pickUnscheduledTodoDate(id) {
   current().picking[id]=true;paintUnscheduledTodos();
   $(`[data-future-date-id="${CSS.escape(id)}"]`)?.focus();
 }
+export function toggleUnscheduledTodoPanel(id) {
+  const v=current();v.open=v.open===id?'':id;paintUnscheduledTodos();
+}
 function futureRow(item) {
-  const v=current(),busy=v.pending||v.uncertain[item.id],off=busy?'disabled':'',check=`future-check-${item.id}`;
+  const v=current(),busy=v.pending||v.uncertain[item.id],off=busy?'disabled':'',check=`future-check-${item.id}`,open=v.open===item.id;
   const note=todoNoteField(item,{pending:busy,editing:v.noteEdit,error:v.noteError,future:true});
-  return `<li class="daily-todo-row${item.completed?' is-complete':''}">` +
+  const late=periodPast(item.period,bjtDate())?`<span class="todo-future-late">${item.period.includes('W')?'上周':'上个月'}没做完</span>`:'';
+  return `<li class="daily-todo-row${item.completed?' is-complete':''}${open?' is-open':''}">` +
     `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(item.id)}" ` +
     `${item.completed?'checked':''} ${off}></label>` +
-    `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(item.text)}</label>${note}</div>` +
-    futureSchedule(item,v,off) + `<button class="icon-button" type="button" ` +
-    `data-action="todo-future-delete" data-id="${e(item.id)}" aria-label="删除 ${e(item.text)}" ${off}>×</button></li>`;
+    `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(item.text)}</label>${late}${note}</div>` +
+    `<button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" ` +
+    `aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` +
+    (v.uncertain[item.id]?dateField(item,v,''):open?futurePanel(item,v,off):'') + `</li>`;
+}
+/** The list in groups: 本周, 下周, 本月, 下个月, 不定; empty groups are left out. */
+export function futureGroups(items,today=bjtDate()) {
+  const groups=new Map(PERIOD_GROUPS.map(([key])=>[key,[]]));
+  for(const item of items)groups.get(periodGroup(item.period,today)).push(item);
+  return [...groups].filter(([,rows])=>rows.length);
 }
 export function paintUnscheduledTodos() {
   paintingFuture=true;
@@ -87,7 +118,9 @@ function paintFutureList() {
   if(error)error.textContent=v.error;
   const live=document.activeElement;
   const keep=live?.matches?.('[data-todo-note-input][data-future="1"]')&&live.isConnected&&v.noteEdit?.id===live.dataset.id;
-  if(list&&!keep)list.innerHTML=v.items.filter(x=>!x.deleted_at&&!x.deleted).map(futureRow).join('');
+  const rows=v.items.filter(x=>!x.deleted_at&&!x.deleted),groups=futureGroups(rows),only=groups.length===1&&groups[0][0]==='none';
+  if(list&&!keep)list.innerHTML=groups.map(([key,items])=>(only?'':`<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}` +
+    `<span class="todo-future-count">${items.length}</span></li>`)+items.map(futureRow).join('')).join('');
 }
 export async function loadUnscheduledTodos() {
   if(!visible())return;
@@ -238,13 +271,34 @@ export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
 export async function submitUnscheduledTodo({data}) {
   if(!visible())return;const v=current(),key=v.owner,text=String(data.text||'').trim();
   if(v.pending)return;if(!text||text.length>500){v.error='请填写 1–500 字的内容。';paintUnscheduledTodos();return;}
+  const choice=String(data.period||'none'),period=choice==='none'?null:periodChoices(bjtDate())[choice]||null;
+  v.newPeriod=PERIOD_GROUPS.some(([key])=>key===choice)?choice:'none';
   if(!v.request||v.request.text!==text)v.request={id:crypto.randomUUID(),text};
   const submitted=v.request;v.pending=true;v.error='';paintUnscheduledTodos();
   try {const row=await api('/unscheduled-todos',{method:'POST',body:submitted});if(v.owner!==key||owner()!==key)return;
-    v.items=[...v.items.filter(x=>x.id!==row.id),row];if(v.draft.trim()===text)v.draft='';v.request=null;
+    // Shown in its group at once; addPeriod saves it and takes the mark back off if that fails.
+    v.items=[...v.items.filter(x=>x.id!==row.id),period?{...row,period}:row];if(v.draft.trim()===text)v.draft='';v.request=null;
+    if(period)void addPeriod(row.id,period,key);
     const input=$('#todo-future-text');if(input&&input.value.trim()===text)input.value='';}
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
+}
+// A new to-do is created first (that request may wait in the offline queue), then gets its period;
+// until the queued create reaches the server the period request finds nothing, so it retries for a few seconds.
+async function addPeriod(id,period,key) {
+  const v=current();
+  for(let attempt=0;attempt<8;attempt++) {
+    const row=v.items.find(x=>x.id===id);if(!row||v.owner!==key||owner()!==key)return;
+    try {const updated=await api('/unscheduled-todos/'+encodeURIComponent(id)+'/period',{method:'PATCH',body:{period,version:row.version}});
+      if(v.owner===key&&owner()===key){v.items=v.items.map(x=>x.id===id?updated:x);paintUnscheduledTodos();}return;}
+    catch(error){if(error.status!==404||error.staleSession||attempt===7){undo(id,key,error);return;}}
+    await new Promise(resolve=>setTimeout(resolve,800));
+  }
+}
+function undo(id,key,error) {
+  const v=current();if(v.owner!==key||owner()!==key)return;
+  v.items=v.items.map(x=>{if(x.id!==id)return x;const {period,...rest}=x;return rest;});
+  v.error=`时间段没保存上：${error.message}`;paintUnscheduledTodos();
 }
 async function change(id,method,body) {
   if(!visible())return;const v=current(),key=v.owner,row=v.items.find(x=>x.id===id);if(!row||v.pending)return;
@@ -256,4 +310,14 @@ async function change(id,method,body) {
 }
 export function toggleUnscheduledTodo(el) {return el.checked ? scheduleUnscheduledTodo(el.dataset.futureTodoId,{complete:true}) : 
   change(el.dataset.futureTodoId,'PATCH',{completed:false});}
-export function deleteUnscheduledTodo(id) {return change(id,'DELETE',{});}
+export function deleteUnscheduledTodo(id) {const v=current();if(v.open===id)v.open='';return change(id,'DELETE',{});}
+/** A rough time: "" clears it (不定). The row moves to its group and the panel closes. */
+export async function setUnscheduledTodoPeriod(id,period) {
+  if(!visible())return;const v=current(),key=v.owner,row=v.items.find(x=>x.id===id);if(!row||v.pending)return;
+  const value=period||null;if((row.period||null)===value){v.open='';paintUnscheduledTodos();return;}
+  v.pending=true;v.error='';paintUnscheduledTodos();
+  try {const updated=await api('/unscheduled-todos/'+encodeURIComponent(id)+'/period',{method:'PATCH',body:{period:value,version:row.version}});
+    if(v.owner===key&&owner()===key){v.items=v.items.map(x=>x.id===id?updated:x);v.open='';}}
+  catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
+  finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
+}
