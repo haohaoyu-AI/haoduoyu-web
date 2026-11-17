@@ -436,7 +436,15 @@ export const connectorClientsRelease=Object.freeze({
   baseline:'cc0ba62d-6a20-4645-86ef-01da4be789da',
   bytes:3262292,sha256:'a1acc8d241ae3e9ae25bf5a58be374b9f999b66b9053e1e82fc792e8b2149594',
   label:'production-connector-clients-20261116'});
-const acceptedRelease=commit=>commit===connectorClientsRelease.commit?connectorClientsRelease:
+// offline outbox uses window snapshot, on top of the deployed f8420b3.
+export const outboxWindowRelease=Object.freeze({
+  commit:'6e13a0a1587f87bd32c3cd0f791ee203f7c105f9',
+  tree:'ad1a2985c4961c399fd9b5da8bf82b3c63ee267b',
+  baseline:'1b769736-62ba-4096-afe7-8adfa1d08e96',
+  bytes:3262507,sha256:'e9f99dae1471f217cb6cd178ba231005b760c892c718faf7bf2e77e70b7ad4b4',
+  label:'production-outbox-window-20261117'});
+const acceptedRelease=commit=>commit===outboxWindowRelease.commit?outboxWindowRelease:
+  commit===connectorClientsRelease.commit?connectorClientsRelease:
   commit===connectorLoginRelease.commit?connectorLoginRelease:
   commit===connectorAllRelease.commit?connectorAllRelease:
   commit===connectorOriginRelease.commit?connectorOriginRelease:
