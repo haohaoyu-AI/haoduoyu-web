@@ -397,8 +397,12 @@ function remoteMethods(context) {
     const row = index.items.find(value => value.id === operation.source_id);
     if (row || type === 'template') return row || null;
     const day = operation.body.date || operation.base?.date || operation.local.date;
-    const snapshot = await network(scope, '/workbench-snapshot?date=' + day);
-    if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
+    // The old whole-day snapshot was retired (426); the bounded one-day window carries the same todos.
+    const snapshot = await network(scope, '/workbench-snapshot?window=date&date=' + day + '&version=2');
+    // A window answer carries its identity in .index; a whole-day answer carried it at the top.
+    const head = snapshot?.batch_format === 'haoduoyu-workbench-window-v1' ? snapshot.index : snapshot;
+    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) ||
+      snapshot.coverage && (snapshot.coverage.from !== day || snapshot.coverage.to !== day)) {
       throw new Error('Todo absence could not be verified completely');
     }
     return snapshot.data.todos.find(value => value.source_id === operation.source_id) ?

@@ -2618,8 +2618,9 @@ function remoteMethods(context) {
     const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
     const day7 = operation2.body.date || operation2.base?.date || operation2.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?date=" + day7);
-    if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
+    const snapshot = await network(scope, "/workbench-snapshot?window=date&date=" + day7 + "&version=2");
+    const head = snapshot?.batch_format === "haoduoyu-workbench-window-v1" ? snapshot.index : snapshot;
+    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) || snapshot.coverage && (snapshot.coverage.from !== day7 || snapshot.coverage.to !== day7)) {
       throw new Error("Todo absence could not be verified completely");
     }
     return snapshot.data.todos.find((value) => value.source_id === operation2.source_id) ? { ...snapshot.data.todos.find((value) => value.source_id === operation2.source_id), id: operation2.source_id } : null;
