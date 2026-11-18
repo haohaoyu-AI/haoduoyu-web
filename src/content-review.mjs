@@ -9,6 +9,7 @@ import {dailyNotesOwner} from './daily-notes.mjs';
 import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual,reviewContentHash,reviewRuleChanges} from './content-review-validation.mjs';
 import {handleReviewResources,isReviewResourceRoute} from './review-resources.mjs';
 import {enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
+import {matchPublishedDraft} from '../shared/review-draft-match.mjs';
 
 const tombstoneActor=owner=>'review-tombstones:'+owner;
 const tombstoneKey=(kind,id)=>'review-deleted:'+kind+':'+id;
@@ -105,6 +106,40 @@ function queueTombstone(store,owner,kind,row,time) {
   const receipt=JSON.stringify({deleted:true,id:row.id});
   store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?) ON CONFLICT(actor,key) DO UPDATE SET request_hash=excluded.request_hash,response_json=excluded.response_json,created_at=excluded.created_at',tombstoneActor(owner),tombstoneKey(kind,row.id),row.content_hash,receipt,time);
 }
+const DRAFT_ACCOUNTS=new Set(['V字','Z极客']);
+function draftAccount(value) {
+  const account=reviewSpecs.articles.fields.account(value);
+  if(!DRAFT_ACCOUNTS.has(account))throw fail(400,'VALIDATION_ERROR','草稿和发布回写只接受 V字 或 Z极客。好多鱼已停更，不写入。');
+  return account;
+}
+function intendsPublication(values) {
+  if(values.publish_status==='pending'||values.publish_status==='unmatched')return false;
+  return values.publish_status==='published'||values.published_at!=null;
+}
+async function retireUnmatchedPlaceholder(store,owner,peers,draftId,platformId) {
+  const placeholder=peers.find(row=>row.publish_status==='unmatched'&&row.id!==draftId&&typeof row.platform_article_id==='string'&&row.platform_article_id===platformId);
+  if(!placeholder)return;
+  store.queue('UPDATE matrix_review_snapshots SET article_id=? WHERE user_id=? AND article_id=?',draftId,owner,placeholder.id);
+  store.queue('DELETE FROM matrix_review_articles WHERE user_id=? AND id=? AND publish_status=?',owner,placeholder.id,'unmatched');
+  store.expectChange();
+}
+async function writePublicationRow(store,owner,current,values,actor,publish_status) {
+  const spec=reviewSpecs.articles;
+  const merged=reviewInput('articles',{...Object.fromEntries(columnsFor('articles').map(key=>[key,current[key]])),
+    title:values.title,url:values.url??current.url,published_at:values.published_at??current.published_at,
+    platform_article_id:values.platform_article_id??current.platform_article_id,
+    sample_title:values.sample_title??current.sample_title,sample_url:values.sample_url??current.sample_url,
+    reference_article_id:values.reference_article_id??current.reference_article_id,
+    alternate_titles:values.alternate_titles??current.alternate_titles,publish_status});
+  await checkRelations(store,'articles',owner,current.id,merged,current);
+  if(reviewEqual('articles',current,merged))return current;
+  const row={...current,...merged,updated_at:new Date().toISOString()};
+  delete row.content_hash;
+  const keys=[...columnsFor('articles'),'updated_at'];
+  store.queue('UPDATE '+spec.table+' SET '+keys.map(key=>columnFor(spec,key)+'=?').join(',')+' WHERE user_id=? AND id=?',...keys.map(key=>valueFor(spec,key,row)),owner,current.id);
+  store.expectChange();store.audit(actor.actor,'review.articles.publish',current.id,{match:current.id,publish_status});
+  return {...row,content_hash:reviewContentHash(row)};
+}
 async function put(db,request,kind,owner,id,input,env,origin) {
   if(kind==='playbooks'&&Object.hasOwn(input,'status')&&input.status===null)throw fail(400,'VALIDATION_ERROR','Invalid playbook status');
   const values=reviewInput(kind,input,{validateDaily:false}),spec=reviewSpecs[kind];
@@ -119,12 +154,23 @@ async function put(db,request,kind,owner,id,input,env,origin) {
     }
     reviewInput(kind,input);
     if(kind==='reports'&&values.period_type==='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
+    if(kind==='articles'&&intendsPublication(values)) {
+      const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,values.account)).map(row=>reviewView('articles',row));
+      const match=matchPublishedDraft(peers,values);
+      if((match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending') {
+        await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
+        const published=await writePublicationRow(store,owner,match.row,values,actor,'published');
+        return {actor,response:json({...writeView('articles',published),matched:true,match:match.kind,requested_id:id})};
+      }
+      if(peers.some(row=>row.publish_status==='pending')&&(match.kind==='none'||match.kind==='ambiguous'))values.publish_status='unmatched';
+    }
     await checkRelations(store,kind,owner,id,values);
     const time=new Date().toISOString(),row={id,...values,...Object.fromEntries(spec.timestamps.map(key=>[key,time]))};
     const keys=[...columnsFor(kind),...spec.timestamps],columns=['user_id','id',...keys.map(key=>columnFor(spec,key))];
     store.queue('INSERT INTO '+spec.table+'('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')',owner,id,...keys.map(key=>valueFor(spec,key,row)));
     store.audit(actor.actor,'review.'+kind+'.create',id);
-    return {actor,response:json(writeView(kind,{...row,content_hash:reviewContentHash(row)}),201)};
+    const created=writeView(kind,{...row,content_hash:reviewContentHash(row)});
+    return {actor,response:json(kind==='articles'&&values.publish_status==='unmatched'?{...created,matched:false,match:'unmatched'}:created,201)};
   })).response;
 }
 async function patch(db,request,kind,owner,id,input,env,origin) {
@@ -212,11 +258,136 @@ async function patchRule(db,request,owner,ruleId,input,env,origin) {
     return {actor,response:json(publicView('playbooks',result))};
   })).response;
 }
+const DRAFT_FIELDS=new Set(['id','account','platform_article_id','title','alternate_titles','sample_title','sample_url','reference_article_id','draft_saved_at']);
+const PUBLICATION_FIELDS=new Set([...DRAFT_FIELDS,'url','published_at','snapshot']);
+function rejectUnknown(input,allowed) {
+  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(key=>!allowed.has(key)))throw fail(400,'VALIDATION_ERROR','存在未知字段或请求体无效');
+}
+async function linkedBenchmark(store,owner,account,sampleUrl,referenceId) {
+  if(referenceId)return referenceId;
+  if(!sampleUrl)return null;
+  const rows=await store.all('SELECT ba.id FROM matrix_review_benchmark_articles ba JOIN matrix_review_benchmark_accounts b ON b.user_id=ba.user_id AND b.id=ba.benchmark_account_id WHERE ba.user_id=? AND ba.url=? AND ba.deleted_at IS NULL AND b.deleted_at IS NULL AND b.account=?',owner,sampleUrl,account);
+  return rows.length===1?rows[0].id:null;
+}
+async function queueSnapshot(store,owner,articleId,snapshot,actor,{knownArticle=false}={}) {
+  if(snapshot==null)return null;
+  if(!snapshot||typeof snapshot!=='object'||Array.isArray(snapshot))throw fail(400,'VALIDATION_ERROR','snapshot 须为对象');
+  const {id:snapId=randomUUID(),article_id:ignored,...body}=snapshot;
+  if(!reviewUuid.test(snapId||''))throw fail(400,'VALIDATION_ERROR','snapshot.id 须为 UUID');
+  const values=reviewInput('snapshots',{...body,article_id:articleId});
+  const existing=await readRow(store,'snapshots',owner,snapId);
+  if(existing) {
+    if(!reviewEqual('snapshots',existing,values))throw fail(409,'IDEMPOTENCY_CONFLICT','快照 UUID 已用于不同内容');
+    return existing;
+  }
+  const duplicate=await store.get('SELECT * FROM matrix_review_snapshots WHERE user_id=? AND article_id=? AND snapshot_date=? AND id<>?',owner,articleId,values.snapshot_date,snapId);
+  if(duplicate) {
+    const prior=reviewView('snapshots',duplicate);
+    if(reviewEqual('snapshots',prior,values))return prior;
+    errorWith(409,'REVIEW_UNIQUE_CONFLICT','同一业务记录已存在',{existing_id:duplicate.id});
+  }
+  if(!knownArticle)await checkRelations(store,'snapshots',owner,snapId,values);
+  const spec=reviewSpecs.snapshots,keys=columnsFor('snapshots'),row={id:snapId,...values};
+  store.queue('INSERT INTO '+spec.table+' (user_id,id,'+keys.map(key=>columnFor(spec,key)).join(',')+') VALUES ('+Array(keys.length+2).fill('?').join(',')+')',owner,snapId,...keys.map(key=>valueFor(spec,key,row)));
+  store.audit(actor.actor,'review.snapshots.create',snapId);
+  return {...row,content_hash:reviewContentHash({...row})};
+}
+function articleInsert(store,owner,id,values,actor,time) {
+  const spec=reviewSpecs.articles,row={id,...values,created_at:time,updated_at:time};
+  const keys=[...columnsFor('articles'),...spec.timestamps];
+  store.queue('INSERT INTO '+spec.table+' (user_id,id,'+keys.map(key=>columnFor(spec,key)).join(',')+') VALUES ('+Array(keys.length+2).fill('?').join(',')+')',owner,id,...keys.map(key=>valueFor(spec,key,row)));
+  store.audit(actor.actor,'review.articles.create',id);
+  return {...row,content_hash:reviewContentHash(row)};
+}
+async function saveDraft(db,request,owner,input,env,origin) {
+  rejectUnknown(input,DRAFT_FIELDS);
+  const account=draftAccount(input.account);
+  const platform_article_id=reviewSpecs.articles.fields.platform_article_id(input.platform_article_id);
+  if(!platform_article_id)throw fail(400,'VALIDATION_ERROR','草稿必须带平台文章编号 platform_article_id');
+  const title=reviewSpecs.articles.fields.title(input.title);
+  const alternate_titles=reviewSpecs.articles.fields.alternate_titles(input.alternate_titles??null);
+  if(!alternate_titles)throw fail(400,'VALIDATION_ERROR','草稿必须带 4 条备选标题 alternate_titles');
+  const sample_title=reviewSpecs.articles.fields.sample_title(input.sample_title??null);
+  const sample_url=reviewSpecs.articles.fields.sample_url(input.sample_url??null);
+  if(!sample_title||!sample_url)throw fail(400,'VALIDATION_ERROR','草稿必须带对标原文标题 sample_title 和链接 sample_url');
+  const reference_article_id=input.reference_article_id==null?null:reviewSpecs.articles.fields.reference_article_id(input.reference_article_id);
+  const suppliedSavedAt=input.draft_saved_at==null?null:reviewSpecs.articles.fields.draft_saved_at(input.draft_saved_at);
+  const requestedId=input.id==null?null:input.id;
+  if(requestedId!=null&&!reviewUuid.test(requestedId))throw fail(400,'VALIDATION_ERROR','id 须为 UUID');
+  return (await mutate(db,async store=>{
+    const actor=await actorFor(store,request,owner,env,origin,true);
+    const byPlatform=await store.get('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=?',owner,account,platform_article_id);
+    const platformRow=byPlatform?reviewView('articles',byPlatform):null;
+    if(platformRow&&platformRow.publish_status!=='pending')return {actor,response:json({...writeView('articles',platformRow),matched:true,kept:true})};
+    if(requestedId&&platformRow&&requestedId!==platformRow.id)errorWith(409,'REVIEW_UNIQUE_CONFLICT','该平台文章编号已对应另一篇草稿',{existing_id:platformRow.id});
+    if(requestedId&&!platformRow&&await readRow(store,'articles',owner,requestedId))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容');
+    const reference=await linkedBenchmark(store,owner,account,sample_url,reference_article_id);
+    const time=new Date().toISOString();
+    const id=platformRow?.id||requestedId||randomUUID();
+    const values=reviewInput('articles',{account,platform:'toutiao',platform_article_id,title,alternate_titles,sample_title,sample_url,reference_article_id:reference,draft_saved_at:suppliedSavedAt||platformRow?.draft_saved_at||time,publish_status:'pending',published_at:null,url:null});
+    await checkRelations(store,'articles',owner,id,values,platformRow);
+    if(platformRow&&reviewEqual('articles',platformRow,values))return {actor,response:json({...writeView('articles',platformRow),matched:true,match:'id'})};
+    if(platformRow) {
+      const row={...platformRow,...values,updated_at:time};
+      delete row.content_hash;
+      const keys=[...columnsFor('articles'),'updated_at'];
+      store.queue('UPDATE matrix_review_articles SET '+keys.map(key=>columnFor(reviewSpecs.articles,key)+'=?').join(',')+' WHERE user_id=? AND id=?',...keys.map(key=>valueFor(reviewSpecs.articles,key,row)),owner,id);
+      store.expectChange();store.audit(actor.actor,'review.articles.draft',id);
+      const saved={...row,content_hash:reviewContentHash(row)};
+      return {actor,response:json({...writeView('articles',saved),matched:true,match:'id'})};
+    }
+    const created=articleInsert(store,owner,id,values,actor,time);
+    return {actor,response:json({...writeView('articles',created),matched:false,match:'created'},201)};
+  })).response;
+}
+async function savePublication(db,request,owner,input,env,origin) {
+  rejectUnknown(input,PUBLICATION_FIELDS);
+  const account=draftAccount(input.account);
+  const values=reviewInput('articles',{account,title:input.title,platform_article_id:input.platform_article_id??null,url:input.url??null,published_at:input.published_at,sample_title:input.sample_title??null,sample_url:input.sample_url??null,reference_article_id:input.reference_article_id??null,alternate_titles:input.alternate_titles??null,publish_status:'published'});
+  if(!values.published_at)throw fail(400,'VALIDATION_ERROR','发布回写必须带 published_at');
+  const requestedId=input.id==null?null:input.id;
+  if(requestedId!=null&&!reviewUuid.test(requestedId))throw fail(400,'VALIDATION_ERROR','id 须为 UUID');
+  return (await mutate(db,async store=>{
+    const actor=await actorFor(store,request,owner,env,origin,true);
+    const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,account)).map(row=>reviewView('articles',row));
+    const match=matchPublishedDraft(peers,values);
+    let article,matched=false,matchKind=match.kind,created=false;
+    const draftHit=(match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending';
+    const publishedHit=match.kind==='id'&&match.row.publish_status!=='pending'&&match.row.publish_status!=='unmatched';
+    if(draftHit||publishedHit) {
+      if(draftHit)await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
+      article=await writePublicationRow(store,owner,match.row,values,actor,'published');
+      matched=true;
+    } else if(match.kind==='unmatched-repeat') {
+      article=await writePublicationRow(store,owner,match.row,values,actor,'unmatched');
+      matched=false;matchKind='unmatched';
+    } else {
+      created=true;
+      const pending=peers.some(row=>row.publish_status==='pending');
+      const status=pending&&(match.kind==='none'||match.kind==='ambiguous')?'unmatched':'published';
+      const id=requestedId||randomUUID();
+      if(await readRow(store,'articles',owner,id))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容');
+      const time=new Date().toISOString();
+      const createdValues={...values,publish_status:status==='published'? 'published':status};
+      await checkRelations(store,'articles',owner,id,createdValues);
+      article=articleInsert(store,owner,id,createdValues,actor,time);
+      matched=false;matchKind=status==='unmatched'?match.kind:'created';
+    }
+    const snapshot=await queueSnapshot(store,owner,article.id,input.snapshot,actor,{knownArticle:created});
+    return {actor,response:json({...writeView('articles',article),matched,match:matchKind,...(snapshot?{snapshot}:{})},created?201:200)};
+  })).response;
+}
 async function handle(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env),url=new URL(request.url),method=request.method;
   if(isReviewAiRoute(route))return handleReviewAi({db,request,route,env,origin,owner,actorFor,writeLimit,accountData,account:reviewSpecs.articles.fields.account});
   if(isArticleDiagnosisRoute(route))return handleArticleDiagnosis({db,request,route,env,origin,owner,actorFor,writeLimit});
   if(isReviewPromptRoute(route))return handleReviewPrompts(db,request,route,env,origin,initialRevision,{owner,actorFor,writeLimit});
+  if(route==='/review/drafts'||route==='/review/publications') {
+    if(method!=='POST'||url.search)throw fail(404,'NOT_FOUND','内容复盘接口不存在');
+    const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);
+    const input=await bodyFor(request);
+    return route==='/review/drafts'?saveDraft(db,request,owner,input,env,origin):savePublication(db,request,owner,input,env,origin);
+  }
   if(isReviewResourceRoute(route))return handleReviewResources(db,request,route,env,origin,initialRevision);
   const batch=route==='/review/snapshots:batch';
   if(route==='/review/overview') {

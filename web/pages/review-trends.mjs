@@ -148,7 +148,9 @@ export function renderCockpitTrends(data,vm,window) {
   const now = vm.now || new Date().toISOString();
   const result = reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now});
   const pending = result.points.filter(point => point.provisional && (known(point.reads) || known(point.ctr))).length;
+  const held = (result.excluded?.pending || 0) + (result.excluded?.unmatched || 0);
   const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ''}` +
+    `${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ''}` +
     `${result.end === day(now) ? '今天尚未结束。' : ''}缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`;
   return `<section class="review-trends review-cockpit-trends" aria-label="文章阅读与点击率走势">${legend(result)}
     ${figure(result,{key:'reads',rolling:'rolling_reads',kind:'log',title:'阅读走势',height:260,format:reads,tick:readsTick,

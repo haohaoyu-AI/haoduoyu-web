@@ -35,6 +35,7 @@ export const reviewMigrationTag='0015_content_review';
 export const reviewAttributionMigrationTag='0016_review_attribution';
 export const reviewResourcesMigrationTag='0017_review_resources';
 export const reviewLegacyExtensionsMigrationTag='0018_review_legacy_extensions';
+export const reviewDraftStatusMigrationTag='0028_review_draft_status';
 export function validateReviewResourcesMigrationSource(tag,sql) {
   assert.equal(tag,reviewResourcesMigrationTag);
   assert.equal(createHash('sha256').update(sql).digest('hex'),'54ba48ec7ddd6746c2f76899c15d273ad9ebcbc142d48936e4383ae522414077','Review resources differ from reviewed additive source');
@@ -54,6 +55,17 @@ export function validateReviewLegacyExtensionsMigrationSource(tag,sql) {
   assert.equal(statements.length,2);
   assert.match(statements[0],/^ALTER TABLE `matrix_review_articles` ADD `reference_article_id` text;$/);
   assert.match(statements[1],/^ALTER TABLE `matrix_review_playbooks` ADD `status` text CONSTRAINT /);
+  for(const statement of statements)assert.ok(!/\b(?:NOT NULL|DEFAULT|INSERT|UPDATE|DELETE|DROP|CREATE|RENAME)\b/i.test(statement));
+  return statements;
+}
+export function validateReviewDraftStatusMigrationSource(tag,sql) {
+  assert.equal(tag,reviewDraftStatusMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'6b3d8a08e3a59d25b140c00afe127ab77313141cd2609f70c89a8176b896963b','Review draft status differs from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,3);
+  assert.match(statements[0],/^ALTER TABLE `matrix_review_articles` ADD `publish_status` text CONSTRAINT /);
+  assert.match(statements[1],/^ALTER TABLE `matrix_review_articles` ADD `draft_saved_at` text;$/);
+  assert.match(statements[2],/^ALTER TABLE `matrix_review_articles` ADD `alternate_titles_json` text CONSTRAINT /);
   for(const statement of statements)assert.ok(!/\b(?:NOT NULL|DEFAULT|INSERT|UPDATE|DELETE|DROP|CREATE|RENAME)\b/i.test(statement));
   return statements;
 }
@@ -181,7 +193,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag,'0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses','0025_unscheduled_todo_period','0026_unscheduled_todo_recurrence','0027_unscheduled_todo_due'],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag,'0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses','0025_unscheduled_todo_period','0026_unscheduled_todo_recurrence','0027_unscheduled_todo_due',reviewDraftStatusMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -190,7 +202,7 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=entry.tag===reviewPromptVersionsMigrationTag?validateReviewPromptVersionsMigrationSource(entry.tag,sql):entry.tag===openaiReviewMigrationTag?validateOpenaiReviewMigrationSource(entry.tag,sql):entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
+      const statements=entry.tag===reviewDraftStatusMigrationTag?validateReviewDraftStatusMigrationSource(entry.tag,sql):entry.tag===reviewPromptVersionsMigrationTag?validateReviewPromptVersionsMigrationSource(entry.tag,sql):entry.tag===openaiReviewMigrationTag?validateOpenaiReviewMigrationSource(entry.tag,sql):entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
       if(entry.tag==='0019_todo_notes_archives') assert.deepEqual(statements,["ALTER TABLE `matrix_todos` ADD `note` text NOT NULL DEFAULT '';",'ALTER TABLE `matrix_todo_templates` ADD `archived_at` text;']);
       if(entry.tag==='0023_unscheduled_todo_notes') assert.deepEqual(statements,["ALTER TABLE `matrix_unscheduled_todos` ADD `note` text NOT NULL DEFAULT '';"]);
       if(entry.tag==='0027_unscheduled_todo_due') assert.deepEqual(statements,["ALTER TABLE `matrix_unscheduled_todos` ADD `due_date` text CHECK (due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');"]);
@@ -198,7 +210,7 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
       if(entry.tag==='0025_unscheduled_todo_period') assert.deepEqual(statements,["ALTER TABLE `matrix_unscheduled_todos` ADD `period` text CHECK (period IS NULL OR period GLOB '[0-9][0-9][0-9][0-9]-W[0-9][0-9]' OR period GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]');"]);
       for(const statement of statements) {
         if(entry.tag==='0019_todo_notes_archives'||entry.tag==='0023_unscheduled_todo_notes'||entry.tag==='0025_unscheduled_todo_period'||entry.tag==='0026_unscheduled_todo_recurrence'||entry.tag==='0027_unscheduled_todo_due')continue;
-        if(entry.tag===reviewPromptVersionsMigrationTag||entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag||entry.tag===reviewAttributionMigrationTag||entry.tag===reviewResourcesMigrationTag||entry.tag===reviewLegacyExtensionsMigrationTag)continue;
+        if(entry.tag===reviewDraftStatusMigrationTag||entry.tag===reviewPromptVersionsMigrationTag||entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag||entry.tag===reviewAttributionMigrationTag||entry.tag===reviewResourcesMigrationTag||entry.tag===reviewLegacyExtensionsMigrationTag)continue;
         if(entry.idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',
           'ALTER TABLE `matrix_todo_template_links` ADD `created_with_todo` integer DEFAULT 1 NOT NULL;'].includes(statement))continue;
         assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX)\s+`matrix_/,'Unreviewed legacy migration statement');

@@ -41,7 +41,7 @@ test('future, explicit draft/failed records and unknown dates cannot become publ
     row('future-day','2026-11-11'),row('future-time','2026-11-10T05:00:00Z'),row('unknown',null),row('foreign','2026-11-07',{account:'other'})]);
   const result=build(source);
   assert.equal(result.summary.record_count,2);assert.equal(result.summary.confirmed_count,1);assert.equal(result.summary.published_count,null);
-  assert.deepEqual(result.excluded,{unpublished:3,undated:1,future:2});
+  assert.deepEqual(result.excluded,{unpublished:3,pending:0,unmatched:0,undated:1,future:2});
   assert.equal(build(data([row('a','2026-11-07',{status:'published'})])).summary.published_count,1);
 });
 test('uses the existing nearest24 rule and never substitutes longtail or another snapshot for missing metrics',()=>{

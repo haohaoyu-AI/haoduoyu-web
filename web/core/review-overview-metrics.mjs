@@ -1,5 +1,6 @@
 import {day, finiteNumber, shiftDay} from './review-data.mjs';
 import {enrichArticles, median} from '../../shared/review-analytics.mjs';
+import {reviewPublishState} from '../../shared/review-draft-match.mjs';
 
 // Only explicit instants can establish membership of a rolling 24-hour window.
 function instant(value) {
@@ -76,11 +77,15 @@ export function reviewOverviewMetrics(data, {account, range = '24h', now = new D
   if (nowMs === null) throw new TypeError('now must be an explicit ISO timestamp');
   const bounds = metricWindow(range, day(now));
   const rows = enrichArticles(data,{account});
-  const current = summarize(rows.filter(row => publishedIn(row, bounds, nowMs)));
-  if (!bounds.previous) return current;
-  const previous = summarize(rows.filter(row => publishedIn(row, bounds.previous, nowMs)));
-  return {...current, previous, comparisonLabel:bounds.label, window:{start:bounds.start, end:bounds.end},
-    series:dailySeries(rows, bounds, nowMs)};
+  const published = rows.filter(row => reviewPublishState(row) === 'published');
+  const pendingCount = rows.filter(row => reviewPublishState(row) === 'pending' &&
+    publishedIn({published_at:row.draft_saved_at || row.created_at}, bounds, nowMs)).length;
+  const unmatchedCount = rows.filter(row => reviewPublishState(row) === 'unmatched').length;
+  const current = summarize(published.filter(row => publishedIn(row, bounds, nowMs)));
+  if (!bounds.previous) return {...current, pendingCount, unmatchedCount};
+  const previous = summarize(published.filter(row => publishedIn(row, bounds.previous, nowMs)));
+  return {...current, pendingCount, unmatchedCount, previous, comparisonLabel:bounds.label, window:{start:bounds.start, end:bounds.end},
+    series:dailySeries(published, bounds, nowMs)};
 }
 export function reviewDuration(value) {
   const n = finiteNumber(value);

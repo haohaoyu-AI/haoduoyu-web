@@ -132,11 +132,13 @@ const approvedScanAppend='\n# Approved exact historical public tokens.css checks
   '46dabbf8f62fa7c2ee3965d0f059ab41b62986fd:tests/oct28-small-fix-projection.mjs:generic-api-key:13\n';
 /** Live-site/.gitleaksignore after site-five + night review exception growth. */
 const liveGitleaksIgnoreSha256='f27c4c0fc47c9d8ce972d5b5d708cf3c57f3fa241f03521185bf36e121e4e1c6';
+// Three synthetic OpenAI fixture fingerprints added for the draft-status release scan.
+const draftStatusIgnoreSha256='7925daba552da25872ff802542f2ab28929d916cb0460d1bea5c347f51d8bef3';
 export function projectApprovedScanAppend(file,source) {
   if(file!=='.gitleaksignore')return source;
   const prior=git('show',baseline+':'+file);
   if(source===prior)return prior;
-  if(hash(source)===liveGitleaksIgnoreSha256)return prior;
+  if(hash(source)===liveGitleaksIgnoreSha256||hash(source)===draftStatusIgnoreSha256)return prior;
   assert.equal(source,prior+approvedScanAppend,'exact approved scan exception append');
   return prior;
 }
