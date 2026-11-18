@@ -116,10 +116,12 @@ async function createTodo(store,actor,input) {
   return {actor,response:json(item(value),201)};
 }
 
-async function updateTodo(store,actor,id,input) {
+async function updateTodo(store,actor,id,input,desktop) {
   const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
   if(!current) throw fail(404,'NOT_FOUND','待办不存在');
   if(current.deleted_at!==null) throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
+  if(desktop&&current.version===input.version+1&&Boolean(current.completed)===input.completed)
+    return {replayed:true,response:json(await linkedItem(store,actor.id,current))};
   if(current.version!==input.version) throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
   const value={...item(current),completed:input.completed,version:current.version+1,updated_at:now()};
   store.queue('UPDATE matrix_todos SET completed=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=?',Number(input.completed),value.updated_at,actor.id,id,input.version);
@@ -127,13 +129,16 @@ async function updateTodo(store,actor,id,input) {
   return {actor,response:json(await linkedItem(store,actor.id,value))};
 }
 
-async function updateNote(store,actor,id,input) {
+async function updateNote(store,actor,id,input,datedOnly) {
   exactFields(input,['note','version']);
   if(typeof input.note!=='string'||!input.note.isWellFormed()||input.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(input.note)||
     !Number.isSafeInteger(input.version)||input.version<1||input.version>=Number.MAX_SAFE_INTEGER)
     throw fail(400,'VALIDATION_ERROR','备注或版本无效');
   const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
-  if(!current)return updateFutureNote(store,actor,id,input);
+  if(!current) {
+    if(datedOnly)fail(404,'NOT_FOUND','日期待办不存在');
+    return updateFutureNote(store,actor,id,input);
+  }
   if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
   if(current.version===input.version+1&&current.note===input.note)
     return {replayed:true,response:json(await linkedItem(store,actor.id,current))};
@@ -207,7 +212,7 @@ async function addTemplate(store,actor,id,input) {
   return {actor,response:json({todo:{...item(current),version:current.version+1,updated_at:stamp,template_id:value.id,template_version:1,template_active:true},template:{...value,completed_days,habit_status:'todo'}})};
 }
 
-export async function handleTodos(db,request,route,origin,initialRevision) {
+export async function handleTodos(db,request,route,origin,initialRevision,checkDesktopScope) {
   const method=request.method;
   if(method==='GET'&&route==='/todos') return readTodos(db,request,initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireAdmin(first);
@@ -217,13 +222,15 @@ export async function handleTodos(db,request,route,origin,initialRevision) {
   requireCsrf(request,first,origin);
   if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','待办写入不接受查询参数');
   const body=await bodyFor(request);
+  if(checkDesktopScope&&operation==='create')exactFields(body,['id','date','text']);
   const id=operation==='create'?null:validId((match||restore||template||note)[1]);
   const input=operation==='create'?createInput(body):operation==='completed'?updateInput(body):operation==='note'?body:targetedInput(body,operation==='template');
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
+    if(checkDesktopScope)await checkDesktopScope(store,actor);
     if(operation==='create') return createTodo(store,actor,input);
-    if(operation==='completed') return updateTodo(store,actor,id,input);
-    if(operation==='note') return updateNote(store,actor,id,input);
+    if(operation==='completed') return updateTodo(store,actor,id,input,Boolean(checkDesktopScope));
+    if(operation==='note') return updateNote(store,actor,id,input,Boolean(checkDesktopScope));
     if(operation==='template') return addTemplate(store,actor,id,input);
     return setDeleted(store,actor,id,input,operation==='delete');
   })).response;
