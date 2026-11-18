@@ -1,5 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {finiteNumber, reviewDateTime} from '../core/review-data.mjs';
+import {reviewPublishState} from '../../shared/review-draft-match.mjs';
 
 function safeUrl(value) {
   try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
@@ -46,18 +47,22 @@ export function renderBenchmarkLibrary(data = {}, account = '') {
         String(a.item.id).localeCompare(String(b.item.id));
     });
   if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
-  const headers = ['对标账号','样本标题','样本阅读','仿写标题','仿写数据'];
-  const body = samples.flatMap(({item,used}) => used.map((article,index) => {
+  const headers = ['对标账号','样本标题','样本什么时候发的','样本阅读','仿写标题','我们什么时候仿写入库的','仿写数据'];
+  const body = samples.flatMap(({item,published,used}) => used.map((article,index) => {
     const owner = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl(item.url);
     const title = e(item.title || '未命名文章');
     const reads = number(item.reads);
+    const state = reviewPublishState(article);
+    const imitation = state === 'pending' ? '待发布' : state === 'unmatched' ? '未能对上' : metricText(latestSnapshot(data.snapshots, article.id));
     const cells = [
       e(owner.name || '未命名账号'),
       target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
+      e(published || '未记录'),
       e(reads || '—'),
       articleLink(article,account),
-      e(metricText(latestSnapshot(data.snapshots, article.id)))
+      e(reviewDateTime(article.draft_saved_at || article.created_at) || '未记录'),
+      e(imitation)
     ];
     const id = index === 0 ? ` id="review-benchmark-${e(encodeURIComponent(item.id))}"` : '';
     return `<tr${id} tabindex="-1">${cells.map((cell,cellIndex) => `<td data-label="${headers[cellIndex]}">${cell}</td>`).join('')}</tr>`;

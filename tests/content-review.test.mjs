@@ -203,7 +203,7 @@ test('review3 additive migration preserves raw legacy rows and nullable fields p
   sql.prepare('INSERT INTO matrix_review_snapshots(user_id,id,article_id,snapshot_date,reads) VALUES(?,?,?,?,?)').run(owner,snapshot,article,'2026-10-30',null);
   const oldArticle=sql.prepare('SELECT * FROM matrix_review_articles').get(),oldSnapshot=sql.prepare('SELECT * FROM matrix_review_snapshots').get();
   const legacyHash=(row,kind)=>{
-    const view=reviewView(kind,row);for(const key of ['content_hash','playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status'])delete view[key];
+    const view=reviewView(kind,row);for(const key of ['content_hash','playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status','publish_status','draft_saved_at','alternate_titles'])delete view[key];
     return digest(JSON.stringify(stable(view)));
   };
   const hashes=[legacyHash(oldArticle,'articles'),legacyHash(oldSnapshot,'snapshots')];
@@ -236,7 +236,7 @@ test('review3 stable creation aliases and nullable attribution validate without 
   const saved=await app.call('snapshots/'+snap,'PUT',snapBody);assert.equal(saved.status,201);assert.equal((await app.call('snapshots/'+snap)).data.content_hash,saved.data.content_hash);
   for(const values of [{age_hours:-1},{age_hours:1.2},{source:'other'}])assert.equal((await app.call('snapshots/'+randomUUID(),'PUT',{...snapBody,snapshot_date:'2026-10-29',...values})).status,400);
   const legacy=randomUUID(),legacySaved=(await app.call('articles/'+legacy,'PUT',{title:'Legacy hash'})).data;
-  const {playbook_version_used,applied_rule_ids,reference_article_id,content_hash,...old}=legacySaved;
+  const {playbook_version_used,applied_rule_ids,reference_article_id,publish_status,draft_saved_at,alternate_titles,content_hash,...old}=legacySaved;
   assert.equal(content_hash,digest(JSON.stringify(stable(old))));
   assert.equal((await app.call('articles/'+legacy,'PUT',{title:'Legacy hash'})).status,200);
   assert.equal((await app.call('articles/'+legacy,'PATCH',{expected_hash:content_hash,title:'Old client update'})).status,200);

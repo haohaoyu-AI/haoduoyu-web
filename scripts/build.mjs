@@ -10,7 +10,7 @@ import { frontendBundle } from './frontend-build.mjs';
 import { cloudflareConfig } from './cloudflare-config.mjs';
 import {articleMigrationTag,validateMigrationSource,labelMigrationTag,validateLabelMigrationSource,labelSetsMigrationTag,validateLabelSetsMigrationSource,labelArchivesMigrationTag,validateLabelArchivesMigrationSource,aiReportsMigrationTag,validateAiReportsMigrationSource} from './migration-contract.mjs';
 import {buildServiceWorkerAssets} from './service-worker-build.mjs';
-import {reviewMigrationTag,validateReviewMigrationSource,reviewAttributionMigrationTag,validateReviewAttributionMigrationSource,reviewResourcesMigrationTag,validateReviewResourcesMigrationSource,reviewLegacyExtensionsMigrationTag,validateReviewLegacyExtensionsMigrationSource} from './migration-contract.mjs';
+import {reviewMigrationTag,validateReviewMigrationSource,reviewAttributionMigrationTag,validateReviewAttributionMigrationSource,reviewResourcesMigrationTag,validateReviewResourcesMigrationSource,reviewLegacyExtensionsMigrationTag,validateReviewLegacyExtensionsMigrationSource,reviewDraftStatusMigrationTag,validateReviewDraftStatusMigrationSource} from './migration-contract.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
@@ -49,7 +49,7 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.deepEqual(journal.entries.map(entry=>entry.tag),['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag,'0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses','0025_unscheduled_todo_period','0026_unscheduled_todo_recurrence','0027_unscheduled_todo_due'],'Only reviewed migrations are allowed');
+assert.deepEqual(journal.entries.map(entry=>entry.tag),['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag,'0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses','0025_unscheduled_todo_period','0026_unscheduled_todo_recurrence','0027_unscheduled_todo_due',reviewDraftStatusMigrationTag],'Only reviewed migrations are allowed');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
@@ -80,6 +80,7 @@ for(const [idx,entry] of journal.entries.entries()) {
   if(entry.tag===reviewPromptVersionsMigrationTag) { validateReviewPromptVersionsMigrationSource(entry.tag,sql); tables++; continue; }
   if(entry.tag===openaiReviewMigrationTag) { validateOpenaiReviewMigrationSource(entry.tag,sql); tables+=2; continue; }
   if(entry.tag===reviewResourcesMigrationTag) { validateReviewResourcesMigrationSource(entry.tag,sql); tables+=4; continue; }
+  if(entry.tag===reviewDraftStatusMigrationTag) { validateReviewDraftStatusMigrationSource(entry.tag,sql); continue; }
   if(entry.tag===reviewLegacyExtensionsMigrationTag) { validateReviewLegacyExtensionsMigrationSource(entry.tag,sql); continue; }
   if(entry.tag===reviewAttributionMigrationTag) { validateReviewAttributionMigrationSource(entry.tag,sql); continue; }
   if(entry.tag===reviewMigrationTag) { validateReviewMigrationSource(entry.tag,sql); tables+=4; continue; }

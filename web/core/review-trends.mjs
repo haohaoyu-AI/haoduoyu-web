@@ -13,7 +13,7 @@ const number = (value, max = Infinity) => {
   return n !== null && n >= 0 && n <= max ? n : null;
 };
 const statusOf = row => row.publication_status ?? row.publish_status ?? row.status;
-const unpublishedStatuses = ['draft','drafting','illustrated','draft_saved','scheduled','pending','failed','unpublished','deleted','retracted'];
+const unpublishedStatuses = ['draft','drafting','illustrated','draft_saved','scheduled','pending','failed','unpublished','deleted','retracted','unmatched'];
 const unpublished = row => unpublishedStatuses.includes(statusOf(row));
 const confirmed = row => statusOf(row) === 'published';
 
@@ -133,6 +133,8 @@ export function reviewTrends(data = {}, options = {}) {
     thresholds:basis ? {hit:basis.high_threshold,flop:basis.low_threshold,method:basis.method,sample_count:basis.sample_count} : null,
     rolling:{days:ROLLING_DAYS,min_samples:ROLLING_MIN_SAMPLES},rows:selected,summary,
     excluded:{unpublished:source.filter(unpublished).length,
+      pending:source.filter(row => statusOf(row)==='pending').length,
+      unmatched:source.filter(row => statusOf(row)==='unmatched').length,
       undated:source.filter(row => !unpublished(row) && !day(row.published_at)).length,
       future:source.filter(row => !unpublished(row) && day(row.published_at) && !past(row)).length},
     loaded_at:data.loadedAt || null,generated_at:now};

@@ -358,6 +358,17 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .content-review .review-account-feature .review-markdown { overflow-wrap:anywhere; }
 .content-review .review-account-feature .review-markdown > * + * { margin-top:8px; }
 
+@media (max-width:760px) {
+  #main.content:has(#content-review) { padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
+}
+.content-review .review-publish { display:inline-block; margin-right:6px; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; line-height:1.6; vertical-align:middle; }
+.content-review .review-publish-pending { background:#fff4d6; color:#8a5a00; }
+.content-review .review-publish-published { background:#e5f6ea; color:#146c36; }
+.content-review .review-publish-unmatched { background:#fde8e8; color:#9b1c1c; }
+.content-review .review-publish-summary { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:12px 0 4px; }
+.content-review .review-publish-summary .review-publish strong { margin-left:4px; font-size:16px; }
+.content-review .review-unmatched, .content-review .review-unmatched-note { margin:0 0 12px; padding:12px 14px; border-radius:12px; background:#fde8e8; color:#9b1c1c; }
+.content-review .review-unmatched ul { margin:8px 0 0; padding-left:18px; }
 .content-review .review-benchmark-library { margin-top:32px; min-width:0; }
 .content-review .review-benchmark-library h3 { margin:0 0 16px; font-size:18px; }
 .content-review .review-benchmark-table-wrap { width:100%; overflow-x:auto; border:1px solid var(--color-divider); border-radius:var(--radius-14); }
@@ -379,7 +390,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   .content-review .review-benchmark-table td::before { content:attr(data-label); display:block; color:var(--color-text-secondary); font-size:11px; margin-bottom:4px; }
   .content-review .review-benchmark-table td:nth-child(2),
   .content-review .review-benchmark-table td:nth-child(5),
-  .content-review .review-benchmark-table td:nth-child(6) { grid-column:1 / -1; }
+  .content-review .review-benchmark-table td:nth-child(7) { grid-column:1 / -1; }
 .content-review .review-prompt-card { display:grid; gap:12px; min-width:0; padding:20px; border:1px solid var(--color-divider); border-radius:16px; background:var(--color-white-a-74); }
 .content-review .review-prompt-card + .review-prompt-card { margin-top:16px; }
 .content-review .review-prompt-source { margin:0; max-width:100%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:15px; line-height:1.6; }

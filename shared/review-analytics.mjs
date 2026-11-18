@@ -1,5 +1,6 @@
 // Pure review analytics, shared by the API and browser. Dates are Shanghai
 // business dates; stored timestamps are never changed by this module.
+import { reviewPublishState } from './review-draft-match.mjs';
 const array = value => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 const id = value => String(value ?? '');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -168,7 +169,12 @@ export function buildOverview(data = {}, options = {}) {
   const { account, week = 'this', range = '7d', now = new Date().toISOString() } = options;
   if (!['7d', '30d'].includes(range)) throw new TypeError('range must be 7d or 30d');
   const bounds = weekBounds(now, week), allRows = enrichArticles(data, { account });
-  const cohort = (start, end) => allRows.filter(row => { const published = day(row.published_at); return published && published >= start && published <= end; });
+  const counted = row => reviewPublishState(row) === 'published';
+  const cohort = (start, end) => allRows.filter(row => {
+    if (!counted(row)) return false;
+    const published = day(row.published_at);
+    return published && published >= start && published <= end;
+  });
   const rows = cohort(bounds.start, bounds.end), previousRows = cohort(bounds.previousStart, bounds.previousEnd);
   const current = summarizeArticles(rows), previous = summarizeArticles(previousRows), changes = {};
   for (const field of ['count', 'published_count', 'hits', 'flops', 'hit_rate', 'flop_rate', 'miss_rate', 'median_ctr', 'ctr_median']) {
@@ -187,11 +193,12 @@ export function buildOverview(data = {}, options = {}) {
   const alerts = [];
   if (current.missing_24h_count) alerts.push({ code: 'missing_24h', count: current.missing_24h_count, last_snapshot_date: null, days_since_snapshot: null,
     message: `${current.missing_24h_count} 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。` });
-  const articleIds = new Set(allRows.map(row => id(row.id)));
+  const articleIds = new Set(allRows.filter(counted).map(row => id(row.id)));
   const dates = array(data.snapshots).filter(snapshot => articleIds.has(id(snapshot.article_id))).map(snapshot => day(snapshot.snapshot_date)).filter(Boolean).sort();
   const latest = dates.at(-1) ?? null;
   const elapsed = latest ? Math.round((Date.parse(`${bounds.today}T00:00:00Z`) - Date.parse(`${latest}T00:00:00Z`)) / 86400000) : null;
-  if (allRows.length && (latest === null || elapsed > 2)) alerts.push({ code: 'collection_interruption', count: allRows.length, last_snapshot_date: latest, days_since_snapshot: elapsed,
+  const publishedRows = allRows.filter(counted);
+  if (publishedRows.length && (latest === null || elapsed > 2)) alerts.push({ code: 'collection_interruption', count: publishedRows.length, last_snapshot_date: latest, days_since_snapshot: elapsed,
     message: latest ? `最近快照为 ${latest}，距今 ${elapsed} 个上海日历日，已超过 2 日采集间隔。` : '已有文章但尚无有效日期的采集快照，无法确认采集连续性。' });
   const summary = summarySentence(current, week);
   const conclusion = weeklyConclusion(data.reports, account, bounds, week);

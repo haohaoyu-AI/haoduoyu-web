@@ -14,6 +14,7 @@ import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/re
 import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs';
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
+import {reviewPublishLabel, reviewPublishState} from '../../shared/review-draft-match.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -32,6 +33,10 @@ const options = (rows,value) => rows.map(([id,label]) => `<option value="${e(id)
 const firstSentence = value => String(value || '').replace(/^#+\s*/gm,'').trim().match(/^[\s\S]*?[。！？!?](?:[”」』])?|^[^\n]+/)?.[0] || '';
 function external(url,label) { const safe = safeReviewUrl(url); return safe ? `<a href="${e(safe)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` 
   : '<span class="review-note">未提供原文链接</span>'; }
+function publishBadge(row) {
+  const state = reviewPublishState(row);
+  return `<span class="review-publish review-publish-${state}">${e(reviewPublishLabel(row))}</span>`;
+}
 function tag(verdict) {
   if (!['爆','中','扑'].includes(verdict)) return '';
   const css = verdict === '爆' ? 'hit' : verdict === '扑' ? 'flop' : 'middle';
@@ -172,6 +177,11 @@ function overview(data,vm) {
   const value = formatted => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const earlier = current.previous || {};
   const change = (left,right,prefix = '') => current.comparisonLabel ? metricChange(current.comparisonLabel,left,right,prefix) : '';
+  const publishSummary = `<div class="review-publish-summary" role="status" aria-label="发布状态">
+    <span class="review-publish review-publish-pending">待发布 <strong>${e(current.pendingCount ?? 0)}</strong></span>
+    <span class="review-publish review-publish-published">已发布 <strong>${e(current.count)}</strong></span>
+    ${(current.unmatchedCount || 0) ? `<span class="review-publish review-publish-unmatched">未能对上 <strong>${e(current.unmatchedCount)}</strong></span>` : ''}
+    <span class="review-note">阅读、点击率、爆 / 中 / 扑只统计已发布。待发布在草稿箱里，不进入这些数字。</span></div>`;
   const cards = [
     statCard('发文数',`<strong>${e(current.count)}<small>篇</small></strong>`,change(current.count,earlier.count)),
     statCard('爆 / 中 / 扑',`<strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong>`,
@@ -185,7 +195,7 @@ function overview(data,vm) {
     `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
-    `<div class="review-stats">${cards}</div>${renderCockpitTrends(data,vm,current.window)}</section>`;
+    `<div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data,vm,current.window)}</section>`;
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
@@ -193,32 +203,56 @@ function articleListPanel(rows,vm,data) {
 <button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div>
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div></section>`;
 }
+function activityDay(row) {
+  if (reviewPublishState(row) === 'pending') return day(row.draft_saved_at) || day(row.created_at);
+  return day(row.published_at);
+}
 function articleLibrary(rows,vm,data = {}) {
   const view = articleView(vm);
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === 
     '7d' ? -6 : -29);
-  const selected = rows.filter(r => (!from || (day(r.published_at) && day(r.published_at) >= from && day(r.published_at) <= today)) && (!f.from || 
-    day(r.published_at) >= f.from && day(r.published_at)) && (!f.to || day(r.published_at) <= f.to && day(r.published_at)) && (!f.verdict || r.verdict === 
-      f.verdict)).sort(recentArticles);
+  const publish = ['pending','published','unmatched'].includes(f.publish) ? f.publish : '';
+  const selected = rows.filter(r => {
+    const when = activityDay(r);
+    return (reviewPublishState(r) === 'unmatched' || !from || (when && when >= from && when <= today)) && (!f.from || when >= f.from && when) &&
+      (!f.to || when <= f.to && when) && (!f.verdict || r.verdict === f.verdict) && (!publish || reviewPublishState(r) === publish);
+  }).sort(recentArticles);
+  const pendingCount = selected.filter(row => reviewPublishState(row) === 'pending').length;
+  const publishedCount = selected.filter(row => reviewPublishState(row) === 'published').length;
+  const unmatchedRows = rows.filter(row => reviewPublishState(row) === 'unmatched');
   const chosen = Array.isArray(vm.metricColumns) ? vm.metricColumns : ['reads'];
   const columns = REVIEW_LIST_METRICS.filter(metric => chosen.includes(metric.key));
   const picker = `<details class="review-columns-picker" data-review-columns-picker${vm.metricPickerOpen ? ' open' : ''}><summary ` +
     `data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map(metric => `<label><input type="checkbox" ` +
       `data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? ' checked' : ''}>${e(metric.label)}</label>`).join('')}</div></details>`;
+  const statusChoices = [['','全部状态'],['pending','待发布'],['published','已发布'],['unmatched','未能对上']];
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all',
-    '全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],
+    '全部时间']],range)}</select></label><label>发布状态<select class="input" data-review-filter="publish">${options(statusChoices,
+      publish)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],
       f.verdict || '')}</select></label>${view === GROUP_VIEW ? groupPicker(vm) : ''}${view === TABLE_VIEW ? picker : ''}</div>`;
-  const top = viewSwitch(vm, view, selected.length) + filters;
+  const flaggedItem = row => `<li><button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
+    `aria-haspopup="dialog">${publishBadge(row)} ${e(row.title || '未命名文章')}</button></li>`;
+  const flagged = unmatchedRows.length ? `<div class="review-unmatched" role="status"><strong>未能对上 ${e(unmatchedRows.length)} 篇</strong>` +
+    `<p>这些记录对不上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p><ul>${unmatchedRows.map(flaggedItem).join('')}</ul></div>` : '';
+  const top = viewSwitch(vm, view, `已发布 ${publishedCount} · 待发布 ${pendingCount}`) + filters + flagged;
   if (!selected.length) return top + empty('当前筛选下没有文章');
   const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString());
     const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} ` +
       `小时</span>` : '';
-    const metrics = columns.map(metric => [metric.label,`${e(formatReviewListMetric(observation,metric.key))}${metric.key === 'reads' ? age : ''}`]);
-    const judgement = observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
+    const held = reviewPublishState(row);
+    const metricBody = metric => {
+      if (held === 'pending') return publishBadge(row);
+      const value = e(formatReviewListMetric(observation, metric.key));
+      if (held === 'unmatched') return `${publishBadge(row)} ${value}`;
+      return `${value}${metric.key === 'reads' ? age : ''}`;
+    };
+    const metrics = columns.map(metric => [metric.label,metricBody(metric)]);
+    const judgement = held === 'pending' || held === 'unmatched' ? publishBadge(row) :
+      observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
     const supplement = chosen.includes('reads') ? '' : observation.kind === 'immature' ? '未满24h' : age;
     return [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
-    ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
+    ['标题',`${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
       '未命名文章')}</button>${sampleLabel(row,data)}`],
     ...metrics,
     ['判定',`${judgement}${supplement}`]
@@ -247,7 +281,7 @@ function viewSwitch(vm, view, count) {
   return `<div class="review-view-row"><div class="segmented review-view-switch" role="group" aria-label="文章列表显示方式">` +
     button(TIMELINE_VIEW, '时间轴') + button(TABLE_VIEW, '表格') +
     button(dimension, '按套路', dimension ? '' : ' disabled title="grok 还没有填写套路标签"') +
-    `</div><span class="review-view-count">${count} 篇</span></div>`;
+    `</div><span class="review-view-count">${e(count)}</span></div>`;
 }
 const ARTICLE_WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
 const readsText = value => value === null || value === undefined ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` :
@@ -255,18 +289,21 @@ const readsText = value => value === null || value === undefined ? '—' : value
 /** Publishing as a diary timeline: one row per Beijing publish day, newest first, each article with its 24h reads and verdict. */
 function articleTimeline(rows, data, vm) {
   const days = new Map();
-  for (const row of rows) { const date = day(row.published_at); if (date) days.set(date, [...(days.get(date) || []), row]); }
+  for (const row of rows) { const date = activityDay(row) || '未记录'; days.set(date, [...(days.get(date) || []), row]); }
   const now = vm.now || new Date().toISOString();
   const lines = list => list.map(row => { const observation = reviewListObservation(row, data.snapshots, now);
-    const reads = observation.kind === 'immature' ? '未满24h' : '阅读 ' + readsText(row.reads_24h);
-    return `<span class="review-tl-article"><button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
-      `aria-haspopup="dialog">${e(row.title || '未命名文章')}</button><small>${e([reviewDateTime(row.published_at).slice(11), reads].filter(Boolean).join(' · '))}` +
-      `${row.verdict ? ' · ' + e(row.verdict) : ''}</small></span>`; }).join('');
-  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, list]) => {
-    const hits = list.filter(row => row.verdict === '爆').length;
-    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date.slice(8))}</span>` +
-      `<span class="notes-tl-week">${ARTICLE_WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]}</span>` +
-      `<span class="notes-tl-week">${Number(date.slice(5,7))}月</span></span>` +
+    const state = reviewPublishState(row);
+    const reads = state === 'pending' ? '待发布' : state === 'unmatched' ? '未能对上' : observation.kind === 'immature' ? '未满24h' : '阅读 ' + readsText(row.reads_24h);
+    const when = state === 'pending' ? reviewDateTime(row.draft_saved_at || row.created_at) : reviewDateTime(row.published_at);
+    return `<span class="review-tl-article">${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
+      `aria-haspopup="dialog">${e(row.title || '未命名文章')}</button><small>${e([when.slice(11), reads].filter(Boolean).join(' · '))}` +
+      `${state === 'published' && row.verdict ? ' · ' + e(row.verdict) : ''}</small></span>`; }).join('');
+  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => (a === '未记录') - (b === '未记录') || b.localeCompare(a)).map(([date, list]) => {
+    const hits = list.filter(row => reviewPublishState(row) === 'published' && row.verdict === '爆').length;
+    const known = /^\d{4}-\d{2}-\d{2}$/.test(date);
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${known ? Number(date.slice(8)) : '—'}</span>` +
+      `<span class="notes-tl-week">${known ? ARTICLE_WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()] : ''}</span>` +
+      `<span class="notes-tl-week">${known ? Number(date.slice(5,7)) + '月' : '未记录'}</span></span>` +
       `<span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list)}` +
       (list.length > 1 || hits ? `<span class="notes-tl-foot">${[list.length > 1 ? list.length + ' 篇' : '', hits ? '爆 ' + hits : '']
         .filter(Boolean).join(' · ')}</span>` : '') + '</span></div>'; }).join('')}</div>`;
@@ -292,12 +329,15 @@ function groupedArticles(rows, vm, dimension, table) {
   }
   const ordered = [...groups.entries()].sort(([a, x], [b, y]) => (a === '未分类') - (b === '未分类') || y.length - x.length ||
     (middle(y.map(row => row.reads_24h)) ?? 0) - (middle(x.map(row => row.reads_24h)) ?? 0));
-  return `<div class="review-article-groups">${ordered.map(([name, list]) => { const measured = list.filter(row => row.reads_24h !== null);
-    const ctr = middle(list.map(row => row.ctr_24h)), few = measured.length < 3;
+  return `<div class="review-article-groups">${ordered.map(([name, list]) => {
+    const publishedRows = list.filter(row => reviewPublishState(row) === 'published');
+    const measured = publishedRows.filter(row => row.reads_24h !== null);
+    const ctr = middle(publishedRows.map(row => row.ctr_24h)), few = measured.length < 3;
+    const hits = publishedRows.filter(row => row.verdict === '爆').length;
     return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few
       ? ' <small class="review-note">样本少</small>' : ''}</span><span class="review-article-group-figures"><span><b>${list.length}</b> 篇</span>
       <span>阅读中位数 <b>${e(readsText(middle(measured.map(row => row.reads_24h))))}</b></span>
-      <span>点击率 <b>${ctr === null ? '—' : e(ctr.toFixed(1)) + '%'}</b></span><span>爆款 <b>${list.filter(row => row.verdict === '爆').length}</b></span></span>
+      <span>点击率 <b>${ctr === null ? '—' : e(ctr.toFixed(1)) + '%'}</b></span><span>爆款 <b>${hits}</b></span></span>
       </summary>${table(list)}</details>`; }).join('')}</div>
     <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
 }
@@ -413,8 +453,11 @@ function drawer(data,rows,vm) {
   return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" ` +
     `aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div ` +
       `class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span ` +
-        `class="review-note">${e(reviewDateTime(row.published_at) || '发布时间未提供')} · 上海时间</span><h2 id="review-detail-title">${e(row.title || 
-          '未命名文章')}</h2><div ` +
+        `class="review-note">${publishBadge(row)} ${e(reviewPublishState(row) === 'pending' ?
+          (reviewDateTime(row.draft_saved_at || row.created_at) || '入草稿时间未提供') :
+          (reviewDateTime(row.published_at) || '发布时间未提供'))} · 上海时间</span><h2 id="review-detail-title">${e(row.title || 
+          '未命名文章')}</h2>${reviewPublishState(row) === 'pending' ? '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' :
+          reviewPublishState(row) === 'unmatched' ? '<p class="review-unmatched-note">这篇没能对上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p>' : ''}<div ` +
           `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderArticleRemarks(row,data.notes)}` +
           `${renderTrafficCard(data.snapshots,
             row.id)}${renderArticleDiagnosis(row,vm)}${renderImitation(row,data,vm.account)}</aside></div>`;

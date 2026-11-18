@@ -122,13 +122,30 @@ const account=value=>text(value,120);
 const uuid=value=>{if(typeof value!=='string'||!reviewUuid.test(value))invalid('标识须为小写 UUID');return value;};
 const integer=value=>number(value,{integer:true});
 const rate=value=>number(value,{max:100});
+function alternateTitles(value) {
+  if(value===null)return null;
+  value=json(value,{array:true});
+  if(value.length!==4)invalid('备选标题必须正好 4 条');
+  const seen=new Set();
+  return value.map(item=>{
+    const title=text(item,2000),key=title.replace(/\s+/gu,' ').trim();
+    if(seen.has(key))invalid('四条备选标题不能重复');
+    seen.add(key);return title;
+  });
+}
+function publishStatus(value) {
+  if(value===null)return null;
+  if(!['pending','published','unmatched'].includes(value))invalid('发布状态须为 pending、published 或 unmatched');
+  return value;
+}
 export const reviewSpecs={
   articles:{table:'matrix_review_articles',order:'published_at DESC,created_at DESC,id DESC',fields:{
     account,platform:value=>{if(value!=='toutiao')invalid('目前仅支持 toutiao');return value;},platform_article_id:nullableText(240),
     title:value=>text(value,2000),url,published_at:timestamp,topic_category:nullableText(240),title_pattern:nullableText(1000),
     sample_title:nullableText(2000),sample_url:url,reference_article_id:value=>value===null?null:uuid(value),image_count:integer,source_chat:nullableText(4096),
     playbook_version_used:value=>number(value,{integer:true,min:1}),applied_rule_ids:value=>value===null?null:uniqueStrings(value,ruleId),
-  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,reference_article_id:null,image_count:null,source_chat:null,playbook_version_used:null,applied_rule_ids:null},required:['title'],timestamps:['created_at','updated_at'],json:['applied_rule_ids']},
+    publish_status:publishStatus,draft_saved_at:timestamp,alternate_titles:alternateTitles,
+  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,reference_article_id:null,image_count:null,source_chat:null,playbook_version_used:null,applied_rule_ids:null,publish_status:null,draft_saved_at:null,alternate_titles:null},required:['title'],timestamps:['created_at','updated_at'],json:['applied_rule_ids','alternate_titles']},
   snapshots:{table:'matrix_review_snapshots',order:'snapshot_date DESC,id DESC',fields:{
     article_id:uuid,snapshot_date:reviewDate,age_hours:integer,source:value=>{if(value!==null&&!['toutiao_excel','manual'].includes(value))invalid('Invalid snapshot source');return value;},impressions:integer,fan_impressions:integer,reads:integer,fan_reads:integer,ctr:rate,completion_rate:rate,
     avg_read_seconds:value=>number(value),likes:integer,comments:integer,reposts:integer,shares:integer,favorites:integer,revenue:value=>number(value),
@@ -163,7 +180,7 @@ export function reviewView(kind,row) {
 export function reviewContentHash(row) {
   const {content_hash,...data}=row;
   // Nullable additions must not invalidate hashes held by pre-review3 clients.
-  for(const key of ['playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status'])if(data[key]===null)delete data[key];
+  for(const key of ['playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status','publish_status','draft_saved_at','alternate_titles'])if(data[key]===null)delete data[key];
   return digest(JSON.stringify(stable(data)));
 }
 export function reviewEqual(kind,row,input) {
