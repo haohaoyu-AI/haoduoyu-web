@@ -2,6 +2,7 @@ import {fail} from './security.mjs';
 import {consistentRead} from './storage.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
 import {snapshotAccess} from './snapshot-access.mjs';
+import {desktopTodoGuard,resolveWorkbenchScope} from './workbench-scope.mjs';
 import {snapshotBudget,snapshotDatabase} from './snapshot-budget.mjs';
 import {memosOwner} from './memos-validation.mjs';
 import {labelsFor} from './note-entries.mjs';
@@ -190,17 +191,15 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={},no
   const budget=snapshotBudget({maxQueries:135,...limits}),database=snapshotDatabase(db,budget);
   let text;
   try {text=await consistentWindowRead(database,async (store,revision)=>{
-    const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');
-    if(control?.initialized!==1)fail(503,'SETUP_REQUIRED','数据库尚未就绪，工作台快照未读取');
-    const scope=await access.resolve(store);
-    if(!await store.get('SELECT id FROM matrix_users WHERE id=?',memosOwnerId))
-      fail(503,'SNAPSHOT_CONFIG','备忘录数据归属无法核实');
-    // Scope is an identity boundary shared with durable queues and drafts;
-    // upgrading projection formats must never move existing local data.
-    const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
+    const scope=await resolveWorkbenchScope(store,access,memosOwnerId,budget);
+    const {scope_id}=scope;
     const serialized=await cachedWorkbenchWindow(db,{scope_id,version:2,coverage,revision},budget,now,async()=>{
-      const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version:2,coverage});
+      const data=await readWorkbenchSnapshotData(store,scope,budget,{version:2,coverage});
       const index=projectWorkbenchSnapshot(data,{scope_id,generated_at:new Date(now()).toISOString(),version:2},budget);
+      if(scope.mode==='public') {
+        index.write_scope_guard=desktopTodoGuard;
+        index.workbench_revision=revision;
+      }
       return {text:budget.serialize({batch_format:'haoduoyu-workbench-window-v1',coverage,index,data}),dates:index.dates.length};
     });
     await access.recheck(store);
@@ -216,15 +215,11 @@ async function workbenchScope(db,request,env,limits) {
   if([...new URL(request.url).searchParams.keys()].length)fail(400,'VALIDATION_ERROR','身份范围接口不接受查询参数');
   const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
   const budget=snapshotBudget({maxQueries:20,...limits}),database=snapshotDatabase(db,budget);
-  const text=await consistentRead(database,async store=>{
-    const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');
-    if(control?.initialized!==1)fail(503,'SETUP_REQUIRED','数据库尚未就绪，工作台快照未读取');
-    const scope=await access.resolve(store);
-    if(!await store.get('SELECT id FROM matrix_users WHERE id=?',memosOwnerId))
-      fail(503,'SNAPSHOT_CONFIG','备忘录数据归属无法核实');
-    const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
+  const text=await consistentRead(database,async (store,revision)=>{
+    const {scope_id,mode}=await resolveWorkbenchScope(store,access,memosOwnerId,budget);
     await access.recheck(store);
-    return budget.serialize({projection:'current',scope_id,complete:true,scope_only:true,generated_at:new Date().toISOString()});
+    return budget.serialize({projection:'current',scope_id,complete:true,scope_only:true,generated_at:new Date().toISOString(),
+      ...(mode==='public'?{write_scope_guard:desktopTodoGuard,workbench_revision:revision}:{})});
   });
   return new Response(text,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie, Authorization'}});
 }

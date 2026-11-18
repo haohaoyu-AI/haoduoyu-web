@@ -12,6 +12,7 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {desktopSyncPrefix,handleDesktopTodos} from './desktop-todo-sync.mjs';
 import {handleTodoCarry} from './todo-carry.mjs';
 import {handleTodoParse} from './todo-parse.mjs';
 import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
@@ -276,6 +277,7 @@ async function handle(request,env,trace) {
     if(route==='/bootstrap'&&method==='POST') {await ensureControl(db);return bootstrap(db,request,env,origin);}
     if(route==='/snapshot'||route==='/snapshot/index')return handleSnapshot(db,request,route,env);
     if(route==='/workbench-snapshot'||route==='/workbench-snapshot/index'||route==='/workbench-snapshot/scope')return handleWorkbenchSnapshot(db,request,route,env);
+    if(route.startsWith(desktopSyncPrefix+'/'))return handleDesktopTodos(db,request,route,env,origin);
     const access=await publicBusinessAccess(db,request,route,env,origin);
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
