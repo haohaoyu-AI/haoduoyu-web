@@ -1,0 +1,110 @@
+{
+  "checked_at": "2026-10-16 02:20:05 UTC",
+  "project": {
+    "id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "title": "好多鱼图文",
+    "description": "仅本人使用的合成事件连接测试，不含真实文章",
+    "status": "active",
+    "current_live_url": "https://haoduoyu.xyz",
+    "latest_version_number": 160,
+    "access_mode": "public",
+    "access_revision": 2,
+    "current_user_role": "owner",
+    "auth_client_present": true,
+    "sites_automations_count": 0
+  },
+  "domains": [
+    {
+      "hostname": "haoduoyu.xyz",
+      "status": "active",
+      "ssl_status": "active",
+      "cname_target": "custom-domains.chatgpt.site.",
+      "apex_proxy_ipv4_targets": [
+        "162.159.143.30",
+        "172.66.3.26"
+      ]
+    }
+  ],
+  "database": {
+    "bindings": [
+      "DB"
+    ],
+    "selected_binding": "DB",
+    "user_table_count": 50,
+    "has_articles_table": true,
+    "rows_read": false
+  },
+  "versions": [
+    {
+      "version_number": 160,
+      "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+      "source_commit": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+      "archive": {
+        "format": "tar",
+        "content_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+        "size_bytes": 10956800,
+        "file_count": 334,
+        "storage_file_id": "file_00000000b4f48210bf03c99c44f4db5e"
+      },
+      "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+      "deployment": {
+        "status": "failed",
+        "failure_message": "incomplete input: SQLITE_ERROR",
+        "updated_at": "2026-10-14T02:01:58.293810+00:00",
+        "env_set_revision": 1,
+        "has_mcp": null
+      }
+    },
+    {
+      "version_number": 159,
+      "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+      "source_commit": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+      "archive": {
+        "format": "tar",
+        "content_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684",
+        "size_bytes": 9922560,
+        "file_count": 321,
+        "storage_file_id": "file_00000000965c82069a6f18e9a5f1413b"
+      },
+      "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+      "deployment": {
+        "status": "succeeded",
+        "failure_message": null,
+        "updated_at": "2026-10-12T11:18:12.037018+00:00",
+        "env_set_revision": 1,
+        "has_mcp": true
+      }
+    },
+    {
+      "version_number": 158,
+      "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_ef21cfd52c788191aca054cd3a3193cf",
+      "source_commit": "d847bc80dd8d536584012428a75cd4769fc7a9b4",
+      "archive": {
+        "format": "tar",
+        "content_hash": "sha256:7659bed531db6ebaaa3c0c2b3896a1e58afbb597b598d06380dc7753b4d50cd5",
+        "size_bytes": 9912320,
+        "file_count": 321,
+        "storage_file_id": "file_0000000064308209b1dc1a759ff4236a"
+      },
+      "deployment_id": "appgdep_6acc9cd298ac8191a6b84a415904cd2e",
+      "deployment": {
+        "status": "succeeded",
+        "failure_message": null,
+        "updated_at": "2026-10-12T08:40:48.094648+00:00",
+        "env_set_revision": 1,
+        "has_mcp": true
+      }
+    }
+  ],
+  "active_version_pointer_confirmed": false,
+  "independent_source_backup_verified": false,
+  "independent_database_backup_verified": false,
+  "production_mutations": false,
+  "listed_version_numbers": [
+    160,
+    159,
+    158,
+    157,
+    156
+  ]
+}
