@@ -269,7 +269,10 @@ test('recent window uses Beijing today and reads all 60 days in one bounded proj
   assert.deepEqual(records.map(row=>row.entity_id).sort(),value.index.entities.map(row=>row.entity_id).sort());
   const budget=snapshotBudget(),rebuilt=projectWorkbenchSnapshot(value.data,{scope_id:value.index.scope_id,
     generated_at:value.index.generated_at,version:2},budget);
-  assert.deepEqual(value.index,rebuilt,'index and data are from exactly the same scoped projection');
+  const {write_scope_guard,workbench_revision,...projection}=value.index;
+  assert.equal(write_scope_guard,'desktop-todo-expected-scope-v1');
+  assert.ok(Number.isSafeInteger(workbench_revision)&&workbench_revision>=0);
+  assert.deepEqual(projection,rebuilt,'index and data are from exactly the same scoped projection');
   for(const table of ['todos','daily_notes','daily_work_notes','note_entries','work_reminders']) {
     const reads=adapter.calls.filter(sql=>sql.includes('FROM matrix_'+table+' '));
     assert.equal(reads.length,1,table);assert.match(reads[0],/user_id=\?.*date BETWEEN \? AND \?/);
