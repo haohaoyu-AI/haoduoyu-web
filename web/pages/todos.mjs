@@ -1,6 +1,7 @@
 import { addFutureTodo, loadDueTodos, loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos, setFutureBridge } from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
 import { todoCount } from "../core/todo-count.mjs";
+import { watchVisibleTodoDay } from "../core/todo-live-refresh.mjs";
 import { api, apiNetwork } from "../core/api.mjs";
 import { createTodoMonthLoader, todoMonthScopeTransition, todoMonthSeed } from "../core/todo-month.mjs";
 import { getOfflineRuntime, onOfflineRuntime } from "../offline/runtime.mjs";
@@ -689,6 +690,26 @@ function scheduleTodoClock() {
   todoClock?.unref?.();
 }
 function registerTodosClock() {
+  watchVisibleTodoDay({
+    window, document,
+    selection() {
+      if (!state.me || state.page !== "todos" || ["future","templates"].includes(state.todoPanel) ||
+          document.activeElement?.matches?.("[data-todo-note-input]") ||
+          document.querySelector("#overlay > *, .popover")) return null;
+      const day = todoDay(), offline = getOfflineRuntime()?.state;
+      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day.draft) return null;
+      if (!day.loaded || day.loading || day.noteEdit || todoPending(day) || offline?.pending || offline?.conflicts) return null;
+      return {date:day.date, day, key:JSON.stringify([monthOwner(), runtime.renderVersion, day.date, day.sequence, day.revision])};
+    },
+    read:date => api("/todos?date=" + encodeURIComponent(date)),
+    apply({date, day}, data) {
+      if (!Array.isArray(data?.items) || JSON.stringify(day.items) === JSON.stringify(data.items)) return;
+      day.items = data.items;
+      monthDayOwners.set(day, {owner:monthOwner(), at:Date.now(), revision:day.revision});
+      if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7)) monthSnapshot.days.set(date, data.items);
+      paintTodos();
+    },
+  });
   onOfflineRuntime(offline => {
     let previousReady;
     offline.subscribe(() => {
