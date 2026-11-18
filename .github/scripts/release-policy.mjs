@@ -443,7 +443,15 @@ export const outboxWindowRelease=Object.freeze({
   baseline:'1b769736-62ba-4096-afe7-8adfa1d08e96',
   bytes:3262507,sha256:'e9f99dae1471f217cb6cd178ba231005b760c892c718faf7bf2e77e70b7ad4b4',
   label:'production-outbox-window-20261117'});
-const acceptedRelease=commit=>commit===outboxWindowRelease.commit?outboxWindowRelease:
+// Draft box status and benchmark times, on top of the deployed 6e13a0a.
+export const draftStatusRelease=Object.freeze({
+  commit:'855f65c75840dfaa0963f5e984e9128f528f90a4',
+  tree:'0d7f1a0f46502042a66c56c7abb3ab89cc8c4e70',
+  baseline:'ee2e5363-8bd0-46e0-89ce-a565d672f996',
+  bytes:3292856,sha256:'75ab1fbda984d9ededdca1ab669a4531fc66f313a5874c8171b31633624360e9',
+  label:'production-draft-status-20261118'});
+const acceptedRelease=commit=>commit===draftStatusRelease.commit?draftStatusRelease:
+  commit===outboxWindowRelease.commit?outboxWindowRelease:
   commit===connectorClientsRelease.commit?connectorClientsRelease:
   commit===connectorLoginRelease.commit?connectorLoginRelease:
   commit===connectorAllRelease.commit?connectorAllRelease:
