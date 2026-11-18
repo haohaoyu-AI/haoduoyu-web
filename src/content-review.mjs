@@ -116,21 +116,28 @@ function intendsPublication(values) {
   if(values.publish_status==='pending'||values.publish_status==='unmatched')return false;
   return values.publish_status==='published'||values.published_at!=null;
 }
-async function publishExistingDraft(store,owner,current,values,actor) {
+async function retireUnmatchedPlaceholder(store,owner,peers,draftId,platformId) {
+  const placeholder=peers.find(row=>row.publish_status==='unmatched'&&row.id!==draftId&&typeof row.platform_article_id==='string'&&row.platform_article_id===platformId);
+  if(!placeholder)return;
+  store.queue('UPDATE matrix_review_snapshots SET article_id=? WHERE user_id=? AND article_id=?',draftId,owner,placeholder.id);
+  store.queue('DELETE FROM matrix_review_articles WHERE user_id=? AND id=? AND publish_status=?',owner,placeholder.id,'unmatched');
+  store.expectChange();
+}
+async function writePublicationRow(store,owner,current,values,actor,publish_status) {
   const spec=reviewSpecs.articles;
   const merged=reviewInput('articles',{...Object.fromEntries(columnsFor('articles').map(key=>[key,current[key]])),
     title:values.title,url:values.url??current.url,published_at:values.published_at??current.published_at,
     platform_article_id:values.platform_article_id??current.platform_article_id,
     sample_title:values.sample_title??current.sample_title,sample_url:values.sample_url??current.sample_url,
     reference_article_id:values.reference_article_id??current.reference_article_id,
-    alternate_titles:values.alternate_titles??current.alternate_titles,publish_status:'published'});
+    alternate_titles:values.alternate_titles??current.alternate_titles,publish_status});
   await checkRelations(store,'articles',owner,current.id,merged,current);
   if(reviewEqual('articles',current,merged))return current;
   const row={...current,...merged,updated_at:new Date().toISOString()};
   delete row.content_hash;
   const keys=[...columnsFor('articles'),'updated_at'];
   store.queue('UPDATE '+spec.table+' SET '+keys.map(key=>columnFor(spec,key)+'=?').join(',')+' WHERE user_id=? AND id=?',...keys.map(key=>valueFor(spec,key,row)),owner,current.id);
-  store.expectChange();store.audit(actor.actor,'review.articles.publish',current.id,{match:current.id});
+  store.expectChange();store.audit(actor.actor,'review.articles.publish',current.id,{match:current.id,publish_status});
   return {...row,content_hash:reviewContentHash(row)};
 }
 async function put(db,request,kind,owner,id,input,env,origin) {
@@ -151,7 +158,8 @@ async function put(db,request,kind,owner,id,input,env,origin) {
       const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,values.account)).map(row=>reviewView('articles',row));
       const match=matchPublishedDraft(peers,values);
       if((match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending') {
-        const published=await publishExistingDraft(store,owner,match.row,values,actor);
+        await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
+        const published=await writePublicationRow(store,owner,match.row,values,actor,'published');
         return {actor,response:json({...writeView('articles',published),matched:true,match:match.kind,requested_id:id})};
       }
       if(peers.some(row=>row.publish_status==='pending')&&(match.kind==='none'||match.kind==='ambiguous'))values.publish_status='unmatched';
@@ -261,7 +269,7 @@ async function linkedBenchmark(store,owner,account,sampleUrl,referenceId) {
   const rows=await store.all('SELECT ba.id FROM matrix_review_benchmark_articles ba JOIN matrix_review_benchmark_accounts b ON b.user_id=ba.user_id AND b.id=ba.benchmark_account_id WHERE ba.user_id=? AND ba.url=? AND ba.deleted_at IS NULL AND b.deleted_at IS NULL AND b.account=?',owner,sampleUrl,account);
   return rows.length===1?rows[0].id:null;
 }
-async function queueSnapshot(store,owner,articleId,snapshot,actor) {
+async function queueSnapshot(store,owner,articleId,snapshot,actor,{knownArticle=false}={}) {
   if(snapshot==null)return null;
   if(!snapshot||typeof snapshot!=='object'||Array.isArray(snapshot))throw fail(400,'VALIDATION_ERROR','snapshot 须为对象');
   const {id:snapId=randomUUID(),article_id:ignored,...body}=snapshot;
@@ -272,7 +280,13 @@ async function queueSnapshot(store,owner,articleId,snapshot,actor) {
     if(!reviewEqual('snapshots',existing,values))throw fail(409,'IDEMPOTENCY_CONFLICT','快照 UUID 已用于不同内容');
     return existing;
   }
-  await checkRelations(store,'snapshots',owner,snapId,values);
+  const duplicate=await store.get('SELECT * FROM matrix_review_snapshots WHERE user_id=? AND article_id=? AND snapshot_date=? AND id<>?',owner,articleId,values.snapshot_date,snapId);
+  if(duplicate) {
+    const prior=reviewView('snapshots',duplicate);
+    if(reviewEqual('snapshots',prior,values))return prior;
+    errorWith(409,'REVIEW_UNIQUE_CONFLICT','同一业务记录已存在',{existing_id:duplicate.id});
+  }
+  if(!knownArticle)await checkRelations(store,'snapshots',owner,snapId,values);
   const spec=reviewSpecs.snapshots,keys=columnsFor('snapshots'),row={id:snapId,...values};
   store.queue('INSERT INTO '+spec.table+' (user_id,id,'+keys.map(key=>columnFor(spec,key)).join(',')+') VALUES ('+Array(keys.length+2).fill('?').join(',')+')',owner,snapId,...keys.map(key=>valueFor(spec,key,row)));
   store.audit(actor.actor,'review.snapshots.create',snapId);
@@ -337,11 +351,18 @@ async function savePublication(db,request,owner,input,env,origin) {
     const actor=await actorFor(store,request,owner,env,origin,true);
     const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,account)).map(row=>reviewView('articles',row));
     const match=matchPublishedDraft(peers,values);
-    let article,matched=false,matchKind=match.kind;
-    if((match.kind==='id'||match.kind==='corroborated')&&(match.row.publish_status==='pending'||match.kind==='id')) {
-      article=await publishExistingDraft(store,owner,match.row,values,actor);
+    let article,matched=false,matchKind=match.kind,created=false;
+    const draftHit=(match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending';
+    const publishedHit=match.kind==='id'&&match.row.publish_status!=='pending'&&match.row.publish_status!=='unmatched';
+    if(draftHit||publishedHit) {
+      if(draftHit)await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
+      article=await writePublicationRow(store,owner,match.row,values,actor,'published');
       matched=true;
+    } else if(match.kind==='unmatched-repeat') {
+      article=await writePublicationRow(store,owner,match.row,values,actor,'unmatched');
+      matched=false;matchKind='unmatched';
     } else {
+      created=true;
       const pending=peers.some(row=>row.publish_status==='pending');
       const status=pending&&(match.kind==='none'||match.kind==='ambiguous')?'unmatched':'published';
       const id=requestedId||randomUUID();
@@ -352,8 +373,8 @@ async function savePublication(db,request,owner,input,env,origin) {
       article=articleInsert(store,owner,id,createdValues,actor,time);
       matched=false;matchKind=status==='unmatched'?match.kind:'created';
     }
-    const snapshot=await queueSnapshot(store,owner,article.id,input.snapshot,actor);
-    return {actor,response:json({...writeView('articles',article),matched,match:matchKind,...(snapshot?{snapshot}:{})},matched?200:201)};
+    const snapshot=await queueSnapshot(store,owner,article.id,input.snapshot,actor,{knownArticle:created});
+    return {actor,response:json({...writeView('articles',article),matched,match:matchKind,...(snapshot?{snapshot}:{})},created?201:200)};
   })).response;
 }
 async function handle(db,request,route,env,origin,initialRevision) {

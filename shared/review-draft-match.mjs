@@ -22,15 +22,17 @@ function sampleAgrees(row, incoming) {
   return checks.every(Boolean);
 }
 
-/** @returns {{kind:'id'|'corroborated', row:object}|{kind:'ambiguous', rows:object[], reason:string}|{kind:'none'}} */
+function samePlatformId(row, platformId) {
+  return Boolean(platformId) && typeof row?.platform_article_id === 'string' && row.platform_article_id.trim() === platformId;
+}
+/** A real association is a pending draft. An unmatched import is not one, even when a repeat write finds it by item id. */
 export function matchPublishedDraft(articles, incoming) {
   const rows = (Array.isArray(articles) ? articles : []).filter(row => row && (incoming?.account == null || row.account === incoming.account));
   const platformId = typeof incoming?.platform_article_id === 'string' ? incoming.platform_article_id.trim() : '';
-  if (platformId) {
-    const byId = rows.filter(row => typeof row.platform_article_id === 'string' && row.platform_article_id.trim() === platformId);
-    if (byId.length === 1) return {kind:'id', row:byId[0]};
-    if (byId.length > 1) return {kind:'ambiguous', rows:byId, reason:'platform_article_id'};
-  }
+  const sameId = platformId ? rows.filter(row => samePlatformId(row, platformId)) : [];
+  const pendingSameId = sameId.filter(row => row.publish_status === 'pending');
+  if (pendingSameId.length === 1) return {kind:'id', row:pendingSameId[0]};
+  if (pendingSameId.length > 1) return {kind:'ambiguous', rows:pendingSameId, reason:'platform_article_id'};
   const title = normalizeReviewTitle(incoming?.title);
   const pending = rows.filter(row => row.publish_status === 'pending');
   const corroborated = title ? pending.filter(row => {
@@ -40,6 +42,11 @@ export function matchPublishedDraft(articles, incoming) {
   }) : [];
   if (corroborated.length === 1) return {kind:'corroborated', row:corroborated[0]};
   if (corroborated.length > 1) return {kind:'ambiguous', rows:corroborated, reason:'sample_and_titles'};
+  const unmatchedSameId = sameId.filter(row => row.publish_status === 'unmatched');
+  const publishedSameId = sameId.filter(row => row.publish_status !== 'pending' && row.publish_status !== 'unmatched');
+  if (unmatchedSameId.length === 1 && publishedSameId.length === 0) return {kind:'unmatched-repeat', row:unmatchedSameId[0]};
+  if (publishedSameId.length === 1 && unmatchedSameId.length === 0) return {kind:'id', row:publishedSameId[0]};
+  if (sameId.length > 1) return {kind:'ambiguous', rows:sameId, reason:'platform_article_id'};
   return {kind:'none'};
 }
 

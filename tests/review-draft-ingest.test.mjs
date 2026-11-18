@@ -5,6 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {handleContentReview} from '../src/content-review.mjs';
 import {digest,csrfFor} from '../src/security.mjs';
+import {reviewOverviewMetrics} from '../web/core/review-overview-metrics.mjs';
 
 function fixture(t) {
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');t.after(()=>sql.close());
@@ -73,4 +74,47 @@ test('title-only published writes do not attach to a draft, and the same platfor
   const byId=await app.call('articles/'+randomUUID(),'PUT',{account:'V字',title:'现场另选的标题',published_at:'2026-11-18T09:30:00+08:00',platform_article_id:'item-V字'});
   assert.equal(byId.status,200);assert.equal(byId.data.id,saved.data.id);assert.equal(byId.data.publish_status,'published');assert.equal(byId.data.title,'现场另选的标题');
   assert.equal((await app.call('articles?account='+encodeURIComponent('V字'))).data.items.filter(row=>row.platform_article_id==='item-V字').length,1);
+});
+
+test('an identical second publication stays unmatched until it really matches the pending draft',async t=>{
+  const app=fixture(t);
+  const saved=await app.call('drafts','POST',draftBody('V字'));
+  const body={account:'V字',platform_article_id:'published-item',title:'完全不同的标题',published_at:'2026-11-18T10:00:00+08:00',
+    sample_title:'另一篇原文',sample_url:'https://www.toutiao.com/article/other',
+    snapshot:{snapshot_date:'2026-11-18',reads:9000,ctr:8,source:'toutiao_excel',age_hours:3}};
+  const first=await app.call('publications','POST',body);
+  assert.equal(first.status,201);assert.equal(first.data.publish_status,'unmatched');assert.equal(first.data.matched,false);
+  const second=await app.call('publications','POST',body);
+  assert.equal(second.status,200);assert.equal(second.data.id,first.data.id);
+  assert.equal(second.data.publish_status,'unmatched');assert.equal(second.data.matched,false);
+  const rows=(await app.call('articles?account='+encodeURIComponent('V字'))).data.items;
+  assert.equal(rows.filter(row=>row.publish_status==='pending').map(row=>row.id).join(),saved.data.id);
+  assert.equal(rows.filter(row=>row.publish_status==='unmatched').length,1);
+  assert.equal(rows.filter(row=>row.publish_status==='published').length,0);
+  const snapshots=(await app.call('snapshots?account='+encodeURIComponent('V字'))).data.items;
+  const stats=reviewOverviewMetrics({articles:rows,snapshots},{account:'V字',range:'30d',now:'2026-11-18T12:00:00Z'});
+  assert.equal(stats.count,0);assert.equal(stats.pendingCount,1);assert.equal(stats.unmatchedCount,1);assert.equal(stats.readsMedian,null);
+  const linked=await app.call('publications','POST',{account:'V字',platform_article_id:'item-V字',title:'备选甲',
+    published_at:'2026-11-18T11:00:00+08:00',sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample'});
+  assert.equal(linked.status,200);assert.equal(linked.data.matched,true);assert.equal(linked.data.id,saved.data.id);
+  assert.equal(linked.data.publish_status,'published');
+  const after=(await app.call('articles?account='+encodeURIComponent('V字'))).data.items;
+  assert.deepEqual(after.map(row=>row.id).sort(),[saved.data.id,first.data.id].sort());
+  assert.equal(after.find(row=>row.id===saved.data.id).publish_status,'published');
+  assert.equal(after.find(row=>row.id===first.data.id).publish_status,'unmatched');
+});
+
+test('a matched publication can be posted again without a second row',async t=>{
+  const app=fixture(t);
+  const saved=await app.call('drafts','POST',draftBody('V字'));
+  const body={account:'V字',platform_article_id:'item-V字',title:'备选丙',published_at:'2026-11-18T09:00:00+08:00',
+    sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample',
+    snapshot:{snapshot_date:'2026-11-18',reads:320,ctr:4.5,source:'toutiao_excel',age_hours:2}};
+  const first=await app.call('publications','POST',body);
+  const second=await app.call('publications','POST',body);
+  assert.equal(first.status,200);assert.equal(second.status,200);
+  assert.equal(first.data.id,saved.data.id);assert.equal(second.data.id,saved.data.id);
+  assert.equal(second.data.publish_status,'published');assert.equal(second.data.matched,true);
+  const rows=(await app.call('articles?account='+encodeURIComponent('V字'))).data.items;
+  assert.equal(rows.length,1);assert.equal(rows[0].publish_status,'published');
 });

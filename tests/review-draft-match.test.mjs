@@ -10,6 +10,19 @@ const draft = extra => ({id:'draft',account:'V字',publish_status:'pending',plat
   alternate_titles:['备选甲','备选乙','备选丙','备选丁'],sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample',
   reference_article_id:'sample-1',...extra});
 
+test('repeating an unmatched publication does not treat that row as the draft', () => {
+  const pending = draft({platform_article_id:null});
+  const flagged = {id:'import',account:'V字',publish_status:'unmatched',platform_article_id:'published-item',title:'另一篇'};
+  const again = matchPublishedDraft([pending, flagged], {account:'V字',platform_article_id:'published-item',title:'另一篇',
+    sample_title:'别的原文',sample_url:'https://www.toutiao.com/article/other'});
+  assert.equal(again.kind,'unmatched-repeat');
+  assert.equal(again.row.id,'import');
+  const linked = matchPublishedDraft([pending, flagged], {account:'V字',platform_article_id:'published-item',title:'备选甲',
+    sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample'});
+  assert.equal(linked.kind,'corroborated');
+  assert.equal(linked.row.id,'draft');
+});
+
 test('platform item id matches the same draft even when the published title is a new alternate', () => {
   const match = matchPublishedDraft([draft()], {account:'V字',platform_article_id:'item-1',title:'临时新标题',sample_title:'别的原文',sample_url:'https://example.com/other'});
   assert.equal(match.kind,'id');
