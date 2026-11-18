@@ -450,7 +450,15 @@ export const draftStatusRelease=Object.freeze({
   baseline:'ee2e5363-8bd0-46e0-89ce-a565d672f996',
   bytes:3292856,sha256:'75ab1fbda984d9ededdca1ab669a4531fc66f313a5874c8171b31633624360e9',
   label:'production-draft-status-20261118'});
-const acceptedRelease=commit=>commit===draftStatusRelease.commit?draftStatusRelease:
+// Dated todo workbench sync and visible website refresh, built from the pinned product tree.
+export const desktopTodoSyncRelease=Object.freeze({
+  commit:'565b6a2b0659d902256a21620068daf7f78e0d7c',
+  tree:'7723d305f9cdb021038388ad299f720a13d41612',
+  baseline:'290218aa-39f9-4b52-81c5-ad5be6b0fbeb',
+  bytes:3298442,sha256:'2ced1f8e25b5323e1b6e9097fcfda6fbf450ed5ee9bb23264e8449bf3ac07205',
+  label:'production-desktop-todo-sync-20261118'});
+const acceptedRelease=commit=>commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
+  commit===draftStatusRelease.commit?draftStatusRelease:
   commit===outboxWindowRelease.commit?outboxWindowRelease:
   commit===connectorClientsRelease.commit?connectorClientsRelease:
   commit===connectorLoginRelease.commit?connectorLoginRelease:
