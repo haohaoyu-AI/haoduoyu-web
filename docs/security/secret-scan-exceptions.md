@@ -197,3 +197,13 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 CI 42974613120 的 secret-scan 在恢复提交 `c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb` 报告 4 条 generic-api-key。三处是该提交 `.ci/public-assets.json` 第 5、10、16 行，分别对应公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）和 `public/tokens.css`（11728 字节）的内容 SHA256。从该提交原始 Git blob 重算，三处均与清单值一致，不是凭据。第 4 处是 `tests/oct28-small-fix-projection.mjs` 第 13 行保存的历史公开 `public/tokens.css` 摘要，与产品提交 `bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2` 的该文件（10460 字节）重算结果一致。
 
 仅追加这 4 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42974613120>。
+
+## 2026-11-18 合成测试密钥字符串
+
+PR 122 的 secret-scan（run 44223498164）在全历史扫描中报告 3 条 generic-api-key。三处都是测试夹具里的字面量 `sk-synthetic-key-` 加固定占位十六进制，写在 `OPENAI_API_KEY` 环境对象中，供本地假的 review fetch 使用。不是已签发的密钥。
+
+- `3c8f550809843d2dc50026d292b1f141fa308b83` `tests/todo-parse.test.mjs:24`
+- `c776a8816861605f9d43bdc91fbc0a79cbec67b6` `tests/body-summary.test.mjs:20`
+- `8ebc589f0e5d9f990aed0003d4b90538e2602dea` `tests/body-summary.test.mjs:20`
+
+只追加这 3 条不可变历史指纹。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/44223498164>。
