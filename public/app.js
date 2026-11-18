@@ -8686,6 +8686,47 @@ function todoCountChange(note, action, target = 0) {
   return null;
 }
 
+// web/core/todo-live-refresh.mjs
+function watchVisibleTodoDay({ window: window2, document: document2, selection, read: read3, apply, now = Date.now }) {
+  let running = false, composing = false, after = 0, stopped = false;
+  const begin = () => {
+    composing = true;
+  };
+  const end = () => {
+    composing = false;
+  };
+  async function refresh() {
+    if (running || composing || stopped || now() < after || document2.visibilityState !== "visible" || window2.navigator.onLine === false) return;
+    const current3 = selection();
+    if (!current3) return;
+    running = true;
+    after = now() + 5e3;
+    try {
+      const data3 = await read3(current3.date);
+      if (!stopped && !composing && document2.visibilityState === "visible" && selection()?.key === current3.key) apply(current3, data3);
+    } catch (error2) {
+      after = now() + Math.max(2e4, Number(error2?.retryAfterMs) || 0);
+    } finally {
+      running = false;
+    }
+  }
+  const timer2 = window2.setInterval(refresh, 2e4);
+  window2.addEventListener("focus", refresh);
+  window2.addEventListener("online", refresh);
+  document2.addEventListener("visibilitychange", refresh);
+  document2.addEventListener("compositionstart", begin, true);
+  document2.addEventListener("compositionend", end, true);
+  return () => {
+    stopped = true;
+    window2.clearInterval(timer2);
+    window2.removeEventListener("focus", refresh);
+    window2.removeEventListener("online", refresh);
+    document2.removeEventListener("visibilitychange", refresh);
+    document2.removeEventListener("compositionstart", begin, true);
+    document2.removeEventListener("compositionend", end, true);
+  };
+}
+
 // web/core/todo-month.mjs
 function todoMonthScopeTransition(snapshotOwner, nextOwner, previousReady, ready) {
   if (snapshotOwner !== nextOwner) return ready ? "replace-and-load" : "replace";
@@ -10403,6 +10444,25 @@ function scheduleTodoClock() {
   todoClock?.unref?.();
 }
 function registerTodosClock() {
+  watchVisibleTodoDay({
+    window,
+    document,
+    selection() {
+      if (!state.me || state.page !== "todos" || ["future", "templates"].includes(state.todoPanel) || document.activeElement?.matches?.("[data-todo-note-input]") || document.querySelector("#overlay > *, .popover")) return null;
+      const day7 = todoDay(), offline = getOfflineRuntime()?.state;
+      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day7.draft) return null;
+      if (!day7.loaded || day7.loading || day7.noteEdit || todoPending(day7) || offline?.pending || offline?.conflicts) return null;
+      return { date: day7.date, day: day7, key: JSON.stringify([monthOwner(), runtime.renderVersion, day7.date, day7.sequence, day7.revision]) };
+    },
+    read: (date2) => api("/todos?date=" + encodeURIComponent(date2)),
+    apply({ date: date2, day: day7 }, data3) {
+      if (!Array.isArray(data3?.items) || JSON.stringify(day7.items) === JSON.stringify(data3.items)) return;
+      day7.items = data3.items;
+      monthDayOwners.set(day7, { owner: monthOwner(), at: Date.now(), revision: day7.revision });
+      if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7)) monthSnapshot.days.set(date2, data3.items);
+      paintTodos();
+    }
+  });
   onOfflineRuntime((offline) => {
     let previousReady;
     offline.subscribe(() => {
