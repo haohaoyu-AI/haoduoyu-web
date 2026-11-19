@@ -77,8 +77,14 @@ test('title-only published writes do not attach to a draft, and the same platfor
   const saved=await app.call('drafts','POST',draftBody('V字'));
   const byTitle=await app.call('articles/'+randomUUID(),'PUT',{account:'V字',title:'备选甲',published_at:'2026-11-18T09:00:00+08:00'});
   assert.equal(byTitle.data.publish_status,'unmatched');assert.notEqual(byTitle.data.id,saved.data.id);
-  const byId=await app.call('articles/'+randomUUID(),'PUT',{account:'V字',title:'现场另选的标题',published_at:'2026-11-18T09:30:00+08:00',platform_article_id:'item-V字'});
+  const publicationPath='articles/'+randomUUID();
+  const publication={account:'V字',title:'现场另选的标题',published_at:'2026-11-18T09:30:00+08:00',platform_article_id:'item-V字'};
+  const byId=await app.call(publicationPath,'PUT',publication);
   assert.equal(byId.status,200);assert.equal(byId.data.id,saved.data.id);assert.equal(byId.data.publish_status,'published');assert.equal(byId.data.title,'现场另选的标题');
+  const replay=await app.call(publicationPath,'PUT',publication);
+  assert.equal(replay.status,200);assert.equal(replay.data.id,saved.data.id);
+  const conflict=await app.call(publicationPath,'PUT',{...publication,title:'另一篇发布正文'});
+  assert.equal(conflict.error.code,'IDEMPOTENCY_CONFLICT');
   assert.equal((await app.call('articles?account='+encodeURIComponent('V字'))).data.items.filter(row=>row.platform_article_id==='item-V字').length,1);
 });
 

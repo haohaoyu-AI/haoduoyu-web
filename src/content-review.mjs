@@ -137,7 +137,8 @@ const rowData=row=>Object.fromEntries(['id',...columnsFor('articles'),...reviewS
 function syncDecision(peers,values,proof,requestedId) {
   const incoming={...values,...proof};
   const key=publicationReplayKey(values,proof);
-  const existing=peers.find(row=>row.publish_status!=='pending'&&(row.id===requestedId||row.publication_keys?.includes(key)));
+  const existing=peers.find(row=>row.publish_status!=='pending'&&(
+    row.id===requestedId||requestedId&&row.matched_put?.id===requestedId||row.publication_keys?.includes(key)));
   const sameImport=matchPublishedDraft(peers.filter(row=>row.publish_status==='unmatched'),incoming);
   const imported=sameImport.kind==='unmatched-repeat'?sameImport.row:existing?.publish_status==='unmatched'?existing:null;
   const match=matchPublishedDraft(peers,incoming);
@@ -159,7 +160,7 @@ async function preparePublicationAlias(store,owner,draft,prior,actor,apply) {
   store.audit(actor.actor,'review.articles.link_publication',prior.id,{canonical_id:draft.id});
   return true;
 }
-async function publishMatched(store,owner,current,values,proof,actor,{imported=null,key=null}={}) {
+async function publishMatched(store,owner,current,values,proof,actor,{imported=null,key=null,putId=null}={}) {
   const alias=await preparePublicationAlias(store,owner,current,imported,actor,true);
   const prior=await readReviewReceipt(store,owner,current.id);
   const importedReceipt=alias?await readReviewReceipt(store,owner,imported.id):{};
@@ -171,6 +172,7 @@ async function publishMatched(store,owner,current,values,proof,actor,{imported=n
   const updated=await writePublicationRow(store,owner,rowData(current),publication,actor,'published',{replacing:alias?imported.id:null});
   const receipt={...prior,
     ...(draft?{original_draft_title:current.title,draft_evidence:prior.match_evidence,draft_platform_article_id:platformArticleId(current)||undefined}:{}),
+    ...(putId?{matched_put:{id:putId,key}}:{}),
     match_evidence:mergeMatchEvidence(draft?importedReceipt.match_evidence:prior.match_evidence,proof.match_evidence),
     publication_keys:publicationKeys(importedReceipt.publication_keys?.reduce((all,item)=>publicationKeys(all,item),prior.publication_keys)??prior.publication_keys,key)};
   queueReviewReceipt(store,owner,current.id,receipt,prior);
@@ -226,12 +228,17 @@ async function put(db,request,kind,owner,id,input,env,origin) {
     if(kind==='articles'&&intendsPublication(values)) {
       const peers=await articlePeers(store,owner,values.account);
       const {match,imported,key}=syncDecision(peers,values,proof,id);
-      if(match.kind==='id'||match.kind==='corroborated') {
-        const {article}=await publishMatched(store,owner,match.row,values,proof,actor,{imported:match.row.publish_status==='pending'?imported:null,key});
+      if((match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending') {
+        const {article}=await publishMatched(store,owner,match.row,values,proof,actor,{imported,key,putId:id});
         return {actor,replayed:!store.pending.length,response:json({...article,matched:true,match:match.kind,requested_id:id})};
       }
-      if(match.kind==='unmatched-repeat') {
-        return {replayed:true,response:json({...publicationView(rowData(match.row),match.row),matched:false,match:'unmatched',requested_id:id})};
+      if(match.kind==='id'||match.kind==='unmatched-repeat') {
+        const prior=match.row.matched_put;
+        if(prior?.id===id) {
+          if(prior.key!==key)throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同的发布内容');
+          return {replayed:true,response:json({...publicationView(rowData(match.row),match.row),matched:true,match:'id',requested_id:id})};
+        }
+        if(platformArticleId({...values,...proof}))errorWith(409,'REVIEW_UNIQUE_CONFLICT','同一业务记录已存在',{existing_id:match.row.id});
       }
       if(peers.some(row=>row.publish_status==='pending')&&(match.kind==='none'||match.kind==='ambiguous'))values.publish_status='unmatched';
     }
