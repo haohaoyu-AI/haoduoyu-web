@@ -367,3 +367,6 @@ f8420b3787f083109986685a64cd9edd4c29278c:tests/todo-parse.test.mjs:generic-api-k
 
 # Public SHA-256 of public/openapi.json on claude/review-batch1, independently recomputed.
 770fe76f6c050547479a4f5bff739e3fc991a974:.ci/public-assets.json:generic-api-key:10
+
+# Public SHA-256 of public/openapi.json on claude/review-batch2, independently recomputed.
+9619425c364ad12f0df9eaec66ffbd7778a6ca11:.ci/public-assets.json:generic-api-key:10

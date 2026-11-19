@@ -480,7 +480,15 @@ export const reviewBatchOneRelease=Object.freeze({
   baseline:'15bc6fac-ed02-46ac-9ad4-f880071c30e4',
   bytes:3552279,sha256:'c6c4d909d5adbf433618e1a5d479b2d507cc934fdc59de39b6b2069b654e9dac',
   label:'production-review-batch-one'});
-const acceptedRelease=commit=>commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
+// Review batch 2 on top of the deployed batch 1 (770fe76): AI reports edited in place with revisions. No migration.
+export const reviewBatchTwoRelease=Object.freeze({
+  commit:'9619425c364ad12f0df9eaec66ffbd7778a6ca11',
+  tree:'ef3b0c643c21e4bc3f4702b716c6f322a0834eff',
+  baseline:'0785c8d6-1d7a-416a-b01a-840ae68b798a',
+  bytes:3567972,sha256:'b936ec8713f2176b51d2e83401ee2701f052795b042ec413a82a022e70983a25',
+  label:'production-review-batch-two'});
+const acceptedRelease=commit=>commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
+  commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
   commit===reviewArchiveRelease.commit?reviewArchiveRelease:
   commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
   commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
