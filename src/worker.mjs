@@ -15,6 +15,7 @@ import {handleTodos} from './todos.mjs';
 import {desktopSyncPrefix,handleDesktopTodos} from './desktop-todo-sync.mjs';
 import {handleTodoCarry} from './todo-carry.mjs';
 import {handleTodoParse} from './todo-parse.mjs';
+import {handleNoteSuggest,handleTodoCommand} from './todo-assist.mjs';
 import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
@@ -324,6 +325,8 @@ async function handle(request,env,trace) {
       if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
       if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
       if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
+      if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
+      if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
       if(method==='GET') return publicBusinessResult(protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,access.actor));
       return publicBusinessResult(protectedWrite(db,request,route,env,origin,trace,access.actor));
@@ -335,6 +338,8 @@ async function handle(request,env,trace) {
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
     if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
     if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
+    if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
+    if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
     if(method==='GET') {
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,null,env);
     }

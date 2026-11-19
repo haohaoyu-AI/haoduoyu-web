@@ -1,13 +1,16 @@
 import { api } from "../core/api.mjs";
 import { bjtDate } from "../core/format.mjs";
+import { periodChoices } from "../../shared/todo-period.mjs";
 import { TODO_PARSE_HINT } from "../../shared/todo-parse-hint.mjs";
+import { TODO_COMMAND_HINT } from "../../shared/todo-assist-hint.mjs";
+import { commandCandidates, runTodoCommand } from "./todo-command.mjs";
 
 // "一句话加待办": a sentence that names a day, a rough time, a repeat, a deadline or a count is read by the model first.
 // 今日 and 未来 share this reader; the reading is shown in one row under that page's input and nothing is saved until
 // it is confirmed. A sentence without any time goes where it was typed: today on 今日, 不定 on 未来.
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 export const FUTURE_SCOPE = "future";
-const smart = { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, sequence: 0 };
+const smart = { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, sequence: 0, rows: null, done: null };
 let hooks = null;
 
 const el = (tag, className, text) => {
@@ -53,7 +56,7 @@ export function smartPlace(proposal, scope, today = bjtDate()) {
   return `加到 未来 · ${FUTURE_LABEL[proposal.when] || "不定"}`;
 }
 export function smartTodoWanted(text) {
-  return TODO_PARSE_HINT.test(text);
+  return TODO_PARSE_HINT.test(text) || TODO_COMMAND_HINT.test(text);
 }
 /** True while a proposal for this exact sentence is on screen for this scope, so pressing Enter again confirms it. */
 export function smartTodoReady(text, scope) {
@@ -65,7 +68,7 @@ export function smartTodoActive(scope) {
 }
 export function clearSmartTodo() {
   smart.sequence++;
-  Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false });
+  Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, rows: null, done: null });
 }
 
 /** day is the shown day ({date}) on 今日, or {date: FUTURE_SCOPE} on 未来.
@@ -78,6 +81,16 @@ export async function startSmartTodo(day, sentence, given) {
   Object.assign(smart, { sentence, date: day.date, status: "reading", proposal: null, error: "", busy: false });
   hooks.repaint();
   try {
+    if (TODO_COMMAND_HINT.test(sentence) && hooks.commandItems) {
+      const { rows, items } = await commandCandidates(hooks.commandItems(day));
+      const reading = items.length ? await api("/todo-command", { method: "POST", body: { text: sentence, items } }) : null;
+      if (sequence !== smart.sequence) return;
+      if (reading?.needs_model && reading.action !== "none") {
+        Object.assign(smart, { status: "ready", proposal: { ...reading, kind: "command" }, rows });
+        hooks.repaint(); return;
+      }
+      if (!TODO_PARSE_HINT.test(sentence)) { clearSmartTodo(); hooks.repaint(); await hooks.plain(day, sentence); return; }
+    }
     const context = day.date === FUTURE_SCOPE ? "future" : "today";
     const data = await api("/todo-parse", { method: "POST", body: { text: sentence, context } });
     if (sequence !== smart.sequence) return;
@@ -94,6 +107,7 @@ export async function confirmSmartTodo(day) {
   const proposal = smart.proposal;
   if (!proposal || smart.busy || !hooks || smart.date !== day.date) return;
   smart.busy = true; smart.error = ""; hooks.repaint();
+  if (proposal.kind === "command") return confirmCommand(day, proposal);
   const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence = smart.sequence, target = smartTarget(proposal, day.date);
   try {
     if (target === "daily") await hooks.saveDaily(day, text, note);
@@ -109,6 +123,39 @@ export async function confirmSmartTodo(day) {
   }
   hooks.repaint();
 }
+async function confirmCommand(day, proposal) {
+  const sequence = smart.sequence;
+  try {
+    const result = await runTodoCommand(proposal, smart.rows);
+    if (sequence !== smart.sequence) return;
+    hooks.consume?.(day, smart.sentence);
+    Object.assign(smart, { status: "done", busy: false, proposal: null, rows: null, done: result });
+    hooks.refresh?.();
+    const shown = smart.sequence;
+    setTimeout(() => { if (smart.sequence === shown && smart.status === "done") { clearSmartTodo(); hooks?.repaint(); } }, result.undo ? 10000 : 4000);
+  } catch (error) {
+    if (sequence === smart.sequence) { smart.busy = false; smart.error = error?.message || "没能完成，请稍后再试"; }
+  }
+  hooks.repaint();
+}
+async function undoCommand() {
+  const done = smart.done; if (!done?.undo || smart.busy) return;
+  smart.busy = true; hooks.repaint();
+  try { await done.undo(); Object.assign(smart, { busy: false, done: { message: "已撤销" } }); hooks.refresh?.(); }
+  catch (error) { smart.busy = false; smart.error = error?.message || "没能撤销"; }
+  hooks.repaint();
+}
+const COMMAND_VERB = { delete: "删掉", complete: "标为完成", reschedule: "改到" };
+const PERIOD_NAME = (period, today) => {
+  if (!period) return "";
+  const choices = periodChoices(today);
+  return { [choices.week]: "本周", [choices.next_week]: "下周", [choices.month]: "本月", [choices.next_month]: "下个月" }[period] || period;
+};
+function commandSummary(proposal) {
+  const place = proposal.where === "today" ? "今日" : "未来", today = bjtDate();
+  const target = proposal.action !== "reschedule" ? "" : proposal.date ? smartDayLabel(proposal.date, today) : PERIOD_NAME(proposal.period, today);
+  return [[`${COMMAND_VERB[proposal.action]}${target ? " " + target : ""}`, "todo-smart-day"], [`${place} · ${proposal.text}`, "todo-smart-text"]];
+}
 async function plainSmartTodo(day) {
   const sentence = smart.sentence;
   clearSmartTodo(); hooks.repaint();
@@ -122,6 +169,7 @@ function summary(proposal, scope) {
   return parts;
 }
 function hint(proposal, scope) {
+  if (proposal.kind === "command") return proposal.action === "delete" ? "删除后 10 秒内可以撤销。" : "确认后才会改。";
   if (proposal.kind === "daily") return proposal.count ? "常用里一点就能加到当天，计数会自动从 0 开始。" : "常用里一点就能加到当天，不会自动每天出现。";
   if (smartTarget(proposal, scope) !== "future") return "";
   if (proposal.when === "deadline") return "截止前三天起，每天都会出现在今日，直到你点完成。";
@@ -136,14 +184,16 @@ export function paintSmartTodo(root, day) {
   if (!smart.status || smart.date !== day.date || !form) { row?.remove(); return; }
   if (!row) { row = el("div", "todo-smart"); row.id = id; row.setAttribute("role", "status"); }
   if (form.nextElementSibling !== row) form.after(row);
-  const key = [smart.sequence, smart.status, smart.busy, smart.error].join("|");
+  const key = [smart.sequence, smart.status, smart.busy, smart.error, smart.done?.message || ""].join("|");
   if (row.dataset.key === key) return;
   row.dataset.key = key;
   const parts = [];
   if (smart.status === "reading") parts.push(el("span", "todo-smart-wait", "正在看这句话…"));
+  else if (smart.status === "done") parts.push(el("p", "todo-smart-line", smart.done?.message || ""));
   else if (smart.status === "ready") {
     const line = el("p", "todo-smart-line");
-    for (const [text, className] of summary(smart.proposal, day.date)) line.append(el("span", className, text));
+    const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day.date);
+    for (const [text, className] of pieces) line.append(el("span", className, text));
     parts.push(line);
     const tip = hint(smart.proposal, day.date);
     if (tip) parts.push(el("p", "todo-smart-hint", tip));
@@ -153,7 +203,13 @@ export function paintSmartTodo(root, day) {
     const node = el("button", className, label); node.type = "button"; node.disabled = smart.busy;
     node.addEventListener("click", run); actions.append(node);
   };
-  if (smart.status === "ready") button(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day));
+  const command = smart.proposal?.kind === "command";
+  if (smart.status === "done") {
+    if (smart.done?.undo) button(smart.busy ? "正在撤销…" : "撤销", "btn text", () => void undoCommand());
+    button("关闭", "btn text", () => { clearSmartTodo(); hooks?.repaint(); });
+    parts.push(actions); row.replaceChildren(...parts); return;
+  }
+  if (smart.status === "ready") button(smart.busy ? (command ? "正在处理…" : "正在添加…") : "确认", "btn primary", () => void confirmSmartTodo(day));
   if (smart.status !== "reading") button("按原文添加", "btn text", () => void plainSmartTodo(day));
   button("取消", "btn text", () => { clearSmartTodo(); hooks?.repaint(); });
   parts.push(actions);

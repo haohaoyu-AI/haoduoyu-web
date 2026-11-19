@@ -1,4 +1,5 @@
-import { addFutureTodo, loadDueTodos, loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos, setFutureBridge } from "./unscheduled-todos.mjs";
+import { addFutureTodo, loadDueTodos, loadUnscheduledTodos, paintUnscheduledTodos, refreshFutureTodos, renderUnscheduledTodos, setFutureBridge }
+  from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
 import { todoCount } from "../core/todo-count.mjs";
 import { watchVisibleTodoDay } from "../core/todo-live-refresh.mjs";
@@ -523,6 +524,13 @@ async function addTypedTodo(day, text) {
 const smartHooks = {
   repaint: () => paintTodos(),
   plain: (day, text) => addTypedTodo(day, text),
+  // "删掉每周看电影" handles an existing to-do: the shown day's rows plus 未来待办.
+  commandItems: day => day.items,
+  consume: (day, sentence) => {
+    if (day.draft.trim() === sentence) day.draft = "";
+    const input = $("#todo-text"); if (input && input.value.trim() === sentence) input.value = "";
+  },
+  refresh: () => { void loadTodos(); refreshFutureTodos(); },
   async save(day, request, note) {
     await saveTodo(day, request);
     if (day.failedCreate === request) { day.failedCreate = null; throw new Error(day.error || "添加失败，请稍后再试"); }
@@ -564,6 +572,8 @@ async function addToOtherDay(request, note) {
 }
 // 未来's input reads the same sentences; a reading for a day or for 常用 is saved by 今日's own paths.
 setFutureBridge({
+  todayItems: () => todoDay(bjtDate()).items,
+  refreshToday: () => { if (todoDay(bjtDate()).loaded) void loadTodos(); },
   toDay: (request, note) => addToOtherDay(request, note),
   daily: (text, note) => smartHooks.saveDaily(todoDay(bjtDate()), text, note),
 });

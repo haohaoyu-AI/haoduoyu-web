@@ -13,6 +13,7 @@ import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
+import {actOnNoteSuggestion, setNoteSuggestRepaint, suggestForNote} from './pages/note-suggest.mjs';
 import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, matchesDeletedEntry, createLegacyRecoveryGuard, 
   createEntryRecoveryGuard} 
   from './offline/retained-drafts.mjs';
@@ -848,6 +849,7 @@ async function handleEntryAction(target, entries) {
     const category = dailyNotesRouteCategory(), date = dailyNotesRouteDate();
     const revision = editorViews.page(category, date).revision;
     await entries.save(id);
+    if (item.phase === 'saved' && !item.dirty) void suggestForNote(item, notesLabels);
     if (!item.dirty && !item.pending && ['saved', 'queued', 'cached'].includes(item.phase)) {
       editorViews.requestCollapse(category, date, id, revision, {explicit:true});
     }
@@ -996,6 +998,22 @@ function registerDailyNotesEvents() {
     });
   });
   document.addEventListener('click', event => { void handleNotesClick(event); });
+  setNoteSuggestRepaint(() => paintDailyNotesPage());
+  document.addEventListener('click', event => {
+    const target = event.target.closest('[data-note-suggest]');
+    if (!target) return;
+    event.preventDefault();
+    const find = id => [...entryStores.values()].map(store => [store, store.entry(id)]).find(([, item]) => item) || [];
+    void actOnNoteSuggestion(target, {
+      current: id => find(id)[1]?.labels,
+      async relabel(id, labels) {
+        const [store, item] = find(id);
+        if (!store || !notesLabelsVerified || !store.relabelDraft(id, labels)) return false;
+        await store.save(id); paintDailyNotesPage();
+        return item.phase === 'saved' && !item.dirty;
+      },
+    });
+  });
   window.addEventListener('beforeunload', event => {
     if (notesIdentity !== notesIdentityNow() || !notesStore) return;
     if (retainedDrafts().some(item => item.dirty || item.pending || item.phase === 'unknown')) {
@@ -1096,6 +1114,7 @@ export async function sendFloatingNote() {
   const selectedId = floatingNoteId, selectedDate = floatingNoteDate, selectedCategory = floatingNoteCategory;
   item.manualSubmitted = Symbol('note-send');
   await store.save(item.id);
+  if (item.phase === 'saved' && !item.dirty) void suggestForNote(item, notesLabels);
   if (floatingNoteId === selectedId && floatingNoteDate === selectedDate && floatingNoteCategory === selectedCategory &&
       !item.dirty && !item.pending && ['saved','queued','cached'].includes(item.phase)) {
     floatingNoteId = ''; floatingNoteDate = ''; floatingNoteCategory = 'life';

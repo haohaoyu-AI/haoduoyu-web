@@ -1119,3 +1119,8 @@ body.floating-workbench {
 .todo-due-row { background:rgba(245,158,11,.08); border-radius:10px; padding-inline:8px; }
 .todo-due-row.is-over { background:rgba(220,38,38,.07); }
 .todo-future-panel .todo-future-schedule .btn.text { border-color:transparent; background:transparent; box-shadow:none; }
+/* AI 读碎碎念: a quiet row under a sent 碎碎念 (Claude 2026-11-19) */
+.note-suggest{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 0 0;padding:8px 10px;border-left:3px solid var(--accent,#2563eb);border-radius:8px;background:var(--surface-2,rgba(0,0,0,.03));font-size:13px}
+#daily-notes .note-suggest-line,.note-suggest-line{flex:1 1 100%;margin:0;overflow-wrap:anywhere}
+.note-suggest-line .btn{margin-left:4px}
+.note-suggest-close{margin-left:auto}

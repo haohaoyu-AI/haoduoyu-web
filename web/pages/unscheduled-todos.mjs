@@ -181,6 +181,10 @@ export async function loadDueTodos() {
   catch {}
   finally {if(v.owner===key&&owner()===key){v.loading=false;paintUnscheduledTodos();}}
 }
+/** Reads 未来待办 again after a change made elsewhere (a sentence on 今日 that completed or moved one). */
+export function refreshFutureTodos() {
+  current().loaded=false;void loadUnscheduledTodos();void loadDueTodos();
+}
 export async function loadUnscheduledTodos() {
   if(!visible())return;
   const v=current(),key=v.owner;if(v.loading)return;v.loading=true;v.error='';paintUnscheduledTodos();
@@ -361,6 +365,9 @@ const done=(v,typed,message)=>{
 const futureHooks={
   repaint:()=>paintUnscheduledTodos(),
   plain:(day,text)=>addTyped(text,'none'),
+  commandItems:()=>bridge?.todayItems?.()||[],
+  consume:(day,sentence)=>done(current(),sentence),
+  refresh:()=>{refreshFutureTodos();bridge?.refreshToday?.();},
   async saveElsewhere(day,request,label,note) {const v=current();await bridge.toDay(request,note);done(v,smartSentence(v),`已添加到 ${label}`);},
   async saveDaily(day,text,note) {const v=current();await bridge.daily(text,note);done(v,smartSentence(v),'已存为常用并加到今天');},
   async saveFuture(day,proposal,label) {const v=current();await addFutureTodo(proposal);done(v,smartSentence(v),`已加到 ${label}`);},

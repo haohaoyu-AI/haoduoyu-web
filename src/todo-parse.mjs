@@ -57,6 +57,8 @@ function parse(output,today) {
   return result;
 }
 
+/** The model's JSON reply as a checked proposal; also used for to-dos read out of a 碎碎念. */
+export const parseTodoReading=parse;
 /** POST /todo-parse {text}: {needs_model:false} for a plain sentence, otherwise a proposal to confirm. */
 export async function handleTodoParse(db,request,env,origin) {
   if(request.method!=='POST')throw fail(404,'NOT_FOUND','接口不存在');

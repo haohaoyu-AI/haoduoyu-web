@@ -1,6 +1,7 @@
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 import {noteDraftNeedsAttention} from '../core/notes-editor-view.mjs';
+import {paintNoteSuggestion} from './note-suggest.mjs';
 import {renderNotesMonthMarkup} from '../notes-month-controller.mjs';
 
 function legacyEditorMarkup() {
@@ -191,6 +192,7 @@ function paintSavedEntry(node, item) {
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
+  paintNoteSuggestion(node, item);
 }
 function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {
   paintEntrySummary(node, item);
