@@ -29,7 +29,9 @@ test('night review twelve release pins exact source, tree, Worker artifact and c
   assert.throws(()=>verifyWorker(Buffer.alloc(nightReviewTwelveRelease.bytes),nightReviewTwelveRelease.commit));
   const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
   const options=yaml.split('        options:\n')[1].split('      run_regression_tests:')[0];
-  assert.ok(options.startsWith('          # Exact source and Worker bytes verified before registration.\n          - '+nightReviewTwelveRelease.commit+'\n'));
+  // New registrations may precede this historical release; it must remain an exact choice.
+  assert.ok(options.startsWith('          # Exact source and Worker bytes verified before registration.\n'));
+  assert.equal(options.split('\n').filter(line=>line==='          - '+nightReviewTwelveRelease.commit).length,1);
   assert.ok(options.includes('          - '+siteFiveUpgradesRelease.commit+'\n'));
   assert.match(yaml,/group: haoduoyu-cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
   assert.match(yaml,/environment: cloudflare-production/);assert.doesNotMatch(yaml,/contents: write|wrangler secret|migrations apply/);
