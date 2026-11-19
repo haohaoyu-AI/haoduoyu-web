@@ -33,8 +33,11 @@ import {loadWorkReminders} from "./work-reminders-controller.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
+import {renderReviewArchiveShell} from "./pages/review-archive.mjs";
+import {canAccessReviewArchive} from "./core/review-archive-state.mjs";
 import {aiSettingsPage, loadAiSettings} from "./ai-settings-controller.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
+import {loadReviewArchive, reviewArchiveActive} from "./review-archive-controller.mjs";
 function mainContent() {
   const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo, ai: settingsTabs.ai} :
     Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace" && key !== "openai"));
@@ -109,6 +112,7 @@ function handleResponsiveLayout() {
 function navigateLink(page) {
   const target = mobilePage(page);
   const same = target === state.page && (target !== "memos" || !state.memoView) &&
+    (target !== "review" || !reviewArchiveActive()) &&
     (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
@@ -126,12 +130,13 @@ function navigate(page, tab) {
   if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
   if (page === "settings") state.settingsTab = (legacy || tab) === "workspace" ? "todo" : legacy || (Object.hasOwn(settingsTabs, tab) ? tab : "todo");
-  updateRoute(true);
+  updateRoute(true, {exitReviewArchive:true});
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
+  if (page === "review" && reviewArchiveActive()) return renderReviewArchiveShell(canAccessReviewArchive(state.me,state.account));
   if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
@@ -144,7 +149,7 @@ function pageLoading(page) {
 function setPageBody(html, page) {
   if (page === "review") {
     if (html) replacePageContent(html, true);
-    else paintContentReviewPage();
+    else if (!reviewArchiveActive()) paintContentReviewPage();
   }
   else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
@@ -202,7 +207,8 @@ async function renderPage() {
         await loadAiReports({resetDate:true});
         break;
       case "review":
-        await loadContentReview(context);
+        if (reviewArchiveActive()) await loadReviewArchive(context);
+        else await loadContentReview(context);
         break;
       case "settings":
         if (state.settingsTab === "workspace") break;

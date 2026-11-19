@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {handleMcp} from '../src/mcp.mjs';
+import {digest} from '../src/security.mjs';
 
 const origin='https://site.test',call=(path,init)=>handleMcp(new Request(origin+path,init),{},{origin,db:null,dispatch:null});
 test('the Claude connector publishes its OAuth metadata and only registers Claude callbacks',async()=>{
@@ -38,4 +39,54 @@ test('ChatGPT and Codex on this computer may connect too; other callbacks may no
   const page=await call('/oauth/authorize?'+new URLSearchParams({response_type:'code',client_id:'c',redirect_uri:'http://localhost:1455/callback',
     code_challenge:'a'.repeat(43),code_challenge_method:'S256'}));
   assert.match(await page.text(),/让 Codex（本机） 连接/);assert.match(page.headers.get('content-security-policy'),/http:\/\/localhost:1455/);
+});
+
+test('an owner MCP token cannot dispatch archive calls but can still dispatch legacy review', async () => {
+  const token = 'hdy_' + 'a'.repeat(64);
+  const owner = 'synthetic-owner';
+  const statements = [];
+  const dispatched = [];
+  const db = {
+    prepare(sql) {
+      statements.push(sql);
+      return {bind(...args) {
+        return {
+          async first() {
+            assert.deepEqual(args, [digest(token)]);
+            return {id: 'synthetic-key', account_ids_json: '[]', permissions_json: JSON.stringify(['mcp', 'owner:' + owner])};
+          },
+          async run() {},
+        };
+      }};
+    },
+  };
+  const dispatch = {handle: async request => {
+    dispatched.push(new URL(request.url).pathname);
+    return Response.json({data: {items: []}});
+  }};
+  async function request(method, path) {
+    const response = await handleMcp(new Request(origin + '/mcp', {
+      method: 'POST', headers: {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json'},
+      body: JSON.stringify({jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
+        name: 'api_request', arguments: {method, path},
+      }}),
+    }), {}, {origin, db, dispatch});
+    assert.equal(response.status, 200);
+    return (await response.json()).result;
+  }
+  for (const [method, path] of [
+    ['GET', '/review/archive'], ['GET', '/review/archive/items?kind=article'],
+    ['POST', '/review/archive/imports/apply'], ['GET', '/%2e/review/archive/items'],
+  ]) {
+    const result = await request(method, path);
+    assert.equal(result.isError, true, path);
+    assert.match(result.content[0].text, /这个接口不对连接器开放/);
+  }
+  assert.deepEqual(dispatched, []);
+  assert.equal(statements.length, 4);
+  assert.ok(statements.every(sql => /^SELECT .*matrix_api_keys/.test(sql)));
+  const allowed = await request('GET', '/review/articles?account=V%E5%AD%97');
+  assert.equal(allowed.isError, undefined);
+  assert.deepEqual(JSON.parse(allowed.content[0].text), {items: []});
+  assert.deepEqual(dispatched, ['/api/v1/review/articles']);
 });

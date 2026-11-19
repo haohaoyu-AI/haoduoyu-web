@@ -56,7 +56,7 @@ test('AI reports require the owner session, persist truthful input, and replay w
   assert.equal(secondPage.data.items.length,2);assert.equal(secondPage.data.has_more,false);
   assert.equal((await call('?offset=-1','GET',null,auth)).status,400);
   const backup=await exportBackup(app.db,{todoUserId:owner});
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v18');assert.equal(backup.data.tables.ai_reports.length,102);
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v19');assert.equal(backup.data.tables.ai_reports.length,102);
   const bad=structuredClone(backup);bad.data.tables.ai_reports[0].author='';bad.sha256=digest(JSON.stringify(stable(bad.data)));
   const badTarget=await fixture(t,{bootstrap:false});
   await assert.rejects(restoreIntoEmptyDatabase(badTarget.db,bad,{allowEmptyRestore:true}),e=>e.code==='INVALID_BACKUP');

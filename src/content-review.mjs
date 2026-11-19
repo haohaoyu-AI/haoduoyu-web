@@ -99,6 +99,14 @@ async function accountData(store,owner,account=null) {
 async function readRow(store,kind,owner,id) {
   return reviewView(kind,await store.get('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=? AND id=?',owner,id));
 }
+async function reviewArchiveItemsExist(store) {
+  return Boolean(await store.get("SELECT 1 AS ready FROM sqlite_schema WHERE type='table' AND name='matrix_review_archive_items'"));
+}
+async function protectArchiveSource(store,owner,articleId) {
+  if(!await reviewArchiveItemsExist(store))return;
+  const adopted=await store.get('SELECT 1 AS adopted FROM matrix_review_archive_items WHERE user_id=? AND legacy_id=?',owner,articleId);
+  if(adopted)throw fail(409,'REVIEW_ARCHIVE_SOURCE_PROTECTED','该记录已纳入档案，请保留原始文章和历史快照');
+}
 async function checkRelations(store,kind,owner,id,row,previous=null,replacing=null) {
   let existing;
   if(kind==='articles'&&row.reference_article_id!==null&&(!previous||row.reference_article_id!==previous.reference_article_id||row.account!==previous.account)) {
@@ -149,6 +157,7 @@ function syncDecision(peers,values,proof,requestedId) {
 }
 async function preparePublicationAlias(store,owner,draft,prior,actor,apply) {
   if(!prior||prior.id===draft.id)return false;
+  await protectArchiveSource(store,owner,prior.id);
   const collision=await store.get('SELECT s.id FROM matrix_review_snapshots s JOIN matrix_review_snapshots d ON d.user_id=s.user_id AND d.snapshot_date=s.snapshot_date WHERE s.user_id=? AND s.article_id=? AND d.article_id=? LIMIT 1',owner,prior.id,draft.id);
   if(collision)throw fail(409,'REVIEW_SNAPSHOT_CONFLICT','两条记录含有同日快照，已保留原值，需核对后关联');
   if(!apply)return true;
@@ -269,6 +278,7 @@ async function patch(db,request,kind,owner,id,input,env,origin) {
     const values=reviewInput(kind,{...Object.fromEntries(columnsFor(kind).map(key=>[key,current[key]])),...partial},{validateDaily:Object.hasOwn(partial,'summary_md')||Object.hasOwn(partial,'period_type')});
     await checkRelations(store,kind,owner,id,values,current);
     if(reviewEqual(kind,current,values))return {replayed:true,response:json(writeView(kind,current))};
+    if(kind==='snapshots')await protectArchiveSource(store,owner,current.article_id);
     const {content_hash,...previous}=current,row={...previous,...values};
     if(spec.timestamps.includes('updated_at'))row.updated_at=new Date().toISOString();
     const keys=[...columnsFor(kind),...(spec.timestamps.includes('updated_at')?['updated_at']:[])];
@@ -293,6 +303,7 @@ async function remove(db,request,kind,owner,id,input,env,origin) {
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
     if(kind==='articles'&&(await readReviewReceipt(store,owner,id)).canonical_id)throw fail(409,'REVIEW_ALREADY_LINKED','这条发布记录已关联原稿');
     if(current.content_hash!==input.expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再删除');
+    if(kind==='articles'||kind==='snapshots')await protectArchiveSource(store,owner,kind==='articles'?id:current.article_id);
     const time=new Date().toISOString();let children=[];
     if(kind==='articles') {
       children=await store.all('SELECT * FROM matrix_review_snapshots WHERE user_id=? AND article_id=?',owner,id);

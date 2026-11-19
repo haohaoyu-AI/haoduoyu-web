@@ -8,6 +8,7 @@ import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest,stable} from '../src/security.mjs';
 import {openaiReviewMigrationTag,validateOpenaiReviewMigrationSource} from '../scripts/migration-contract.mjs';
 import {createSourceInventory,verifyRestoredInventory} from '../scripts/migration-inventory.mjs';
+import {archiveTables} from './review-archive-d1-fixture.mjs';
 const stamp='2026-11-07T00:00:00.000Z';
 const source=tag=>readFileSync(new URL('../drizzle/'+tag+'.sql',import.meta.url),'utf8');
 const run=(user,id,status='succeeded')=>({user_id:user,id,account:'V字',status,mode:'full',requested_mode:'full',beijing_date:'2026-11-07',created_at:stamp,completed_at:status==='succeeded'?stamp:null,released_at:null,model:'synthetic-model',instruction_version:1,instructions:'private instructions',baseline_run_id:null,source_revision:0,source_manifest_json:'{}',source_data_json:'{"private":"full capture"}',input_json:'{"delta":[]}',report_markdown:'private report',summary_json:'{}',error_code:null,error_message:null,provider_response_id:null,provider_calls:1});
@@ -52,9 +53,14 @@ test('v17 retains every review table and full run source, scopes both owners, an
   await insert(src.db,'matrix_review_account_health',{user_id:user,id:randomUUID(),account:'V字',platform:'toutiao',observed_on:'2026-11-07',created_at:stamp,updated_at:stamp});
  }
  const full=await exportBackup(src.db),scoped=await exportBackup(src.db,{todoUserId:owner});
- assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');assert.equal(Object.keys(full.data.tables).length,39);
+ assert.equal(full.data.format,'haoduoyu-matrix-d1-v19');assert.equal(Object.keys(full.data.tables).length,45);
  assert.deepEqual(full.data.tables.review_article_diagnoses,[]);
- for(const name of Object.keys(full.data.tables).filter(name=>!['review_prompt_versions','review_article_diagnoses'].includes(name)&&(name.startsWith('review_')||name.startsWith('openai_review_')))) {
+ const archiveNames=archiveTables.map(name=>'review_archive_'+name);
+ for(const name of archiveNames) {
+  assert.deepEqual(full.data.tables[name],[],name);
+  assert.deepEqual(scoped.data.tables[name],[],name);
+ }
+ for(const name of Object.keys(full.data.tables).filter(name=>!['review_prompt_versions','review_article_diagnoses',...archiveNames].includes(name)&&(name.startsWith('review_')||name.startsWith('openai_review_')))) {
   assert.ok(full.data.tables[name].length>=2,name);assert.ok(scoped.data.tables[name].length>=1,name);
   assert.ok(scoped.data.tables[name].every(row=>row.user_id===owner),name);
  }
@@ -63,7 +69,7 @@ test('v17 retains every review table and full run source, scopes both owners, an
  assert.ok(!Object.keys(full.data.tables.openai_review_config[0]).some(key=>/secret|token|api_key/.test(key)));
  const target=await fixture(t,{bootstrap:false}),inventory=await createSourceInventory(src.db);
  await restoreIntoEmptyDatabase(target.db,full,{allowEmptyRestore:true});
- assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:39,reset_tables:3});
+ assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:45,reset_tables:3});
 });
 test('v15 backups remain restorable without inventing review history or losing todo fields',async t=>{
  const src=await fixture(t),backup=await exportBackup(src.db);

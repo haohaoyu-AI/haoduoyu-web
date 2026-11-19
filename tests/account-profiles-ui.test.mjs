@@ -8,7 +8,7 @@ const source=await frontendSource();
 function client() {
   const node={innerHTML:'',style:{},firstChild:null,contains(){return false;},querySelectorAll(){return [];},setAttribute(){}};
   const document={querySelector(){return node;},querySelectorAll(){return [];},body:node,addEventListener(){},activeElement:null};
-  const context=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},
+  const context=vm.createContext({document,window:{addEventListener(){},scrollTo(){},setInterval(){return 0;},clearInterval(){}},
     location:{href:'http://localhost/',search:''},history:{replaceState(){}},
     localStorage:{getItem(){return null;},setItem(){}},crypto:{randomUUID},AbortController,AbortSignal,DOMException,
     URL,URLSearchParams,Headers,structuredClone,Intl,console,setTimeout,clearTimeout,requestAnimationFrame(){}});

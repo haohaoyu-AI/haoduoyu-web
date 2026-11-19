@@ -76,7 +76,7 @@ test('backup and restore retains both original label and override',async()=>{
  for(const tag of ['old','new','third'])source.sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(user,tag,time);
  source.sql.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').run(user,entry,'old');
  source.sql.prepare('INSERT INTO matrix_note_entry_label_overrides(user_id,entry_id,labels_json) VALUES(?,?,?)').run(user,entry,JSON.stringify(['old','new','third']));
- const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v18');
+ const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v19');
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual({...target.sql.prepare('SELECT * FROM matrix_note_entry_labels').get()},{user_id:user,entry_id:entry,label:'old'});
  assert.deepEqual(JSON.parse(target.sql.prepare('SELECT labels_json FROM matrix_note_entry_label_overrides').get().labels_json),['old','new','third']);

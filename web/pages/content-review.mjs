@@ -15,6 +15,7 @@ import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs'
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
 import {reviewPublishLabel, reviewPublishState} from '../../shared/review-publish-state.mjs';
+import {archiveHref} from '../core/review-archive-state.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -482,8 +483,10 @@ function scopedReviewData(data,account) {
 }
 export function renderContentReviewContent(data,vm) {
   data = scopedReviewData(data,vm.account);
-  if (vm.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
-  if (vm.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" ` +
+  const archive = vm.archiveAllowed && vm.account==='V字' ?
+    `<a class="btn review-archive-entry" href="${e(archiveHref)}">V字档案</a>` : '';
+  if (vm.loading) return archive + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
+  if (vm.error) return archive + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" ` +
     `data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data,{account:vm.account});
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes','prompts']
@@ -492,5 +495,5 @@ export function renderContentReviewContent(data,vm) {
   const quiet = !hasData && selected !== 'trends';
   const body = archives(data,vm,rows,quiet ? empty('暂无内容复盘数据') +
     '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : undefined);
-  return `<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;
+  return `<div class="review-body"${vm.article ? ' inert' : ''}>${archive}${body}</div>${drawer(data,rows,vm)}`;
 }

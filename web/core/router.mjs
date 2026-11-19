@@ -29,7 +29,7 @@ function isMobileLayout() {
 function mobilePage(page) {
   return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
 }
-function updateRoute(push = false) {
+function updateRoute(push = false, {exitReviewArchive = false} = {}) {
   const page = mobilePage(state.page), redirected = page !== state.page;
   if (redirected) state.page = page;
   state.filters.status = "published";
@@ -69,6 +69,8 @@ function updateRoute(push = false) {
   if (state.page !== "review") {
     for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare", "review_section"])
       u.searchParams.delete(key);
+  } else if (exitReviewArchive && u.searchParams.get("review_section") === "archive") {
+    u.searchParams.delete("review_section");
   }
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);

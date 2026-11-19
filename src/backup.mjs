@@ -7,6 +7,7 @@ import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory,noteLabel} from './note-
 import {WORK_REMINDER_LIMITS,workReminderId,workReminderSourceKey,workReminderSummary} from './work-reminders.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
 import {reportText} from './ai-reports.mjs';
+import {RECURRENCES} from '../shared/todo-period.mjs';
 
 // Explicit columns/order prevent a supplied backup from injecting identifiers.
 // Sessions and throttle windows are intentionally not restored: restored users
@@ -230,9 +231,24 @@ const promptColumns={review_prompt_versions:['user_id','id','prompt_key','scope'
 const v17Columns={...v16Columns,...promptColumns};
 const scoreColumns={daily_scores:['user_id','date','score','version','created_at','updated_at']};
 const diagnosisColumns={review_article_diagnoses:['user_id','article_id','account','prompt_key','prompt_version','prompt_hash','result_text','input_json','created_at','beijing_date']};
-const columns={...v17Columns,...scoreColumns,...diagnosisColumns,unscheduled_todos:[...v10Columns.unscheduled_todos,'note']};
+const v18Columns={...v17Columns,...scoreColumns,...diagnosisColumns,unscheduled_todos:[...v10Columns.unscheduled_todos,'note']};
+const missingReviewDraftFields={publish_status:null,draft_saved_at:null,alternate_titles_json:null};
+const missingTodoScheduleFields={period:null,recurrence:null,due_date:null};
+const archiveColumns={
+  review_archive_items:['user_id','id','kind','production_status','publication_status','association_status','payload_json','verified_json','legacy_id','merged_into','version','created_at','updated_at'],
+  review_archive_refs:['user_id','id','item_id','kind','platform_id','role','payload_json','created_at','updated_at'],
+  review_archive_snapshots:['user_id','id','item_id','observed_at','source','source_key','metrics_json','created_at'],
+  review_archive_events:['user_id','id','entity_type','entity_id','version','action','details_json','created_at'],
+  review_archive_imports:['user_id','id','kind','source','source_key','scope_json','started_at','completed_at'],
+  review_archive_import_pages:['user_id','run_id','page','request_hash','result_json','committed_at'],
+};
+const archiveBackupFormat='haoduoyu-matrix-d1-v19';
+const columns={...v18Columns,
+  review_articles:[...v18Columns.review_articles,...Object.keys(missingReviewDraftFields)],
+  unscheduled_todos:[...v18Columns.unscheduled_todos,...Object.keys(missingTodoScheduleFields)],
+  ...archiveColumns};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
-  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns),...Object.keys(scoreColumns),...Object.keys(diagnosisColumns)]);
+  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns),...Object.keys(scoreColumns),...Object.keys(diagnosisColumns),...Object.keys(archiveColumns)]);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -244,7 +260,7 @@ const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
   ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',v8Columns],
-  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',v15Columns],['haoduoyu-matrix-d1-v16',v16Columns],['haoduoyu-matrix-d1-v17',v17Columns],['haoduoyu-matrix-d1-v18',columns],
+  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',v15Columns],['haoduoyu-matrix-d1-v16',v16Columns],['haoduoyu-matrix-d1-v17',v17Columns],['haoduoyu-matrix-d1-v18',v18Columns],[archiveBackupFormat,columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -430,11 +446,17 @@ export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
     const tables={};
     for(const [name,fields] of Object.entries(columns)) {
+      if(name==='idempotency'&&todoUserId!==undefined) {
+        const prefix='review-publication:';
+        tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)} WHERE substr(actor,1,?)<>? OR actor=? ORDER BY rowid`,
+          prefix.length,prefix,prefix+todoUserId);
+        continue;
+      }
       const scoped=privateTables.has(name)&&todoUserId!==undefined;
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v18',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:archiveBackupFormat,source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -446,14 +468,14 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
-  const currentFormat=['haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17','haoduoyu-matrix-d1-v18'].includes(backup.data.format);
+  const currentFormat=['haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17','haoduoyu-matrix-d1-v18',archiveBackupFormat].includes(backup.data.format);
   const sourceRevision=(hasSourceRevision||currentFormat)?backup.data.source_revision:0;
   if((hasSourceRevision||currentFormat)&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
   const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
-    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),review_prompt_versions:[],daily_scores:[],review_article_diagnoses:[],...supplied};
+    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys({...reviewColumns,...archiveColumns}).map(name=>[name,[]])),review_prompt_versions:[],daily_scores:[],review_article_diagnoses:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
@@ -495,9 +517,19 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
     tables.todos=tables.todos.map(row=>({...row,note:''}));
     tables.todo_templates=tables.todo_templates.map(row=>({...row,archived_at:null}));
   }
+  if(backup.data.format!==archiveBackupFormat) {
+    tables.review_articles=tables.review_articles.map(row=>({...row,...missingReviewDraftFields}));
+    tables.unscheduled_todos=tables.unscheduled_todos.map(row=>({...row,...missingTodoScheduleFields}));
+  }
   tables.unscheduled_todos=tables.unscheduled_todos.map(row=>row.note===undefined?{...row,note:''}:row);
   if(tables.unscheduled_todos.some(row=>typeof row.note!=='string'||!row.note.isWellFormed()||row.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(row.note)))
     throw fail(400,'INVALID_BACKUP','未来待办备注无效');
+  // Match the reviewed SQL constraints and preserve the stored schedule values.
+  if(tables.unscheduled_todos.some(({period,recurrence,due_date})=>
+    period!==null&&/^\d{4}-(?:W\d{2}|\d{2})$/.exec(period)?.[0]!==period ||
+    recurrence!==null&&!RECURRENCES.includes(recurrence) ||
+    due_date!==null&&/^\d{4}-\d{2}-\d{2}$/.exec(due_date)?.[0]!==due_date))
+    throw fail(400,'INVALID_BACKUP','未来待办排期无效');
   if(tables.todos.some(row=>typeof row.note!=='string'||!row.note.isWellFormed()||row.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(row.note)) ||
     tables.todo_templates.some(row=>row.archived_at!==null&&(typeof row.archived_at!=='string'||!Number.isFinite(Date.parse(row.archived_at))||new Date(row.archived_at).toISOString()!==row.archived_at)))
     throw fail(400,'INVALID_BACKUP','待办备注或归档日期无效');
@@ -515,8 +547,15 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   for(const [name,fields] of Object.entries(columns)) {
     for(let offset=0;offset<tables[name].length;offset+=20) {
       const rows=tables[name].slice(offset,offset+20);
-      await db.batch(rows.map(row=>statement(db,`INSERT INTO ${backupTable(name)}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,...fields.map(field=>row[field]))));
+      await db.batch(rows.map(row=>statement(db,`INSERT INTO ${backupTable(name)}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,
+        ...fields.map(field=>name==='review_archive_items'&&field==='merged_into'?null:row[field]))));
     }
+  }
+  // Restore links only after all their possible same-owner targets exist.
+  const mergedItems=tables.review_archive_items.filter(row=>row.merged_into!==null);
+  for(let offset=0;offset<mergedItems.length;offset+=20) {
+    await db.batch(mergedItems.slice(offset,offset+20).map(row=>statement(db,
+      'UPDATE matrix_review_archive_items SET merged_into=? WHERE user_id=? AND id=?',row.merged_into,row.user_id,row.id)));
   }
   const fk=await db.prepare('PRAGMA foreign_key_check').all();
   if(fk.results.length) throw fail(400,'INVALID_BACKUP','恢复外键校验失败，目标保持隔离');
