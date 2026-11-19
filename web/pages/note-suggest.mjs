@@ -1,11 +1,10 @@
 import { api } from "../core/api.mjs";
 import { bjtDate } from "../core/format.mjs";
-import { NOTE_SUGGEST_HINT } from "../../shared/todo-assist-hint.mjs";
 import { addFutureTodo } from "./unscheduled-todos.mjs";
 import { smartDayLabel } from "./todo-smart.mjs";
 
-// "AI 读碎碎念": after a 碎碎念 is sent, one that names a time or a plan is read once; under it the page offers
-// "看起来有件事要做：…" and "建议标签：…". Nothing is added or labelled until the person taps it.
+// "AI 读碎碎念": after a 碎碎念 is sent it is read once; under it the page may offer a to-do it states or implies
+// ("要不要约小黑见个面？") and suggested labels. Nothing is added or labelled until the person taps it.
 const readings = new Map();
 let repaint = () => {};
 export function setNoteSuggestRepaint(callback) { repaint = callback; }
@@ -19,7 +18,9 @@ function whenLabel(todo, today = bjtDate()) {
 /** Reads a just-sent 碎碎念 once per saved version. labels are the ones that exist; the note's own are left out. */
 export async function suggestForNote(item, labels) {
   const text = String(item?.serverText ?? item?.draft ?? "").trim(), key = `${item?.id}:${item?.version}`;
-  if (!item?.id || !text || !NOTE_SUGGEST_HINT.test(text) || readings.get(item.id)?.key === key) return;
+  // Every sent note is read except very short ones and bowel/bladder logs, which are records, not plans.
+  const record = (item?.labels || []).includes("大小便记录");
+  if (!item?.id || [...text].length < 4 || record || readings.get(item.id)?.key === key) return;
   const reading = { key, status: "reading", todo: null, labels: [], done: {}, error: "" };
   readings.set(item.id, reading); repaint();
   try {
@@ -64,7 +65,12 @@ export function paintNoteSuggestion(node, item) {
     parts.push(line);
   };
   if (reading.status !== "reading") {
-    if (reading.todo) row("待办", reading.todo.text, whenLabel(reading.todo), "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    if (reading.todo) {
+      // A to-do read between the lines is offered as a friend's question.
+      const text = reading.todo.inferred ? `要不要${reading.todo.text}？` : reading.todo.text;
+      const when = reading.todo.inferred && reading.todo.when === "none" ? "" : whenLabel(reading.todo);
+      row(reading.todo.inferred ? "灵感" : "待办", text, when, "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    }
     if (reading.labels.length) row("标签", reading.labels.join("、"), "", "labels", "贴上", reading.done.labels ? "✓ 已贴上" : "");
     if (reading.error) parts.push(make("p", "note-suggest-error", reading.error));
   }

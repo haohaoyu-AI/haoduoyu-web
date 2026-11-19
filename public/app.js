@@ -10718,7 +10718,8 @@ function whenLabel(todo, today2 = bjtDate()) {
 }
 async function suggestForNote(item, labels4) {
   const text = String(item?.serverText ?? item?.draft ?? "").trim(), key = `${item?.id}:${item?.version}`;
-  if (!item?.id || !text || !NOTE_SUGGEST_HINT.test(text) || readings.get(item.id)?.key === key) return;
+  const record = (item?.labels || []).includes("大小便记录");
+  if (!item?.id || [...text].length < 4 || record || readings.get(item.id)?.key === key) return;
   const reading = { key, status: "reading", todo: null, labels: [], done: {}, error: "" };
   readings.set(item.id, reading);
   repaint();
@@ -10785,7 +10786,11 @@ function paintNoteSuggestion(node3, item) {
     parts2.push(line);
   };
   if (reading.status !== "reading") {
-    if (reading.todo) row("待办", reading.todo.text, whenLabel(reading.todo), "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    if (reading.todo) {
+      const text = reading.todo.inferred ? `要不要${reading.todo.text}？` : reading.todo.text;
+      const when = reading.todo.inferred && reading.todo.when === "none" ? "" : whenLabel(reading.todo);
+      row(reading.todo.inferred ? "灵感" : "待办", text, when, "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    }
     if (reading.labels.length) row("标签", reading.labels.join("、"), "", "labels", "贴上", reading.done.labels ? "✓ 已贴上" : "");
     if (reading.error) parts2.push(make("p", "note-suggest-error", reading.error));
   }
