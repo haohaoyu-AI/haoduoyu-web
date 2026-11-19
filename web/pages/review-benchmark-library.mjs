@@ -1,6 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {finiteNumber, reviewDateTime} from '../core/review-data.mjs';
-import {reviewPublishState} from '../../shared/review-draft-match.mjs';
+import {reviewPublishState} from '../../shared/review-publish-state.mjs';
 
 function safeUrl(value) {
   try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }

@@ -1,6 +1,6 @@
 import {day, finiteNumber, shiftDay} from './review-data.mjs';
 import {enrichArticles, median} from '../../shared/review-analytics.mjs';
-import {reviewPublishState} from '../../shared/review-draft-match.mjs';
+import {reviewPublishState} from '../../shared/review-publish-state.mjs';
 
 // Only explicit instants can establish membership of a rolling 24-hour window.
 function instant(value) {

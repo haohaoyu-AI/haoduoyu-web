@@ -1,4 +1,5 @@
 import {digest,stable,fail} from './security.mjs';
+import {reviewReceiptJoin,reviewCanonicalWhere} from './review-publication-receipts.mjs';
 import {enrichArticles,summarizeArticles,median,day} from '../shared/review-analytics.mjs';
 
 export const REVIEW_ACCOUNT='V字';
@@ -23,9 +24,10 @@ function normalize(row) {
 // Operational source_chat and future columns are intentionally not selected.
 const articleFields='id,account,platform,platform_article_id,title,url,published_at,topic_category,title_pattern,sample_title,sample_url,reference_article_id,image_count,playbook_version_used,applied_rule_ids_json';
 const snapshotFields='id,article_id,snapshot_date,age_hours,source,impressions,fan_impressions,reads,fan_reads,ctr,completion_rate,avg_read_seconds,likes,comments,reposts,shares,favorites,revenue,traffic_sources_json,completion_curve_json,audience_json';
+const published=' WHERE a.user_id=? AND a.account=? AND '+reviewCanonicalWhere+" AND COALESCE(a.publish_status,'published')='published'";
 const sql={
-  articles:'SELECT '+articleFields+' FROM matrix_review_articles WHERE user_id=? AND account=? ORDER BY id',
-  snapshots:'SELECT '+snapshotFields.split(',').map(field=>'s.'+field).join(',')+' FROM matrix_review_snapshots s JOIN matrix_review_articles a ON a.user_id=s.user_id AND a.id=s.article_id WHERE a.user_id=? AND a.account=? ORDER BY s.id',
+  articles:'SELECT '+articleFields.split(',').map(field=>'a.'+field).join(',')+' FROM matrix_review_articles a '+reviewReceiptJoin+published+' ORDER BY a.id',
+  snapshots:'SELECT '+snapshotFields.split(',').map(field=>'s.'+field).join(',')+' FROM matrix_review_snapshots s JOIN matrix_review_articles a ON a.user_id=s.user_id AND a.id=s.article_id '+reviewReceiptJoin+published+' ORDER BY s.id',
   reports:'SELECT id,account,period_type,period_start,period_end,verdicts_json,findings_json,summary_md,metrics_json,playbook_version,created_at FROM matrix_review_reports WHERE user_id=? AND account=? ORDER BY id',
   playbooks:'SELECT id,account,version,published_on,content_md,status,rules_json,changelog_md FROM matrix_review_playbooks WHERE user_id=? AND account=? ORDER BY id',
   benchmark_accounts:'SELECT id,account,platform,name,profile_url,fans,is_featured_author,posting_cadence,topic_focus,title_patterns_json,structure_notes_md FROM matrix_review_benchmark_accounts WHERE user_id=? AND account=? AND deleted_at IS NULL ORDER BY id',

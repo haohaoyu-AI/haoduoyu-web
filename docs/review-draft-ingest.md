@@ -4,13 +4,13 @@
 
 已有文章不补造草稿。`publish_status` 为空的旧行仍视为已发布。新列都可空，不改旧行的内容哈希。
 
-迁移：`drizzle/0028_review_draft_status.sql`。上线前对 D1 执行这一份，再部署读取这些列的版本。三条都是 `ALTER TABLE matrix_review_articles ADD`，不回填、不删数据。
+发布状态字段来自 `drizzle/0028_review_draft_status.sql`。文章关联、原稿标题和匹配材料使用现有的持久回执表。
 
 | 列 | 含义 |
 | --- | --- |
 | `publish_status` | `pending` 待发布，`published` 已发布，`unmatched` 未能对上。空值是旧的已发布行。 |
 | `draft_saved_at` | 草稿写入头条草稿箱的时间。带时区的 ISO 时间，页面按北京时间显示。 |
-| `alternate_titles_json` | 正好 4 条备选标题。发布时改标题，靠它们加对标原文把已发布稿认回同一行。 |
+| `alternate_titles_json` | 正好 4 条备选标题，供匹配结果参考。 |
 
 账号只接受 `V字` 和 `Z极客`。两边的草稿箱分开匹配。`好多鱼` 已停更，这两个接口直接拒绝。
 
@@ -45,6 +45,9 @@
 | `draft_saved_at` | 带时区的 ISO 时间。不传则用服务器收到请求的时间 | 可空 |
 | `reference_article_id` | 已有爆文样本的 UUID。不传时，若该账号下只有一条相同 `sample_url` 的样本，会自动连上 | 可空 |
 | `id` | 小写 UUID。不传则由服务器生成；同一平台编号重复调用时忽略新 id，沿用原行 | 可空 |
+| `image_count` | 初稿配图数量 | 可空 |
+| `draft_ref` | 平台的草稿引用，例如 `{"pgc_id":"7702864660600570431"}`，编号保持字符串 | 可空 |
+| `match_evidence` | 正文和封面等核对材料，见下文 | 可空 |
 
 成功后 `publish_status` 为 `pending`。爆文库用 `draft_saved_at` 作为「我们什么时候仿写入库的」，用对标样本自己的 `published_at` 作为「样本什么时候发的」。样本发布时间仍写在现有的 `PUT /api/v1/review/benchmark-articles/:id`，字段 `published_at`。
 
@@ -73,17 +76,41 @@
 }
 ```
 
-匹配只在同一个 `account` 里进行，顺序是：
+匹配范围是同账号、同平台。平台文章编号相同且只有一个有效候选时，发布标题可以完全重写。系统也能读取该平台的草稿引用，或从标准头条文章链接识别编号。
 
-1. `platform_article_id` 相同，就是同一篇。标题可以改成四条备选之外的句子，仍然更新原行。
-2. 没有相同的平台编号时，对标原文的标题或链接（或 `reference_article_id`）必须对得上，并且发布后的标题等于草稿标题或四条备选之一。
-3. 只凭标题相同，不算同一篇。
-4. 对上两行以上时不猜测。新行标成 `unmatched`，原来的待发布行保持不动。同一条发布再送一次，如果还是对不上草稿，会更新这条 `unmatched` 行，但不会因为它自己的平台编号把它改成已发布。只有对上待发布草稿，或对上一条已经是已发布的文章时，才标成已发布。
-5. 这个账号已经有待发布草稿、但又对不上时，新行标成 `unmatched`，不计入发文和阅读。
-6. 这个账号还没有任何待发布草稿时，发布回写仍作为已发布文章写入，避免把尚未切到新接口之前的历史 Excel 全部标成未能对上。
+编号缺失或不同的时候，正文关键段落要与来源、配图或事实共同支持同一原稿。正文缺失时，只有有序来源链接、相似封面和人物或事件及数字同时吻合才可关联。标题是辅助信息。正文明显不同、核心数字冲突、材料薄弱或多个候选都吻合时，保留待核对。该账号已有待发布稿时，待核对发布记录标为 `unmatched`，并且重复回写沿用原记录。尚无待发布稿的账号沿用历史导入行为。
 
-对上之后，原草稿行改成 `published`，写入发布标题、链接、`published_at` 和平台编号，并把 `snapshot` 挂到这一行。不会再插入第二个 UUID。
+对上之后，原稿更新为 `published`。`title` 是最终发布标题，`original_draft_title` 是原稿标题。已有样本、配图数和日期各自保留。已存的待核对发布挂到原稿时，旧 UUID 继续解析到同一篇，原有快照随关联移动。新回写可补充快照。日期相同而快照内容不一致时返回冲突，保留已存数据。
 
-`PUT /api/v1/review/articles/:id` 在带有 `published_at` 或 `publish_status: "published"` 时使用同一套匹配。对上待发布草稿则返回原行 id，`matched: true`。该账号已有待发布草稿而又对不上时，新行是 `unmatched`。
+`PUT /api/v1/review/articles/:id` 在提交 `published_at` 或 `publish_status: "published"` 时使用同一套匹配。关联成功返回原稿 `id` 和 `matched: true`。
+
+## 保存匹配材料
+
+草稿及发布接口可提交 `match_evidence`。字段缺失时可省略。正文和封面证据用于内部匹配。
+
+| 字段 | 内容 |
+| --- | --- |
+| `body` | 正文或关键段落，保留段落换行，最多 16,000 字符。可含文末「参考资料」等来源段落。 |
+| `source_urls` | 已取得的文末资料链接，保留顺序，最多 16 条 HTTP(S) 链接。 |
+| `cover_fingerprint` | 由图片像素生成的 `cover-v1:` 指纹。 |
+| `people`、`events`、`numbers` | 文中的关键人物、具体事件、必要数字与单位，各最多 16 条，每条最多 160 字符。 |
+
+有本地封面文件时，在支持 `createImageBitmap` 的浏览器端调用共享模块。已经有解码 RGBA 数据的导入程序可调用 `createCoverFingerprint({data, width, height})`。发布侧的缩放和重新压缩会改变指纹字节，服务端比较归一化后各区域的颜色和布局差异。接口只接收指纹和其他证据，不访问图片链接。
+
+```js
+import {fingerprintCoverImage} from './shared/review-cover-fingerprint.mjs';
+
+const cover_fingerprint = await fingerprintCoverImage(localCoverFile);
+const match_evidence = {body, source_urls, cover_fingerprint, people, events, numbers};
+```
+
+## 重跑一条已存在的待核对记录
+
+工作区所有者可使用有效网站会话及现有 CSRF 保护调用 `POST /api/v1/review/publications/reconcile`。先读取发布记录取得 `article_id` 和最新的 `content_hash`，以 `expected_hash` 提交。再提交以下一项。
+
+- `draft_id` 为网站上已有的原稿 UUID。系统从同账号和同平台候选重新检查证据，并校验唯一关联。
+- `draft` 为已经人工核实的原稿信息，包含 `platform_article_id`、`title`、`sample_url`。用于发布记录已存在、网站尚无独立原稿行的情况。服务端校验平台编号及已补回的样本链接一致，并确认当前候选里只有该待核对发布。
+
+默认只预检，返回 `preview: true`。核对原稿标题和将被关联的记录后，以相同字段加 `apply: true` 提交。相同确认请求可安全重放。对并发更新或同日快照冲突返回 `409`，当前历史保留。写入成功后用返回的原稿 UUID 回读详情和快照。
 
 页面上的时间都按北京时间显示。

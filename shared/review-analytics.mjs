@@ -1,6 +1,6 @@
 // Pure review analytics, shared by the API and browser. Dates are Shanghai
 // business dates; stored timestamps are never changed by this module.
-import { reviewPublishState } from './review-draft-match.mjs';
+import { reviewPublishState } from './review-publish-state.mjs';
 const array = value => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 const id = value => String(value ?? '');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -106,7 +106,8 @@ export function enrichArticles(data = {}, { account, baselineData } = {}) {
   const cohorts = new Map();
   for (const row of rows) {
     if (!cohorts.has(row.account)) {
-      const samples = baselineRows.filter(item => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
+      const samples = baselineRows.filter(item => item.account === row.account && item.reads_24h !== null &&
+        reviewPublishState(item) === 'published').sort(recentArticles).slice(0, 30);
       const values = samples.map(item => item.reads_24h).sort((a, b) => a - b);
       cohorts.set(row.account, { sample_count: values.length, low: quantile(values, .3), high: quantile(values, .8), sample_ids: samples.map(item => item.id) });
     }
