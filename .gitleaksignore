@@ -364,3 +364,6 @@ b0afcfa9efbb11952d42308aec83ececd4c19620:tests/todo-parse.test.mjs:generic-api-k
 f8420b3787f083109986685a64cd9edd4c29278c:tests/todo-parse.test.mjs:generic-api-key:24
 # Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
 6e13a0a1587f87bd32c3cd0f791ee203f7c105f9:tests/todo-parse.test.mjs:generic-api-key:24
+
+# Public SHA-256 of public/openapi.json on claude/review-batch1, independently recomputed.
+770fe76f6c050547479a4f5bff739e3fc991a974:.ci/public-assets.json:generic-api-key:10
