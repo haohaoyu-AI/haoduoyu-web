@@ -457,7 +457,15 @@ export const desktopTodoSyncRelease=Object.freeze({
   baseline:'290218aa-39f9-4b52-81c5-ad5be6b0fbeb',
   bytes:3298442,sha256:'2ced1f8e25b5323e1b6e9097fcfda6fbf450ed5ee9bb23264e8449bf3ac07205',
   label:'production-desktop-todo-sync-20261118'});
-const acceptedRelease=commit=>commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
+// Reconcile published review articles with their original drafts.
+export const reviewDraftReconciliationRelease=Object.freeze({
+  commit:'0814c393e47491fa5f59f59d1bfeb4b5603122de',
+  tree:'50f172afefa334701e03ea7a97b35358776a35d9',
+  baseline:'ef1a5106-6cb7-40fb-a377-85a0f8de81fd',
+  bytes:3325450,sha256:'2268776b78bfcf4d4c1e355699cde82a25cb0a98dadceaa335c676577a4a9a68',
+  label:'production-review-draft-reconciliation'});
+const acceptedRelease=commit=>commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
+  commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
   commit===draftStatusRelease.commit?draftStatusRelease:
   commit===outboxWindowRelease.commit?outboxWindowRelease:
   commit===connectorClientsRelease.commit?connectorClientsRelease:
