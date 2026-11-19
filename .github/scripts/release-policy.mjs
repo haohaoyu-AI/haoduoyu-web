@@ -494,7 +494,15 @@ export const aiNotesCommandsRelease=Object.freeze({
   baseline:'d26a37f7-7c90-41ce-9bf1-0e012db266e7',
   bytes:3597717,sha256:'76b2071463f7afb8a922483b7e1dc98fc27e3e4f4cc504a4cb1337b43ad443ec',
   label:'production-ai-notes-commands'});
-const acceptedRelease=commit=>commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
+// Wider hint words for AI 读碎碎念, on top of the deployed 304c242. No migration.
+export const noteHintRelease=Object.freeze({
+  commit:'d6ebb4c346b31aed675f6ab6f66dbe43e0fd057b',
+  tree:'6c0624ba719a6a508a1f9d2d1bd2ad2b0b3c5dd2',
+  baseline:'20579bf8-8171-4442-80f0-ddfdd1ac0f96',
+  bytes:3598167,sha256:'e7c8761001c82c599e8653cfca96bb1f5f908bedee01766860f0611fccfbe38b',
+  label:'production-note-hint'});
+const acceptedRelease=commit=>commit===noteHintRelease.commit?noteHintRelease:
+  commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
   commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
   commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
   commit===reviewArchiveRelease.commit?reviewArchiveRelease:
