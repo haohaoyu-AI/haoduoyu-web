@@ -508,7 +508,15 @@ export const noteImpliedRelease=Object.freeze({
   baseline:'03e6888e-479f-4db2-886b-df4e2514239c',
   bytes:3599940,sha256:'86ab522fc3abdea29c25f9404808d2b5211c494cd9605dfbc5cd5b2145989831',
   label:'production-note-implied'});
-const acceptedRelease=commit=>commit===noteImpliedRelease.commit?noteImpliedRelease:
+// Newly saved notes with the record label use the existing suggestion flow.
+export const noteSuggestRecordLabelRelease=Object.freeze({
+  commit:'5d224dccd78c48aac7c5a976aef4e32c6a8aa3bb',
+  tree:'95ef166113bfe3b95b13b85bcb75ab8fcf9c0948',
+  baseline:'d90d3aec-3cdf-42d6-8bee-398e6097ce05',
+  bytes:3599847,sha256:'21cb5d2e7917e7770fd06270352e684b08b8d431567ac0758c4f79f35467ccf1',
+  label:'production-note-suggest-record-label'});
+const acceptedRelease=commit=>commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
+  commit===noteImpliedRelease.commit?noteImpliedRelease:
   commit===noteHintRelease.commit?noteHintRelease:
   commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
   commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
