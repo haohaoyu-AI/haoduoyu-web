@@ -487,7 +487,15 @@ export const reviewBatchTwoRelease=Object.freeze({
   baseline:'0785c8d6-1d7a-416a-b01a-840ae68b798a',
   bytes:3567972,sha256:'b936ec8713f2176b51d2e83401ee2701f052795b042ec413a82a022e70983a25',
   label:'production-review-batch-two'});
-const acceptedRelease=commit=>commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
+// AI reads 碎碎念 and handles existing to-dos from one sentence, on top of the deployed batch two (9619425). No migration.
+export const aiNotesCommandsRelease=Object.freeze({
+  commit:'304c242318bd0b40dfa13bbbbe8ceaa5554bf6f1',
+  tree:'b5e4ab08de3dc680c4845fee8389f36bc5a74ecc',
+  baseline:'d26a37f7-7c90-41ce-9bf1-0e012db266e7',
+  bytes:3597717,sha256:'76b2071463f7afb8a922483b7e1dc98fc27e3e4f4cc504a4cb1337b43ad443ec',
+  label:'production-ai-notes-commands'});
+const acceptedRelease=commit=>commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
+  commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
   commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
   commit===reviewArchiveRelease.commit?reviewArchiveRelease:
   commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
