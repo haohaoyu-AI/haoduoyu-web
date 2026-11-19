@@ -15711,11 +15711,21 @@ function appliedRules(article, playbooks = []) {
   const rules2 = normalizeRules(playbook2.rules ?? playbook2.rules_json);
   return rules2.filter((rule) => specified.includes(rule.rule_id));
 }
-function recentArticles(a, b) {
-  const dateOrder = compare(day4(b.published_at), day4(a.published_at));
+function newestFirst(a, b, when) {
+  const x = when(a), y = when(b);
+  const dateOrder = compare(day4(y), day4(x));
   if (dateOrder) return dateOrder;
-  const aTimed = Boolean(parts(a.published_at)), bTimed = Boolean(parts(b.published_at));
-  return (aTimed && bTimed ? Date.parse(b.published_at) - Date.parse(a.published_at) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
+  const aTimed = Boolean(parts(x)), bTimed = Boolean(parts(y));
+  return (aTimed && bTimed ? Date.parse(y) - Date.parse(x) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
+}
+function recentArticles(a, b) {
+  return newestFirst(a, b, (row) => row.published_at);
+}
+function activityTime(row) {
+  return reviewPublishState(row) === "pending" ? row?.draft_saved_at || row?.created_at || null : row?.published_at ?? null;
+}
+function activityArticles(a, b) {
+  return newestFirst(a, b, activityTime);
 }
 function quantile(sorted, fraction) {
   return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? null;
@@ -18179,7 +18189,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
   const selected = rows.filter((r) => {
     const when = activityDay(r);
     return (reviewPublishState(r) === "unmatched" || !from || when && when >= from && when <= today2) && (!f.from || when >= f.from && when) && (!f.to || when <= f.to && when) && (!f.verdict || r.verdict === f.verdict) && (!publish || reviewPublishState(r) === publish);
-  }).sort(recentArticles);
+  }).sort(activityArticles);
   const pendingCount = selected.filter((row) => reviewPublishState(row) === "pending").length;
   const publishedCount = selected.filter((row) => reviewPublishState(row) === "published").length;
   const unmatchedRows = rows.filter((row) => reviewPublishState(row) === "unmatched");
@@ -18215,7 +18225,7 @@ function articleLibrary(rows, vm3, data3 = {}) {
     const judgement = held === "pending" || held === "unmatched" ? publishBadge(row) : observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
     const supplement = chosen.includes("reads") ? "" : observation.kind === "immature" ? "未满24h" : age;
     return [
-      ["发布时间", e(reviewDateTime2(row.published_at) || "—")],
+      ["发布时间", held === "pending" ? row.draft_saved_at ? `${e(reviewDateTime2(row.draft_saved_at))}<br><span class="review-note">存草稿</span>` : "—" : e(reviewDateTime2(row.published_at) || "—")],
       ["标题", `${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data3)}`],
       ...metrics2,
       ["判定", `${judgement}${supplement}`]

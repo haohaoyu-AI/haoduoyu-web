@@ -6505,7 +6505,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 articles",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 published_at DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。 published_at时间戳的日期按Asia/Shanghai（北京时间）换算，from/to在数据库分页前筛选；严格YYYY-MM-DD原样保留，null不匹配日期范围。 返回ReviewArticleRead派生分析。verdict先筛选后分页，样本基线按账号全部文章计算，不受列表日期筛选截断。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按“活动时间”倒序：待发布稿（publish_status=pending）用 draft_saved_at（未记录时用 created_at），其他文章用 published_at；同一北京日内具体时间在纯日期之前，活动时间未知的排最后，再按 id。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。 published_at时间戳的日期按Asia/Shanghai（北京时间）换算，from/to在数据库分页前筛选；严格YYYY-MM-DD原样保留，null不匹配日期范围。 返回ReviewArticleRead派生分析。verdict先筛选后分页，样本基线按账号全部文章计算，不受列表日期筛选截断。",
         "security": [],
         "parameters": [
           {
@@ -15438,6 +15438,504 @@
           }
         }
       }
+    },
+    "/api/v1/review/drafts": {
+      "post": {
+        "operationId": "saveReviewDraft",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "存草稿（待发布稿）",
+        "description": "存草稿：建立或更新一篇待发布稿（publish_status=pending）。必须带4条备选标题和对标原文标题/链接。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDraftSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已更新或重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPublicationResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "新建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPublicationResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR / INVALID_JSON：参数、字段或JSON无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED：未开启公开模式且无有效所有者会话，或凭证无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / CSRF：身份无权访问或同源/公开头/CSRF失败；Bearer不授予权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND / ARTICLE_NOT_FOUND：接口、UUID、活动记录或快照所属文章不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED / VERSION_CONFLICT / IDEMPOTENCY_CONFLICT / REVIEW_UNIQUE_CONFLICT / REVIEW_DELETED / ARTICLE_HAS_SNAPSHOTS：见操作及文档的并发和业务键规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/publications": {
+      "post": {
+        "operationId": "saveReviewPublication",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "发布回写并认回原稿",
+        "description": "发布回写：按平台编号、AI封面、文末来源、正文关键段落、人物事件等多因素找回原稿。唯一对上时在原稿那一行写入发布信息（保留原稿标题、样本、配图和快照）；对不上或有多个候选时记为 unmatched，不猜。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPublicationSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已更新或重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPublicationResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "新建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPublicationResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR / INVALID_JSON：参数、字段或JSON无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED：未开启公开模式且无有效所有者会话，或凭证无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / CSRF：身份无权访问或同源/公开头/CSRF失败；Bearer不授予权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND / ARTICLE_NOT_FOUND：接口、UUID、活动记录或快照所属文章不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED / VERSION_CONFLICT / IDEMPOTENCY_CONFLICT / REVIEW_UNIQUE_CONFLICT / REVIEW_DELETED / ARTICLE_HAS_SNAPSHOTS：见操作及文档的并发和业务键规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/publications/reconcile": {
+      "post": {
+        "operationId": "reconcileReviewPublication",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "人工核对未能对上的发布记录",
+        "description": "人工核对一条 unmatched 发布记录。draft_id 与 draft 二选一；apply=false 只预览不写入。仅工作区主人会话可用。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewReconcile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已更新或重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPublicationResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR / INVALID_JSON：参数、字段或JSON无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED：未开启公开模式且无有效所有者会话，或凭证无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / CSRF：身份无权访问或同源/公开头/CSRF失败；Bearer不授予权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND / ARTICLE_NOT_FOUND：接口、UUID、活动记录或快照所属文章不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT / REVIEW_NOT_UNMATCHED / REVIEW_EVIDENCE_MISMATCH / REVIEW_ALREADY_LINKED：记录已变化、不是待核对记录，或证据未唯一对应原稿。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -20713,6 +21211,48 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
           }
         },
         "description": "PUT为创建和相同内容重放；缺省字段使用默认值。UUID来自路径，不放入请求体。",
@@ -20881,6 +21421,48 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
           }
         },
         "minProperties": 2,
@@ -21068,6 +21650,52 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
+          },
+          "original_draft_title": {
+            "type": "string",
+            "description": "只读。发布后认回原稿时记录的原稿标题；title为发布标题。未认回的记录不返回此字段。"
           }
         }
       },
@@ -22936,6 +23564,48 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
           }
         },
         "description": "POST创建：必须使用调用者预先固定的小写UUID id；重试保持原id及完整内容。",
@@ -23357,6 +24027,52 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
+          },
+          "original_draft_title": {
+            "type": "string",
+            "description": "只读。发布后认回原稿时记录的原稿标题；title为发布标题。未认回的记录不返回此字段。"
           }
         },
         "description": "派生分析不进入content_hash。24h从已记录age_hours12..72中选距24最近的一条；同距按age_hours/date/id升序。规则版本上下文不证明实际执行。"
@@ -23619,6 +24335,52 @@
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
             "default": null,
             "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
+          },
+          "publish_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "published",
+              "unmatched",
+              null
+            ],
+            "default": null,
+            "description": "发布状态：pending=待发布草稿（存草稿后、未发布），published=已发布，unmatched=发布回写对不上唯一原稿、等待人工核对（不计入发文、阅读和点击率）。null按已发布处理（旧记录）。可用 PATCH 修改。"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
+          },
+          "original_draft_title": {
+            "type": "string",
+            "description": "只读。发布后认回原稿时记录的原稿标题；title为发布标题。未认回的记录不返回此字段。"
           }
         },
         "description": "派生分析不进入content_hash。24h从已记录age_hours12..72中选距24最近的一条；同距按age_hours/date/id升序。规则版本上下文不证明实际执行。"
@@ -26045,6 +26807,373 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
+          }
+        }
+      },
+      "ReviewMatchEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "认回原稿用的匹配证据；多因素一起判断，对不上或多个候选时保持 unmatched，不猜。",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 16000,
+            "description": "正文关键段落"
+          },
+          "source_urls": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "文末来源链接"
+          },
+          "cover_fingerprint": {
+            "type": "string",
+            "pattern": "^cover-v1:[0-9a-f]{864}$",
+            "description": "AI 封面像素指纹"
+          },
+          "people": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          "events": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          "numbers": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 160
+            }
+          }
+        }
+      },
+      "ReviewDraftRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "草稿箱里的平台编号。",
+        "properties": {
+          "pgc_id": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "appmsgid": {
+            "type": "string",
+            "maxLength": 240
+          }
+        }
+      },
+      "ReviewDraftSave": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "alternate_titles",
+          "sample_title",
+          "sample_url"
+        ],
+        "description": "存草稿：建立或更新一篇待发布稿（publish_status=pending）。必须带4条备选标题和对标原文标题/链接。",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "description": "可选，调用者生成的稳定UUID。"
+          },
+          "account": {
+            "type": "string",
+            "default": "V字"
+          },
+          "platform_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 240,
+            "description": "平台文章编号"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
+          },
+          "sample_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "对标原文标题"
+          },
+          "sample_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "对标原文链接"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "image_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "match_evidence": {
+            "$ref": "#/components/schemas/ReviewMatchEvidence"
+          },
+          "draft_ref": {
+            "$ref": "#/components/schemas/ReviewDraftRef"
+          }
+        }
+      },
+      "ReviewPublicationSave": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "published_at"
+        ],
+        "description": "发布回写：按平台编号、AI封面、文末来源、正文关键段落、人物事件等多因素找回原稿。唯一对上时在原稿那一行写入发布信息（保留原稿标题、样本、配图和快照）；对不上或有多个候选时记为 unmatched，不猜。",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "description": "可选，调用者生成的稳定UUID。"
+          },
+          "account": {
+            "type": "string",
+            "default": "V字"
+          },
+          "platform_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 240,
+            "description": "平台文章编号"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "alternate_titles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "default": null,
+            "description": "备选标题，正好4条且互不重复；null表示未提供。"
+          },
+          "sample_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "对标原文标题"
+          },
+          "sample_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "对标原文链接"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "draft_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "存入草稿箱的时间（带秒与时区的ISO时间，服务端存UTC）；未知为null。待发布稿在列表中按此时间参与排序。"
+          },
+          "image_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "match_evidence": {
+            "$ref": "#/components/schemas/ReviewMatchEvidence"
+          },
+          "draft_ref": {
+            "$ref": "#/components/schemas/ReviewDraftRef"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "发布时间，必填。"
+          },
+          "snapshot": {
+            "type": "object",
+            "description": "可选，随发布一起写入一条数据快照；字段同 ReviewSnapshotCreate，article_id 由服务端填入。"
+          }
+        }
+      },
+      "ReviewReconcile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "article_id",
+          "expected_hash"
+        ],
+        "description": "人工核对一条 unmatched 发布记录。draft_id 与 draft 二选一；apply=false 只预览不写入。仅工作区主人会话可用。",
+        "properties": {
+          "article_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "description": "unmatched 发布记录"
+          },
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "draft_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "description": "要认回的待发布原稿"
+          },
+          "draft": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title",
+              "platform_article_id",
+              "sample_url"
+            ],
+            "description": "原稿不在库中时提供的原稿依据",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "platform_article_id": {
+                "type": "string"
+              },
+              "sample_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          },
+          "apply": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "ReviewPublicationResult": {
+        "type": "object",
+        "description": "文章记录（同 ReviewArticle）加匹配结果。",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ReviewArticle"
+          }
+        ],
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          },
+          "match": {
+            "type": "string",
+            "description": "id / corroborated / created / unmatched 等匹配方式"
+          },
+          "kept": {
+            "type": "boolean"
+          },
+          "preview": {
+            "type": "boolean"
+          },
+          "canonical_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ReviewSnapshot"
           }
         }
       }

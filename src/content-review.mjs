@@ -8,7 +8,7 @@ import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {dailyNotesOwner} from './daily-notes.mjs';
 import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual,reviewContentHash,reviewRuleChanges} from './content-review-validation.mjs';
 import {handleReviewResources,isReviewResourceRoute} from './review-resources.mjs';
-import {enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
+import {activityArticles,enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
 import {matchPublishedDraft,platformArticleId} from '../shared/review-draft-match.mjs';
 import {readReviewReceipt,queueReviewReceipt,reviewReceipt,reviewReceiptJoin,reviewReceiptColumns,reviewCanonicalWhere,reviewReceiptFields,validatedMatchEvidence,validatedDraftRef,mergeMatchEvidence,publicationKeys,publicationReplayKey} from './review-publication-receipts.mjs';
 
@@ -628,7 +628,7 @@ async function handle(db,request,route,env,origin,initialRevision) {
       const rows=await store.all(visibleArticles+filters.where.map(sql=>' AND '+sql).join('')+articleOrder,owner,...filters.args);
       const data=await accountData(store,owner,url.searchParams.has('account')?reviewSpecs.articles.fields.account(url.searchParams.get('account')):null);
       const enriched=new Map(enrichArticles(data,{}).map(row=>[row.id,row]));
-      const all=rows.map(row=>enriched.get(row.id)).filter(row=>!filters.verdict||(filters.verdict==='pending'?row.verdict===null:row.verdict===filters.verdict));
+      const all=rows.map(row=>enriched.get(row.id)).filter(row=>!filters.verdict||(filters.verdict==='pending'?row.verdict===null:row.verdict===filters.verdict)).sort(activityArticles);
       const items=all.slice(filters.offset,filters.offset+100);
       return json({items,has_more:all.length>filters.offset+100,read_revision:before,...(filters.page!==null?{page:filters.page,page_size:100,total:all.length}:{})});
     }

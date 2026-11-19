@@ -79,13 +79,27 @@ export function appliedRules(article, playbooks = []) {
   const rules = normalizeRules(playbook.rules ?? playbook.rules_json);
   return rules.filter(rule => specified.includes(rule.rule_id));
 }
-export function recentArticles(a, b) {
-  const dateOrder = compare(day(b.published_at), day(a.published_at));
+function newestFirst(a, b, when) {
+  const x = when(a), y = when(b);
+  const dateOrder = compare(day(y), day(x));
   if (dateOrder) return dateOrder;
-  const aTimed = Boolean(parts(a.published_at)), bTimed = Boolean(parts(b.published_at));
-  // Date-only publications sort after explicit times on that day. This is an
-  // ordering convention, not an inferred midnight publication timestamp.
-  return (aTimed && bTimed ? Date.parse(b.published_at) - Date.parse(a.published_at) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
+  const aTimed = Boolean(parts(x)), bTimed = Boolean(parts(y));
+  // Date-only values sort after explicit times on that day. This is an
+  // ordering convention, not an inferred midnight timestamp.
+  return (aTimed && bTimed ? Date.parse(y) - Date.parse(x) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
+}
+/** Newest publication first; used for the Recent30 verdict cohort. */
+export function recentArticles(a, b) {
+  return newestFirst(a, b, row => row.published_at);
+}
+/** The time an article was last active: a pending draft by when it was saved to drafts
+ * (created_at when that was not recorded), every other article by its publication time. */
+export function activityTime(row) {
+  return reviewPublishState(row) === 'pending' ? row?.draft_saved_at || row?.created_at || null : row?.published_at ?? null;
+}
+/** Article lists: newest activity first, so pending drafts sit among the days they were saved. */
+export function activityArticles(a, b) {
+  return newestFirst(a, b, activityTime);
 }
 function quantile(sorted, fraction) { return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? null; }
 

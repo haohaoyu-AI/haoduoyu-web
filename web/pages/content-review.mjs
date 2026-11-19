@@ -11,7 +11,7 @@ import {renderWeeklyReview} from './review-weekly.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
-import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs';
+import {activityArticles, enrichArticles} from '../../shared/review-analytics.mjs';
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
 import {reviewPublishLabel, reviewPublishState} from '../../shared/review-publish-state.mjs';
@@ -217,7 +217,7 @@ function articleLibrary(rows,vm,data = {}) {
     const when = activityDay(r);
     return (reviewPublishState(r) === 'unmatched' || !from || (when && when >= from && when <= today)) && (!f.from || when >= f.from && when) &&
       (!f.to || when <= f.to && when) && (!f.verdict || r.verdict === f.verdict) && (!publish || reviewPublishState(r) === publish);
-  }).sort(recentArticles);
+  }).sort(activityArticles);
   const pendingCount = selected.filter(row => reviewPublishState(row) === 'pending').length;
   const publishedCount = selected.filter(row => reviewPublishState(row) === 'published').length;
   const unmatchedRows = rows.filter(row => reviewPublishState(row) === 'unmatched');
@@ -252,7 +252,8 @@ function articleLibrary(rows,vm,data = {}) {
       observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
     const supplement = chosen.includes('reads') ? '' : observation.kind === 'immature' ? '未满24h' : age;
     return [
-    ['发布时间',e(reviewDateTime(row.published_at) || '—')],
+    ['发布时间',held === 'pending' ? (row.draft_saved_at ? `${e(reviewDateTime(row.draft_saved_at))}<br><span class="review-note">存草稿</span>` : '—') :
+      e(reviewDateTime(row.published_at) || '—')],
     ['标题',`${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
       '未命名文章')}</button>${sampleLabel(row,data)}`],
     ...metrics,
