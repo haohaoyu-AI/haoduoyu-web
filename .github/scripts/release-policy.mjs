@@ -501,7 +501,15 @@ export const noteHintRelease=Object.freeze({
   baseline:'20579bf8-8171-4442-80f0-ddfdd1ac0f96',
   bytes:3598167,sha256:'e7c8761001c82c599e8653cfca96bb1f5f908bedee01766860f0611fccfbe38b',
   label:'production-note-hint'});
-const acceptedRelease=commit=>commit===noteHintRelease.commit?noteHintRelease:
+// AI 读碎碎念 reads every note and offers implied to-dos, on top of the deployed d6ebb4c. No migration.
+export const noteImpliedRelease=Object.freeze({
+  commit:'d051c981cfd0b9f197d00c96226e2a9aa0d09bd2',
+  tree:'efbcf81bbe55ede28bd7ecddc44b2522e8abaca7',
+  baseline:'03e6888e-479f-4db2-886b-df4e2514239c',
+  bytes:3599940,sha256:'86ab522fc3abdea29c25f9404808d2b5211c494cd9605dfbc5cd5b2145989831',
+  label:'production-note-implied'});
+const acceptedRelease=commit=>commit===noteImpliedRelease.commit?noteImpliedRelease:
+  commit===noteHintRelease.commit?noteHintRelease:
   commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
   commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
   commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
