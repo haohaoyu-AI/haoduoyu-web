@@ -12,6 +12,7 @@ export function legacyBackupEnvelope(value) {
   assert.equal(backup.sha256,checksum(backup.data));
   if(backup.data.format==='haoduoyu-matrix-d1-v19') {
     stripEmptyReviewArchive(backup.data);
+    stripDefaultTodoSchedule(backup.data);
     backup.data.format='haoduoyu-matrix-d1-v18';
   }
   if(backup.data.format==='haoduoyu-matrix-d1-v18') {
@@ -107,9 +108,18 @@ export function stripEmptyReviewArchive(data) {
   return data;
 }
 
+function stripDefaultTodoSchedule(data) {
+  for(const row of data.tables.unscheduled_todos||[])for(const field of ['period','recurrence','due_date']) {
+    if(!Object.hasOwn(row,field))continue;
+    assert.equal(row[field],null,'historical projection cannot hide todo schedule data: '+field);
+    delete row[field];
+  }
+}
+
 // Historical fixtures may remove only empty newer review collections. Never hide
 // real history merely to make an old-format restore assertion pass.
 export function stripEmptyReviewTables(data) {
+  stripDefaultTodoSchedule(data);
   for(const name of Object.keys(data.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_'))) {
     assert.deepEqual(data.tables[name],[],'historical projection cannot hide review history: '+name);
     delete data.tables[name];
