@@ -466,7 +466,15 @@ export const reviewDraftReconciliationRelease=Object.freeze({
   // Run 44445639466 uploaded this version, then received HTTP 404 while verifying it before deployment.
   uploadedVersion:'4af9e71f-5d70-4cde-a80a-3d78ae7bcc13',
   label:'production-review-draft-reconciliation'});
-const acceptedRelease=commit=>commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
+// Apply and verify the separately reviewed 0029 D1 migration before dispatch.
+export const reviewArchiveRelease=Object.freeze({
+  commit:'03021ba20adca80fdc35b86515523fc0fc6595f1',
+  tree:'16fec9a415dcadc8e32d66b45661f47abe29c558',
+  baseline:'4af9e71f-5d70-4cde-a80a-3d78ae7bcc13',
+  bytes:3507870,sha256:'1aca85b7b31915a77443c3e191fbe8b9df61587ff0e28c090cba423932078cd2',
+  label:'production-review-archive'});
+const acceptedRelease=commit=>commit===reviewArchiveRelease.commit?reviewArchiveRelease:
+  commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
   commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
   commit===draftStatusRelease.commit?draftStatusRelease:
   commit===outboxWindowRelease.commit?outboxWindowRelease:
