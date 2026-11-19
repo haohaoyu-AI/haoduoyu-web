@@ -191,6 +191,7 @@ export function paintSmartTodo(root, day) {
   if (smart.status === "reading") parts.push(el("span", "todo-smart-wait", "正在看这句话…"));
   else if (smart.status === "done") parts.push(el("p", "todo-smart-line", smart.done?.message || ""));
   else if (smart.status === "ready") {
+    parts.push(el("span", "todo-smart-kicker", smart.proposal.kind === "command" ? "AI 理解为：处理已有的待办" : "AI 理解为"));
     const line = el("p", "todo-smart-line");
     const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day.date);
     for (const [text, className] of pieces) line.append(el("span", className, text));

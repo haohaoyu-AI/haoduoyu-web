@@ -40,26 +40,33 @@ export function paintNoteSuggestion(node, item) {
   const key = JSON.stringify([reading.status, reading.done, reading.error, reading.busy]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
-  const parts = [];
-  const line = (text, action, label) => {
-    const row = document.createElement("p"); row.className = "note-suggest-line"; row.textContent = text;
-    if (action) {
-      const button = document.createElement("button"); button.type = "button"; button.className = "btn small text";
-      button.dataset.noteSuggest = action; button.dataset.noteSuggestId = item.id; button.textContent = label; button.disabled = Boolean(reading.busy);
-      row.append(" ", button);
-    }
-    parts.push(row);
+  const make = (tag, className, text) => {
+    const node = document.createElement(tag); node.className = className; if (text) node.textContent = text; return node;
   };
-  if (reading.status === "reading") line("AI 正在看这条…");
-  else {
-    if (reading.todo) line(reading.done.todo ? `已加到待办 · ${reading.done.todo}` :
-      `看起来有件事要做：${reading.todo.text} · ${whenLabel(reading.todo)}`, reading.done.todo ? "" : "todo", "加到待办");
-    if (reading.labels.length) line(reading.done.labels ? `已贴上：${reading.labels.join("、")}` :
-      `建议标签：${reading.labels.join("、")}`, reading.done.labels ? "" : "labels", "贴上");
-    if (reading.error) line(reading.error);
-    const close = document.createElement("button"); close.type = "button"; close.className = "btn small text note-suggest-close";
+  const head = make("p", "note-suggest-head", reading.status === "reading" ? "AI 正在看这条…" : "AI 看了这条");
+  if (reading.status !== "reading") {
+    const close = make("button", "note-suggest-close", "×"); close.type = "button";
     close.dataset.noteSuggest = "dismiss"; close.dataset.noteSuggestId = item.id;
-    close.textContent = reading.done.todo || reading.done.labels ? "关闭" : "忽略"; parts.push(close);
+    close.setAttribute("aria-label", reading.done.todo || reading.done.labels ? "关闭" : "忽略");
+    head.append(close);
+  }
+  const parts = [head];
+  // One row per offer: a tag, what was read, and either the button or what was done.
+  const row = (tag, text, when, action, label, done) => {
+    const line = make("div", "note-suggest-item");
+    const body = make("span", "note-suggest-text", text); if (when) body.append(make("em", "", when));
+    line.append(make("span", "note-suggest-tag", tag), body);
+    if (done) line.append(make("span", "note-suggest-done", done));
+    else {
+      const button = make("button", "note-suggest-btn", label); button.type = "button"; button.disabled = Boolean(reading.busy);
+      button.dataset.noteSuggest = action; button.dataset.noteSuggestId = item.id; line.append(button);
+    }
+    parts.push(line);
+  };
+  if (reading.status !== "reading") {
+    if (reading.todo) row("待办", reading.todo.text, whenLabel(reading.todo), "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    if (reading.labels.length) row("标签", reading.labels.join("、"), "", "labels", "贴上", reading.done.labels ? "✓ 已贴上" : "");
+    if (reading.error) parts.push(make("p", "note-suggest-error", reading.error));
   }
   box.replaceChildren(...parts);
 }

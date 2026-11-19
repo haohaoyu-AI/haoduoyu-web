@@ -6048,6 +6048,7 @@ function paintSmartTodo(root3, day7) {
   if (smart.status === "reading") parts2.push(el("span", "todo-smart-wait", "正在看这句话…"));
   else if (smart.status === "done") parts2.push(el("p", "todo-smart-line", smart.done?.message || ""));
   else if (smart.status === "ready") {
+    parts2.push(el("span", "todo-smart-kicker", smart.proposal.kind === "command" ? "AI 理解为：处理已有的待办" : "AI 理解为"));
     const line = el("p", "todo-smart-line");
     const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day7.date);
     for (const [text, className] of pieces) line.append(el("span", className, text));
@@ -10751,35 +10752,42 @@ function paintNoteSuggestion(node3, item) {
   const key = JSON.stringify([reading.status, reading.done, reading.error, reading.busy]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
-  const parts2 = [];
-  const line = (text, action, label3) => {
-    const row = document.createElement("p");
-    row.className = "note-suggest-line";
-    row.textContent = text;
-    if (action) {
-      const button3 = document.createElement("button");
-      button3.type = "button";
-      button3.className = "btn small text";
-      button3.dataset.noteSuggest = action;
-      button3.dataset.noteSuggestId = item.id;
-      button3.textContent = label3;
-      button3.disabled = Boolean(reading.busy);
-      row.append(" ", button3);
-    }
-    parts2.push(row);
+  const make = (tag2, className, text) => {
+    const node4 = document.createElement(tag2);
+    node4.className = className;
+    if (text) node4.textContent = text;
+    return node4;
   };
-  if (reading.status === "reading") line("AI 正在看这条…");
-  else {
-    if (reading.todo) line(reading.done.todo ? `已加到待办 · ${reading.done.todo}` : `看起来有件事要做：${reading.todo.text} · ${whenLabel(reading.todo)}`, reading.done.todo ? "" : "todo", "加到待办");
-    if (reading.labels.length) line(reading.done.labels ? `已贴上：${reading.labels.join("、")}` : `建议标签：${reading.labels.join("、")}`, reading.done.labels ? "" : "labels", "贴上");
-    if (reading.error) line(reading.error);
-    const close = document.createElement("button");
+  const head = make("p", "note-suggest-head", reading.status === "reading" ? "AI 正在看这条…" : "AI 看了这条");
+  if (reading.status !== "reading") {
+    const close = make("button", "note-suggest-close", "×");
     close.type = "button";
-    close.className = "btn small text note-suggest-close";
     close.dataset.noteSuggest = "dismiss";
     close.dataset.noteSuggestId = item.id;
-    close.textContent = reading.done.todo || reading.done.labels ? "关闭" : "忽略";
-    parts2.push(close);
+    close.setAttribute("aria-label", reading.done.todo || reading.done.labels ? "关闭" : "忽略");
+    head.append(close);
+  }
+  const parts2 = [head];
+  const row = (tag2, text, when, action, label3, done3) => {
+    const line = make("div", "note-suggest-item");
+    const body4 = make("span", "note-suggest-text", text);
+    if (when) body4.append(make("em", "", when));
+    line.append(make("span", "note-suggest-tag", tag2), body4);
+    if (done3) line.append(make("span", "note-suggest-done", done3));
+    else {
+      const button3 = make("button", "note-suggest-btn", label3);
+      button3.type = "button";
+      button3.disabled = Boolean(reading.busy);
+      button3.dataset.noteSuggest = action;
+      button3.dataset.noteSuggestId = item.id;
+      line.append(button3);
+    }
+    parts2.push(line);
+  };
+  if (reading.status !== "reading") {
+    if (reading.todo) row("待办", reading.todo.text, whenLabel(reading.todo), "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
+    if (reading.labels.length) row("标签", reading.labels.join("、"), "", "labels", "贴上", reading.done.labels ? "✓ 已贴上" : "");
+    if (reading.error) parts2.push(make("p", "note-suggest-error", reading.error));
   }
   box.replaceChildren(...parts2);
 }

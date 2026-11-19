@@ -944,16 +944,22 @@ body.floating-workbench {
 .ai-default-model .muted{font-size:12px}
 
 /* 一句话加待办: the model's reading, shown under the input until it is confirmed. */
-#daily-todos .todo-smart{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--accent,#2563eb);border-radius:10px;background:var(--surface,#fff)}
+#daily-todos .todo-smart{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:10px 0 6px;padding:12px 14px;
+  border:1px solid var(--accent-weak,#f7e2d7);border-radius:16px;background:rgba(255,255,255,.78);box-shadow:0 6px 18px -12px rgba(120,60,40,.35)}
 #daily-todos .todo-smart p{margin:0}
-#daily-todos .todo-smart-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;flex:1 1 220px;min-width:0}
-#daily-todos .todo-smart-day{font-weight:600;white-space:nowrap}
+#daily-todos .todo-smart-kicker{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.02em;color:var(--muted,#8d908a)}
+#daily-todos .todo-smart-kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent,#a44e38)}
+#daily-todos .todo-smart-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;flex:1 1 220px;min-width:0;line-height:1.5}
+#daily-todos .todo-smart-day{font-weight:600;color:var(--accent,#a44e38);white-space:nowrap}
 #daily-todos .todo-smart-text{overflow-wrap:anywhere}
-#daily-todos .todo-smart-hint,#daily-todos .todo-smart-wait{flex-basis:100%;font-size:12px;color:var(--muted,#6b7280)}
+#daily-todos .todo-smart-hint,#daily-todos .todo-smart-wait{flex-basis:100%;font-size:12px;color:var(--muted,#8d908a)}
 #daily-todos .todo-smart-wait{flex-basis:auto;flex:1}
-#daily-todos .todo-smart-error{flex-basis:100%;font-size:13px;color:var(--danger,#b91c1c)}
-#daily-todos .todo-smart-actions{display:flex;gap:6px;margin-left:auto}
-@media (max-width:560px){#daily-todos .todo-smart-actions{margin-left:0;width:100%}#daily-todos .todo-smart-actions .btn.primary{flex:1}}
+#daily-todos .todo-smart-error{flex-basis:100%;font-size:13px;color:var(--danger,#a7322e)}
+#daily-todos .todo-smart-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+#daily-todos .todo-smart-actions .btn{min-height:32px;padding:4px 12px;border-radius:999px;font-size:13px}
+#daily-todos .todo-smart-actions .btn.primary{padding:4px 18px}
+#daily-todos .todo-smart-actions .btn.text{color:var(--muted,#8d908a)}
+@media (max-width:560px){#daily-todos .todo-smart-actions{margin-left:0;width:100%}#daily-todos .todo-smart-actions .btn.primary{margin-right:auto}}
 #daily-todos .todo-smart-count{font-size:12px;color:var(--accent);white-space:nowrap}
 :is(#notes-history,#ai-reports,#review-article-library) .notes-read-sub{margin:-4px 0 10px;font-size:13px;color:var(--muted)}
 /* Future to-dos: one tap moves an item to 今天, 明天 or 周末. */
@@ -1119,8 +1125,23 @@ body.floating-workbench {
 .todo-due-row { background:rgba(245,158,11,.08); border-radius:10px; padding-inline:8px; }
 .todo-due-row.is-over { background:rgba(220,38,38,.07); }
 .todo-future-panel .todo-future-schedule .btn.text { border-color:transparent; background:transparent; box-shadow:none; }
-/* AI 读碎碎念: a quiet row under a sent 碎碎念 (Claude 2026-11-19) */
-.note-suggest{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 0 0;padding:8px 10px;border-left:3px solid var(--accent,#2563eb);border-radius:8px;background:var(--surface-2,rgba(0,0,0,.03));font-size:13px}
-#daily-notes .note-suggest-line,.note-suggest-line{flex:1 1 100%;margin:0;overflow-wrap:anywhere}
-.note-suggest-line .btn{margin-left:4px}
-.note-suggest-close{margin-left:auto}
+/* AI 读碎碎念: a quiet card under a sent 碎碎念 (Claude 2026-11-19) */
+.note-suggest{position:relative;margin:12px 0 0;padding:10px 12px 8px;border:1px solid var(--accent-weak,#f7e2d7);border-radius:14px;
+  background:rgba(255,255,255,.7);font-size:13px;line-height:1.5}
+#daily-notes .note-suggest-head,.note-suggest .note-suggest-head{display:flex;align-items:center;gap:6px;margin:0 0 2px;font-size:12px;color:var(--muted,#8d908a)}
+.note-suggest-head::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent,#a44e38)}
+.note-suggest-close{margin-left:auto;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted,#8d908a);
+  font-size:18px;line-height:1;cursor:pointer}
+.note-suggest-close:hover{background:var(--accent-weak,#f7e2d7);color:var(--text,#1d201e)}
+.note-suggest-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.05)}
+.note-suggest-item:first-of-type{border-top:0}
+.note-suggest-tag{flex:none;padding:1px 8px;border-radius:999px;background:var(--accent-weak,#f7e2d7);color:var(--accent,#a44e38);font-size:12px}
+.note-suggest-text{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text,#1d201e)}
+.note-suggest-text em{font-style:normal;color:var(--muted,#8d908a);margin-left:6px}
+.note-suggest-btn{flex:none;min-height:30px;padding:3px 12px;border:1px solid var(--accent,#a44e38);border-radius:999px;background:transparent;
+  color:var(--accent,#a44e38);font:inherit;font-size:12px;cursor:pointer}
+.note-suggest-btn:hover:not(:disabled){background:var(--accent,#a44e38);color:#fff}
+.note-suggest-btn:disabled{opacity:.5;cursor:default}
+.note-suggest-done{flex:none;font-size:12px;color:var(--success,#1f7a4d)}
+#daily-notes .note-suggest-error,.note-suggest-wait,.note-suggest-error{margin:2px 0 4px;font-size:12px;color:var(--muted,#8d908a)}
+.note-suggest-error{color:var(--danger,#a7322e)}
