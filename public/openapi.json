@@ -6496,6 +6496,145 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "patchAiReport",
+        "summary": "Edit one AI report in place",
+        "description": "Change the whole text or one exact passage without deleting and recreating the report. expected_hash guards against overwriting a newer version; save_id makes a retry safe. The previous wording is kept as a revision (GET /ai-reports/{uuid}/revisions); a permanent delete also removes those revisions. Same write rules and limits as DELETE.",
+        "tags": [
+          "AI reports"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Lowercase UUID of the report to edit.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "example": "123e4567-e89b-42d3-a456-426614174000"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "description": "Must exactly match the site origin for public or session writes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "required": false,
+            "description": "Required value 1 for anonymous public writes.",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "description": "Required for owner-session writes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiReportPatch"
+              },
+              "example": {
+                "expected_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001",
+                "replace": {
+                  "from": "阅读中位数 560",
+                  "to": "阅读中位数 610"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Edited, or the replay of the same save_id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AiReportWithHash"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "description": "VERSION_CONFLICT (stale expected_hash), IDEMPOTENCY_CONFLICT (save_id reused), REPLACE_NOT_FOUND or REPLACE_AMBIGUOUS.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "description": "AI_REPORTS_RATE_LIMIT: per-process public write limit reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "CONFIGURATION: required owner configuration unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/review/articles": {
@@ -15933,6 +16072,50 @@
                 "$ref": "#/components/headers/RequestId"
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-reports/{uuid}/revisions": {
+      "get": {
+        "operationId": "listAiReportRevisions",
+        "summary": "Earlier wordings of one AI report",
+        "tags": [
+          "AI reports"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 100 revisions, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AiReportRevisions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The report does not exist or was deleted."
           }
         }
       }
@@ -27174,6 +27357,152 @@
           },
           "snapshot": {
             "$ref": "#/components/schemas/ReviewSnapshot"
+          }
+        }
+      },
+      "AiReportPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash",
+          "save_id"
+        ],
+        "description": "Edit one report in place. Send exactly one of content (the whole new text) or replace (one exact passage). The author and created_at stay unchanged.",
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "content_hash read from GET /ai-reports; a stale hash returns 409 VERSION_CONFLICT."
+          },
+          "save_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "description": "Caller-generated UUID for this edit; repeating the identical request replays the same result."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The whole new text, 1–16 KiB."
+          },
+          "replace": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from",
+              "to"
+            ],
+            "description": "Replace one passage. from must occur exactly once in the current text (409 REPLACE_NOT_FOUND / REPLACE_AMBIGUOUS otherwise).",
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "content"
+            ]
+          },
+          {
+            "required": [
+              "replace"
+            ]
+          }
+        ]
+      },
+      "AiReportWithHash": {
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "content",
+          "created_at",
+          "content_hash"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "AiReportRevisions": {
+        "type": "object",
+        "required": [
+          "id",
+          "content_hash",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "Newest first. Each item is the wording before one edit.",
+            "items": {
+              "type": "object",
+              "required": [
+                "revised_at",
+                "previous_content",
+                "previous_hash",
+                "content_hash"
+              ],
+              "properties": {
+                "revised_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "previous_content": {
+                  "type": "string"
+                },
+                "previous_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "content_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "replace": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
