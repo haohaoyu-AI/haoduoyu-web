@@ -100,7 +100,7 @@ test('v8 backups preserve work and tombstones, accept old v7 into empty targets 
   assert.equal(scoped.data.tables.daily_work_notes.length,1);assert.equal(scoped.data.tables.daily_work_notes[0].user_id,app.owner);
   const hidden=await app.call('/daily-notes?date='+DAY+'&category=work');
   assert.equal(hidden.data.text,'');assert.equal(hidden.data.deleted,true);
-  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v18');
+  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v19');
   assert.equal(backup.data.tables.daily_work_notes.length,2);assert.ok(backup.data.tables.daily_work_notes.every(row=>row.deleted_at));
   const empty=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(empty.db,backup,{allowEmptyRestore:true});
   assert.deepEqual((await empty.db.prepare('SELECT * FROM matrix_daily_work_notes').all()).results,backup.data.tables.daily_work_notes);

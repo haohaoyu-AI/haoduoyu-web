@@ -160,6 +160,7 @@ export const matrixReviewArticles=sqliteTable('matrix_review_articles',{
   topic_category:text('topic_category'),title_pattern:text('title_pattern'),sample_title:text('sample_title'),sample_url:text('sample_url'),reference_article_id:text('reference_article_id'),
   image_count:integer('image_count'),source_chat:text('source_chat'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
   playbook_version_used:integer('playbook_version_used'),applied_rule_ids_json:text('applied_rule_ids_json'),
+  publish_status:text('publish_status'),draft_saved_at:text('draft_saved_at'),alternate_titles_json:text('alternate_titles_json'),
 },t=>[
   primaryKey({columns:[t.user_id,t.id]}),
   uniqueIndex('matrix_review_article_platform_id').on(t.user_id,t.account,t.platform_article_id),
@@ -168,6 +169,8 @@ export const matrixReviewArticles=sqliteTable('matrix_review_articles',{
   check('matrix_review_article_image_count',sql`${t.image_count} IS NULL OR (typeof(${t.image_count})='integer' AND ${t.image_count} BETWEEN 0 AND 9007199254740991)`),
   check('matrix_review_article_playbook_version_used',sql`${t.playbook_version_used} IS NULL OR (typeof(${t.playbook_version_used})='integer' AND ${t.playbook_version_used} BETWEEN 1 AND 9007199254740991)`),
   check('matrix_review_article_applied_rule_ids_json',sql`${t.applied_rule_ids_json} IS NULL OR CASE WHEN json_valid(${t.applied_rule_ids_json}) THEN json_type(${t.applied_rule_ids_json})='array' ELSE 0 END`),
+  check('matrix_review_article_publish_status',sql`${t.publish_status} IS NULL OR ${t.publish_status} IN ('pending','published','unmatched')`),
+  check('matrix_review_article_alternate_titles_json',sql`${t.alternate_titles_json} IS NULL OR CASE WHEN json_valid(${t.alternate_titles_json}) THEN json_type(${t.alternate_titles_json})='array' ELSE 0 END`),
 ]);
 export const matrixReviewSnapshots=sqliteTable('matrix_review_snapshots',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
@@ -334,4 +337,84 @@ export const matrixReviewArticleDiagnoses=sqliteTable('matrix_review_article_dia
   index('matrix_review_article_diagnoses_day').on(t.user_id,t.beijing_date),
   check('matrix_review_article_diagnosis_version',sql`typeof(${t.prompt_version})='integer' AND ${t.prompt_version} >= 0`),
   check('matrix_review_article_diagnosis_day',sql`${t.beijing_date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.beijing_date},'+0 days') IS NOT NULL AND date(${t.beijing_date},'+0 days') = ${t.beijing_date}`),
+]);
+
+export const matrixReviewArchiveItems=sqliteTable('matrix_review_archive_items',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  kind:text('kind').notNull(),production_status:text('production_status').notNull(),publication_status:text('publication_status').notNull(),
+  association_status:text('association_status').notNull(),payload_json:text('payload_json').notNull(),verified_json:text('verified_json').notNull(),
+  legacy_id:text('legacy_id'),merged_into:text('merged_into'),version:integer('version').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  foreignKey({columns:[t.user_id,t.legacy_id],foreignColumns:[matrixReviewArticles.user_id,matrixReviewArticles.id]}),
+  foreignKey({columns:[t.user_id,t.merged_into],foreignColumns:[t.user_id,t.id]}),
+  uniqueIndex('matrix_review_archive_item_legacy').on(t.user_id,t.legacy_id),
+  index('matrix_review_archive_item_recent').on(t.user_id,t.updated_at,t.id),
+  check('matrix_review_archive_item_kind',sql`${t.kind} IN ('article','micro')`),
+  check('matrix_review_archive_item_production',sql`${t.production_status} IN ('unfinished','complete','unknown')`),
+  check('matrix_review_archive_item_publication',sql`${t.publication_status} IN ('unpublished','pending','scheduled','published','deleted','unknown')`),
+  check('matrix_review_archive_item_association',sql`${t.association_status} IN ('pending','matched','ambiguous','not_needed')`),
+  check('matrix_review_archive_item_payload',sql`CASE WHEN json_valid(${t.payload_json}) THEN json_type(${t.payload_json})='object' ELSE 0 END`),
+  check('matrix_review_archive_item_verified',sql`CASE WHEN json_valid(${t.verified_json}) THEN json_type(${t.verified_json})='object' ELSE 0 END`),
+  check('matrix_review_archive_item_merge',sql`${t.merged_into} IS NULL OR ${t.merged_into}<>${t.id}`),
+  check('matrix_review_archive_item_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+]);
+
+export const matrixReviewArchiveRefs=sqliteTable('matrix_review_archive_refs',{
+  user_id:text('user_id').notNull(),id:text('id').notNull(),item_id:text('item_id').notNull(),
+  kind:text('kind').notNull(),platform_id:text('platform_id').notNull(),role:text('role').notNull(),payload_json:text('payload_json').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  foreignKey({columns:[t.user_id,t.item_id],foreignColumns:[matrixReviewArchiveItems.user_id,matrixReviewArchiveItems.id]}),
+  uniqueIndex('matrix_review_archive_ref_platform').on(t.user_id,t.kind,t.platform_id),
+  uniqueIndex('matrix_review_archive_ref_primary').on(t.user_id,t.item_id,t.kind).where(sql`${t.role}='primary'`),
+  index('matrix_review_archive_ref_item').on(t.user_id,t.item_id,t.kind,t.id),
+  check('matrix_review_archive_ref_kind',sql`${t.kind} IN ('draft','publication')`),
+  check('matrix_review_archive_ref_platform_id',sql`length(${t.platform_id})>0`),
+  check('matrix_review_archive_ref_role',sql`${t.role} IN ('primary','duplicate','other')`),
+  check('matrix_review_archive_ref_payload',sql`CASE WHEN json_valid(${t.payload_json}) THEN json_type(${t.payload_json})='object' ELSE 0 END`),
+]);
+
+export const matrixReviewArchiveSnapshots=sqliteTable('matrix_review_archive_snapshots',{
+  user_id:text('user_id').notNull(),id:text('id').notNull(),item_id:text('item_id').notNull(),observed_at:text('observed_at'),
+  source:text('source').notNull(),source_key:text('source_key').notNull(),metrics_json:text('metrics_json').notNull(),created_at:text('created_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  foreignKey({columns:[t.user_id,t.item_id],foreignColumns:[matrixReviewArchiveItems.user_id,matrixReviewArchiveItems.id]}),
+  uniqueIndex('matrix_review_archive_snapshot_source').on(t.user_id,t.source,t.source_key),
+  index('matrix_review_archive_snapshot_item').on(t.user_id,t.item_id,t.observed_at,t.id),
+  check('matrix_review_archive_snapshot_metrics',sql`CASE WHEN json_valid(${t.metrics_json}) THEN json_type(${t.metrics_json})='object' ELSE 0 END`),
+]);
+
+export const matrixReviewArchiveEvents=sqliteTable('matrix_review_archive_events',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  entity_type:text('entity_type').notNull(),entity_id:text('entity_id').notNull(),version:integer('version').notNull(),action:text('action').notNull(),
+  details_json:text('details_json').notNull(),created_at:text('created_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  index('matrix_review_archive_event_entity').on(t.user_id,t.entity_type,t.entity_id,t.created_at,t.id),
+  check('matrix_review_archive_event_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+  check('matrix_review_archive_event_details',sql`CASE WHEN json_valid(${t.details_json}) THEN json_type(${t.details_json})='object' ELSE 0 END`),
+]);
+
+export const matrixReviewArchiveImports=sqliteTable('matrix_review_archive_imports',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  kind:text('kind').notNull(),source:text('source').notNull(),source_key:text('source_key').notNull(),scope_json:text('scope_json').notNull(),
+  started_at:text('started_at').notNull(),completed_at:text('completed_at'),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  uniqueIndex('matrix_review_archive_import_source').on(t.user_id,t.kind,t.source,t.source_key),
+  check('matrix_review_archive_import_scope',sql`CASE WHEN json_valid(${t.scope_json}) THEN json_type(${t.scope_json})='object' ELSE 0 END`),
+]);
+
+export const matrixReviewArchiveImportPages=sqliteTable('matrix_review_archive_import_pages',{
+  user_id:text('user_id').notNull(),run_id:text('run_id').notNull(),page:integer('page').notNull(),request_hash:text('request_hash').notNull(),
+  result_json:text('result_json').notNull(),committed_at:text('committed_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.run_id,t.page]}),
+  foreignKey({columns:[t.user_id,t.run_id],foreignColumns:[matrixReviewArchiveImports.user_id,matrixReviewArchiveImports.id]}),
+  check('matrix_review_archive_import_page',sql`typeof(${t.page})='integer' AND ${t.page} BETWEEN 0 AND 9007199254740991`),
+  check('matrix_review_archive_import_page_result',sql`CASE WHEN json_valid(${t.result_json}) THEN json_type(${t.result_json})='object' ELSE 0 END`),
 ]);

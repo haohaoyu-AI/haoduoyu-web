@@ -7,9 +7,13 @@ import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS} from '../src/a
 // and the exact empty private tables on these historical paired fixtures.
 export function legacyBackupEnvelope(value) {
   const result=structuredClone(value),backup=result.data;
-  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17','haoduoyu-matrix-d1-v18'].includes(backup?.data?.format)) return result;
+  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17','haoduoyu-matrix-d1-v18','haoduoyu-matrix-d1-v19'].includes(backup?.data?.format)) return result;
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
+  if(backup.data.format==='haoduoyu-matrix-d1-v19') {
+    stripEmptyReviewArchive(backup.data);
+    backup.data.format='haoduoyu-matrix-d1-v18';
+  }
   if(backup.data.format==='haoduoyu-matrix-d1-v18') {
     assert.deepEqual(backup.data.tables.review_article_diagnoses, [], 'legacy projection cannot hide article diagnoses');
     delete backup.data.tables.review_article_diagnoses;
@@ -88,6 +92,19 @@ export function legacyBackupEnvelope(value) {
   backup.data.format='haoduoyu-matrix-d1-v1';
   backup.sha256=checksum(backup.data);
   return result;
+}
+
+export function stripEmptyReviewArchive(data) {
+  for(const name of ['items','refs','snapshots','events','imports','import_pages']) {
+    const table='review_archive_'+name;
+    assert.deepEqual(data.tables[table],[],'historical projection cannot hide archive history: '+table);
+    delete data.tables[table];
+  }
+  for(const row of data.tables.review_articles)for(const field of ['publish_status','draft_saved_at','alternate_titles_json']) {
+    assert.equal(row[field],null,'historical projection cannot hide review draft data: '+field);
+    delete row[field];
+  }
+  return data;
 }
 
 // Historical fixtures may remove only empty newer review collections. Never hide

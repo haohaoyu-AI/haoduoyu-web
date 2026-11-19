@@ -126,10 +126,10 @@ const TOOLS=[
     inputSchema:{type:'object',properties:{text:{type:'string'},when:{type:'string',enum:['this_week','next_week','this_month','next_month','every_week','every_month','none']},
       due_date:{type:'string',description:'YYYY-MM-DD'}},required:['text']}},
   {name:'list_future_todos',description:'读全部未来待办（含大概时间、重复和截止日）。',inputSchema:{type:'object',properties:{}}},
-  {name:'api_request',description:['以网站主人的身份调用网站自己的 /api/v1 接口，能读写网站上的所有内容。path 写 /api/v1 之后的部分。',
+  {name:'api_request',description:['以网站主人的身份调用允许连接器访问的 /api/v1 接口。path 写 /api/v1 之后的部分。',
     '常用：/todos?date= · /unscheduled-todos · /note-entries?date=&category=（写入用 PUT /note-entries/{新uuid}，头 X-Note-Labels-Version: 3）·',
     '/daily-scores/{date} · /ai-reports · /work-reminders?date= · /review/articles · /review/playbooks · /review/notes · /review/ai ·',
-    '/articles · /accounts · /observations · /daily-metrics。不开放：登录、密码、API 凭证、备份恢复、初始化。写之前先读一次，带上 version。'].join(''),
+    '/articles · /accounts · /observations · /daily-metrics。不开放：登录、密码、API 凭证、备份恢复、初始化、私有档案。写之前先读一次，带上 version。'].join(''),
     inputSchema:{type:'object',properties:{method:{type:'string',enum:['GET','POST','PUT','PATCH','DELETE']},path:{type:'string'},
       body:{type:'object'},headers:{type:'object',description:'只接受 X-Note-Labels-Version、X-Note-Labels-Archive、Idempotency-Key'}},required:['method','path']}},
   {name:'delete_future_todo',description:'删除一条未来待办（可在网站上恢复）。',inputSchema:{type:'object',properties:{id:{type:'string'}},required:['id']}},
@@ -196,7 +196,9 @@ async function callTool(name,args,dispatch) {
     const method=String(args.method||'GET').toUpperCase(),path=String(args.path||'');
     if(!['GET','POST','PUT','PATCH','DELETE'].includes(method))throw new Error('method 不支持');
     if(!/^\/[A-Za-z0-9/_.~%-]*(\?[^#\s]*)?$/.test(path)||path.includes('..'))throw new Error('path 需要以 / 开头，例如 /todos?date=2026-11-16');
-    if(BLOCKED.test(path))throw new Error('这个接口不对连接器开放：'+path.split('?')[0]);
+    const normalized=new URL('/api/v1'+path,'https://internal.invalid').pathname;
+    if(!normalized.startsWith('/api/v1/')||BLOCKED.test(normalized.slice('/api/v1'.length)))
+      throw new Error('这个接口不对连接器开放：'+path.split('?')[0]);
     const extra=Object.fromEntries(Object.entries(args.headers||{}).filter(([name])=>HEADERS.includes(name.toLowerCase())).map(([n,v])=>[n,String(v)]));
     if(!dispatch.owner)throw new Error('还不知道网站主人是谁，请重新连接一次');
     return dispatch.owner(path,method,method==='GET'||method==='DELETE'&&!args.body?null:args.body||{},extra);
@@ -207,7 +209,7 @@ async function callTool(name,args,dispatch) {
   }
   throw new Error('没有这个工具：'+name);
 }
-const BLOCKED=/^\/(auth|api-keys|backup|bootstrap|restore|import|snapshot|workbench-snapshot|integrations)(\/|\?|$)/;
+const BLOCKED=/^\/(auth|api-keys|backup|bootstrap|restore|import|snapshot|workbench-snapshot|integrations|review\/archive)(\/|$)/;
 const HEADERS=['x-note-labels-version','x-note-labels-archive','idempotency-key'];
 /** api_request acts as the owner through a session that lives only for this one call. */
 function ownerDispatch(db,origin,handle,owner) {

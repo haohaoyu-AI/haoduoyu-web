@@ -37,7 +37,7 @@ test('month history reads both categories and legacy records on the current sche
   assert.deepEqual(new Set(data.days[0].items.map(item=>item.source)),new Set(['note_entry','legacy_daily_note']));
   assert.equal(checkedNoteMonth(data,month).get(day).length,4);
   const names=(await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-  assert.equal(names.length,42);
+  assert.equal(names.length,48);
   await assert.rejects(handleNoteMonth(db,new Request(request,{method:'POST'}),'owner'),error=>error.status===405);
   await assert.rejects(handleNoteMonth(db,new Request('http://test.invalid/?month='+month+'&month='+priorMonthDay.slice(0,7)),'owner'),error=>error.status===400);
 });

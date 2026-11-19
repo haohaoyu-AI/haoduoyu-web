@@ -5,6 +5,7 @@ import {fixture} from './harness.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest,stable} from '../src/security.mjs';
 import {createSourceInventory,verifyBackupInventory,verifyRestoredInventory} from '../scripts/migration-inventory.mjs';
+import {stripEmptyReviewArchive} from './todo-backup-projection.mjs';
 const stamp='2026-11-10T00:00:00.000Z';
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const prompt=user=>({user_id:user,id:randomUUID(),prompt_key:'review-main_v2',scope:'global',version:1,status:'active',title:'合成标题',content_md:'合成正文\n第二行',changelog_md:'',created_at:stamp,updated_at:stamp});
@@ -14,11 +15,11 @@ test('v17 exact prompt history round trip, user-scoped export and independent al
  await src.db.prepare('INSERT INTO matrix_users VALUES(?,?,?,?)').bind(other,'other','synthetic',stamp).run();
  for(const user of [owner,other])for(const scope of ['global','toutiao','vzi','yujian','wechat'])for(const [version,status] of [[1,'archived'],[2,'active'],[3,'draft']])await insert(src.db,{...prompt(user),scope,version,status});
  const full=await exportBackup(src.db),scoped=await exportBackup(src.db,{todoUserId:owner}),inventory=await createSourceInventory(src.db);
- assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');assert.equal(full.data.tables.review_prompt_versions.length,30);
+ assert.equal(full.data.format,'haoduoyu-matrix-d1-v19');assert.equal(full.data.tables.review_prompt_versions.length,30);
  assert.equal(scoped.data.tables.review_prompt_versions.length,15);assert.ok(scoped.data.tables.review_prompt_versions.every(row=>row.user_id===owner));
  assert.equal(inventory.tables.review_prompt_versions.count,30);assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
  const target=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(target.db,full,{allowEmptyRestore:true});
- assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:39,reset_tables:3});
+ assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:45,reset_tables:3});
  assert.deepEqual((await exportBackup(target.db)).data.tables,full.data.tables);
 });
 test('exact v16 restores into v17 with an empty prompt table and preserves review history',async t=>{
@@ -29,14 +30,15 @@ test('exact v16 restores into v17 with an empty prompt table and preserves revie
  await src.db.prepare('INSERT INTO matrix_review_articles(user_id,id,title,created_at,updated_at) VALUES(?,?,?,?,?)').bind(owner,randomUUID(),'retained v16 article',stamp,stamp).run();
  const inventory=await createSourceInventory(src.db);
  const {applyLocalSchemaMigrations}=await import('../scripts/migration-contract.mjs');await applyLocalSchemaMigrations(src.db);
- const data=(await exportBackup(src.db)).data;
+ const data=stripEmptyReviewArchive((await exportBackup(src.db)).data);
  delete data.tables.review_prompt_versions;delete data.tables.daily_scores;delete data.tables.review_article_diagnoses;
  data.format='haoduoyu-matrix-d1-v16';
  const backup=sign(data),target=await fixture(t,{bootstrap:false});
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual(await verifyRestoredInventory(target.db,backup,inventory),{verified:true,restored_tables:36,reset_tables:3});
  const restored=(await exportBackup(target.db)).data.tables;
- assert.deepEqual(restored.review_prompt_versions,[]);assert.deepEqual(restored.review_articles,data.tables.review_articles);
+ assert.deepEqual(restored.review_prompt_versions,[]);
+ assert.deepEqual(restored.review_articles,data.tables.review_articles.map(row=>({...row,publish_status:null,draft_saved_at:null,alternate_titles_json:null})));
 });
 test('malformed prompt backups are rejected before any database access or writes',async t=>{
  const src=await fixture(t),data=(await exportBackup(src.db)).data,owner=data.tables.users[0].id;

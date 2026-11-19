@@ -558,13 +558,13 @@ function renderLogin() {
     15
   )}</button></form></section></main>`;
 }
-function renderInitializationError(message, onRetry, { status } = {}) {
+function renderInitializationError(message2, onRetry, { status } = {}) {
   stopPageEntry();
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
   const explanation = status === 429 ? "请求较多，请稍后重试。" : "未能完成连接或读取，请检查网络后重试。";
-  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message2 || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
   $("#init-retry")?.addEventListener("click", onRetry);
 }
 var init_login = __esm({
@@ -1208,7 +1208,7 @@ var init_notes = __esm({
     uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
     hashPattern = /^[a-f0-9]{64}$/;
     isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
-    fail = (message, code) => Object.assign(new Error(message), { code });
+    fail = (message2, code) => Object.assign(new Error(message2), { code });
     missing2 = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
     validDay = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
     timestamp = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
@@ -1614,8 +1614,8 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
       return conflict;
     });
   }
-  const list3 = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
-  return { record, list: list3 };
+  const list4 = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
+  return { record, list: list4 };
 }
 var init_conflict = __esm({
   "web/offline/conflict.mjs"() {
@@ -1673,7 +1673,7 @@ function content(local, type) {
   }
   return memoContent(local, type);
 }
-function contextFor({ conflict, remote, choice: choice2, uuid: uuid5 }) {
+function contextFor({ conflict, remote, choice: choice2, uuid: uuid6 }) {
   const type = conflict?.operation?.entity_type, scope = conflict?.scope, prefix = prefixes[type];
   if (!prefix || !["use-server", "use-local", "keep-both"].includes(choice2) || typeof scope !== "string" || !scope) invalid();
   const entity = conflict.entity_id, pattern = ["todo", "template", "unscheduled_todo"].includes(type) ? clientIdPattern : uuidPattern3;
@@ -1683,7 +1683,7 @@ function contextFor({ conflict, remote, choice: choice2, uuid: uuid5 }) {
   if (remote && (typeof remote !== "object" || remote.id?.toLowerCase?.() !== id2 || !revision(remote.version))) invalid();
   const used = /* @__PURE__ */ new Set([id2, conflict.operation.save_id?.toLowerCase?.(), local?.group_id?.toLowerCase?.()]);
   const fresh = () => {
-    const value = uuid5();
+    const value = uuid6();
     if (typeof value !== "string" || !pattern.test(value) || used.has(value.toLowerCase())) invalid();
     used.add(value.toLowerCase());
     return value.toLowerCase();
@@ -1778,8 +1778,8 @@ function memoOperation(context, id2, body4, value, base = null) {
   if (context.type === "memo_note") Object.assign(result, { protocol: 2, depends_on: ["memo-group:" + body4.group_id] });
   return result;
 }
-function memoParentCopy(context, value, groups) {
-  const live2 = groups.filter(liveMemoGroup).sort((a, b) => (a.position || 0) - (b.position || 0) || a.id.localeCompare(b.id));
+function memoParentCopy(context, value, groups2) {
+  const live2 = groups2.filter(liveMemoGroup).sort((a, b) => (a.position || 0) - (b.position || 0) || a.id.localeCompare(b.id));
   const operations2 = [];
   let parent = live2[0]?.id.toLowerCase();
   if (!parent) {
@@ -1796,7 +1796,7 @@ function memoParentCopy(context, value, groups) {
     explanation: "原笔记所在位置已不可用，将本机正文另存为新笔记，原内容保留。"
   };
 }
-function memoPlan(context, value, groups) {
+function memoPlan(context, value, groups2) {
   const { id: id2, remote, local, choice: choice2, fresh, type } = context;
   if (removed2(local)) return {
     mode: "blocked",
@@ -1804,20 +1804,20 @@ function memoPlan(context, value, groups) {
     target_id: id2,
     explanation: "本机保留的是删除意图；备忘录删除需联网确认，原文与冲突仍保留。"
   };
-  if (type === "memo_note" && !groups.some((group) => group?.id === value.group_id && liveMemoGroup(group)))
-    return memoParentCopy(context, value, groups);
+  if (type === "memo_note" && !groups2.some((group) => group?.id === value.group_id && liveMemoGroup(group)))
+    return memoParentCopy(context, value, groups2);
   const replace = choice2 === "use-local" && remote && !removed2(remote) && (type !== "memo_note" || remote.group_id === value.group_id);
   const target = replace ? id2 : fresh(), body4 = { ...value, version: replace ? remote.version : 0, save_id: fresh() };
   const operations2 = [memoOperation(context, target, body4, value, replace ? remote : null)];
   return replace ? { mode: "replace", target_id: target, operations: operations2 } : copyResult(context, target, operations2);
 }
-function planConflictResolution({ conflict, remote = null, choice: choice2, groups = [], uuid: uuid5 = () => crypto.randomUUID() }) {
-  const context = contextFor({ conflict, remote, choice: choice2, uuid: uuid5 });
+function planConflictResolution({ conflict, remote = null, choice: choice2, groups: groups2 = [], uuid: uuid6 = () => crypto.randomUUID() }) {
+  const context = contextFor({ conflict, remote, choice: choice2, uuid: uuid6 });
   if (choice2 === "use-server") return { mode: "server", target_id: context.id, operations: [] };
   if (choice2 === "use-local" && removed2(context.local) && (!remote || removed2(remote)))
     return { mode: "server", target_id: context.id, operations: [], explanation: "线上已删除，确认删除结果；删除前原文仍保留。" };
-  if (!Array.isArray(groups)) invalid();
-  context.reserve(groups.map((group) => group?.id));
+  if (!Array.isArray(groups2)) invalid();
+  context.reserve(groups2.map((group) => group?.id));
   if (context.type === "note_entry" && context.local?.labels_version !== 1 && remote?.labels_version === 1 && remote.label !== null)
     throw new TypeError("标签尚未核实，请联网读取后重新核对；原文已保留。");
   const value = content(context.local, context.type);
@@ -1825,7 +1825,7 @@ function planConflictResolution({ conflict, remote = null, choice: choice2, grou
   if (context.type === "unscheduled_todo") return undatedPlan(context, value);
   if (context.type === "template") return templatePlan(context, value);
   if (context.type === "note_entry") return notePlan(context, value);
-  return memoPlan(context, value, groups);
+  return memoPlan(context, value, groups2);
 }
 var prefixes, uuidPattern3, clientIdPattern, removed2, revision, plain, invalid;
 var init_conflict_plan = __esm({
@@ -1898,7 +1898,7 @@ function createConflictDecisions({
   append,
   canDispatch = () => true,
   now = Date.now,
-  uuid: uuid5 = () => crypto.randomUUID()
+  uuid: uuid6 = () => crypto.randomUUID()
 }) {
   async function transaction(captured, scope, assertActive, callback) {
     return db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
@@ -1911,7 +1911,7 @@ function createConflictDecisions({
       return result;
     });
   }
-  async function review(captured, scope, active6, remote, message, extra = {}) {
+  async function review(captured, scope, active6, remote, message2, extra = {}) {
     return transaction(captured, scope, active6, async (tx) => {
       const history2 = [...captured.conflict.remote_history || []];
       if (!history2.some((value) => stable(value) === stable(currentRemote(captured.conflict))))
@@ -1922,7 +1922,7 @@ function createConflictDecisions({
         review_local: captured.entity.local,
         review_remote: remote,
         needs_recompare: true,
-        resolution_message: message,
+        resolution_message: message2,
         ...extra
       };
       await tx.put("conflicts", next);
@@ -1931,7 +1931,7 @@ function createConflictDecisions({
   }
   async function commit(captured, scope, active6, choice2, prepared, plan) {
     return transaction(captured, scope, active6, async (tx) => {
-      const conflict = captured.conflict, resolutionId = uuid5();
+      const conflict = captured.conflict, resolutionId = uuid6();
       for (const operation3 of captured.operations)
         await tx.put("outbox", { ...operation3, status: "archived", archived_by: resolutionId });
       const entity = {
@@ -2013,7 +2013,7 @@ function createConflictDecisions({
     if (stable(remoteEvidence(prepared.remote, type)) !== stable(remoteEvidence(currentRemote(captured.conflict), type)))
       return review(captured, scope, active6, prepared.remote, "线上刚有更新，请核对新比较内容后再选择。");
     const selected = { ...captured.conflict, local: currentLocal(captured.conflict), remote: prepared.remote };
-    const plan = planConflictResolution({ conflict: selected, remote: prepared.remote, choice: choice2, groups: prepared.groups || [], uuid: uuid5 });
+    const plan = planConflictResolution({ conflict: selected, remote: prepared.remote, choice: choice2, groups: prepared.groups || [], uuid: uuid6 });
     if (plan.mode === "blocked") return { ...captured.conflict, blocked: true, resolution_message: plan.explanation };
     if (choice2 === "use-local" && plan.mode === "copy" && !copyConfirmed)
       return review(captured, scope, active6, prepared.remote, plan.explanation + "请明确选择另存本地副本。", { copy_required: true });
@@ -2022,9 +2022,9 @@ function createConflictDecisions({
   }
   return { resolve };
 }
-async function rememberParents(tx, scope, groups, operations2) {
+async function rememberParents(tx, scope, groups2, operations2) {
   for (const input of operations2.filter((row) => row.entity_type === "memo_note")) {
-    const id2 = input.body.group_id, server = groups.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
+    const id2 = input.body.group_id, server = groups2.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
     if (!server) continue;
     const entity_id = "memo-group:" + id2, key = entityKey(scope, entity_id), old = await tx.get("entities", key);
     if (old?.server?.version > server.version) throw failure("分组刚有更新，请重新核对后保存。");
@@ -2050,7 +2050,7 @@ var init_conflict_decisions = __esm({
     own = (value, key) => Object.hasOwn(value, key);
     currentLocal = (row) => own(row, "review_local") ? row.review_local : row.local;
     currentRemote = (row) => own(row, "review_remote") ? row.review_remote : row.remote;
-    failure = (message, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message), { code });
+    failure = (message2, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message2), { code });
     canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
     stable = (value) => JSON.stringify(canonical(value));
   }
@@ -2090,15 +2090,15 @@ function memoMeta(row, note = false) {
 }
 function memoIndex(value) {
   if (!object(value) || value.can_edit !== true || !Array.isArray(value.groups) || value.groups.length > 32 || !Array.isArray(value.notes) || value.notes.length > 200) invalid2();
-  const groups = /* @__PURE__ */ new Set(), notes = /* @__PURE__ */ new Set();
+  const groups2 = /* @__PURE__ */ new Set(), notes = /* @__PURE__ */ new Set();
   for (const row of value.groups) {
     memoMeta(row);
-    if (groups.has(row.id)) invalid2();
-    groups.add(row.id);
+    if (groups2.has(row.id)) invalid2();
+    groups2.add(row.id);
   }
   for (const row of value.notes) {
     memoMeta(row, true);
-    if (notes.has(row.id) || !groups.has(row.group_id)) invalid2();
+    if (notes.has(row.id) || !groups2.has(row.group_id)) invalid2();
     notes.add(row.id);
   }
   return structuredClone(value);
@@ -2248,20 +2248,20 @@ function dispatchCapabilities(options4) {
   };
   return { canDispatch, requireDispatch };
 }
-function identity2(input, uuid5) {
+function identity2(input, uuid6) {
   const prefix = prefixes3[input.entity_type];
   if (!prefix) throw new TypeError("This entity is read-only offline");
-  const raw = input.entity_id || input.body?.id || uuid5();
+  const raw = input.entity_id || input.body?.id || uuid6();
   const id2 = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
   if (!uuidPattern4.test(id2)) throw new TypeError("Offline entity requires a stable UUID");
   return { id: id2.toLowerCase(), entity_id: prefix + id2.toLowerCase() };
 }
-function operationFor(input, uuid5, time3) {
+function operationFor(input, uuid6, time3) {
   const initialStatus = input.initial_status || "queued";
   if (!["queued", "unknown"].includes(initialStatus)) throw new TypeError("Invalid initial offline operation status");
   if (initialStatus === "unknown" && (!uuidPattern4.test(input.body?.save_id) || !input.entity_id))
     throw new TypeError("Unknown operation import requires its original save_id and entity identity");
-  const { id: id2, entity_id } = identity2(input, uuid5), type = input.entity_type;
+  const { id: id2, entity_id } = identity2(input, uuid6), type = input.entity_type;
   const method2 = input.method?.toUpperCase();
   const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : type === "unscheduled_todo" ? "/unscheduled-todos" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
   const restore = ["todo", "unscheduled_todo"].includes(type) && method2 === "POST" && input.path === base + "/" + id2 + "/restore";
@@ -2284,12 +2284,12 @@ function operationFor(input, uuid5, time3) {
   if (!Number.isSafeInteger(expected) || expected < 0 || expected >= Number.MAX_SAFE_INTEGER) {
     throw new TypeError("Offline mutation requires an expected version");
   }
-  const saveId = body4.save_id || uuid5();
+  const saveId = body4.save_id || uuid6();
   if (!uuidPattern4.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
   if (!["todo", "template", "unscheduled_todo"].includes(type)) body4.save_id = saveId.toLowerCase();
   else delete body4.save_id;
   const operation2 = {
-    id: uuid5(),
+    id: uuid6(),
     scope: input.scope,
     entity_type: type,
     entity_id,
@@ -2368,8 +2368,8 @@ function acceptedLabelEvidence(operation2, confirmed2, entity) {
   return proof;
 }
 function createContext(options4) {
-  const { db, request: request2, getScope, now = Date.now, uuid: uuid5 = () => crypto.randomUUID(), timeout = 2e4 } = options4;
-  const owner2 = uuid5();
+  const { db, request: request2, getScope, now = Date.now, uuid: uuid6 = () => crypto.randomUUID(), timeout = 2e4 } = options4;
+  const owner2 = uuid6();
   const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
   const { canDispatch, requireDispatch } = dispatchCapabilities(options4);
   const conflicts = createConflictStore({ db, now, canDispatch });
@@ -2378,7 +2378,7 @@ function createContext(options4) {
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
   };
-  const list3 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
+  const list4 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
   const cooldown = async (scope) => {
     checkScope(scope);
     const item = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", rateLimitKey(scope)));
@@ -2402,7 +2402,7 @@ function createContext(options4) {
       return value;
     });
   };
-  const retryable = (scope) => retryableOperations({ db, list: list3, canDispatch }, scope);
+  const retryable = (scope) => retryableOperations({ db, list: list4, canDispatch }, scope);
   async function lease(scope) {
     checkScope(scope);
     return db.transaction(["meta"], "readwrite", async (tx) => {
@@ -2441,7 +2441,7 @@ function createContext(options4) {
     request: request2,
     getScope,
     now,
-    uuid: uuid5,
+    uuid: uuid6,
     timeout,
     owner: owner2,
     conflicts,
@@ -2451,7 +2451,7 @@ function createContext(options4) {
     cooldown,
     setCooldown,
     checkScope,
-    list: list3,
+    list: list4,
     lease,
     network,
     readNetwork,
@@ -2460,8 +2460,8 @@ function createContext(options4) {
     retryable
   };
 }
-async function retryableOperations({ db, list: list3, canDispatch }, scope) {
-  const rows = await list3(scope), first = /* @__PURE__ */ new Map(), ready = [];
+async function retryableOperations({ db, list: list4, canDispatch }, scope) {
+  const rows = await list4(scope), first = /* @__PURE__ */ new Map(), ready = [];
   for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
   for (const row of first.values()) {
     if (!canDispatch(row) || !["queued", "unknown", "sending"].includes(row.status)) continue;
@@ -2519,11 +2519,11 @@ async function acknowledgeOperation(context, operation2, remote) {
   });
 }
 function storageMethods(context) {
-  const { db, checkScope, uuid: uuid5, now, owner: owner2 } = context;
+  const { db, checkScope, uuid: uuid6, now, owner: owner2 } = context;
   async function enqueueInTransaction(tx, input) {
     input.assertActive?.();
     checkScope(input.scope);
-    const operation2 = operationFor(input, uuid5, now());
+    const operation2 = operationFor(input, uuid6, now());
     context.requireDispatch(operation2);
     checkScope(input.scope);
     input.assertActive?.();
@@ -2762,7 +2762,7 @@ async function dependenciesReady(context, operation2, rows) {
   return state2 === "ready";
 }
 function executionMethods(context) {
-  const { getScope, lease, state: state2, list: list3, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch, cooldown } = context;
+  const { getScope, lease, state: state2, list: list4, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch, cooldown } = context;
   let running = null;
   async function run2() {
     const scope = getScope();
@@ -2771,7 +2771,7 @@ function executionMethods(context) {
       context.rateLimitScope = scope;
       context.rateLimitedUntil = 0;
     }
-    if (!await lease(scope)) return { phase: "busy", pending: (await list3(scope)).length };
+    if (!await lease(scope)) return { phase: "busy", pending: (await list4(scope)).length };
     state2.phase = "syncing";
     state2.error = null;
     state2.rateLimitedUntil = 0;
@@ -2783,7 +2783,7 @@ function executionMethods(context) {
           state2.rateLimitedUntil = blockedUntil;
           break;
         }
-        const rows = await list3(scope);
+        const rows = await list4(scope);
         let operation2;
         for (const candidate of await retryable(scope)) {
           if (candidate.next_attempt_at <= now() && await dependenciesReady(context, candidate, rows)) {
@@ -2794,7 +2794,7 @@ function executionMethods(context) {
         if (!operation2) break;
         await process(operation2);
       }
-      const pending = await list3(scope);
+      const pending = await list4(scope);
       state2.pending = pending.length;
       state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
       state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
@@ -2868,8 +2868,8 @@ function createOutbox(options4) {
     }
   }
   context.conflicts.resolve = resolve;
-  const { enqueue, drain, resume, list: list3, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
-  return { enqueue, drain, resume, list: list3, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
+  const { enqueue, drain, resume, list: list4, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
+  return { enqueue, drain, resume, list: list4, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
 }
 var RETRY_DELAYS, STORED_COOLDOWN_MAX_MS, storedPause, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
 var init_outbox = __esm({
@@ -2900,11 +2900,11 @@ var init_outbox = __esm({
 });
 
 // web/offline/sync.mjs
-function fail2(code, message, status) {
-  throw Object.assign(new Error(message), { code, ...status ? { status } : {} });
+function fail2(code, message2, status) {
+  throw Object.assign(new Error(message2), { code, ...status ? { status } : {} });
 }
-function requireValue(condition, message = "工作台快照内容不完整，未覆盖本地数据。") {
-  if (!condition) fail2("OFFLINE_SNAPSHOT_INVALID", message);
+function requireValue(condition, message2 = "工作台快照内容不完整，未覆盖本地数据。") {
+  if (!condition) fail2("OFFLINE_SNAPSHOT_INVALID", message2);
 }
 function day3(value) {
   requireValue(typeof value === "string" && datePattern.test(value));
@@ -2912,8 +2912,8 @@ function day3(value) {
   requireValue(Number.isFinite(parsed2.getTime()) && parsed2.toISOString().slice(0, 10) === value);
   return value;
 }
-function stamp(value, nullable = false) {
-  if (value === null && nullable) return;
+function stamp(value, nullable2 = false) {
+  if (value === null && nullable2) return;
   const parts2 = typeof value === "string" && /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   requireValue(parts2 && Number(parts2[2]) < 24 && Number(parts2[3]) < 60 && Number(parts2[4]) < 60 && Number.isFinite(Date.parse(value)) && (parts2[5] === "Z" || Number(parts2[5].slice(1, 3)) < 24 && Number(parts2[5].slice(4)) < 60));
   day3(parts2[1]);
@@ -3499,9 +3499,9 @@ function createWindowSnapshotSync({
   getGeneration = () => 0,
   now = Date.now,
   crypto: crypto2 = globalThis.crypto,
-  uuid: uuid5 = () => globalThis.crypto.randomUUID()
+  uuid: uuid6 = () => globalThis.crypto.randomUUID()
 }) {
-  const context = { db, request: request2, getScope, getGeneration, now, crypto: crypto2, uuid: uuid5 };
+  const context = { db, request: request2, getScope, getGeneration, now, crypto: crypto2, uuid: uuid6 };
   let flight = null, selectedDate2;
   return { pull(options4) {
     if (flight && options4?.historyDate !== selectedDate2)
@@ -3522,9 +3522,9 @@ var init_window_sync = __esm({
     RETRY_MS = 5 * 60 * 1e3, LEASE_MS = 12e4;
     legacy = ["snapshot", "snapshot-v2", "snapshot-progress", "snapshot-v2-progress"];
     same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-    error = (code, message) => Object.assign(new Error(message), { code });
-    check = (condition, message = "近期离线快照不完整，原本机内容已保留。") => {
-      if (!condition) throw error("OFFLINE_SNAPSHOT_INVALID", message);
+    error = (code, message2) => Object.assign(new Error(message2), { code });
+    check = (condition, message2 = "近期离线快照不完整，原本机内容已保留。") => {
+      if (!condition) throw error("OFFLINE_SNAPSHOT_INVALID", message2);
     };
     date = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
     inside = (value, coverage) => typeof value === "string" && value >= coverage.from && value <= coverage.to;
@@ -3571,12 +3571,12 @@ function createDailyNotesContext({
   },
   onSaved = () => {
   },
-  uuid: uuid5 = () => crypto.randomUUID(),
+  uuid: uuid6 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 700
 }) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load: load2, put, remove, restore, onSaved, uuid: uuid5 } };
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load: load2, put, remove, restore, onSaved, uuid: uuid6 } };
   const pages = context.pages;
   const emit2 = () => {
     if (!context.disposed) onChange();
@@ -3705,7 +3705,7 @@ function createReadingActions(context) {
 }
 function createWritingActions(context) {
   const { page, emit: emit2, stopTimer, matches: matches2, accepted } = context;
-  const { put, remove, restore, uuid: uuid5 } = context.options;
+  const { put, remove, restore, uuid: uuid6 } = context.options;
   async function send(item, operation2) {
     stopTimer(item);
     item.pending = operation2;
@@ -3758,12 +3758,12 @@ function createWritingActions(context) {
       emit2();
       return;
     }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid6() });
   }
   async function deletePage(date2) {
     const item = page(date2);
     if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid6() });
   }
   async function retryPending(date2) {
     const item = page(date2), operation2 = item.pending;
@@ -3774,7 +3774,7 @@ function createWritingActions(context) {
   async function restorePage(date2) {
     const item = page(date2);
     if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid6() });
   }
   return { save, deletePage, restorePage, retryPending };
 }
@@ -3960,7 +3960,7 @@ var init_note_mutations = __esm({
     init_db();
     init_document();
     uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-    failure2 = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
+    failure2 = (message2, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message2), { code, localNotSaved: true });
   }
 });
 
@@ -4219,7 +4219,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  async function list3(kind) {
+  async function list4(kind) {
     return (await records(kind)).map((row) => row.data);
   }
   const tools = { db, getScope, getGeneration, pending };
@@ -4227,7 +4227,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   const purgeUserDeleted = (raw, snapshots2, value, stillActive) => purgeUserDeletedDrafts(tools, raw, snapshots2, value, stillActive);
   const discardUnsent = (raw) => discardUnsentDraft(tools, raw);
   const discardSelected = (snapshot) => discardSelectedDraft(tools, snapshot);
-  return { capture, list: list3, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
+  return { capture, list: list4, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
 }
 var fields, unresolved, eligible;
 var init_drafts = __esm({
@@ -4579,7 +4579,7 @@ var init_memos = __esm({
     init_document();
     uuid4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
     active4 = (value) => !["archived", "acked"].includes(value.status);
-    fail3 = (message, code = "OFFLINE_MEMO_INVALID") => Object.assign(new Error(message), { code });
+    fail3 = (message2, code = "OFFLINE_MEMO_INVALID") => Object.assign(new Error(message2), { code });
     keyFor = (scope, kind, id2) => entityKey(scope, (kind === "notes" ? "memo-note:" : "memo-group:") + id2);
     fields3 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id", "body"];
   }
@@ -4641,10 +4641,10 @@ function writableRoute(path, options4, features) {
     restore: Boolean(match[3])
   };
 }
-function checkedBody(route2, options4, uuid5) {
+function checkedBody(route2, options4, uuid6) {
   const body4 = structuredClone(options4.body || {}), method2 = (options4.method || "GET").toUpperCase();
   const required = route2.create ? route2.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route2.type === "todo" ? route2.restore || method2 === "DELETE" ? ["date", "version"] : ["completed", "version"] : route2.type === "unscheduled_todo" ? route2.restore || method2 === "DELETE" ? ["version"] : ["completed", "version"] : method2 === "DELETE" ? ["version"] : ["text", "version"];
-  if (route2.create && !body4.id) body4.id = uuid5();
+  if (route2.create && !body4.id) body4.id = uuid6();
   const allowed = [...required, ...route2.create && route2.type === "todo" ? ["template_id"] : []];
   if (required.some((key) => !Object.hasOwn(body4, key)) || Object.keys(body4).some((key) => !allowed.includes(key)))
     throw fail4("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
@@ -4665,7 +4665,7 @@ function runtimeContext(options4) {
     db,
     request: request2,
     now = Date.now,
-    uuid: uuid5 = () => crypto.randomUUID(),
+    uuid: uuid6 = () => crypto.randomUUID(),
     online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {
     },
@@ -4707,7 +4707,7 @@ function runtimeContext(options4) {
     db,
     request: request2,
     now,
-    uuid: uuid5,
+    uuid: uuid6,
     online,
     onIdentity,
     features,
@@ -4763,7 +4763,7 @@ function runtimeContext(options4) {
     request: send,
     getScope: () => state2.scope,
     now,
-    uuid: uuid5,
+    uuid: uuid6,
     timeout: options4.timeout,
     enabledTypes: [
       ...features.todos ? ["todo", "template", "unscheduled_todo"] : [],
@@ -4781,7 +4781,7 @@ function runtimeContext(options4) {
     getScope: () => state2.scope,
     getGeneration: () => context.generation,
     now,
-    uuid: uuid5
+    uuid: uuid6
   }) : features.snapshotV2 === true ? createSnapshotSync({ db, request: send, getScope: () => state2.scope, now, version: 2, progressive: progressiveSnapshot }) : null;
   context.memos = createMemoOfflineAdapter({
     db,
@@ -4790,7 +4790,7 @@ function runtimeContext(options4) {
     getScope: () => state2.scope,
     getGeneration: () => context.generation,
     now,
-    uuid: uuid5
+    uuid: uuid6
   });
   return context;
 }
@@ -5184,7 +5184,7 @@ async function readCachedOffline(context, path, guard) {
   return data3;
 }
 function mutationActions(context) {
-  const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
+  const { state: state2, cache: cache2, now, uuid: uuid6, outbox, features } = context;
   async function mutate(path, options4, route2, guard) {
     guard();
     if (!state2.scope || !state2.identity) throw fail4("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
@@ -5194,7 +5194,7 @@ function mutationActions(context) {
       if (owner2 !== state2.scope || generation !== context.generation)
         throw fail4("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
-    const body4 = checkedBody(route2, options4, uuid5), id2 = route2.id || body4.id;
+    const body4 = checkedBody(route2, options4, uuid6), id2 = route2.id || body4.id;
     const old = await cache2.entity(route2.type + ":" + id2), base = old?.server || null, visible4 = offlineValue(old);
     active6();
     if (route2.create && route2.type === "todo" && visible4) {
@@ -5546,7 +5546,7 @@ var init_runtime = __esm({
     scopePattern = /^[a-f0-9]{64}$/;
     uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
     networkFailure = (error2) => error2?.code === "NETWORK_UNAVAILABLE" || error2?.code === "OFFLINE_NETWORK";
-    fail4 = (message, code) => Object.assign(new Error(message), { code });
+    fail4 = (message2, code) => Object.assign(new Error(message2), { code });
     today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
     offlineError = () => fail4("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
     SCOPE_INDEX = "/workbench-snapshot/index", SCOPE_ONLY = "/workbench-snapshot/scope";
@@ -5609,8 +5609,8 @@ function apiFailure(path, response, payload, epoch, identity6, suppressAuthRedir
     closeModal();
     renderLogin();
   }
-  const message = payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
-  const error2 = new Error(message);
+  const message2 = payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
+  const error2 = new Error(message2);
   error2.status = response.status;
   error2.code = payload.error?.code;
   if (error2.code === "OPENAI_REVIEW_IN_FLIGHT" && typeof payload.error?.run_id === "string") error2.run_id = payload.error.run_id;
@@ -5674,11 +5674,11 @@ var init_api = __esm({
 
 // web/ui/toast.mjs
 init_dom();
-function toast(message, error2 = false) {
+function toast(message2, error2 = false) {
   const node3 = document.createElement("div");
   node3.className = `toast${error2 ? " error" : ""}`;
   node3.setAttribute("role", error2 ? "alert" : "status");
-  node3.textContent = message;
+  node3.textContent = message2;
   $("#toasts").append(node3);
   while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
   setTimeout(() => node3.remove(), error2 ? 8e3 : 4500);
@@ -5928,12 +5928,12 @@ function paintSmartTodo(root3, day7) {
     if (tip) parts2.push(el("p", "todo-smart-hint", tip));
   } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
   if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
-  const actions2 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
+  const actions4 = el("div", "todo-smart-actions"), button3 = (label3, className, run2) => {
     const node3 = el("button", className, label3);
     node3.type = "button";
     node3.disabled = smart.busy;
     node3.addEventListener("click", run2);
-    actions2.append(node3);
+    actions4.append(node3);
   };
   if (smart.status === "ready") button3(smart.busy ? "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day7));
   if (smart.status !== "reading") button3("按原文添加", "btn text", () => void plainSmartTodo(day7));
@@ -5941,7 +5941,7 @@ function paintSmartTodo(root3, day7) {
     clearSmartTodo();
     hooks?.repaint();
   });
-  parts2.push(actions2);
+  parts2.push(actions4);
   row.replaceChildren(...parts2);
 }
 
@@ -6144,11 +6144,11 @@ function futurePanel(item, v, off) {
     const on = (item.recurrence || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-repeat" data-id="${id2}" data-repeat="${value}" aria-pressed="${on}" ${off}>${label3}</button>`;
   }).join("");
-  const periods = PERIOD_GROUPS.map(([key, label3]) => {
+  const periods2 = PERIOD_GROUPS.map(([key, label3]) => {
     const value = key === "none" ? "" : choices[key], on = (mine || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-period" data-id="${id2}" data-period="${value}" aria-pressed="${on}" ${off}>${label3}</button>`;
   }).join("");
-  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
+  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods2}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
 }
 function quickScheduleUnscheduledTodo(id2, date2) {
   if (!validTodoDate(date2)) return;
@@ -6174,10 +6174,10 @@ function futureRow(item) {
   return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${item.completed ? "checked" : ""} ${off}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label>${badge}${due}${late}${note}</div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(item.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(item.id)}" aria-label="安排 ${e(item.text)}">▾</button>` + (v.uncertain[item.id] ? dateField(item, v, "") : open ? futurePanel(item, v, off) : "") + `</li>`;
 }
 function futureGroups(items, today2 = bjtDate()) {
-  const groups = new Map(PERIOD_GROUPS.map(([key]) => [key, []]));
-  for (const item of items) groups.get(item.due_date ? dueGroup(item.due_date, today2) : periodGroup(item.period, today2)).push(item);
-  for (const rows of groups.values()) rows.sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : (a.due_date || "9999") > (b.due_date || "9999") ? 1 : 0);
-  return [...groups].filter(([, rows]) => rows.length);
+  const groups2 = new Map(PERIOD_GROUPS.map(([key]) => [key, []]));
+  for (const item of items) groups2.get(item.due_date ? dueGroup(item.due_date, today2) : periodGroup(item.period, today2)).push(item);
+  for (const rows of groups2.values()) rows.sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : (a.due_date || "9999") > (b.due_date || "9999") ? 1 : 0);
+  return [...groups2].filter(([, rows]) => rows.length);
 }
 function paintUnscheduledTodos() {
   paintingFuture = true;
@@ -6192,30 +6192,30 @@ function paintFutureList() {
   const v = current(), root3 = $("#todo-future");
   if (!root3) return;
   root3.hidden = !visible();
-  const input = $("#todo-future-text", root3), button3 = $("#todo-future-form button", root3), status = $("#todo-future-status", root3), error2 = $("#todo-future-error", root3), list3 = $("#todo-future-items", root3);
+  const input = $("#todo-future-text", root3), button3 = $("#todo-future-form button", root3), status = $("#todo-future-status", root3), error2 = $("#todo-future-error", root3), list4 = $("#todo-future-items", root3);
   if (input && document.activeElement !== input && input.value !== v.draft) input.value = v.draft;
   if (button3) button3.disabled = v.pending;
   if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error2) error2.textContent = v.error;
   const live2 = document.activeElement;
   const keep = live2?.matches?.('[data-todo-note-input][data-future="1"]') && live2.isConnected && v.noteEdit?.id === live2.dataset.id;
-  const rows = v.items.filter((x) => !x.deleted_at && !x.deleted), groups = futureGroups(rows), only = groups.length === 1 && groups[0][0] === "none";
-  if (list3 && !keep) list3.innerHTML = groups.map(([key, items]) => (only ? "" : `<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}<span class="todo-future-count">${items.length}</span></li>`) + items.map(futureRow).join("")).join("");
+  const rows = v.items.filter((x) => !x.deleted_at && !x.deleted), groups2 = futureGroups(rows), only = groups2.length === 1 && groups2[0][0] === "none";
+  if (list4 && !keep) list4.innerHTML = groups2.map(([key, items]) => (only ? "" : `<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}<span class="todo-future-count">${items.length}</span></li>`) + items.map(futureRow).join("")).join("");
   paintSmartTodo(root3, { date: FUTURE_SCOPE });
 }
 function dueTodos(items, today2 = bjtDate()) {
   return items.filter((x) => !x.deleted_at && !x.deleted && !x.completed && dueSoon(x.due_date, today2)).sort((a, b) => a.due_date < b.due_date ? -1 : 1);
 }
 function paintDueList() {
-  const list3 = $("#todo-due");
-  if (!list3) return;
+  const list4 = $("#todo-due");
+  if (!list4) return;
   const v = current(), today2 = bjtDate(), show = !state.todoPanel && (!state.todoDate || state.todoDate === today2);
   const html = show ? dueTodos(v.items, today2).map((item) => {
     const check2 = `due-check-${item.id}`, busy2 = v.pending || v.uncertain[item.id], over = daysUntil(item.due_date, today2) < 0;
     return `<li class="daily-todo-row todo-due-row${over ? " is-over" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${busy2 ? "disabled" : ""}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label><span class="todo-future-due is-soon${over ? " is-over" : ""}">${dueLabel(item.due_date, today2)}</span></div></li>`;
   }).join("") : "";
-  if (list3.innerHTML !== html) list3.innerHTML = html;
-  list3.hidden = !html;
+  if (list4.innerHTML !== html) list4.innerHTML = html;
+  list4.hidden = !html;
 }
 async function loadDueTodos() {
   if (!onTodos() || state.todoPanel || state.todoDate && state.todoDate !== bjtDate()) return;
@@ -6265,8 +6265,8 @@ function heardText(v) {
   return REPEAT_OF[heard.period] ? `认出「${GROUP_NAME[heard.period]}」重复，做完会自动出现${heard.period === "every_week" ? "下周" : "下个月"}的一条` : `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」`;
 }
 function paintHeard(v) {
-  const select = $("#todo-future-period"), line = $("#todo-future-heard");
-  if (select && select.value !== v.newPeriod) select.value = v.newPeriod;
+  const select2 = $("#todo-future-period"), line = $("#todo-future-heard");
+  if (select2 && select2.value !== v.newPeriod) select2.value = v.newPeriod;
   if (line) line.textContent = heardText(v);
 }
 function inputUnscheduledTodo(el3) {
@@ -6459,7 +6459,7 @@ function setFutureBridge(given) {
   bridge = given;
 }
 var FUTURE_DAY = { date: FUTURE_SCOPE };
-var done = (v, typed, message) => {
+var done = (v, typed, message2) => {
   if (v.draft.trim() === typed) {
     v.draft = "";
     v.newPeriod = "none";
@@ -6468,9 +6468,9 @@ var done = (v, typed, message) => {
   }
   const input = $("#todo-future-text");
   if (input && input.value.trim() === typed) input.value = "";
-  if (message) {
-    v.notice = message;
-    toast(message);
+  if (message2) {
+    v.notice = message2;
+    toast(message2);
   }
 };
 var futureHooks = {
@@ -6680,9 +6680,9 @@ var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "
 function detailInfo(reason, label3, id2) {
   return `<button class="icon-button inline-info" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label3)}" aria-expanded="false" aria-controls="detail-info-${e(id2)}">${icon("info", 14)}</button>`;
 }
-function empty(title, description = "", action = "") {
-  return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description ? `<p>${e(
-    description
+function empty(title, description2 = "", action = "") {
+  return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description2 ? `<p>${e(
+    description2
   )}</p>` : ""}${action}</div>`;
 }
 function badgeMode(mode) {
@@ -7070,7 +7070,7 @@ function createOpenAiElapsedClock(target, { now = Date.now, every = globalThis.s
 
 // web/core/openai-review-runner.mjs
 function createOpenAiRunner({ request: request2, storage: storage2, key, onChange = () => {
-}, uuid: uuid5 = () => crypto.randomUUID(), now = Date.now }) {
+}, uuid: uuid6 = () => crypto.randomUUID(), now = Date.now }) {
   let active6 = true;
   const state2 = { run: null, pendingId: "", notFound: false, busy: false, operation: "", startedAt: 0, error: "" };
   try {
@@ -7129,7 +7129,7 @@ function createOpenAiRunner({ request: request2, storage: storage2, key, onChang
         retain(existing);
         return;
       }
-      const id2 = uuid5(), timing = JSON.stringify({ id: id2, at: now() });
+      const id2 = uuid6(), timing = JSON.stringify({ id: id2, at: now() });
       storage2.setItem(key + ":started", timing);
       if (storage2.getItem(key + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
       retain(id2);
@@ -7249,7 +7249,7 @@ function inline(value) {
 }
 function renderSafeMarkdown(value) {
   const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
-  let out = "", list3 = "", paragraph = [], code = false;
+  let out = "", list4 = "", paragraph = [], code = false;
   const flushParagraph = () => {
     if (paragraph.length) {
       out += "<p>" + paragraph.map(inline).join("<br>") + "</p>";
@@ -7257,9 +7257,9 @@ function renderSafeMarkdown(value) {
     }
   };
   const closeList = () => {
-    if (list3) {
-      out += `</${list3}>`;
-      list3 = "";
+    if (list4) {
+      out += `</${list4}>`;
+      list4 = "";
     }
   };
   for (const line of lines) {
@@ -7278,9 +7278,9 @@ function renderSafeMarkdown(value) {
     if (item) {
       flushParagraph();
       const type = item[2] ? "ol" : "ul";
-      if (list3 !== type) {
+      if (list4 !== type) {
         closeList();
-        list3 = type;
+        list4 = type;
         out += type === "ol" ? `<ol start="${Number(item[2])}">` : "<ul>";
       }
       out += `<li>${inline(item[3])}</li>`;
@@ -7519,7 +7519,7 @@ function createOpenAiConnectivityRunner({
   key,
   onChange = () => {
   },
-  uuid: uuid5 = () => crypto.randomUUID(),
+  uuid: uuid6 = () => crypto.randomUUID(),
   now = Date.now
 }) {
   const context = createConnectivityContext({ storage: storage2, key, onChange });
@@ -7573,7 +7573,7 @@ function createOpenAiConnectivityRunner({
         }
         return;
       }
-      id2 = uuid5();
+      id2 = uuid6();
       const at = now(), timing = JSON.stringify({ id: id2, at });
       storage2.setItem(key + ":started", timing);
       if (storage2.getItem(key + ":started") !== timing) throw new Error("无法保存最小测试开始时间，未调用 API。");
@@ -7887,7 +7887,7 @@ function isMobileLayout() {
 function mobilePage(page) {
   return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
 }
-function updateRoute(push = false) {
+function updateRoute(push = false, { exitReviewArchive = false } = {}) {
   const page = mobilePage(state.page), redirected = page !== state.page;
   if (redirected) state.page = page;
   state.filters.status = "published";
@@ -7931,6 +7931,8 @@ function updateRoute(push = false) {
   if (state.page !== "review") {
     for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare", "review_section"])
       u.searchParams.delete(key);
+  } else if (exitReviewArchive && u.searchParams.get("review_section") === "archive") {
+    u.searchParams.delete("review_section");
   }
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
@@ -8449,12 +8451,12 @@ function renderTrend(data3) {
 }
 
 // src/lib/errors.mjs
-function fail5(status, code, message) {
-  throw Object.assign(new Error(message), { status, code });
+function fail5(status, code, message2) {
+  throw Object.assign(new Error(message2), { status, code });
 }
 
 // src/account-profiles.mjs
-var invalid3 = (message) => fail5(400, "VALIDATION_ERROR", message);
+var invalid3 = (message2) => fail5(400, "VALIDATION_ERROR", message2);
 var unsupported = () => invalid3("请粘贴今日头条、知乎或微信公众号的公开主页链接，文章和后台链接不能作为账号主页");
 function normalizeAccountProfile(value, expectedPlatform) {
   if (typeof value !== "string" || !value.trim() || value.length > 2048 || /[\u0000-\u001f\u007f\\]/.test(value) || /\s/.test(value.trim())) {
@@ -8486,8 +8488,8 @@ function normalizeAccountProfile(value, expectedPlatform) {
     profile_url = token ? `https://www.toutiao.com/c/user/token/${tokenIdentity}/` : `https://www.toutiao.com/user/${numeric[1]}/`;
     platform_identity = token ? `toutiao:token:${tokenIdentity}` : `toutiao:user:${numeric[1]}`;
   } else if (host === "mp.weixin.qq.com") {
-    const actions2 = url.searchParams.getAll("action"), identities = url.searchParams.getAll("__biz");
-    if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions2.length !== 1 || actions2[0] !== "home" || identities.length !== 1 || !/^[A-Za-z0-9+/]{4,160}={0,2}$/.test(identities[0])) unsupported();
+    const actions4 = url.searchParams.getAll("action"), identities = url.searchParams.getAll("__biz");
+    if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions4.length !== 1 || actions4[0] !== "home" || identities.length !== 1 || !/^[A-Za-z0-9+/]{4,160}={0,2}$/.test(identities[0])) unsupported();
     platform = "wechat";
     const identity6 = identities[0];
     const query = new URLSearchParams({ action: "home", __biz: identity6 });
@@ -8590,17 +8592,17 @@ function renderSecurity() {
   return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button></div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
 }
 function renderAudit(audit, keys = []) {
-  const actors = [...new Set(audit.map((r) => r.actor))], groups = [];
+  const actors = [...new Set(audit.map((r) => r.actor))], groups2 = [];
   const actor = (value) => state.me?.id && value === "user:" + state.me.id ? "我" : keys.find((k) => value === "key:" + k.id)?.name || `${String(
     value
   ).startsWith("user:") ? "用户" : String(value).startsWith("key:") ? "未识别凭据" : "未知来源"} ${num(actors.indexOf(value) + 1)}`;
   for (const row of audit) {
-    const day22 = Number.isFinite(Date.parse(row.created_at)) ? bjtDate(row.created_at) : "日期未知", label3 = auditLabel(row.action), last = groups.at(-1);
+    const day22 = Number.isFinite(Date.parse(row.created_at)) ? bjtDate(row.created_at) : "日期未知", label3 = auditLabel(row.action), last = groups2.at(-1);
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label3) last.rows.push(row);
-    else groups.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
+    else groups2.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
   }
   let day7 = "";
-  return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
+  return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups2.map((g) => {
     const heading = day7 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
     day7 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
@@ -9283,19 +9285,19 @@ function openTodoCount({ id: id2, date: date2, owner: owner2 }) {
 }
 async function submitTodoCount({ form, data: data3 }) {
   const target = data3.open ? null : Number(data3.target);
-  const message = form.querySelector(".form-message"), button3 = form.querySelector("button[type=submit]");
+  const message2 = form.querySelector(".form-message"), button3 = form.querySelector("button[type=submit]");
   if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) {
-    message.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数，或勾选“不限次数”`;
+    message2.textContent = `请填 1 到 ${TODO_COUNT_MAX} 之间的整数，或勾选“不限次数”`;
     return;
   }
   if (button3.disabled) return;
   button3.disabled = true;
-  message.textContent = "";
+  message2.textContent = "";
   const saved = await changeTodoCount({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner }, "set", target);
   if (saved) closeModal();
   else {
     button3.disabled = false;
-    message.textContent = "没有保存，请重试";
+    message2.textContent = "没有保存，请重试";
   }
 }
 function readNote(node3) {
@@ -9456,10 +9458,10 @@ async function commitTodoNote(input) {
 async function submitTodoNote({ form, data: data3 }) {
   const context = todoActionContext({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner });
   if (!context) return;
-  const button3 = form.querySelector("button[type=submit]"), message = form.querySelector(".form-message");
+  const button3 = form.querySelector("button[type=submit]"), message2 = form.querySelector(".form-message");
   if (button3.disabled) return;
   button3.disabled = true;
-  message.textContent = "";
+  message2.textContent = "";
   try {
     const saved = await api(`/todos/${encodeURIComponent(context.item.id)}/note`, {
       method: "PATCH",
@@ -9472,7 +9474,7 @@ async function submitTodoNote({ form, data: data3 }) {
     paintTodos();
     await loadTodos();
   } catch (error2) {
-    message.textContent = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
+    message2.textContent = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
   } finally {
     button3.disabled = false;
   }
@@ -10501,11 +10503,11 @@ function noteEditorCanCollapse(item) {
   return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) && (item.version > 0 || item.localBacked && item.localVersion > 0 || item.phase === "empty" && !item.draft.trim()));
 }
 function createNotesEditorView() {
-  const views = /* @__PURE__ */ new Map();
+  const views2 = /* @__PURE__ */ new Map();
   const page = (category, date2) => {
     const key = category + ":" + date2;
-    if (!views.has(key)) views.set(key, { active: "", revision: 0, collapseRequested: false, explicit: false });
-    return views.get(key);
+    if (!views2.has(key)) views2.set(key, { active: "", revision: 0, collapseRequested: false, explicit: false });
+    return views2.get(key);
   };
   function activate(category, date2, key) {
     const view2 = page(category, date2);
@@ -10529,7 +10531,7 @@ function createNotesEditorView() {
     }
     return view2;
   }
-  const clear = () => views.clear();
+  const clear = () => views2.clear();
   return { page, activate, requestCollapse, sync, clear };
 }
 
@@ -10596,7 +10598,7 @@ function createEntriesContext({
   prepareDelete = async () => null,
   finishDelete = async () => {
   },
-  uuid: uuid5 = () => crypto.randomUUID(),
+  uuid: uuid6 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 400,
@@ -10611,7 +10613,7 @@ function createEntriesContext({
     entries,
     multiLabels,
     disposed: false,
-    options: { load: load2, loadEntry, loadOperation, loadVerified, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid: uuid5 }
+    options: { load: load2, loadEntry, loadOperation, loadVerified, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid: uuid6 }
   };
   const emit2 = () => {
     if (!context.disposed) onChange();
@@ -10868,14 +10870,14 @@ function createEntryReadingActions(context) {
 }
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit: emit2, stopTimer, schedule, makeEntry } = context;
-  const { uuid: uuid5 } = context.options;
+  const { uuid: uuid6 } = context.options;
   function start(date2, { label: label3 = "", labels: labels4 = label3 ? [label3] : [] } = {}) {
     const current3 = page(date2);
     if (!validLabels(labels4, context.category)) throw new Error("标签无效。");
     if (context.disposed || !current3.loaded || !current3.canEdit || date2 !== dailyNotesToday()) return;
     const existing = entry(current3.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
-    const id2 = uuid5();
+    const id2 = uuid6();
     if (!uuidPattern6.test(id2) || entries.has(id2)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id2, date2, current3.canEdit);
     item.labels = [...labels4];
@@ -11005,7 +11007,7 @@ function createEntryRecoveryActions(context) {
 }
 function createEntryPersistActions(context) {
   const { category, page, entry, entries, emit: emit2, stopTimer } = context;
-  const { uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
+  const { uuid: uuid6, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
   async function save(id2) {
     const item = entry(id2);
     if (!item) return;
@@ -11018,19 +11020,19 @@ function createEntryPersistActions(context) {
       emit2();
       try {
         if (!loadVerified) throw new Error("无法直接核对线上记录");
-        const list3 = checkedCollection(await loadVerified(item.date), category, item.date);
+        const list4 = checkedCollection(await loadVerified(item.date), category, item.date);
         if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
-        if (list3.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
-        const same4 = list3.entries.find((value) => value.id === id2);
+        if (list4.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
+        const same4 = list4.entries.find((value) => value.id === id2);
         if (same4 && same4.text === snapshot.draft && equalLabels(labelsOf(same4), snapshot.labels)) {
           item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
           return;
         }
-        if (list3.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
+        if (list4.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
           item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
           return;
         }
-        if (!list3.can_edit || same4 && (same4.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same4.content_hash !== item.recoveredBaseline.contentHash) || !same4 && snapshot.version !== 0) {
+        if (!list4.can_edit || same4 && (same4.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same4.content_hash !== item.recoveredBaseline.contentHash) || !same4 && snapshot.version !== 0) {
           item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
           return;
         }
@@ -11065,7 +11067,7 @@ function createEntryPersistActions(context) {
       kind: "put",
       version: persistedVersion(item),
       text: item.draft,
-      saveId: uuid5(),
+      saveId: uuid6(),
       ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
       ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
       ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
@@ -11109,7 +11111,7 @@ function createEntryPersistActions(context) {
     }
     if (context.disposed || entry(id2) !== item) return;
     item.discarding = false;
-    const result = await context.send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
+    const result = await context.send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid6() });
     if (result && prepared) {
       try {
         await finishDelete(prepared, result);
@@ -11121,7 +11123,7 @@ function createEntryPersistActions(context) {
 }
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit: emit2, stopTimer, adopt, schedule } = context;
-  const { put, remove, restore, uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
+  const { put, remove, restore, uuid: uuid6, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
   const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.labels || [2, 3].includes(value.labels_version) && equalLabels(value.labels, operation2.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation2.labels)) && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
   function accepted(item, value, operation2) {
     const preserve = operation2.kind === "put" && item.draft !== operation2.text;
@@ -11205,7 +11207,7 @@ function createEntryWritingActions(context) {
   async function restoreEntry(id2) {
     const item = entry(id2);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
-    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid5() });
+    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid6() });
   }
   return { matches: matches2, accepted, acceptedLocal, send, save, deleteEntry, restoreEntry };
 }
@@ -11444,8 +11446,8 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
     return result;
   }
   function paintHistory() {
-    const rows = visibleRows(selected), list3 = find("#notes-month-history");
-    list3.replaceChildren();
+    const rows = visibleRows(selected), list4 = find("#notes-month-history");
+    list4.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
       const card2 = node3("article", "", "note-entry note-entry-saved"), head = node3("div", "", "note-entry-head");
@@ -11460,9 +11462,9 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
         if (active6()) void selectDate(selected, item.category);
       });
       card2.append(open);
-      list3.append(card2);
+      list4.append(card2);
     }
-    if (!rows.length) list3.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+    if (!rows.length) list4.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
   function paint3() {
     const grid = find("#notes-month-grid");
@@ -11655,9 +11657,9 @@ function paintEntrySummary(node3, item) {
   const status = node3.querySelector(".note-entry-status");
   status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "未发送");
   status.dataset.phase = item.phase;
-  const message = node3.querySelector(".note-entry-message");
-  message.textContent = item.error;
-  message.hidden = !item.error;
+  const message2 = node3.querySelector(".note-entry-message");
+  message2.textContent = item.error;
+  message2.hidden = !item.error;
 }
 function paintSavedEntry(node3, item) {
   paintEntrySummary(node3, item);
@@ -11765,7 +11767,7 @@ function paintRetainedDrafts(root3, current3, drafts) {
     return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date2) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date2) + "</button>";
   }).join("");
 }
-function paintOtherLegacy(root3, list3, legacy2, category) {
+function paintOtherLegacy(root3, list4, legacy2, category) {
   let node3 = root3.querySelector("#notes-legacy-other");
   if (!node3) {
     node3 = document.createElement("article");
@@ -11773,7 +11775,7 @@ function paintOtherLegacy(root3, list3, legacy2, category) {
     node3.className = "note-entry note-entry-saved notes-legacy-saved";
     node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
   }
-  list3.append(node3);
+  list4.append(node3);
   const draft = legacy2 && retainedLegacy(legacy2);
   node3.hidden = !legacy2 || !(legacy2.version > 0 || draft);
   if (!legacy2) return;
@@ -11781,9 +11783,9 @@ function paintOtherLegacy(root3, list3, legacy2, category) {
   paintTime(node3.querySelector("time"), legacy2.updatedAt);
   node3.querySelector(".note-entry-reader").textContent = draft ? legacy2.draft : legacy2.deleted ? "原有记录已删除。" : legacy2.serverText;
   node3.querySelector(".note-entry-status").textContent = draft ? statuses[legacy2.phase] || "保留的原有草稿" : "原有记录 · 只读";
-  const message = node3.querySelector(".note-entry-message");
-  message.textContent = legacy2.error;
-  message.hidden = !legacy2.error;
+  const message2 = node3.querySelector(".note-entry-message");
+  message2.textContent = legacy2.error;
+  message2.hidden = !legacy2.error;
   const edit = node3.querySelector('[data-notes-action="edit-other-legacy"]');
   edit.dataset.legacyCategory = category;
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
@@ -11800,7 +11802,7 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   labels: labels4 = [],
   labelsVerified = true
 } = {}) {
-  const find = (selector) => root3.querySelector(selector), list3 = find("#notes-entry-list");
+  const find = (selector) => root3.querySelector(selector), list4 = find("#notes-entry-list");
   root3.dataset.date = current3.date;
   const dateInput = find("#notes-date");
   if (dateInput.value !== current3.date) dateInput.value = current3.date;
@@ -11813,19 +11815,19 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   const items = current3.ids.map((id2) => store.entry(id2)).filter(Boolean);
   const saved = items.filter((item) => !item.deleted && item.id !== active6 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished2 = find("#notes-unpublished");
-  const nodes = new Map([...list3.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
+  const nodes = new Map([...list4.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
   for (const [id2, node3] of nodes) if (!wanted.has(id2)) node3.remove();
   for (const item of saved) {
     const node3 = nodes.get(item.id) || createEntryElement(item, false);
-    (noteDraftNeedsAttention(item) ? unpublished2 : list3).append(node3);
+    (noteDraftNeedsAttention(item) ? unpublished2 : list4).append(node3);
     paintSavedEntry(node3, item);
     node3.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
   paintActiveEditor(root3, store, active6, legacy2, confirmId, labels4, labelsVerified);
   paintLegacySummary(root3, legacy2, active6);
-  (retainedLegacy(legacy2) ? unpublished2 : list3).append(root3.querySelector("#notes-legacy-saved"));
+  (retainedLegacy(legacy2) ? unpublished2 : list4).append(root3.querySelector("#notes-legacy-saved"));
   root3.querySelector("#notes-legacy-saved").dataset.sortTime = legacy2.updatedAt || "";
-  paintOtherLegacy(root3, list3, otherLegacy, otherCategory);
+  paintOtherLegacy(root3, list4, otherLegacy, otherCategory);
   root3.querySelector("#notes-legacy-other").dataset.sortTime = otherLegacy?.updatedAt || "";
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished2.append(root3.querySelector("#notes-legacy-other"));
   const composer = find("#notes-composer"), activeItem = active6 === "legacy" ? legacy2 : store.entry(active6);
@@ -11835,8 +11837,8 @@ function paintNoteEntries(root3, store, current3, legacy2, {
   unpublished2.hidden = Boolean(activeItem);
   find('[data-notes-action="new"]').hidden = !canEdit || current3.date !== dailyNotesToday() || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
-  const ordered2 = [...list3.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
-  list3.append(...ordered2);
+  const ordered2 = [...list4.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
+  list4.append(...ordered2);
   find("#notes-entry-empty").hidden = !(current3.allLoaded ?? current3.loaded) || Boolean(activeItem) || saved.length > 0 || legacy2.version > 0 || noteDraftNeedsAttention(legacy2) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy2);
   const status = find("#notes-status");
@@ -11944,9 +11946,9 @@ function body2(summary2) {
   }
   nodes.push(el2("p", "body-summary-headline", summary2.headline), ...stats(summary2));
   for (const part of summary2.sections || []) {
-    const block = el2("div", "body-summary-section"), list3 = el2("ul");
-    list3.append(...part.points.map((point) => el2("li", "", point)));
-    block.append(el2("h4", "", part.title), list3);
+    const block = el2("div", "body-summary-section"), list4 = el2("ul");
+    list4.append(...part.points.map((point) => el2("li", "", point)));
+    block.append(el2("h4", "", part.title), list4);
     nodes.push(block);
   }
   return nodes;
@@ -11957,16 +11959,16 @@ function contextEditor(section) {
   details.addEventListener("toggle", () => {
     view.contextOpen = details.open;
   });
-  const area = el2("textarea", "input");
-  area.maxLength = 600;
-  area.rows = 3;
-  area.value = view.data?.context || "";
-  area.placeholder = "写给 AI 的背景：长期情况、你的习惯说法等。只用于生成小结。";
+  const area2 = el2("textarea", "input");
+  area2.maxLength = 600;
+  area2.rows = 3;
+  area2.value = view.data?.context || "";
+  area2.placeholder = "写给 AI 的背景：长期情况、你的习惯说法等。只用于生成小结。";
   const save = el2("button", "btn text", view.busy === "context" ? "保存中…" : "保存说明");
   save.type = "button";
   save.disabled = Boolean(view.busy);
-  save.addEventListener("click", () => saveContext(section, area.value));
-  details.append(el2("summary", "", "背景说明"), area, save);
+  save.addEventListener("click", () => saveContext(section, area2.value));
+  details.append(el2("summary", "", "背景说明"), area2, save);
   return details;
 }
 function draw(section) {
@@ -11983,14 +11985,14 @@ function draw(section) {
   else if (summary2) parts2.push(...body2(summary2));
   if (view.error) parts2.push(el2("p", "body-summary-error", view.error));
   if (data3?.configured) {
-    const actions2 = el2("div", "body-summary-actions");
+    const actions4 = el2("div", "body-summary-actions");
     const refresh = el2("button", "btn text", "更新到今天");
     refresh.type = "button";
     refresh.disabled = Boolean(view.busy || view.loading);
     refresh.addEventListener("click", () => generate(section, "current", true));
     const stamp3 = summary2?.generated_at ? el2("span", "body-summary-meta", `生成于 ${time2(summary2.generated_at)}`) : null;
-    actions2.append(...[stamp3, refresh].filter(Boolean));
-    parts2.push(actions2, contextEditor(section));
+    actions4.append(...[stamp3, refresh].filter(Boolean));
+    parts2.push(actions4, contextEditor(section));
   }
   parts2.push(el2("p", "body-summary-foot", "只整理你写下的记录，不是诊断。"));
   section.replaceChildren(...parts2);
@@ -12192,13 +12194,13 @@ async function visibleArchive() {
 var archiveConfirm = "", archiveMessage = "", archiveBusy = false;
 var archiveGroupKey = ({ draft_kind: kind, data: data3 }) => JSON.stringify([kind, data3?.kind, data3?.category, data3?.date, data3?.draft]);
 function groupArchiveRecords(records) {
-  const groups = /* @__PURE__ */ new Map();
+  const groups2 = /* @__PURE__ */ new Map();
   for (const record of records) {
     const key = archiveGroupKey(record);
-    if (!groups.has(key)) groups.set(key, { key, row: record.data, records: [] });
-    groups.get(key).records.push(record);
+    if (!groups2.has(key)) groups2.set(key, { key, row: record.data, records: [] });
+    groups2.get(key).records.push(record);
   }
-  return [...groups.values()];
+  return [...groups2.values()];
 }
 function archiveButton(text, onClick, className = "btn text") {
   const button3 = document.createElement("button");
@@ -12339,15 +12341,15 @@ async function showRetainedArchive() {
     archiveMessage = "";
     return;
   }
-  const box = archiveBox(root3, expected), groups = groupArchiveRecords(records);
-  const total = records.length > groups.length ? `，共 ${records.length} 份` : "";
-  box.querySelector("summary").textContent = `本机保留草稿（${groups.length} 条${total}）`;
+  const box = archiveBox(root3, expected), groups2 = groupArchiveRecords(records);
+  const total = records.length > groups2.length ? `，共 ${records.length} 份` : "";
+  box.querySelector("summary").textContent = `本机保留草稿（${groups2.length} 条${total}）`;
   box.querySelector(".notes-retained-status").textContent = archiveMessage;
   box.querySelector(".notes-retained-tools").replaceChildren(
     archiveButton("导出本机保留草稿", () => void exportDraftArchive()),
     ...archiveConfirm === "all" ? [archiveConfirmRow("all", `永久删除全部 ${records.length} 份本机保留草稿？删除后无法恢复。`, expected)] : [archiveButton(`全部删除（${records.length} 份）`, () => askArchiveDelete("all"))]
   );
-  if (box.open) box.querySelector(".notes-retained-texts").replaceChildren(...groups.map((group) => archiveGroupSection(group, expected)));
+  if (box.open) box.querySelector(".notes-retained-texts").replaceChildren(...groups2.map((group) => archiveGroupSection(group, expected)));
 }
 async function exportDraftArchive() {
   const expected = notesIdentityNow(), rows = await archivedDrafts();
@@ -12519,7 +12521,7 @@ function openCategoryNotes(category, expected) {
   stores.entries = entries;
   return stores;
 }
-function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = true) {
+function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select2 = true) {
   const next = notesIdentityNow();
   if (notesIdentity !== next) {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
@@ -12553,7 +12555,7 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     floatingNoteCategory = "life";
     floatingComposingId = "";
   }
-  if (select && notesActiveCategory !== category) {
+  if (select2 && notesActiveCategory !== category) {
     if (category === "work") notesSelectedLabel = "工作";
     else if (notesSelectedLabel === "工作") notesSelectedLabel = "生活";
     notesActiveCategory = category;
@@ -12566,7 +12568,7 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     notesStores.set(category, legacy2);
     entryStores.set(category, entries);
   }
-  if (select) {
+  if (select2) {
     notesStore = notesStores.get(category);
     entryStore = entryStores.get(category);
   }
@@ -12594,7 +12596,7 @@ function retainedDrafts() {
 }
 function joinNotesErrors(values) {
   const messages = values.filter(Boolean).map(String);
-  return messages.map((message, index) => index < messages.length - 1 ? message.replace(/[。；]+$/u, "") : message).join("；");
+  return messages.map((message2, index) => index < messages.length - 1 ? message2.replace(/[。；]+$/u, "") : message2).join("；");
 }
 function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
@@ -12612,8 +12614,8 @@ function paintDailyNotesPage() {
   const archivedNames = new Set(notesArchivedLabels.map((row) => row.name));
   const activeLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archivedNames.has(name));
   const paintLabels = (selector, names, action, buttonText) => {
-    const list3 = root3.querySelector(selector);
-    list3.replaceChildren(...names.map((name) => {
+    const list4 = root3.querySelector(selector);
+    list4.replaceChildren(...names.map((name) => {
       const item = document.createElement("li"), text = document.createElement("span"), button3 = document.createElement("button");
       text.textContent = name;
       button3.type = "button";
@@ -12666,15 +12668,15 @@ function paintDailyNotesPage() {
     { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: notesLabelsVerified }
   );
   if (notesDraftError) {
-    const message = root3.querySelector("#notes-entry-message");
-    message.textContent = notesDraftError;
-    message.hidden = false;
+    const message2 = root3.querySelector("#notes-entry-message");
+    message2.textContent = notesDraftError;
+    message2.hidden = false;
   }
   if (mixed.ids.some((id2) => mixedStore.entry(id2)?.category === "life" && !mixedStore.entry(id2)?.labelKnown)) {
-    const message = root3.querySelector("#notes-entry-message");
-    if (message.hidden) {
-      message.textContent = "部分记录标签尚未核实，请联网读取后查看。";
-      message.hidden = false;
+    const message2 = root3.querySelector("#notes-entry-message");
+    if (message2.hidden) {
+      message2.textContent = "部分记录标签尚未核实，请联网读取后查看。";
+      message2.hidden = false;
     }
   }
   root3.querySelector("#notes-delete-confirm").hidden = true;
@@ -12872,14 +12874,14 @@ async function saveDailyScore(date2, score) {
 function monthTime(value) {
   return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)) : "";
 }
-function monthOptions(select, values, current3, allLabel) {
-  select.replaceChildren(...values.map((value) => {
+function monthOptions(select2, values, current3, allLabel) {
+  select2.replaceChildren(...values.map((value) => {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = value || allLabel;
     return option;
   }));
-  select.value = values.includes(current3) ? current3 : "";
+  select2.value = values.includes(current3) ? current3 : "";
 }
 var WEEKDAYS2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function dayTitle(date2) {
@@ -12918,27 +12920,27 @@ function timelineDay(date2, items) {
   button3.append(when, node("span", "notes-tl-dot"), card2);
   return button3;
 }
-function paintTimeline(list3, shown2, order, open) {
+function paintTimeline(list4, shown2, order, open) {
   const direction = order === "asc" ? 1 : -1;
   if (open) {
     const rows = (historyDays.get(open) || []).filter(shown2).sort(byTime(1));
     const back = node("button", "notes-read-back", "← 返回时间轴");
     back.type = "button";
     back.dataset.historyBack = "1";
-    list3.replaceChildren(back, node("h3", "notes-read-title", dayLine(open, rows.length)), ...rows.map(historyCard));
+    list4.replaceChildren(back, node("h3", "notes-read-title", dayLine(open, rows.length)), ...rows.map(historyCard));
     return rows;
   }
-  const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date2, items]) => [date2, items.filter(shown2).sort(byTime(1))]).filter(([, items]) => items.length);
+  const groups2 = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date2, items]) => [date2, items.filter(shown2).sort(byTime(1))]).filter(([, items]) => items.length);
   const wrap = node("div", "notes-tl");
-  wrap.append(...groups.map(([date2, items]) => timelineDay(date2, items)));
-  list3.replaceChildren(wrap);
-  return groups.flatMap(([, items]) => items);
+  wrap.append(...groups2.map(([date2, items]) => timelineDay(date2, items)));
+  list4.replaceChildren(wrap);
+  return groups2.flatMap(([, items]) => items);
 }
 function paintHistoryRows(root3) {
   const label3 = root3.querySelector("#notes-history-label").value;
   paintBodySummary(root3, label3);
   historyDate = root3.querySelector("#notes-history-date").value;
-  const list3 = root3.querySelector("#notes-history-list");
+  const list4 = root3.querySelector("#notes-history-list");
   const shown2 = (item) => !label3 || rowLabels(item).includes(label3);
   const order = root3.dataset.historySort === "asc" ? "asc" : "desc";
   const orderButton = root3.querySelector("[data-history-order]");
@@ -12946,7 +12948,7 @@ function paintHistoryRows(root3) {
   orderButton.textContent = order === "asc" ? "↑ 旧到新" : "↓ 新到旧";
   const open = historyDays.has(root3.dataset.historyOpenDay) ? root3.dataset.historyOpenDay : "";
   orderButton.hidden = Boolean(open);
-  const rows = paintTimeline(list3, shown2, order, open);
+  const rows = paintTimeline(list4, shown2, order, open);
   const total = [...historyDays.values()].flat().filter(shown2).length;
   root3.querySelector("#notes-history-summary").textContent = `${Number(historyMonth.slice(5))}月${label3 ? `「${label3}」` : ""}共 ${total} 条`;
   root3.querySelector("#notes-history-status").textContent = rows.length ? "" : label3 ? "这个月没有这个标签的记录。" : "这个月还没有记录（未同步的内容在当天页面查看）。";
@@ -13450,8 +13452,8 @@ function paintLists(root3, store) {
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;
   });
   const html = notes.map((note) => flatNoteRow(note, store)).join("") || '<p class="memo-empty">' + (s.trash ? "回收站是空的。" : "点 ＋ 开始记录。") + "</p>";
-  const list3 = find("#memo-group-list");
-  if (list3.innerHTML !== html) list3.innerHTML = html;
+  const list4 = find("#memo-group-list");
+  if (list4.innerHTML !== html) list4.innerHTML = html;
   find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash;
   root3.querySelectorAll('.memo-flat-row button,[data-memo-action="new-note"]').forEach((button3) => {
     button3.disabled = Boolean(s.operation?.pending);
@@ -13652,7 +13654,7 @@ function recoveredDraft(raw) {
 }
 function makeContext(options4) {
   const { request: request2, ownerId = "", storage: storage2, onChange = () => {
-  }, uuid: uuid5 = () => globalThis.crypto.randomUUID(), delay = 700 } = options4;
+  }, uuid: uuid6 = () => globalThis.crypto.randomUUID(), delay = 700 } = options4;
   const state2 = {
     groups: [],
     notes: [],
@@ -13666,8 +13668,8 @@ function makeContext(options4) {
     operation: null,
     storageError: ""
   };
-  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request: request2, ownerId, storage: storage2, uuid: uuid5, delay, disposed: false, hydrated: false, loadSequence: 0 };
-  context.draftScope = options4.draftScope || uuid5();
+  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request: request2, ownerId, storage: storage2, uuid: uuid6, delay, disposed: false, hydrated: false, loadSequence: 0 };
+  context.draftScope = options4.draftScope || uuid6();
   context.restoreDraftScope = options4.restoreDraftScope;
   context.storagePersistent = options4.storagePersistent !== false && Boolean(options4.draftScope);
   context.online = options4.online || (() => globalThis.navigator?.onLine !== false);
@@ -13690,12 +13692,12 @@ function makeContext(options4) {
     return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
   };
   context.upsert = (kind, value) => {
-    const list3 = state2[kind], index = list3.findIndex((row2) => row2.id === value.id);
+    const list4 = state2[kind], index = list4.findIndex((row2) => row2.id === value.id);
     const row = { ...value };
     if (kind === "notes") delete row.body;
-    if (index < 0) list3.push(row);
-    else list3[index] = row;
-    list3.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    if (index < 0) list4.push(row);
+    else list4[index] = row;
+    list4.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     if (kind === "notes") for (const group of state2.groups)
       group.active_note_count = state2.notes.filter((note) => note.group_id === group.id && !note.deleted_at && (note.version > 0 || note.localVersion > 0)).length;
   };
@@ -13799,10 +13801,10 @@ function acceptNote(context, item, value, pending) {
   context.schedule(item);
 }
 function memoReads2(context) {
-  async function selectNote(id2, { open = true, select = true, local = false } = {}) {
+  async function selectNote(id2, { open = true, select: select2 = true, local = false } = {}) {
     if (context.disposed || !idPattern.test(id2)) return;
     const { state: state2, drafts } = context;
-    if (select) {
+    if (select2) {
       state2.noteId = id2;
       if (open) state2.pane = "editor";
     }
@@ -13811,7 +13813,7 @@ function memoReads2(context) {
       item = newDraft({ id: id2, title: "", body: "", version: 0 });
       drafts.set(id2, item);
     }
-    if (select && item.group_id) state2.groupId = item.group_id;
+    if (select2 && item.group_id) state2.groupId = item.group_id;
     if (item.version === 0 && item.dirty && !item.localQueued && item.phase !== "conflict" && !(context.durable && item.autosaveHeld)) {
       context.emit();
       return;
@@ -13828,7 +13830,7 @@ function memoReads2(context) {
         return;
       }
       const value = checkedNote(raw, id2);
-      if (select && state2.noteId === id2) state2.groupId = value.group_id;
+      if (select2 && state2.noteId === id2) state2.groupId = value.group_id;
       if (item.dirty && (item.localQueued ? item.localVersion : item.version) !== value.version || item.phase === "conflict") {
         item.remote = value;
         item.phase = "conflict";
@@ -14605,18 +14607,18 @@ async function clearMemoTrash() {
       if (!safe()) throw new Error("数据状态已变化，请处理待同步操作后重试。");
       if (!Array.isArray(fresh?.groups) || !Array.isArray(fresh.notes) || !fresh.can_edit)
         throw new Error("回收站未能完整读取，请稍后重试。");
-      const groups = fresh.groups.filter((x) => x.deleted_at);
-      const deletedGroups = new Set(groups.map((x) => x.id));
+      const groups2 = fresh.groups.filter((x) => x.deleted_at);
+      const deletedGroups = new Set(groups2.map((x) => x.id));
       const notes = fresh.notes.filter((x) => x.deleted_at || deletedGroups.has(x.group_id));
-      if (!groups.length && !notes.length) {
+      if (!groups2.length && !notes.length) {
         store.state.error = "回收站是空的。";
         return;
       }
-      const lines = [...groups.map((x) => "分组：" + x.title), ...notes.map((x) => "笔记：" + x.title)];
-      if (!window.confirm("将永久删除回收站中 " + groups.length + " 个分组和 " + notes.length + " 篇笔记，无法恢复。\n\n" + lines.join("\n") + "\n\n确定清空吗？")) return;
+      const lines = [...groups2.map((x) => "分组：" + x.title), ...notes.map((x) => "笔记：" + x.title)];
+      if (!window.confirm("将永久删除回收站中 " + groups2.length + " 个分组和 " + notes.length + " 篇笔记，无法恢复。\n\n" + lines.join("\n") + "\n\n确定清空吗？")) return;
       if (!safe()) throw new Error("数据状态已变化，请重新核对。");
       intent = { identity: owner2, body: {
-        groups: groups.map(({ id: id2, version: version2 }) => ({ id: id2, version: version2 })),
+        groups: groups2.map(({ id: id2, version: version2 }) => ({ id: id2, version: version2 })),
         notes: notes.map(({ id: id2, version: version2 }) => ({ id: id2, version: version2 })),
         save_id: crypto.randomUUID()
       } };
@@ -14952,17 +14954,17 @@ function applyMemoSplit(width = null, persist = false) {
     root3.style.removeProperty("--memo-list-w");
     return;
   }
-  const area = layout.clientWidth - 10, min = area < 400 ? 120 : 160;
-  const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * 0.65)));
+  const area2 = layout.clientWidth - 10, min = area2 < 400 ? 120 : 160;
+  const max = Math.max(min, Math.floor(Math.min(480, area2 - 200, area2 * 0.65)));
   if (memoSplitRatio === void 0) {
     const saved = Number(storage.get(memoSplitStorage));
     memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.16;
   }
-  const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
+  const value = Math.round(Math.max(min, Math.min(max, width ?? area2 * memoSplitRatio)));
   root3.style.setProperty("--memo-list-w", value + "px");
   for (const [name, number3] of Object.entries({ min, max, now: value })) handle.setAttribute("aria-value" + name, String(number3));
   handle.setAttribute("aria-valuetext", "笔记列表宽度 " + value + " 像素");
-  if (width !== null) memoSplitRatio = value / area;
+  if (width !== null) memoSplitRatio = value / area2;
   if (persist) storage.set(memoSplitStorage, String(memoSplitRatio));
 }
 function setupMemoSplit(root3) {
@@ -15343,9 +15345,9 @@ function paintWorkReminders(data3, error2 = "") {
   if (!root3) return;
   const date2 = data3?.date || bjtDate(), field2 = root3.querySelector("#reminder-date");
   if (document.activeElement !== field2) field2.value = date2;
-  const message = root3.querySelector("#reminder-error");
-  message.hidden = !error2;
-  message.textContent = error2;
+  const message2 = root3.querySelector("#reminder-error");
+  message2.hidden = !error2;
+  message2.textContent = error2;
   const rows = visibleWorkReminders(data3?.items || []);
   root3.querySelector("#reminder-list").innerHTML = rows.length ? rows.map((row) => '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' + e(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(row.updated_at))) + "</time><p>" + e(row.summary) + "</p></article>").join("") : data3?.loading ? "" : '<div class="card reminder-empty">暂无工作提醒</div>';
 }
@@ -15533,7 +15535,7 @@ function paintAiReports(items, error2 = "", loading = false, selectedDate2 = dai
   status.textContent = error2 || (loading || items.length ? "" : "暂无汇报");
   paintAiCalendar(selectedDate2, visibleMonth2);
   const rows = [];
-  const groups = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
+  const groups2 = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
   for (const row of items) {
     const date2 = new Date(row.created_at);
     const validDate = Number.isFinite(date2.getTime());
@@ -15542,9 +15544,9 @@ function paintAiReports(items, error2 = "", loading = false, selectedDate2 = dai
     const stamp3 = validDate ? `${submissionDay} ${timeFormatter.format(date2)}（北京时间）` : String(row.created_at ?? "未知");
     const author = String(row.author ?? "");
     const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body4)}</div></article>`);
+    groups2[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body4)}</div></article>`);
   }
-  for (const [name, entries] of Object.entries(groups)) {
+  for (const [name, entries] of Object.entries(groups2)) {
     if (name === "其他作者" && !entries.length) continue;
     const heading = name === "其他作者" ? `<h3 class="${reportAuthorClass(name)}">${name}</h3>` : "";
     rows.push(`<section>${heading}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
@@ -15593,22 +15595,22 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   if (head) head.innerHTML = "";
   const today2 = dailyNotesToday(), pinned = days.get(today2) || [];
   days.delete(today2);
-  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list3]) => {
-    const preview = list3.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
-    const authors = [...new Set(list3.map((row) => reportGroup(row.author)))].join(" · ");
-    const covered = [...new Set(list3.map(reportDay))].sort().map(shortDay2).join("、");
-    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list3.length} 份</span></span></button>`;
+  const rows = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date2, list4]) => {
+    const preview = list4.map((row) => `${reportGroup(row.author)}：${reportPreview(reportContent(row.content).body)}`).join("\n");
+    const authors = [...new Set(list4.map((row) => reportGroup(row.author)))].join(" · ");
+    const covered = [...new Set(list4.map(reportDay))].sort().map(shortDay2).join("、");
+    return `<button type="button" class="notes-tl-day" data-ai-report-open="${date2}" aria-label="${e(reportDayTitle(date2))}的汇报，打开"><span class="notes-tl-date"><span class="notes-tl-num">${Number(date2.slice(8))}</span><span class="notes-tl-week">${reportDayTitle(date2).split(" ")[1]}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card"><span class="notes-tl-preview">${e(preview)}</span><span class="notes-tl-foot">汇报 ${e(covered)} · ${e(authors)} · ${list4.length} 份</span></span></button>`;
   });
   const top = month === today2.slice(0, 7) ? todayReports(today2, pinned) : "";
   root3.querySelector("#ai-report-list").innerHTML = loading || error2 ? "" : top + (rows.length ? `${top ? '<h3 class="ai-today-more">更早</h3>' : ""}<div class="notes-tl">${rows.join("")}</div>` : "");
   if (!loading && !error2 && top) root3.querySelector("#ai-report-list-status").textContent = "";
 }
-function todayReports(today2, list3) {
+function todayReports(today2, list4) {
   const yesterday = new Date(Date.parse(today2 + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
   const head = `<h3 class="ai-today-title">今天 · ${e(reportDayTitle(today2))}</h3><p class="notes-read-sub">汇报的是昨天（${e(reportDayTitle(yesterday))}）做的事</p>`;
-  if (!list3.length) return `<section class="ai-today">${head}<p class="muted">今天的汇报还没到。</p></section>`;
+  if (!list4.length) return `<section class="ai-today">${head}<p class="muted">今天的汇报还没到。</p></section>`;
   const order = ["Grok bot", "Gemini", "GPT", "其他作者"];
-  const sorted = [...list3].sort((a, b) => order.indexOf(reportGroup(a.author)) - order.indexOf(reportGroup(b.author)) || String(a.created_at).localeCompare(String(b.created_at)));
+  const sorted = [...list4].sort((a, b) => order.indexOf(reportGroup(a.author)) - order.indexOf(reportGroup(b.author)) || String(a.created_at).localeCompare(String(b.created_at)));
   return `<section class="ai-today">${head}${sorted.map((row) => `<article class="ai-today-report" style="overflow-wrap:anywhere"><p><strong class="${reportAuthorClass(row.author)}">${e(String(row.author ?? ""))}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(reportContent(row.content).body)}</div></article>`).join("")}</section>`;
 }
 function paintAiReportDayHead(date2) {
@@ -15907,25 +15909,25 @@ function splitPattern(label3) {
   return match ? { code: match[1], name: match[2].trim() } : { code: "", name: text };
 }
 function patternStats(rows = [], labels4 = {}) {
-  const groups = /* @__PURE__ */ new Map();
+  const groups2 = /* @__PURE__ */ new Map();
   for (const row of rows) {
     const label3 = row.title_pattern || labels4[row.id];
     if (!label3 || !measured(row)) continue;
     const { code, name } = splitPattern(label3);
-    if (!groups.has(name)) groups.set(name, { code: "", items: [] });
-    const group = groups.get(name);
+    if (!groups2.has(name)) groups2.set(name, { code: "", items: [] });
+    const group = groups2.get(name);
     group.items.push(row);
     group.code ||= code;
   }
-  for (const [name, group] of [...groups]) {
-    const full = name.length >= 8 && [...groups.keys()].filter((other) => other !== name && other.startsWith(name));
+  for (const [name, group] of [...groups2]) {
+    const full = name.length >= 8 && [...groups2.keys()].filter((other) => other !== name && other.startsWith(name));
     if (!full || full.length !== 1) continue;
-    const target = groups.get(full[0]);
+    const target = groups2.get(full[0]);
     target.items.push(...group.items);
     target.code ||= group.code;
-    groups.delete(name);
+    groups2.delete(name);
   }
-  return [...groups.entries()].map(([pattern, { code, items }]) => ({
+  return [...groups2.entries()].map(([pattern, { code, items }]) => ({
     pattern,
     code,
     count: items.length,
@@ -16012,12 +16014,12 @@ function inline2(value, depth = 0) {
 }
 function renderReviewMarkdown(value) {
   const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
-  let list3 = false, code = false, out = "";
+  let list4 = false, code = false, out = "";
   for (const line of lines) {
     if (/^\s*```/.test(line)) {
-      if (list3) {
+      if (list4) {
         out += "</ul>";
-        list3 = false;
+        list4 = false;
       }
       out += code ? "</code></pre>" : "<pre><code>";
       code = !code;
@@ -16029,16 +16031,16 @@ function renderReviewMarkdown(value) {
     }
     const item = line.match(/^\s*[-*]\s+(.+)$/);
     if (item) {
-      if (!list3) {
+      if (!list4) {
         out += "<ul>";
-        list3 = true;
+        list4 = true;
       }
       out += `<li>${inline2(item[1])}</li>`;
       continue;
     }
-    if (list3) {
+    if (list4) {
       out += "</ul>";
-      list3 = false;
+      list4 = false;
     }
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
@@ -16046,7 +16048,7 @@ function renderReviewMarkdown(value) {
       out += `<h${h}>${inline2(heading[2])}</h${h}>`;
     } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline2(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline2(line)}</p>`;
   }
-  return out + (list3 ? "</ul>" : "") + (code ? "</code></pre>" : "");
+  return out + (list4 ? "</ul>" : "") + (code ? "</code></pre>" : "");
 }
 
 // web/pages/review-ai.mjs
@@ -16101,8 +16103,8 @@ function runControls(ai2, feature, label3) {
     ${onceOptions(ai2, feature)}</div>`;
 }
 function notice(ai2, feature) {
-  const message = ai2?.messages?.[feature];
-  return message ? `<p class="review-ai-message${message.error ? " is-error" : ""}" role="${message.error ? "alert" : "status"}">${e(message.text)}</p>` : "";
+  const message2 = ai2?.messages?.[feature];
+  return message2 ? `<p class="review-ai-message${message2.error ? " is-error" : ""}" role="${message2.error ? "alert" : "status"}">${e(message2.text)}</p>` : "";
 }
 function unavailable(ai2) {
   if (!ai2 || ai2.status === "loading") return '<p class="review-note" role="status">正在读取 AI 结果…</p>';
@@ -16119,7 +16121,7 @@ function ruleCard(rule, ai2) {
   const working = ai2?.busy === "rule:" + rule.rule_id, canWrite = Boolean(rule.playbook.content_hash);
   const attrs = `data-rule-id="${e(rule.rule_id)}" data-playbook-id="${e(rule.playbook.id)}"${working || ai2?.busy || !canWrite ? " disabled" : ""}`;
   const trial = rule.status === "trial", live2 = rule.live;
-  const actions2 = trial ? `${button2("采纳", "rule-status", `data-status="kept" ${attrs}`, "btn small primary")}
+  const actions4 = trial ? `${button2("采纳", "rule-status", `data-status="kept" ${attrs}`, "btn small primary")}
       ${button2("放弃", "rule-status", `data-status="dropped" ${attrs}`)}${live2.ready ? "" : '<span class="review-note">样本还少，建议先继续观察</span>'}` : `${button2("同意试验", "rule-status", `data-status="trial" ${attrs}`, "btn small primary")}${button2("不采纳", "rule-status", `data-status="dropped" ${attrs}`)}`;
   const progress = trial ? `<div class="review-exp-progress"><span class="review-exp-bar"><i class="review-exp-fill review-exp-fill-${Math.min(
     6,
@@ -16128,7 +16130,7 @@ function ruleCard(rule, ai2) {
       <strong>${live2.n_with}/${live2.needed} 篇</strong>${live2.ready ? '<span class="review-exp-ready">可以下结论</span>' : ""}</div>
       <p class="review-exp-evidence">${e(evidenceLine(live2))}</p>` : "";
   return `<article class="review-exp-card${trial ? " is-trial" : ""}"><p class="review-exp-text">${e(rule.text || rule.rule_id)}</p>${progress}
-    <div class="review-exp-actions">${actions2}</div><span
+    <div class="review-exp-actions">${actions4}</div><span
       class="review-exp-id">${e(rule.rule_id)} · ${e(rule.playbook.account)} v${e(rule.playbook.version)}</span></article>`;
 }
 function renderExperiments(data3, vm3, { compact: compact2 = false } = {}) {
@@ -16136,13 +16138,13 @@ function renderExperiments(data3, vm3, { compact: compact2 = false } = {}) {
   const rules2 = experiments(data3.playbooks, rows, { explicit: ai2?.data?.candidates || {} });
   const waiting = rules2.filter((rule) => rule.status === "candidate").slice(0, 8), running = rules2.filter((rule) => rule.status === "trial");
   if (compact2 && !waiting.length && !running.length) return "";
-  const message = ai2?.messages?.rules;
+  const message2 = ai2?.messages?.rules;
   const group = (title, hint2, items, none) => `<div class="review-exp-group"><h3>${title} <small>${items.length} 条</small></h3>${items.length ? `<p class="review-note">${hint2}</p><div class="review-exp-list">${items.map((rule) => ruleCard(
     rule,
     ai2
   )).join("")}</div>` : `<p class="review-note">${none}</p>`}</div>`;
   return `<section class="review-exp" aria-label="小改试验"><div class="review-exp-head"><h2>小改试验</h2></div>
-    ${message ? `<p class="review-ai-message${message.error ? " is-error" : ""}" role="${message.error ? "alert" : "status"}">${e(message.text)}</p>` : ""}
+    ${message2 ? `<p class="review-ai-message${message2.error ? " is-error" : ""}" role="${message2.error ? "alert" : "status"}">${e(message2.text)}</p>` : ""}
     ${group("待你确认", "同意后进入试验；之后的文章标明用了它，数据会自动对比。", waiting, ai2?.status === "ready" ? "没有新的小改建议。" : "正在读取…")}
     ${group("进行中的试验", `每条攒够 ${running[0]?.live.needed ?? 6} 篇有数据的文章再下结论；阅读取发布后约 24 小时。`, running, "没有进行中的试验。")}</section>`;
 }
@@ -16203,14 +16205,14 @@ function renderBenchmarkBreakdown(data3, vm3) {
       return "";
     }
   };
-  const list3 = items.map((item) => {
+  const list4 = items.map((item) => {
     const url = safe(item.url), title = e(item.title || "未命名文章");
     return `<li class="review-breakdown-item"><div class="review-breakdown-title">${url ? `<a href="${e(url)}" target="_blank"
       rel="noopener noreferrer">${title}</a>` : title}
       <span class="review-note">${e(accounts.get(String(item.benchmark_account_id)) || "")} · 阅读 ${e(reads(item.reads))}${used.has(String(item.id)) ? " · 已仿写" : ""}</span></div>
       ${benchmarkAiNote(vm3, item.id)}</li>`;
   }).join("");
-  return `${benchmarkAiBar(vm3)}${list3 ? `<ul class="review-breakdown-list">${list3}</ul>` : ""}`;
+  return `${benchmarkAiBar(vm3)}${list4 ? `<ul class="review-breakdown-list">${list4}</ul>` : ""}`;
 }
 function benchmarkAiNote(vm3, id2) {
   const note = vm3.ai?.data?.benchmarks?.[id2];
@@ -16236,10 +16238,10 @@ function renderAiSettings(ai2) {
   )}</section>`;
   const data3 = ai2.data, draft = ai2.draft || data3.settings, models = ai2.models || [];
   const modelSelect = (feature, value) => {
-    const list3 = [.../* @__PURE__ */ new Set([...value && value !== "off" ? [value] : [], ...models])];
+    const list4 = [.../* @__PURE__ */ new Set([...value && value !== "off" ? [value] : [], ...models])];
     const off = feature === "todo" ? `<option value="off"${value === "off" ? " selected" : ""}>关闭（按原文添加）</option>` : "";
     return `<select class="input" data-ai-setting="model" data-ai-feature="${feature}" aria-label="${AI_FEATURE_LABELS[feature]}的模型">
-      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list3.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}${off}</select>`;
+      <option value="">服务器默认${data3.default_model ? `（${e(data3.default_model)}）` : ""}</option>${list4.map((id2) => `<option value="${e(id2)}"${id2 === value ? " selected" : ""}>${e(id2)}</option>`).join("")}${off}</select>`;
   };
   const effortSelect = (feature, value) => `<select class="input" data-ai-setting="effort" data-ai-feature="${feature}"
     aria-label="${AI_FEATURE_LABELS[feature]}的强度">
@@ -16262,7 +16264,7 @@ function renderAiSettings(ai2) {
   const runs = (data3.runs || []).map((run2) => `<tr><td>${e(time3(run2.started_at))}</td><td>${e(AI_FEATURE_LABELS[run2.feature] || run2.feature)}</td><td>${e(run2.model || "")}${run2.effort ? " · " + e(run2.effort) : ""}</td>
     <td class="${run2.status === "failed" ? "ai-run-failed" : ""}">${status[run2.status] || run2.status}${run2.effort_ignored ? "（该模型不支持强度，已忽略）" : ""}${run2.message ? "：" + e(run2.message) : ""}</td>
     <td>${known(run2.input_tokens) ? `${run2.input_tokens} / ${run2.output_tokens ?? "—"}` : "—"}</td></tr>`).join("");
-  const message = ai2.messages?.settings;
+  const message2 = ai2.messages?.settings;
   return `<section id="ai-settings" class="ai-settings" aria-label="AI 设置">
     ${data3.configured ? "" : '<p role="alert">服务器还没有配置 API 密钥和默认模型。密钥只保存在服务器后台，不会出现在网页里。</p>'}
     <form id="ai-settings-form"><h2>每个功能用哪个模型</h2>
@@ -16274,7 +16276,7 @@ function renderAiSettings(ai2) {
       data-ai-setting="daily_limit" value="${draft.daily_limit}"></label>
     <p class="muted">今天已用 ${data3.usage.used} / ${data3.usage.limit} 次。到上限后当天不再调用；单篇文章分析另有每天 20 篇的上限。</p>
     <div class="form-actions"><button class="btn primary" type="submit"${ai2.busy === "settings" || !ai2.dirty ? " disabled" : ""}>${ai2.busy === "settings" ? "正在保存…" : "保存"}</button>
-    <span role="${message?.error ? "alert" : "status"}" class="${message?.error ? "ai-run-failed" : "muted"}">${e(message?.text || (ai2.dirty ? "有未保存的修改" : ""))}</span></div></form>
+    <span role="${message2?.error ? "alert" : "status"}" class="${message2?.error ? "ai-run-failed" : "muted"}">${e(message2?.text || (ai2.dirty ? "有未保存的修改" : ""))}</span></div></form>
     <h2>最近运行</h2>${runs ? `<div class="ai-settings-table-wrap"><table
       class="ai-runs-table"><thead><tr><th>时间</th><th>功能</th><th>模型</th><th>结果</th><th>输入 / 输出 token</th></tr></thead><tbody>${runs}</tbody></table></div>
     <p class="muted">这里显示 token 用量；折合金额请以 OpenAI 后台账单为准。</p>` : '<p class="muted">最近三天没有运行记录。</p>'}</section>`;
@@ -16894,13 +16896,13 @@ function dailySummary(data3, date2) {
   return { ...result, date: date2, previousDate, recentRows, stats: stats2, previousStats, statChanges: compareMetrics(stats2, previousStats) };
 }
 function groupPerformance(rows = [], field2 = "topic_category") {
-  const groups = /* @__PURE__ */ new Map();
+  const groups2 = /* @__PURE__ */ new Map();
   for (const row of rows) {
     const key = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(row);
+    if (!groups2.has(key)) groups2.set(key, []);
+    groups2.get(key).push(row);
   }
-  return [...groups].map(([name, members]) => {
+  return [...groups2].map(([name, members]) => {
     const summary2 = aggregate(members);
     return { name, ...summary2, average_reads: summary2.coverage.reads ? summary2.reads / summary2.coverage.reads : null, rows: members };
   }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -16962,22 +16964,22 @@ function metricDiscrepancies(report = {}, computed = {}) {
   });
 }
 function periodsFor(data3 = {}, type = "daily") {
-  const periods = /* @__PURE__ */ new Map();
+  const periods2 = /* @__PURE__ */ new Map();
   for (const report of list2(data3.reports)) {
     if (report.period_type !== type) continue;
     const start = day5(report.period_start), end = day5(report.period_end);
     if (!start || !end || start > end) continue;
-    periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
+    periods2.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
   }
-  if (!periods.size) {
+  if (!periods2.size) {
     const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
       const start = shiftDay4(end, -(duration3 - 1));
-      periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
+      periods2.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
     }
   }
-  return [...periods.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
+  return [...periods2.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
 }
 
 // web/pages/review-traffic-card.mjs
@@ -17848,6 +17850,143 @@ function reviewObservationHours(value) {
   return hours === null ? "" : String(Number(hours.toFixed(4)));
 }
 
+// web/core/review-archive-state.mjs
+var archivePath = "/review/archive";
+var archiveHref = "?page=review&account=V%E5%AD%97&review_section=archive";
+var archiveKinds = { article: "长文", micro: "微头条" };
+var archiveProduction = { unfinished: "制作未完成", complete: "制作完成", unknown: "制作状态未核实" };
+var archivePublication = {
+  unpublished: "未发布",
+  pending: "待发布",
+  scheduled: "定时",
+  published: "已发布",
+  deleted: "已删除",
+  unknown: "发布状态未核实"
+};
+var archiveAssociation = { pending: "待核关联", matched: "已关联", ambiguous: "多个候选待核", not_needed: "不适用" };
+var archiveFieldState = {
+  missing: "未填",
+  not_filled: "未填",
+  none: "没有",
+  unverified: "无法核实",
+  unknown: "无法核实",
+  not_applicable: "不适用",
+  unsupported: "功能未支持",
+  present: "已记录",
+  recorded: "已记录",
+  provided: "已记录",
+  verified: "已核实"
+};
+var archiveMetrics = {
+  reads: "阅读",
+  impressions: "展现",
+  ctr: "点击率",
+  likes: "点赞",
+  comments: "评论",
+  shares: "分享",
+  favorites: "收藏",
+  reposts: "转发",
+  interactions: "互动",
+  fan_reads: "粉丝阅读",
+  fan_impressions: "粉丝展现",
+  completion_rate: "完读率",
+  avg_read_seconds: "平均阅读时长",
+  revenue: "收入",
+  traffic_sources: "流量来源",
+  completion_curve: "完读曲线",
+  audience: "受众"
+};
+var archiveTimeLabels = {
+  creative_started_at: "开始创作",
+  draft_saved_at: "存入草稿箱",
+  scheduled_at: "定时发布",
+  published_at: "实际发布",
+  deleted_at: "删除",
+  imitation_started_at: "仿写开始",
+  imitation_completed_at: "仿写成稿",
+  sample_published_at: "样本发布时间"
+};
+var archiveLabels = {
+  ...archiveTimeLabels,
+  original_title: "原稿标题",
+  published_title: "发布标题",
+  platform_url: "平台链接",
+  platform_id: "平台编号",
+  original_body: "原稿正文",
+  published_body: "发布正文",
+  sources: "文末来源",
+  cover: "AI 封面",
+  images: "配图",
+  alternate_titles: "备选标题",
+  sample_title: "仿写样本",
+  sample_url: "样本链接",
+  sample_reference_id: "样本库关联",
+  source_note: "来源说明",
+  tags: "标签",
+  snapshot: "历史快照",
+  snapshots: "历史快照",
+  metrics: "历史指标",
+  refs: "平台标识",
+  "images.total": "总图数",
+  "images.real": "真实图数",
+  "images.ai": "AI 图数"
+};
+function canAccessReviewArchive(me, account3) {
+  return account3 === "V字" && Boolean(me?.id && me.csrfToken && me.reviewArchive === true && !me.publicBusiness && !me.offlineIdentity);
+}
+function isReviewArchiveRoute(search) {
+  return new URLSearchParams(search).get("review_section") === "archive";
+}
+function archiveGroups(items) {
+  const groups2 = /* @__PURE__ */ new Map();
+  for (const row of items) {
+    const date2 = day5(row.sort_at);
+    if (!groups2.has(date2)) groups2.set(date2, []);
+    groups2.get(date2).push(row);
+  }
+  return Array.from(groups2.entries()).sort(([a], [b]) => b.localeCompare(a)).map(([date2, rows]) => ({
+    date: date2,
+    rows: rows.sort((a, b) => (Date.parse(b.sort_at) || 0) - (Date.parse(a.sort_at) || 0) || String(a.id).localeCompare(String(b.id)))
+  }));
+}
+function archiveDate(value, unavailable2 = "未填") {
+  return reviewDateTime2(value) || unavailable2;
+}
+function archiveMissing(state2) {
+  return archiveFieldState[state2] || "未填";
+}
+function archiveTitle(row) {
+  return row.published_title || row.original_title || row.title || "未填标题";
+}
+function archiveQuery(filters, offset = 0, revision2 = null) {
+  const params = new URLSearchParams({ offset: String(offset) });
+  for (const name of ["kind", "production_status", "publication_status", "association_status", "from", "to"]) {
+    if (filters[name]) params.set(name, filters[name]);
+  }
+  if (revision2 != null) params.set("read_revision", String(revision2));
+  return params.toString();
+}
+function acceptArchivePage(page, previous) {
+  if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || !Number.isInteger(page.read_revision)) {
+    throw new Error("档案分页返回不完整。");
+  }
+  if (previous.revision != null && page.read_revision !== previous.revision) throw new Error("档案已更新，请重新读取。");
+  const ids = new Set(previous.items.map((row) => row.id));
+  for (const row of page.items) {
+    if (typeof row?.id !== "string" || ids.has(row.id)) throw new Error("档案分页含重复记录，请重新读取。");
+    ids.add(row.id);
+  }
+  if (page.has_more && (!Number.isInteger(page.next_offset) || page.next_offset <= previous.offset)) {
+    throw new Error("档案续页游标无效。");
+  }
+  return {
+    items: [...previous.items, ...page.items],
+    revision: page.read_revision,
+    offset: page.has_more ? page.next_offset : previous.offset,
+    more: page.has_more
+  };
+}
+
 // web/pages/content-review.mjs
 init_dom();
 var REVIEW_VIEWS = [["overview", "总览"], ["articles", "文章库"], ["playbook", "手册"]];
@@ -18084,12 +18223,12 @@ function articleLibrary(rows, vm3, data3 = {}) {
   };
   const wide = columns.length > 1;
   const minimum = wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : "";
-  const table2 = (list3) => `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${minimum}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
+  const table2 = (list4) => `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${minimum}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${[
     "发布时间",
     "标题",
     ...columns.map((metric) => metric.label),
     "判定"
-  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list3.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body4]) => `<td data-label="${e(label3)}">${body4}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${list4.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body4]) => `<td data-label="${e(label3)}">${body4}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   if (view2 === TIMELINE_VIEW) return top + articleTimeline(selected, data3, vm3);
   return top + (view2 === GROUP_VIEW ? groupedArticles(selected, vm3, activeGroup(vm3), table2) : table2(selected));
 }
@@ -18112,17 +18251,17 @@ function articleTimeline(rows, data3, vm3) {
     days.set(date2, [...days.get(date2) || [], row]);
   }
   const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString();
-  const lines = (list3) => list3.map((row) => {
+  const lines = (list4) => list4.map((row) => {
     const observation = reviewListObservation(row, data3.snapshots, now);
     const state2 = reviewPublishState(row);
     const reads3 = state2 === "pending" ? "待发布" : state2 === "unmatched" ? "未能对上" : observation.kind === "immature" ? "未满24h" : "阅读 " + readsText(row.reads_24h);
     const when = state2 === "pending" ? reviewDateTime2(row.draft_saved_at || row.created_at) : reviewDateTime2(row.published_at);
     return `<span class="review-tl-article">${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button><small>${e([when.slice(11), reads3].filter(Boolean).join(" · "))}${state2 === "published" && row.verdict ? " · " + e(row.verdict) : ""}</small></span>`;
   }).join("");
-  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => (a === "未记录") - (b === "未记录") || b.localeCompare(a)).map(([date2, list3]) => {
-    const hits = list3.filter((row) => reviewPublishState(row) === "published" && row.verdict === "爆").length;
+  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => (a === "未记录") - (b === "未记录") || b.localeCompare(a)).map(([date2, list4]) => {
+    const hits = list4.filter((row) => reviewPublishState(row) === "published" && row.verdict === "爆").length;
     const known3 = /^\d{4}-\d{2}-\d{2}$/.test(date2);
-    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${known3 ? Number(date2.slice(8)) : "—"}</span><span class="notes-tl-week">${known3 ? ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()] : ""}</span><span class="notes-tl-week">${known3 ? Number(date2.slice(5, 7)) + "月" : "未记录"}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list3)}` + (list3.length > 1 || hits ? `<span class="notes-tl-foot">${[list3.length > 1 ? list3.length + " 篇" : "", hits ? "爆 " + hits : ""].filter(Boolean).join(" · ")}</span>` : "") + "</span></div>";
+    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${known3 ? Number(date2.slice(8)) : "—"}</span><span class="notes-tl-week">${known3 ? ARTICLE_WEEKDAYS[(/* @__PURE__ */ new Date(date2 + "T00:00:00Z")).getUTCDay()] : ""}</span><span class="notes-tl-week">${known3 ? Number(date2.slice(5, 7)) + "月" : "未记录"}</span></span><span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list4)}` + (list4.length > 1 || hits ? `<span class="notes-tl-foot">${[list4.length > 1 ? list4.length + " 篇" : "", hits ? "爆 " + hits : ""].filter(Boolean).join(" · ")}</span>` : "") + "</span></div>";
   }).join("")}</div>`;
 }
 function activeGroup(vm3) {
@@ -18135,26 +18274,26 @@ function groupPicker(vm3) {
   return `<label>套路维度<select class="input" data-review-filter="group">${options3(choices, activeGroup(vm3))}</select></label>`;
 }
 var middle = (values) => {
-  const list3 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
-  return list3.length ? list3.length % 2 ? list3[(list3.length - 1) / 2] : (list3[list3.length / 2 - 1] + list3[list3.length / 2]) / 2 : null;
+  const list4 = values.filter((value) => value !== null && value !== void 0 && Number.isFinite(value)).sort((a, b) => a - b);
+  return list4.length ? list4.length % 2 ? list4[(list4.length - 1) / 2] : (list4[list4.length / 2 - 1] + list4[list4.length / 2]) / 2 : null;
 };
 function groupedArticles(rows, vm3, dimension, table2) {
-  const groups = /* @__PURE__ */ new Map(), tags = vm3.tags?.tags || {};
+  const groups2 = /* @__PURE__ */ new Map(), tags = vm3.tags?.tags || {};
   for (const row of rows) {
     const name = tags[row.id]?.[dimension] || "未分类";
-    if (!groups.has(name)) groups.set(name, []);
-    groups.get(name).push(row);
+    if (!groups2.has(name)) groups2.set(name, []);
+    groups2.get(name).push(row);
   }
-  const ordered2 = [...groups.entries()].sort(([a, x], [b, y]) => (a === "未分类") - (b === "未分类") || y.length - x.length || (middle(y.map((row) => row.reads_24h)) ?? 0) - (middle(x.map((row) => row.reads_24h)) ?? 0));
-  return `<div class="review-article-groups">${ordered2.map(([name, list3]) => {
-    const publishedRows = list3.filter((row) => reviewPublishState(row) === "published");
+  const ordered2 = [...groups2.entries()].sort(([a, x], [b, y]) => (a === "未分类") - (b === "未分类") || y.length - x.length || (middle(y.map((row) => row.reads_24h)) ?? 0) - (middle(x.map((row) => row.reads_24h)) ?? 0));
+  return `<div class="review-article-groups">${ordered2.map(([name, list4]) => {
+    const publishedRows = list4.filter((row) => reviewPublishState(row) === "published");
     const measured2 = publishedRows.filter((row) => row.reads_24h !== null);
     const ctr = middle(publishedRows.map((row) => row.ctr_24h)), few = measured2.length < 3;
     const hits = publishedRows.filter((row) => row.verdict === "爆").length;
-    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few ? ' <small class="review-note">样本少</small>' : ""}</span><span class="review-article-group-figures"><span><b>${list3.length}</b> 篇</span>
+    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few ? ' <small class="review-note">样本少</small>' : ""}</span><span class="review-article-group-figures"><span><b>${list4.length}</b> 篇</span>
       <span>阅读中位数 <b>${e(readsText(middle(measured2.map((row) => row.reads_24h))))}</b></span>
       <span>点击率 <b>${ctr === null ? "—" : e(ctr.toFixed(1)) + "%"}</b></span><span>爆款 <b>${hits}</b></span></span>
-      </summary>${table2(list3)}</details>`;
+      </summary>${table2(list4)}</details>`;
   }).join("")}</div>
     <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
 }
@@ -18221,7 +18360,7 @@ function renderRuleBook(book, scope) {
   const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content2 = rulesIntroMarkdown(ownLayer ? book.content_md || "" : "");
   const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
-  const groups = v13RuleGroups.map(([id2, label3]) => {
+  const groups2 = v13RuleGroups.map(([id2, label3]) => {
     const group = rules2.filter((rule) => rule.section === id2);
     return `<details class="review-v13-rule-group" open><summary>${e(label3)} · ${ruleCountLabel(group)}</summary>
     ${group.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>`;
@@ -18233,7 +18372,7 @@ function renderRuleBook(book, scope) {
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
     <span class="review-note">生效于 ${e(ownLayer ? day5(book.published_on) || "—" : "—")}</span>
     <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
-    ${intro}${groups}${other}</section>`;
+    ${intro}${groups2}${other}</section>`;
 }
 function promptPage(data3, vm3) {
   return renderPromptPage(data3, vm3);
@@ -18284,14 +18423,251 @@ function scopedReviewData(data3, account3) {
 }
 function renderContentReviewContent(data3, vm3) {
   data3 = scopedReviewData(data3, vm3.account);
-  if (vm3.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
-  if (vm3.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm3.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
+  const archive = vm3.archiveAllowed && vm3.account === "V字" ? `<a class="btn review-archive-entry" href="${e(archiveHref)}">V字档案</a>` : "";
+  if (vm3.loading) return archive + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
+  if (vm3.error) return archive + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm3.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data3, { account: vm3.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key) => (data3[key] || []).length);
   const selected = activeSection(vm3);
   const quiet = !hasData && selected !== "trends";
   const body4 = archives(data3, vm3, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
-  return `<div class="review-body"${vm3.article ? " inert" : ""}>${body4}</div>${drawer(data3, rows, vm3)}`;
+  return `<div class="review-body"${vm3.article ? " inert" : ""}>${archive}${body4}</div>${drawer(data3, rows, vm3)}`;
+}
+
+// web/pages/review-archive.mjs
+init_dom();
+var reviewHref = "?page=review&amp;account=V%E5%AD%97";
+var views = { items: "文章档案", completeness: "完整性检查", imports: "导入与对账", reports: "报告版本" };
+var filterChoices = [
+  ["kind", "内容类型", archiveKinds],
+  ["production_status", "制作状态", archiveProduction],
+  ["publication_status", "发布状态", archivePublication],
+  ["association_status", "原稿关联", archiveAssociation]
+];
+var metricColumns = ["reads", "impressions", "ctr", "interactions", "likes", "comments", "shares", "favorites", "reposts"];
+var refKind = { draft: "草稿", publication: "发布", published: "发布" };
+var refRole = { primary: "主要版本", duplicate: "重复草稿", other: "关联版本" };
+var archiveButton2 = (action, label3, extra = "") => `<button class="btn" type="button" data-archive-action="${e(action)}"${extra}>${e(label3)}</button>`;
+var description = (title, value) => `<div><dt>${e(title)}</dt><dd>${value}</dd></div>`;
+var message = (value) => `<p class="review-note">${e(value)}</p>`;
+var archiveEmpty = (value) => `<p class="review-empty">${e(value)}</p>`;
+function archivePanel(title, html) {
+  return `<section class="review-panel"><h3>${e(title)}</h3>${html}</section>`;
+}
+function renderReviewArchiveShell(allowed) {
+  const beginning = '<section id="review-archive" class="content-review review-archive" aria-label="V字档案">';
+  if (allowed) return beginning + '<p class="review-status" role="status">正在读取档案…</p></section>';
+  return beginning + `<div class="review-empty"><strong>此档案仅对站点所有者开放</strong><p><a href="${reviewHref}">返回内容复盘</a></p></div></section>`;
+}
+function renderArchiveFrame(view2, body4, { error: error2 = "", notice: notice2 = "" } = {}) {
+  const tabs2 = Object.entries(views).map(([key, label3]) => `<button type="button" data-archive-action="view" data-archive-view="${key}" aria-pressed="${view2 === key}">${label3}</button>`).join("");
+  const feedback = error2 ? `<p class="review-archive-alert" role="alert">${e(error2)}</p>` : notice2 ? `<p class="review-note" role="status">${e(notice2)}</p>` : "";
+  return `<div class="review-panel-head"><h2>V字档案</h2><a class="btn text" href="${reviewHref}">返回内容复盘</a></div><nav class="review-secondary-tabs review-archive-tabs" aria-label="档案页面">${tabs2}</nav>${feedback}${body4}`;
+}
+function archiveOverview(overview2) {
+  if (!overview2) return "";
+  const { counts = {}, metrics: metrics2 = {}, attribution = {} } = overview2;
+  const totals = [
+    ["published", "已发布"],
+    ["pending", "待发布"],
+    ["scheduled", "定时"],
+    ["deleted", "已删除"],
+    ["association_pending", "原稿待核"],
+    ["undated", "无日期"]
+  ];
+  const countsHtml = totals.filter(([key]) => Number.isFinite(counts[key])).map(([key, label3]) => description(label3, e(counts[key]))).join("");
+  const metricsHtml = [["reads", "阅读"], ["impressions", "展现"], ["ctr", "平均点击率"]].map(([key, label3]) => {
+    const value = metrics2[key];
+    return value ? description(label3, `${metricValue2({ [key]: value.value }, key)} <small>${e(value.unknown)} 篇缺值</small>`) : "";
+  }).join("");
+  const attributionHtml = Number.isFinite(attribution.eligible) ? description("可作样本归因", `${e(attribution.eligible)} 篇 <small>${e(attribution.excluded)} 篇不计归因</small>`) : "";
+  const cards = countsHtml + metricsHtml + attributionHtml;
+  return cards ? `<dl class="review-archive-grid review-archive-totals">${cards}</dl>` : "";
+}
+function archiveSelect(name, choices, selected, first = "") {
+  const empty3 = first ? `<option value="">${e(first)}</option>` : "";
+  const options4 = Object.entries(choices).map(([key, label3]) => `<option value="${e(key)}"${key === selected ? " selected" : ""}>${e(label3)}</option>`).join("");
+  return `<select class="input" name="${e(name)}">${empty3}${options4}</select>`;
+}
+function archiveFilters(filters) {
+  const selects = filterChoices.map(([name, label3, choices]) => `<label>${label3}${archiveSelect(name, choices, filters[name] || "", "全部")}</label>`).join("");
+  const dates = [["from", "起始日期"], ["to", "结束日期"]].map(([key, label3]) => `<label>${label3}<input class="input" type="date" name="${key}" value="${e(filters[key] || "")}"></label>`).join("");
+  return `<form class="review-filters" data-archive-form="filter">${selects}${dates}<button class="btn" type="submit">筛选</button>${archiveButton2("reset-filters", "清除筛选")}</form>`;
+}
+function archiveBadges(row) {
+  const parts2 = [
+    archiveKinds[row.kind],
+    archiveProduction[row.production_status],
+    archivePublication[row.publication_status],
+    archiveAssociation[row.association_status]
+  ].filter(Boolean);
+  return `<span class="review-archive-badges">${parts2.map((x) => `<span class="review-publish">${e(x)}</span>`).join("")}</span>`;
+}
+function renderListRow(row) {
+  return `<li class="review-archive-row"><button type="button" class="review-title-button" data-archive-action="detail" data-archive-id="${e(row.id)}">${e(archiveTitle(row))}</button>${archiveBadges(row)}<span class="review-note">${e(archiveDate(row.sort_at, "无日期"))}</span></li>`;
+}
+function renderArchiveItems({ items = [], filters = {}, more = false, overview: overview2 = null, loading = false } = {}) {
+  const header = `<div class="review-toolbar">${archiveButton2("create", "新增档案")}${archiveButton2("legacy", "查看现有复盘")}${archiveButton2("refresh", "重新读取")}</div>`;
+  const groups2 = archiveGroups(items).map(({ date: date2, rows }) => `<section class="review-archive-group"><h3>${e(date2 || "无日期")}</h3><ul>${rows.map(renderListRow).join("")}</ul></section>`).join("");
+  const list4 = groups2 || (!loading ? archiveEmpty("没有符合条件的档案。") : "");
+  const tail = loading ? '<p role="status">正在读取档案…</p>' : more ? archiveButton2("more", "读取下一页") : "";
+  return `<div class="review-archive-stack">${archiveOverview(overview2)}${header}${archiveFilters(filters)}${list4}${tail}</div>`;
+}
+function renderArchiveLegacyPage(page) {
+  const rows = (page.items || []).map((row) => `<li class="review-archive-row"><button class="review-title-button" type="button" data-archive-action="legacy-select" data-archive-id="${e(row.legacy_id)}">${e(archiveTitle(row))} · 归档</button><span>${e(row.platform_article_id || "编号未填")}</span></li>`).join("");
+  return `<div class="review-archive-stack">${archiveButton2("back", "返回文章档案")}${archivePanel("现有复盘记录", rows ? `<ul class="review-archive-items">${rows}</ul>` : archiveEmpty("没有现有复盘记录。"))}${page.more ? archiveButton2("legacy-more", "读取下一页") : ""}</div>`;
+}
+function archiveLink(value, label3 = "打开链接") {
+  const url = safeReviewUrl(value);
+  if (!url) return "";
+  const parsed2 = new URL(url);
+  if (parsed2.username || parsed2.password) return "";
+  return `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>`;
+}
+function dataValue(row, field2) {
+  const value = row[field2], state2 = row.field_states?.[field2];
+  if (value == null || value === "" || Array.isArray(value) && !value.length) {
+    return e(archiveMissing(state2 || (Array.isArray(value) ? "none" : "missing")));
+  }
+  return `${e(value)}${state2 === "unverified" || state2 === "unknown" ? " <small>无法核实</small>" : ""}`;
+}
+function timeValue(row, field2) {
+  return e(archiveDate(row[field2], archiveMissing(row.field_states?.[field2])));
+}
+function renderTitles(row) {
+  const alternate = Array.isArray(row.alternate_titles) && row.alternate_titles.length ? `<ol>${row.alternate_titles.map((title) => `<li>${e(title)}</li>`).join("")}</ol>` : dataValue(row, "alternate_titles");
+  const titleRows = ["original_title", "published_title", "alternate_titles"].map((field2) => description(archiveLabels[field2], field2 === "alternate_titles" ? alternate : dataValue(row, field2))).join("");
+  return archivePanel("标题变化", `<dl class="review-archive-grid">${titleRows}</dl>`);
+}
+function renderTimeline(row) {
+  const values = Object.entries(archiveTimeLabels).filter(([field2]) => field2 !== "sample_published_at").map(([field2, label3]) => description(label3, timeValue(row, field2))).join("");
+  return archivePanel("制作与发布时间（北京时间）", `<dl class="review-archive-grid">${values}</dl>`);
+}
+function renderOrigin(row) {
+  const sourceNote = dataValue(row, "source_note");
+  const sampled = row.sample || {};
+  const info = {
+    ...row,
+    sample_title: row.sample_title || sampled.title,
+    sample_url: row.sample_url || sampled.url,
+    sample_published_at: row.sample_published_at || sampled.published_at
+  };
+  const sample = [
+    description("样本标题", dataValue(info, "sample_title")),
+    description("样本链接", archiveLink(info.sample_url) || dataValue(info, "sample_url")),
+    description("样本发布时间", timeValue(info, "sample_published_at")),
+    description("样本库关联", dataValue(row, "sample_reference_id"))
+  ].join("");
+  const tags = Array.isArray(row.tags) && row.tags.length ? row.tags.map(e).join("、") : dataValue(row, "tags");
+  const refs = `${description("平台链接", archiveLink(row.platform_url, "查看平台页面") || dataValue(row, "platform_url"))}${description("来源说明", sourceNote)}${description("标签", tags)}`;
+  return archivePanel("样本与来源说明", `<dl class="review-archive-grid">${sample}${refs}</dl>`);
+}
+function renderSources(row) {
+  const sources = Array.isArray(row.sources) ? row.sources : [];
+  const list4 = sources.length ? `<ol>${sources.map((source) => `<li>${archiveLink(source.url, source.title || source.url) || e(source.title || source.url)}</li>`).join("")}</ol>` : `<p>${dataValue(row, "sources")}</p>`;
+  return archivePanel("文末来源", list4);
+}
+var imageLabel = { total: "总图数", real: "真实图数", ai: "AI 图数" };
+function renderImages(row) {
+  const counts = Object.entries(imageLabel).map(([key, label3]) => description(
+    label3,
+    row.images?.[key] == null ? e(archiveMissing(row.field_states?.[`images.${key}`] ?? row.field_states?.images)) : e(row.images[key])
+  )).join("");
+  const cover = row.cover ? archiveLink(row.cover.url, "打开封面记录") || e(row.cover.alt || "已有封面记录") : dataValue(row, "cover");
+  const assets = Array.isArray(row.images?.assets) ? row.images.assets : [];
+  const assetList = assets.length ? `<ol>${assets.map((asset) => `<li>${archiveLink(asset.url, asset.alt || "打开配图记录") || e(asset.alt || asset.kind || "已附配图记录")}</li>`).join("")}</ol>` : "";
+  return archivePanel("AI 封面与配图", `<dl class="review-archive-grid">${counts}${description("AI 封面", cover)}</dl>${assetList}`);
+}
+function renderBodies(row) {
+  return archivePanel("正文", ["original_body", "published_body"].map((field2) => `<details><summary>${archiveLabels[field2]}</summary><pre class="review-archive-text">${dataValue(row, field2)}</pre></details>`).join(""));
+}
+function renderReference(ref, editable) {
+  const identity6 = [refKind[ref.kind], ref.platform_id, refRole[ref.role]].filter(Boolean).map(e).join(" · ");
+  const details = `<span class="review-note">${e(archiveDate(ref.saved_at))}</span>`;
+  const edit = editable && ref.id ? archiveButton2("edit-ref", "更正", ` data-archive-id="${e(ref.id)}"`) : "";
+  const state2 = ref.state === "disputed" ? '<span class="review-note">存疑</span>' : "";
+  return `<li><strong>${identity6}</strong> ${archiveLink(ref.url, ref.title || "平台入口") || e(ref.title || "")} ${details}${state2}${edit}</li>`;
+}
+function renderReferences(row) {
+  const refs = Array.isArray(row.refs) ? row.refs : [];
+  const list4 = refs.length ? `<ul>${refs.map((ref) => renderReference(ref, !row.merged_into && ref.item_id === row.id)).join("")}</ul>` : archiveEmpty("尚无平台标识记录。");
+  const legacy2 = row.legacy_ids?.length ? message(`关联现有复盘 ${row.legacy_ids.join("、")}`) : "";
+  return archivePanel("平台标识", list4 + legacy2);
+}
+function metricValue2(metrics2, key) {
+  const value = metrics2?.[key];
+  if (value == null) return "未填";
+  if (typeof value === "number") {
+    const formatted = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(value);
+    return e(formatted + (["ctr", "completion_rate"].includes(key) ? "%" : ""));
+  }
+  return e(typeof value === "string" ? value : JSON.stringify(value));
+}
+function snapshotRow(snapshot, columns) {
+  const metrics2 = snapshot.metrics || {};
+  const when = archiveDate(snapshot.observed_at || snapshot.observed_date || snapshot.snapshot_date);
+  const cells = columns.map((key) => `<td>${metricValue2(metrics2, key)}</td>`).join("");
+  const source = snapshot.source === "legacy_review_date" ? `旧复盘 · ${snapshot.legacy_source || "来源未填"}` : snapshot.source || "未填";
+  return `<tr><th scope="row">${e(when)}</th><td>${e(source)}</td>${cells}</tr>`;
+}
+function renderArchiveSnapshots(snapshots2 = []) {
+  if (!snapshots2.length) return archivePanel("指标历史", archiveEmpty("没有快照。"));
+  const keys = new Set(metricColumns);
+  for (const row of snapshots2) for (const name of Object.keys(row.metrics || {})) keys.add(name);
+  const columns = [...keys];
+  const heading = columns.map((key) => `<th scope="col">${e(archiveMetrics[key] || key)}</th>`).join("");
+  const rows = snapshots2.map((row) => snapshotRow(row, columns)).join("");
+  return archivePanel("指标历史（北京时间）", `<div class="review-archive-table"><table><thead><tr><th scope="col">采集时间</th><th scope="col">来源</th>${heading}</tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+function renderEvents(row) {
+  const events = row.history || [];
+  if (!events.length) return "";
+  const rows = events.map(renderEvent).join("");
+  return archivePanel("关联修订记录", `<ol>${rows}</ol>`);
+}
+function renderEvent(event) {
+  const labels4 = {
+    association: "关联纠错",
+    merge: "合并",
+    unmerge: "撤销合并",
+    reference_corrected: "更正平台标识",
+    reference_added: "登记平台标识",
+    create: "创建档案",
+    update: "更新档案",
+    snapshot_added: "采集快照",
+    import: "导入数据"
+  };
+  const details = event.details || {};
+  const titles = Object.entries(details.titles || {}).map(([field2, values2]) => `<li>${e(archiveLabels[field2] || field2)}从「${e(values2.before ?? "未填")}」变为「${e(values2.after ?? "未填")}」</li>`).join("");
+  const status = details.result ? ` · ${e(archiveAssociation[details.result] || details.result)}` : "";
+  const confidence = details.confidence ? ` · 可信度 ${e(details.confidence === "manual" ? "人工核对" : details.confidence)}` : "";
+  const values = Array.isArray(details.evidence) ? details.evidence : [];
+  const evidence2 = values.length ? `<span class="review-note">${e(values.join("、"))}</span>` : "";
+  return `<li>${e(archiveDate(event.created_at))} · ${e(labels4[event.action] || event.action || "修订")}${status}${confidence} ${e(details.reason || "")} ${e(details.related_id || "")}${evidence2}${titles ? `<ul>${titles}</ul>` : ""}</li>`;
+}
+function renderVariants(row) {
+  const variants = (row.variants || []).map((item) => `<li>${archiveButton2("detail", archiveTitle(item), ` data-archive-id="${e(item.id)}"`)}<span class="review-note">档案标识 ${e(item.id)} · 版本 ${e(item.version)}</span></li>`).join("");
+  return variants ? archivePanel("合并保留的版本", `<ul>${variants}</ul>`) : "";
+}
+function renderArchiveDetail(row, editor = "") {
+  const changes = row.merged_into ? archiveButton2("detail", "查看主要档案", ` data-archive-id="${e(row.merged_into)}"`) : archiveButton2("edit", "编辑档案") + archiveButton2("reference", "登记平台标识") + archiveButton2("associate", "纠正关联") + archiveButton2("merge", "合并或撤销合并");
+  return `<div class="review-archive-stack"><div class="review-toolbar">${archiveButton2("back", "返回文章档案")}${changes}</div><h3>${e(archiveTitle(row))}</h3>${archiveBadges(row)}${message(`档案标识 ${row.id} · 版本 ${row.version}`)}${editor}${renderTitles(row)}${renderTimeline(row)}${renderOrigin(row)}${renderSources(row)}${renderImages(row)}${renderBodies(row)}${renderReferences(row)}${renderVariants(row)}${renderArchiveSnapshots(row.snapshots || [])}${renderEvents(row)}</div>`;
+}
+function renderCompletenessField(item) {
+  const states = Object.entries(item.states || {}).map(([state2, count3]) => `${e(archiveMissing(state2))} ${e(count3)}`).join("、");
+  const details = (item.items || []).map((row) => `<li><button class="review-title-button" type="button" data-archive-action="detail" data-archive-id="${e(row.id)}">${e(row.title || "未填标题")}</button> ${e(archiveMissing(row.state))}</li>`).join("");
+  return `<details class="review-panel"><summary>${e(archiveLabels[item.field] || item.field)} · 缺 ${e(item.missing ?? 0)} 篇</summary>${states ? message(states) : ""}${details ? `<ul>${details}</ul>` : message("没有缺失记录。")}</details>`;
+}
+function renderArchiveCompleteness(data3) {
+  const unsupportedLabels = { image_binary_storage: "存储原图文件", automatic_platform_collection: "自动采集平台资料" };
+  if (!data3) return '<p role="status">正在读取完整性检查…</p>';
+  const unsupported2 = (data3.unsupported || []).map((value) => {
+    const field2 = typeof value === "string" ? value : value?.field;
+    const label3 = typeof value === "object" ? value?.label : "";
+    return `<li>${e(label3 || unsupportedLabels[field2] || archiveLabels[field2] || field2)}</li>`;
+  }).join("");
+  const fields5 = (data3.fields || []).map(renderCompletenessField).join("");
+  return `<div class="review-archive-stack"><h3>${e(data3.total ?? 0)} 篇档案</h3>${fields5 || archiveEmpty("没有可检查的数据。")}${unsupported2 ? archivePanel("功能未支持", `<ul>${unsupported2}</ul>`) : ""}</div>`;
 }
 
 // web/ai-settings-controller.mjs
@@ -18371,8 +18747,8 @@ var vm2 = {
   error: ""
 };
 var root2 = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
-function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
-  return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
+function staleRead(message2 = "复盘资料在读取时发生变化，请重新读取。") {
+  return Object.assign(new Error(message2), { code: "READ_REVISION_CHANGED" });
 }
 var REVIEW_PAGE_AHEAD = 3;
 async function readReviewCollection(read3, resource, selectedAccount, current3 = () => true) {
@@ -18581,7 +18957,7 @@ async function loadContentReview(context) {
     vm2.diagnoses = {};
     identity5 = currentIdentity2;
   }
-  vm2 = { ...vm2, ...requested, loading: true, error: "" };
+  vm2 = { ...vm2, ...requested, archiveAllowed: canAccessReviewArchive(state2.me, requested.account), loading: true, error: "" };
   paintContentReviewPage();
   const ticket2 = ++sequence4, epoch = runtime2.sessionEpoch;
   const current3 = () => ticket2 === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root2());
@@ -18987,6 +19363,638 @@ function chooseArticleView(value) {
   root2()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({ preventScroll: true });
 }
 
+// web/pages/review-archive-editor.mjs
+init_dom();
+var mainFields = {
+  original_title: "原稿标题",
+  published_title: "发布标题",
+  platform_url: "平台链接",
+  sample_title: "样本标题",
+  sample_url: "样本链接",
+  sample_reference_id: "样本库记录标识"
+};
+var kinds = { draft: "草稿", publication: "发布" };
+var roles = { other: "关联版本", primary: "主要版本", duplicate: "重复草稿" };
+var stateChoices = { not_filled: "未填", none: "没有", unverified: "无法核实", not_applicable: "不适用" };
+var missingNames = ["original_body", "published_body", "cover", "sources", "images.total", "images.real", "images.ai", "sample_title", "sample_url"];
+var missingLabels = { ...archiveLabels, "images.total": "总图数", "images.real": "真实图数", "images.ai": "AI 图数" };
+function textInput(name, label3, value, { type = "text", extra = "" } = {}) {
+  return `<label>${e(label3)}<input class="input" name="${e(name)}" type="${e(type)}" value="${e(value ?? "")}"${extra}></label>`;
+}
+function area(name, label3, value, rows = 4) {
+  return `<label>${e(label3)}<textarea class="input" rows="${rows}" name="${e(name)}">${e(value ?? "")}</textarea></label>`;
+}
+function select(name, label3, choices, value) {
+  return `<label>${e(label3)}${archiveSelect(name, choices, value)}</label>`;
+}
+var json = (value) => value == null ? "" : JSON.stringify(value, null, 2);
+var list3 = (value) => Array.isArray(value) ? value.join("\n") : "";
+var actions = (label3 = "保存") => `<div class="review-toolbar"><button class="btn primary" type="submit">${e(label3)}</button>${archiveButton2("cancel", "取消")}<p class="review-note" data-archive-status role="status"></p></div>`;
+function inputFields(row) {
+  const kind = row.legacy_id && !row.kind ? '<label>内容类型<select class="input" name="kind" required><option value="">请选择真实类型</option><option value="article">长文</option><option value="micro">微头条</option></select></label>' : select("kind", "内容类型", archiveKinds, row.kind || "article");
+  const selects = [
+    kind,
+    select("production_status", "制作状态", archiveProduction, row.production_status || "unknown"),
+    select("publication_status", "发布状态", archivePublication, row.publication_status || "unknown")
+  ].join("");
+  const texts = Object.entries(mainFields).map(([field2, label3]) => textInput(field2, label3, row[field2])).join("");
+  const dates = Object.entries(archiveTimeLabels).map(([field2, label3]) => textInput(field2, label3, row[field2], { extra: ' placeholder="日期或带时区的完整时间"' })).join("");
+  return `<div class="review-archive-edit-grid">${selects}${texts}${dates}</div>`;
+}
+function absenceFields(row) {
+  return missingNames.map((field2) => `<label>${e(missingLabels[field2])}${archiveSelect(
+    `state:${field2}`,
+    stateChoices,
+    row.field_states?.[field2] || "",
+    "按已有资料"
+  )}</label>`).join("");
+}
+function verificationFields(row) {
+  const fields5 = ["original_title", "published_title", "original_body", "published_body", "sources", "cover", "images", "sample_title", "sample_url"];
+  const choices = fields5.map((field2) => `<label class="review-archive-checkbox"><input type="checkbox" name="verify:${field2}"${row.verified?.includes(field2) ? " checked disabled" : ""}> ${e(archiveLabels[field2])}</label>`).join("");
+  return `<details><summary>标记已核实的资料</summary><div class="review-archive-edit-grid">${choices}</div></details>`;
+}
+function renderArchiveItemEditor(row = {}) {
+  const details = area("alternate_titles", "备选标题（可选，每行一条）", list3(row.alternate_titles)) + area("tags", "标签（每行一个）", list3(row.tags)) + area("source_note", "来源说明", row.source_note);
+  const bodies = `<details><summary>正文与来源</summary>${area("original_body", "原稿正文", row.original_body, 8)}${area("published_body", "发布正文", row.published_body, 8)}${area("sources", "有序来源（JSON 列表）", json(row.sources), 6)}</details>`;
+  const images = `<details><summary>封面与配图</summary>${area("cover", "封面记录（JSON）", json(row.cover))}${area("images", "总图、真实图、AI 图与配图记录（JSON）", json(row.images), 6)}</details>`;
+  const absence = `<details><summary>缺失原因</summary><div class="review-archive-edit-grid">${absenceFields(row)}</div></details>`;
+  const legacyInfo = !row.id && row.legacy_id ? `<p class="review-note">归档现有复盘 ${e(row.legacy_id)}，并保留关联的历史快照。</p>` : "";
+  return archivePanel(row.id ? "编辑档案" : "新增档案", `<form data-archive-form="item" class="review-archive-editor">${inputFields(row)}${legacyInfo}${details}${bodies}${images}${absence}${row.id ? verificationFields(row) : ""}${actions()}</form>`);
+}
+var blankAsNull = (value) => String(value ?? "").trim() || null;
+function readJson(fields5, key) {
+  const value = blankAsNull(fields5[key]);
+  if (value === null) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error(`${archiveLabels[key]}的 JSON 格式无效。`);
+  }
+}
+function readList(fields5, key, previous) {
+  const entries = String(fields5[key] ?? "").split(/\r?\n/u).map((x) => x.trim()).filter(Boolean);
+  if (entries.length) return entries;
+  return Array.isArray(previous) && !previous.length ? [] : null;
+}
+function readArchiveItemEditor(fields5, row = {}) {
+  const choices = ["kind", "production_status", "publication_status"];
+  const lines = [...Object.keys(mainFields), ...Object.keys(archiveTimeLabels), "source_note", "original_body", "published_body"];
+  const result = Object.fromEntries(choices.map((key) => [key, fields5[key]]));
+  for (const key of lines) result[key] = blankAsNull(fields5[key]);
+  for (const key of ["alternate_titles", "tags"]) result[key] = readList(fields5, key, row[key]);
+  for (const key of ["sources", "cover", "images"]) result[key] = readJson(fields5, key);
+  const states = { ...row.field_states };
+  for (const field2 of missingNames) {
+    const value = fields5[`state:${field2}`];
+    if (value) states[field2] = value;
+    else delete states[field2];
+  }
+  result.field_states = states;
+  if (!row.id) return Object.fromEntries(Object.entries(result).filter(([, value]) => value != null));
+  return Object.fromEntries(Object.entries(result).filter(([key, value]) => JSON.stringify(row[key] ?? null) !== JSON.stringify(value)));
+}
+function readArchiveVerification(fields5) {
+  return Object.keys(fields5).filter((key) => key.startsWith("verify:") && fields5[key] === "on").map((key) => key.slice(7));
+}
+function refEditor(ref) {
+  const kind = select("kind", "平台记录类型", kinds, ref?.kind || "draft");
+  const structure2 = kind + select("role", "版本作用", roles, ref?.role || "other") + textInput("platform_id", "平台编号", ref?.platform_id, { extra: " required" }) + textInput("title", "平台记录标题", ref?.title) + textInput("url", "平台链接", ref?.url) + textInput("saved_at", "存入草稿箱时间", ref?.saved_at, { extra: ' placeholder="日期或带时区的完整时间"' }) + select("state", "编号核对", { active: "有效", disputed: "存疑" }, ref?.state || "active");
+  const reason = ref ? area("reason", "更正依据（更换编号或类型时必填）", "") : "";
+  return archivePanel(ref ? "更正平台标识" : "登记平台标识", `<form data-archive-form="reference" class="review-archive-editor"><div class="review-archive-edit-grid">${structure2}</div>${reason}${actions()}</form>`);
+}
+function associationEditor(row) {
+  return archivePanel("纠正原稿关联", `<form data-archive-form="associate" class="review-archive-editor">${select("status", "原稿关联", archiveAssociation, row.association_status)}${area("reason", "核对依据", "")}${actions()}</form>`);
+}
+function mergeEditor() {
+  const steps = select("action", "操作", { merge: "合并到当前档案", unmerge: "撤销合并" }, "merge") + textInput("other_id", "另一条档案标识", "", { extra: " required" }) + textInput("other_version", "另一条档案的版本", "", { type: "number", extra: ' min="1" required' });
+  return archivePanel("合并或撤销合并", `<form data-archive-form="merge" class="review-archive-editor"><div class="review-archive-edit-grid">${steps}</div>${area("reason", "核对依据", "")}${actions()}</form>`);
+}
+function renderArchiveDetailEditor(editor, row, reference = null) {
+  if (editor === "item") return renderArchiveItemEditor(row);
+  if (editor === "reference") return refEditor(reference);
+  if (editor === "associate") return associationEditor(row);
+  if (editor === "merge") return mergeEditor();
+  return "";
+}
+
+// web/pages/review-archive-import.mjs
+init_dom();
+var kinds2 = { directory: "文章目录", drafts: "草稿清单", metrics: "历史指标" };
+var actions2 = { new: "新建", update: "更新", unchanged: "重复或已登记", conflict: "冲突", unrecognized: "未识别" };
+var outcomes = { success: "成功", failure: "失败", omission: "遗漏" };
+var groups = {
+  platform_only: "平台有，本站缺",
+  site_only: "本站有，平台未见",
+  suspected_duplicate: "疑似重复",
+  status_conflict: "状态冲突"
+};
+async function readArchiveImportFile(file, resumeId = "") {
+  if (!file || typeof file.text !== "function" || !file.size || file.size > 23e4) throw new Error("请选择不超过 230 KB 的一页 JSON。");
+  let input;
+  try {
+    input = JSON.parse(await file.text());
+  } catch {
+    throw new Error("这一页并非有效 JSON。");
+  }
+  if (!input || Array.isArray(input) || !Array.isArray(input.rows)) throw new Error("档案导入需要包含 rows 的一页 JSON。");
+  if (resumeId && input.run_id && input.run_id !== resumeId) throw new Error("文件中的批次标识与当前续传批次不符。");
+  return { ...input, run_id: resumeId || input.run_id || crypto.randomUUID() };
+}
+function coverageLabel(coverage = {}) {
+  if (coverage.complete === true) return "采集覆盖已核实";
+  if (coverage.closed === true || coverage.last_page === true) return "已读到最后一页，覆盖仍待核实";
+  return "覆盖未完成";
+}
+function importForm(checkpoint) {
+  const resume = checkpoint && !checkpoint.closed && !checkpoint.completed_at ? checkpoint : null;
+  const info = resume ? `<p class="review-note">继续 ${e(resume.id)} · 下一页 ${e(resume.next_page)}</p>` : "";
+  return archivePanel(resume ? "续传导入" : "导入一页", `<form class="review-archive-editor" data-archive-form="import">${info}<p class="review-note">选择一页规范化 JSON。预览会列出新建、更新、冲突及未识别项。</p><label>导入文件<input class="input" name="page_file" type="file" accept=".json,application/json" required></label><div class="review-toolbar"><button class="btn primary" type="submit">预览这一页</button><p class="review-note" data-archive-status role="status"></p></div></form>`);
+}
+function renderRows(rows = []) {
+  if (!rows.length) return archiveEmpty("该页没有记录。");
+  const cells = rows.map((row) => {
+    const label3 = [actions2[row.action], outcomes[row.status]].filter(Boolean).join(" · ");
+    const id2 = row.item_id ? `<button class="review-title-button" type="button" data-archive-action="detail" data-archive-id="${e(row.item_id)}">查看记录</button>` : "";
+    return `<tr><th scope="row">${e(row.key)}</th><td>${e(label3)}</td><td>${e(row.code || "—")}</td><td>${id2}</td></tr>`;
+  }).join("");
+  return '<div class="review-archive-table"><table><thead><tr><th scope="col">来源标识</th><th scope="col">结果</th><th scope="col">说明代码</th><th scope="col">站内档案</th></tr></thead><tbody>' + cells + "</tbody></table></div>";
+}
+function renderCounts(counts) {
+  const labels4 = { ...actions2, ...outcomes };
+  const values = Object.entries(counts || {}).filter(([key, count3]) => labels4[key] && Number.isInteger(count3)).map(([key, count3]) => `${e(labels4[key])} ${e(count3)}`).join(" · ");
+  return values ? `<p class="review-note">${values}</p>` : "";
+}
+function importPreview(preview) {
+  const note = `<p class="review-note">批次 ${e(preview.run_id)} · 第 ${e(preview.page)} 页</p>`;
+  const apply = preview.preview_hash ? archiveButton2("import-apply", "提交已预览的这一页") : "";
+  return archivePanel("本页预览", note + renderCounts(preview.counts) + renderRows(preview.rows) + apply);
+}
+function importSummary(run2) {
+  const scope = run2.scope || {};
+  const range2 = scope.from || scope.to ? `${scope.from || "未设起始"} 至 ${scope.to || "未设结束"}` : "未设日期窗口";
+  return [kinds2[run2.kind], archiveKinds[scope.kind], run2.source, archiveDate(scope.collected_at), range2].filter(Boolean).map(e).join(" · ");
+}
+function runPicker(runs) {
+  const rows = runs.map((run2) => `<li><button class="review-title-button" type="button" data-archive-action="import-detail" data-archive-id="${e(run2.id)}">${importSummary(run2)}</button><span class="review-note">${e(run2.id)} · ${run2.completed_at ? "覆盖已核" : "检查点已保存"}</span></li>`).join("");
+  return archivePanel("已保存的批次", rows ? `<ul class="review-archive-items">${rows}</ul>` : archiveEmpty("尚无已保存批次。"));
+}
+function runHistory(run2) {
+  const pages = (run2.pages || []).map((page) => `<details><summary>第 ${e(page.page)} 页${page.replayed ? " · 已重放" : ""}</summary>${renderCounts(page.counts)}${renderRows(page.rows)}</details>`).join("");
+  const coverage = `<p class="review-note">${e(coverageLabel({ ...run2.coverage, closed: run2.closed }))}</p>`;
+  return archivePanel("批次检查点", `<p>${importSummary(run2)}</p><p class="review-note">${e(run2.id)}</p>${coverage}${pages || archiveEmpty("尚无提交完成的页面。")}${archiveButton2("reconcile", "查看对账结果")}`);
+}
+function reconcileSection(group, values) {
+  const rows = values.map((row) => {
+    if (typeof row === "string") return `<li>${e(row)}</li>`;
+    const details = [row.title, row.platform_id, row.key, row.code].filter(Boolean).map(e).join(" · ");
+    const label3 = details || e(row.id || row.item_id || "待核记录");
+    const id2 = row.item_id || row.id;
+    const link = id2 && /^[a-f0-9-]{36}$/u.test(id2) ? `<button type="button" class="review-title-button" data-archive-action="detail" data-archive-id="${e(id2)}">${label3}</button>` : label3;
+    return `<li>${link}</li>`;
+  }).join("");
+  return `<details><summary>${e(groups[group])} · ${e(values.length)}</summary><ul>${rows}</ul></details>`;
+}
+function renderReconciliation2(reconcile) {
+  const info = reconcile.site_only_assessed === false ? '<p class="review-note">采集范围尚未核实，本站有而清单未见的档案需在全量对账后再判定。</p>' : "";
+  const sections2 = Object.keys(groups).map((key) => reconcileSection(key, reconcile[key] || [])).join("");
+  return archivePanel("对账结果", info + sections2);
+}
+function renderArchiveImports(view2) {
+  return '<div class="review-archive-stack">' + importForm(view2.checkpoint) + (view2.preview ? importPreview(view2.preview) : "") + (view2.checkpoint ? runHistory(view2.checkpoint) : "") + (view2.reconcile ? renderReconciliation2(view2.reconcile) : "") + runPicker(view2.runs || []) + "</div>";
+}
+
+// web/pages/review-archive-reports.mjs
+init_dom();
+var reportTypes = { review: "复盘日报与周报", ai: "AI 汇报" };
+var periods = { day: "日报", week: "周报", daily: "日报", weekly: "周报" };
+function reportLabel(row, type) {
+  if (type === "ai") return [row.author, archiveDate(row.created_at)].filter(Boolean).map(e).join(" · ");
+  return [periods[row.period] || periods[row.period_type] || "复盘报告", row.period_end || row.report_date || row.period_start].filter(Boolean).map(e).join(" · ");
+}
+function reportHistory(data3, type) {
+  const versions = data3.history || data3.versions || [];
+  const rows = versions.map((row) => {
+    const snapshot = row.report || row.previous || row.payload || row.record || row.data || row;
+    const content2 = type === "ai" ? snapshot.content : snapshot.summary_md;
+    const at = archiveDate(row.saved_at || row.changed_at || row.created_at);
+    return `<details><summary>${e(at)}${row.version ? ` · 版本 ${e(row.version)}` : ""}</summary><pre class="review-archive-text">${e(content2 || "未填")}</pre></details>`;
+  }).join("");
+  return archivePanel("修订历史", rows || archiveEmpty("尚无修订历史。"));
+}
+function reportEditor(row, type) {
+  const label3 = type === "ai" ? "汇报内容" : "复盘摘要";
+  const contentKey = type === "ai" ? "content" : "summary_md";
+  const author = type === "ai" ? `<label>署名<input class="input" type="text" name="author" required value="${e(row.author)}"></label>` : "";
+  if (!row.content_hash) return '<p class="review-note">此报告缺少可核实的当前版本。</p>';
+  const confirm = row.requires_v_account_confirmation ? '<label class="review-archive-checkbox"><input type="checkbox" name="confirm_v_account" required> 确认这份汇报属于 V字</label>' : "";
+  return `<form data-archive-form="report-edit" class="review-archive-editor">${author}${confirm}<label>${label3}<textarea class="input" name="${contentKey}" rows="9">${e(row[contentKey] || "")}</textarea></label><div class="review-toolbar"><button type="submit" class="btn primary">保存修订</button><p class="review-note" data-archive-status role="status"></p></div></form>`;
+}
+function reportDetail(response, type) {
+  const row = response.item || response.record || response.report || response;
+  return archivePanel("报告详情", `<h4>${reportLabel(row, type)}</h4><p class="review-note">原记录 ${e(row.id)}</p>` + reportEditor(row, type)) + reportHistory(response, type) + (response.history_has_more ? archiveButton2("report-history-more", "读取更早版本") : "");
+}
+function renderArchiveReports(state2) {
+  const choices = `<label>报告类型${archiveSelect("report_type", reportTypes, state2.reportType)}</label>`;
+  const chooser = `<form class="review-filters" data-archive-form="report-list">${choices}<button class="btn" type="submit">读取报告</button></form>`;
+  const rows = (state2.reports || []).map((row) => `<li><button type="button" class="review-title-button" data-archive-action="report-detail" data-archive-id="${e(row.id)}">${reportLabel(row, state2.reportType)}</button></li>`).join("");
+  const listing = rows ? `<ul class="review-archive-items">${rows}</ul>` : archiveEmpty("此类报告没有记录。");
+  const lookup = state2.reportType === "ai" ? '<form class="review-filters" data-archive-form="report-lookup"><label>待核 AI 汇报标识<input class="input" type="text" name="report_id" required></label><button class="btn" type="submit">查阅原记录</button></form>' : "";
+  return `<div class="review-archive-stack">${archivePanel("报告版本", chooser + listing)}${state2.reportMore ? archiveButton2("report-more", "读取更多报告") : ""}${lookup}${state2.reportDetail ? archiveButton2("report-close", "收起当前报告") + reportDetail(state2.reportDetail, state2.reportType) : ""}</div>`;
+}
+
+// web/review-archive-controller.mjs
+init_api();
+init_state();
+var emptyPage = () => ({ items: [], revision: null, offset: 0, more: false });
+var tabs = ["items", "completeness", "imports", "reports"];
+var nullable = (value) => typeof value === "string" && value.trim() ? value.trim() : null;
+var uuid5 = (value) => /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(value);
+function reviewArchiveActive() {
+  return state.page === "review" && isReviewArchiveRoute(globalThis.location?.search || "");
+}
+function createView() {
+  return {
+    tab: "items",
+    page: emptyPage(),
+    filters: {},
+    loading: true,
+    overview: null,
+    error: "",
+    notice: "",
+    detail: null,
+    editor: "",
+    createId: null,
+    createDefaults: null,
+    editRef: null,
+    legacy: null,
+    completeness: null,
+    runs: [],
+    checkpoint: null,
+    preview: null,
+    pendingPage: null,
+    reconcile: null,
+    reportType: "review",
+    reports: [],
+    reportDetail: null,
+    reportOffset: 0,
+    reportRevision: null,
+    reportMore: false,
+    reportConfirm: false
+  };
+}
+function archiveView(vm3) {
+  if (vm3.detail) return renderArchiveDetail(vm3.detail, renderArchiveDetailEditor(vm3.editor, vm3.detail, vm3.editRef));
+  if (vm3.editor === "create") return renderArchiveItemEditor(vm3.createDefaults || {});
+  if (vm3.legacy) return renderArchiveLegacyPage(vm3.legacy);
+  if (vm3.tab === "completeness") return renderArchiveCompleteness(vm3.completeness);
+  if (vm3.tab === "imports") return renderArchiveImports(vm3);
+  if (vm3.tab === "reports") return renderArchiveReports(vm3);
+  return renderArchiveItems({ ...vm3.page, overview: vm3.overview, filters: vm3.filters, loading: vm3.loading });
+}
+function protectedTransport(context, live2) {
+  return async (path, options4 = {}) => {
+    if (!live2()) throw new DOMException("档案页面已关闭。", "AbortError");
+    const data3 = await apiNetwork(archivePath + path, { context, cache: "no-store", signal: context?.controller.signal, ...options4 });
+    if (!live2()) throw new DOMException("档案页面已关闭。", "AbortError");
+    return data3;
+  };
+}
+function refreshFeeds(vm3, request2) {
+  return Promise.all([
+    request2("/items?" + archiveQuery(vm3.filters)).then((page) => {
+      vm3.page = acceptArchivePage(page, emptyPage());
+    }),
+    request2("/overview").then((value) => {
+      vm3.overview = value;
+    }).catch((error2) => {
+      if (error2.status === 401 || error2.status === 403) throw error2;
+      vm3.overview = null;
+    })
+  ]);
+}
+function updateItems(vm3, request2, reset2) {
+  if (reset2) return refreshFeeds(vm3, request2);
+  const query = archiveQuery(vm3.filters, vm3.page.offset, vm3.page.revision);
+  return request2("/items?" + query).then((page) => {
+    vm3.page = acceptArchivePage(page, vm3.page);
+  });
+}
+function reportPath(vm3, id2, query = "") {
+  return `/reports/${vm3.reportType}/${encodeURIComponent(id2)}${query ? "?" + query : ""}`;
+}
+async function reportList(vm3, request2, reset2) {
+  const params = new URLSearchParams({ type: vm3.reportType, offset: String(reset2 ? 0 : vm3.reportOffset) });
+  if (!reset2 && vm3.reportRevision != null) params.set("read_revision", String(vm3.reportRevision));
+  const data3 = await request2("/reports?" + params);
+  vm3.reports = reset2 ? data3.items : [...vm3.reports, ...data3.items];
+  vm3.reportOffset = data3.next_offset;
+  vm3.reportMore = data3.has_more;
+  vm3.reportRevision = data3.read_revision;
+}
+async function openReport(vm3, request2, id2, confirm = false) {
+  if (!uuid5(id2)) throw new Error("请输入有效的汇报标识。");
+  vm3.reportDetail = await request2(reportPath(vm3, id2, confirm ? "confirm_v_account=1" : ""));
+  vm3.reportConfirm = confirm;
+}
+async function moreReportVersions(vm3, request2) {
+  const prior = vm3.reportDetail;
+  const query = new URLSearchParams({ history_offset: String(prior.next_history_offset) });
+  if (prior.read_revision != null) query.set("read_revision", String(prior.read_revision));
+  if (vm3.reportConfirm) query.set("confirm_v_account", "1");
+  const data3 = await request2(reportPath(vm3, prior.id, query));
+  if (data3.content_hash !== prior.content_hash) throw new Error("报告已更新，请重新读取版本历史。");
+  vm3.reportDetail = { ...data3, history: [...prior.history, ...data3.history] };
+}
+async function saveReport(vm3, request2, fields5) {
+  const row = vm3.reportDetail;
+  const keys = vm3.reportType === "ai" ? ["author", "content"] : ["summary_md"];
+  const changes = Object.fromEntries(keys.map((key) => [key, fields5[key]]).filter(([key, value]) => row[key] !== value));
+  const confirmation = fields5.confirm_v_account === "on";
+  if (!Object.keys(changes).length && !confirmation) throw new Error("没有需要修订的内容。");
+  vm3.reportDetail = await request2(reportPath(vm3, row.id), { method: "PATCH", body: {
+    expected_hash: row.content_hash,
+    changes,
+    ...confirmation ? { confirm_v_account: true } : {}
+  } });
+  vm3.notice = "已保存报告修订，并保留旧版本。";
+  if (confirmation) {
+    try {
+      await reportList(vm3, request2, true);
+    } catch (error2) {
+      if (error2.name === "AbortError" || error2.status === 401 || error2.status === 403) throw error2;
+      vm3.notice += " 报告列表可重新读取。";
+    }
+  }
+}
+async function selectTab2(vm3, request2, tab) {
+  if (!tabs.includes(tab)) return;
+  vm3.tab = tab;
+  vm3.detail = null;
+  vm3.legacy = null;
+  resetLocalEditor(vm3);
+  vm3.loading = false;
+  if (tab === "items") await updateItems(vm3, request2, true);
+  else if (tab === "completeness") vm3.completeness = await request2("/completeness");
+  else if (tab === "imports") vm3.runs = (await request2("/imports")).items;
+  else await reportList(vm3, request2, true);
+}
+async function selectDetail(vm3, request2, id2) {
+  if (!uuid5(id2)) throw new Error("档案标识无效。");
+  vm3.detail = await request2("/items/" + id2);
+  resetLocalEditor(vm3);
+}
+async function readBack(vm3, request2, id2, notice2) {
+  resetLocalEditor(vm3);
+  vm3.notice = notice2;
+  try {
+    await selectDetail(vm3, request2, id2);
+  } catch (error2) {
+    if (error2.name === "AbortError" || error2.status === 401 || error2.status === 403) throw error2;
+    vm3.notice = notice2 + " 详情尚未重新读取。";
+  }
+}
+async function saveArchiveItem(vm3, request2, fields5) {
+  const changes = readArchiveItemEditor(fields5, vm3.detail || {});
+  const verify = readArchiveVerification(fields5);
+  if (vm3.detail && !Object.keys(changes).length && !verify.length) throw new Error("没有需要保存的修改。");
+  if (vm3.detail) {
+    const path = "/items/" + encodeURIComponent(vm3.detail.id);
+    vm3.detail = await request2(path, { method: "PATCH", body: { expected_version: vm3.detail.version, changes, verify } });
+  } else {
+    const source = vm3.createDefaults;
+    const linked2 = source ? { legacy_id: source.legacy_id, association_status: source.association_status } : {};
+    vm3.detail = await request2("/items", { method: "POST", body: { id: vm3.createId, ...changes, ...linked2 } });
+  }
+  await readBack(vm3, request2, vm3.detail.id, "档案已保存。");
+}
+function detailRequest(form, fields5, version2, existing) {
+  if (form === "reference") {
+    const ref = Object.fromEntries(["kind", "role", "platform_id", "title", "url", "saved_at", "state"].map((key) => [key, nullable(fields5[key])]));
+    if (existing) ref.id = existing.id;
+    const correction = existing ? { reason: nullable(fields5.reason) } : {};
+    return { path: "references", body: { expected_version: version2, ref, ...correction } };
+  }
+  if (form === "associate") return { path: "association", body: { expected_version: version2, status: fields5.status, reason: nullable(fields5.reason) } };
+  return { path: "merge", body: {
+    expected_version: version2,
+    other_id: fields5.other_id,
+    other_version: Number(fields5.other_version),
+    action: fields5.action,
+    reason: nullable(fields5.reason)
+  } };
+}
+async function saveDetailAction(vm3, request2, form, fields5) {
+  const id2 = vm3.detail.id, operation2 = detailRequest(form, fields5, vm3.detail.version, vm3.editRef);
+  await request2("/items/" + encodeURIComponent(id2) + "/" + operation2.path, { method: "POST", body: operation2.body });
+  await readBack(vm3, request2, id2, "档案关系已保存。");
+}
+async function loadLegacy(vm3, request2, reset2) {
+  const previous = reset2 ? emptyPage() : vm3.legacy;
+  const page = await request2("/legacy?" + archiveQuery({}, previous.offset, previous.revision));
+  vm3.legacy = acceptArchivePage({ ...page, items: page.items.map((row) => ({ ...row, id: row.legacy_id })) }, previous);
+}
+function chooseLegacy(vm3, id2) {
+  const row = vm3.legacy?.items.find((item) => item.legacy_id === id2);
+  if (!row) throw new Error("请先重新读取现有复盘。");
+  const { id: ignored, ...defaults } = row;
+  vm3.createDefaults = defaults;
+  vm3.createId = crypto.randomUUID();
+  vm3.editor = "create";
+}
+async function previewImport(vm3, request2, form) {
+  const file = form.elements.page_file?.files?.[0];
+  const resume = vm3.checkpoint && !vm3.checkpoint.closed && !vm3.checkpoint.completed_at ? vm3.checkpoint : null;
+  const input = await readArchiveImportFile(file, resume?.id);
+  if (resume && input.page !== resume.next_page) throw new Error("请选择此批次的下一页文件。");
+  const result = await request2("/imports/preview", { method: "POST", body: input });
+  vm3.pendingPage = input;
+  vm3.preview = result;
+  vm3.reconcile = null;
+}
+async function importCheckpoint(vm3, request2, id2) {
+  vm3.checkpoint = await request2("/imports/" + encodeURIComponent(id2));
+  vm3.reconcile = null;
+}
+async function applyImport(vm3, request2) {
+  if (!vm3.pendingPage || !vm3.preview?.preview_hash) return;
+  const body4 = { ...vm3.pendingPage, preview_hash: vm3.preview.preview_hash };
+  const result = await request2("/imports/apply", { method: "POST", body: body4 });
+  vm3.notice = result.replayed ? "此页与已登记结果一致。" : "本页结果与检查点已保存。";
+  await importCheckpoint(vm3, request2, result.run_id);
+  vm3.preview = null;
+  vm3.pendingPage = null;
+  vm3.runs = (await request2("/imports")).items;
+}
+var formActions = {
+  async filter(vm3, request2, fields5) {
+    if (fields5.from && fields5.to && fields5.from > fields5.to) throw new Error("起始日期不可晚于结束日期。");
+    vm3.filters = fields5;
+    vm3.page = emptyPage();
+    await updateItems(vm3, request2, true);
+  },
+  item: saveArchiveItem,
+  reference: (vm3, request2, fields5) => saveDetailAction(vm3, request2, "reference", fields5),
+  associate: (vm3, request2, fields5) => saveDetailAction(vm3, request2, "associate", fields5),
+  merge: (vm3, request2, fields5) => saveDetailAction(vm3, request2, "merge", fields5),
+  import: (vm3, request2, fields5, form) => previewImport(vm3, request2, form),
+  async "report-list"(vm3, request2, fields5) {
+    vm3.reportType = fields5.report_type === "ai" ? "ai" : "review";
+    vm3.reportDetail = null;
+    await reportList(vm3, request2, true);
+  },
+  "report-lookup": (vm3, request2, fields5) => openReport(vm3, request2, fields5.report_id, true),
+  "report-edit": saveReport
+};
+function resetLocalEditor(vm3) {
+  vm3.editor = "";
+  vm3.createId = null;
+  vm3.createDefaults = null;
+  vm3.editRef = null;
+}
+var clickActions = {
+  view: (vm3, request2, target) => selectTab2(vm3, request2, target.dataset.archiveView),
+  detail: (vm3, request2, target) => selectDetail(vm3, request2, target.dataset.archiveId),
+  async back(vm3, request2) {
+    vm3.detail = null;
+    vm3.legacy = null;
+    resetLocalEditor(vm3);
+    if (vm3.tab === "items") await updateItems(vm3, request2, true);
+  },
+  create(vm3) {
+    resetLocalEditor(vm3);
+    vm3.createId = crypto.randomUUID();
+    vm3.editor = "create";
+  },
+  edit(vm3) {
+    vm3.editor = "item";
+  },
+  reference(vm3) {
+    vm3.editRef = null;
+    vm3.editor = "reference";
+  },
+  "edit-ref"(vm3, request2, target) {
+    vm3.editRef = vm3.detail.refs.find((ref) => ref.id === target.dataset.archiveId && ref.item_id === vm3.detail.id);
+    if (!vm3.editRef) throw new Error("请到所属档案更正此标识。");
+    vm3.editor = "reference";
+  },
+  associate(vm3) {
+    vm3.editor = "associate";
+  },
+  merge(vm3) {
+    vm3.editor = "merge";
+  },
+  cancel: resetLocalEditor,
+  refresh: (vm3, request2) => updateItems(vm3, request2, true),
+  more: (vm3, request2) => updateItems(vm3, request2, false),
+  legacy: (vm3, request2) => loadLegacy(vm3, request2, true),
+  "legacy-more": (vm3, request2) => loadLegacy(vm3, request2, false),
+  "legacy-select": (vm3, request2, target) => chooseLegacy(vm3, target.dataset.archiveId),
+  async "reset-filters"(vm3, request2) {
+    vm3.filters = {};
+    vm3.page = emptyPage();
+    await updateItems(vm3, request2, true);
+  },
+  async "import-detail"(vm3, request2, target) {
+    await importCheckpoint(vm3, request2, target.dataset.archiveId);
+    vm3.preview = null;
+    vm3.pendingPage = null;
+  },
+  "import-apply": applyImport,
+  async reconcile(vm3, request2) {
+    vm3.reconcile = await request2("/imports/" + encodeURIComponent(vm3.checkpoint.id) + "/reconcile");
+  },
+  "report-detail": (vm3, request2, target) => openReport(vm3, request2, target.dataset.archiveId),
+  "report-more": (vm3, request2) => reportList(vm3, request2, false),
+  "report-history-more": moreReportVersions,
+  "report-close"(vm3) {
+    vm3.reportDetail = null;
+  }
+};
+function bindArchive(root3, vm3, request2, live2, context, lock) {
+  let running = false;
+  const paint3 = () => {
+    if (live2()) root3.innerHTML = renderArchiveFrame(vm3.tab, archiveView(vm3), vm3);
+  };
+  const wipe = () => {
+    lock.active = false;
+    root3.replaceChildren();
+    root3.removeEventListener("click", click);
+    root3.removeEventListener("submit", submit);
+    Object.assign(vm3, createView());
+  };
+  async function run2(operation2, { form, target } = {}) {
+    if (running || !live2()) return;
+    running = true;
+    vm3.notice = "";
+    vm3.error = "";
+    const status = form?.querySelector("[data-archive-status]");
+    const control = target || form?.querySelector('button[type="submit"]');
+    if (control) control.disabled = true;
+    if (status) status.textContent = "处理中…";
+    try {
+      await operation2();
+      paint3();
+    } catch (error2) {
+      if (!live2() || error2.name === "AbortError") return;
+      if (error2.status === 401 || error2.status === 403) {
+        wipe();
+        root3.textContent = "此档案仅对站点所有者开放。";
+      } else if (status) status.textContent = error2.message || "操作失败，请重新读取。";
+      else {
+        vm3.error = error2.message || "操作失败，请重新读取。";
+        paint3();
+      }
+    } finally {
+      running = false;
+      if (control?.isConnected) control.disabled = false;
+    }
+  }
+  const click = (event) => {
+    const target = event.target.closest?.("[data-archive-action]");
+    const handler = target && clickActions[target.dataset.archiveAction];
+    if (handler && root3.contains(target)) void run2(() => handler(vm3, request2, target), { target });
+  };
+  const submit = (event) => {
+    const form = event.target;
+    const handler = formActions[form.dataset.archiveForm];
+    if (!handler) return;
+    event.preventDefault();
+    void run2(() => handler(vm3, request2, Object.fromEntries(new FormData(form)), form), { form });
+  };
+  root3.addEventListener("click", click);
+  root3.addEventListener("submit", submit);
+  const show = (event) => {
+    if (event.persisted && reviewArchiveActive()) location.reload();
+  };
+  window.addEventListener("pagehide", wipe, { once: true });
+  window.addEventListener("pageshow", show);
+  context?.controller.signal.addEventListener("abort", () => {
+    window.removeEventListener("pagehide", wipe);
+    window.removeEventListener("pageshow", show);
+    wipe();
+  }, { once: true });
+  return { paint: paint3, run: run2 };
+}
+async function loadReviewArchive(context) {
+  if (!canAccessReviewArchive(state.me, state.account)) return;
+  const root3 = document.getElementById("review-archive");
+  if (!root3) return;
+  const epoch = runtime.sessionEpoch, identity6 = state.me.id;
+  const lock = { active: true };
+  const live2 = () => lock.active && root3.isConnected && runtime.sessionEpoch === epoch && state.me?.id === identity6 && reviewArchiveActive() && canAccessReviewArchive(state.me, state.account) && !context?.controller.signal.aborted;
+  const vm3 = createView(), request2 = protectedTransport(context, live2);
+  const { paint: paint3, run: run2 } = bindArchive(root3, vm3, request2, live2, context, lock);
+  paint3();
+  await run2(async () => {
+    try {
+      await updateItems(vm3, request2, true);
+    } finally {
+      vm3.loading = false;
+    }
+  });
+}
+
 // web/controller.mjs
 init_requests();
 init_api();
@@ -19062,7 +20070,7 @@ function handleResponsiveLayout() {
 }
 function navigateLink(page) {
   const target = mobilePage(page);
-  const same4 = target === state.page && (target !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+  const same4 = target === state.page && (target !== "memos" || !state.memoView) && (target !== "review" || !reviewArchiveActive()) && (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same4 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -19085,12 +20093,13 @@ function navigate(page, tab) {
     state.todoPanel = "";
   }
   if (page === "settings") state.settingsTab = (legacy2 || tab) === "workspace" ? "todo" : legacy2 || (Object.hasOwn(settingsTabs, tab) ? tab : "todo");
-  updateRoute(true);
+  updateRoute(true, { exitReviewArchive: true });
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
+  if (page === "review" && reviewArchiveActive()) return renderReviewArchiveShell(canAccessReviewArchive(state.me, state.account));
   if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
@@ -19103,7 +20112,7 @@ function pageLoading(page) {
 function setPageBody(html, page) {
   if (page === "review") {
     if (html) replacePageContent(html, true);
-    else paintContentReviewPage();
+    else if (!reviewArchiveActive()) paintContentReviewPage();
   } else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
@@ -19163,7 +20172,8 @@ async function renderPage() {
         await loadAiReports({ resetDate: true });
         break;
       case "review":
-        await loadContentReview(context);
+        if (reviewArchiveActive()) await loadReviewArchive(context);
+        else await loadContentReview(context);
         break;
       case "settings":
         if (state.settingsTab === "workspace") break;
@@ -19217,8 +20227,8 @@ async function init({ freshLogin = false } = {}) {
   const initEpoch = runtime.sessionEpoch;
   try {
     try {
-      const views = JSON.parse(storage.get("haoduoyu.views") || "[]");
-      state.savedViews = Array.isArray(views) ? views.filter((v) => typeof v?.id === "string" && typeof v.name === "string" && v.filters && typeof v.filters === "object" && Array.isArray(v.columns)).slice(-20) : [];
+      const views2 = JSON.parse(storage.get("haoduoyu.views") || "[]");
+      state.savedViews = Array.isArray(views2) ? views2.filter((v) => typeof v?.id === "string" && typeof v.name === "string" && v.filters && typeof v.filters === "object" && Array.isArray(v.columns)).slice(-20) : [];
     } catch {
       state.savedViews = [];
     }
@@ -19270,10 +20280,10 @@ function validArticle(value, id2) {
 function verificationIntent(index, done3) {
   return `第 ${index + 1} 项设为${done3 ? "已处理" : "待处理"}`;
 }
-function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5 = () => crypto.randomUUID(), onChange = () => {
+function createArticleVerificationStore({ article, load: load2, put, uuid: uuid6 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
-  let current3 = copy(article), phase = "idle", message = "", pending = null, busy2 = false, retryReady = false;
-  const snapshot = () => ({ article: copy(current3), phase, message, busy: busy2, retryReady });
+  let current3 = copy(article), phase = "idle", message2 = "", pending = null, busy2 = false, retryReady = false;
+  const snapshot = () => ({ article: copy(current3), phase, message: message2, busy: busy2, retryReady });
   const notify = () => onChange(snapshot());
   function received(value) {
     if (!validArticle(value, current3.id)) throw new Error("详情读取不完整，请重新打开核对。");
@@ -19286,13 +20296,13 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
     } catch {
       phase = "unknown";
       retryReady = false;
-      message = "保存结果尚未确认，请重新核对；不会自动重发。";
+      message2 = "保存结果尚未确认，请重新核对；不会自动重发。";
       return false;
     }
     if (!validArticle(remote, current3.id)) {
       phase = "unknown";
       retryReady = false;
-      message = "详情读取不完整，保存结果尚未确认。";
+      message2 = "详情读取不完整，保存结果尚未确认。";
       return false;
     }
     if (pending && remote.version > pending.body.version && same3(remote.verify_items, pending.body.verify_items)) {
@@ -19300,7 +20310,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       pending = null;
       phase = "saved";
       retryReady = false;
-      message = "已核对服务器记录，当前选择已保存。";
+      message2 = "已核对服务器记录，当前选择已保存。";
       return false;
     }
     if (conflict || pending && remote.version !== pending.body.version) {
@@ -19309,19 +20319,19 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       pending = null;
       phase = "conflict";
       retryReady = false;
-      message = `${intent}未保存；已显示最新版本，请核对后重新选择。`;
+      message2 = `${intent}未保存；已显示最新版本，请核对后重新选择。`;
       return false;
     }
     received(remote);
     phase = pending ? "unknown" : "idle";
     retryReady = !!pending && same3(remote.verify_items, pending.before);
-    message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
+    message2 = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
     return retryReady;
   }
   async function send() {
     if (!isCurrent()) return;
     phase = "saving";
-    message = "";
+    message2 = "";
     retryReady = false;
     notify();
     let response;
@@ -19331,7 +20341,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
       if (error2.status >= 400 && error2.status < 500 && error2.status !== 409) {
         pending = null;
         phase = "error";
-        message = error2.message || "保存被拒绝，请核对后重试。";
+        message2 = error2.message || "保存被拒绝，请核对后重试。";
       } else await reconcile(error2.status === 409);
       return;
     }
@@ -19342,7 +20352,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
     received({ ...current3, ...response });
     pending = null;
     phase = "saved";
-    message = "";
+    message2 = "";
     try {
       const remote = await load2(current3.id);
       if (validArticle(remote, current3.id) && remote.version >= current3.version) {
@@ -19350,11 +20360,11 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
         received(remote);
         if (!matches2) {
           phase = "conflict";
-          message = "保存后记录又有更新，已显示最新内容。";
+          message2 = "保存后记录又有更新，已显示最新内容。";
         }
       }
     } catch {
-      message = "已保存，最新详情暂未读取。";
+      message2 = "已保存，最新详情暂未读取。";
     }
   }
   async function save(index, done3) {
@@ -19362,7 +20372,7 @@ function createArticleVerificationStore({ article, load: load2, put, uuid: uuid5
     if (current3.verify_items[index].done === done3) return;
     const items = copy(current3.verify_items);
     items[index].done = done3;
-    pending = { index, done: done3, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid5() };
+    pending = { index, done: done3, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid6() };
     busy2 = true;
     try {
       await send();
@@ -19589,8 +20599,8 @@ function conflictLocalChoiceLabel(conflict) {
   return "用本地";
 }
 function conflictActions(document2, conflict, runtime2, refresh, requests) {
-  const actions2 = document2.createElement("div");
-  actions2.className = "offline-conflict-actions";
+  const actions4 = document2.createElement("div");
+  actions4.className = "offline-conflict-actions";
   const localLabel = conflictLocalChoiceLabel(conflict);
   for (const [choice2, label3] of [["use-local", localLabel], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {
     const button3 = textNode(document2, "button", label3, "btn text");
@@ -19599,11 +20609,11 @@ function conflictActions(document2, conflict, runtime2, refresh, requests) {
     button3.addEventListener("click", async () => {
       const controller = requests.begin(conflict.key);
       if (!controller) return;
-      for (const control of actions2.children) control.disabled = true;
+      for (const control of actions4.children) control.disabled = true;
       const cancel = textNode(document2, "button", "取消", "btn text");
       cancel.type = "button";
       cancel.addEventListener("click", () => controller.abort());
-      actions2.append(cancel);
+      actions4.append(cancel);
       try {
         const result = await runtime2.resolve(conflict.key, choice2, {
           signal: controller.signal,
@@ -19619,9 +20629,9 @@ function conflictActions(document2, conflict, runtime2, refresh, requests) {
         await refresh();
       }
     });
-    actions2.append(button3);
+    actions4.append(button3);
   }
-  return actions2;
+  return actions4;
 }
 function conflictEvidence(document2, conflict) {
   const history2 = document2.createElement("details");
@@ -19723,7 +20733,7 @@ function historyControls(document2, runtime2, history2, refresh) {
   const download = textNode(document2, "button", "保存这一天供离线查看", "btn text");
   download.type = "button";
   download.disabled = history2.busy;
-  const message = textNode(document2, "p", history2.message);
+  const message2 = textNode(document2, "p", history2.message);
   download.addEventListener("click", async () => {
     if (!input.value || history2.busy) return;
     history2.date = input.value;
@@ -19740,7 +20750,7 @@ function historyControls(document2, runtime2, history2, refresh) {
       await refresh();
     }
   });
-  root3.append(input, download, message);
+  root3.append(input, download, message2);
   return root3;
 }
 function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
@@ -19872,13 +20882,13 @@ function makeView(pip) {
   close.setAttribute("aria-label", "关闭便签");
   head.append(close);
   close.addEventListener("click", () => pip.close());
-  const tabs = node2(doc, "nav", "", "floating-tabs");
-  tabs.setAttribute("aria-label", "便签内容");
+  const tabs2 = node2(doc, "nav", "", "floating-tabs");
+  tabs2.setAttribute("aria-label", "便签内容");
   for (const [id2, text] of [["todos", "今日待办"], ["notes", "今日碎碎念"]]) {
     const button3 = node2(doc, "button", text);
     button3.type = "button";
     button3.dataset.tab = id2;
-    tabs.append(button3);
+    tabs2.append(button3);
   }
   const offline = node2(doc, "p", "", "floating-offline");
   offline.setAttribute("role", "status");
@@ -19917,12 +20927,12 @@ function makeView(pip) {
   retry.hidden = true;
   noteActions.append(send, check2, retry);
   notes.append(noteList, newNote, notesInput, labels4, noteMessage, noteActions);
-  main.append(head, tabs, offline, todo, notes);
+  main.append(head, tabs2, offline, todo, notes);
   doc.body.replaceChildren(main);
   return {
     doc,
     head,
-    tabs,
+    tabs: tabs2,
     offline,
     todo,
     todoMessage,
@@ -20401,7 +21411,7 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     r
   ))), due = dueRows.filter((r) => matches2(r.account_id));
   state.reviewRecords = records;
-  const tabs = `${segmented(
+  const tabs2 = `${segmented(
     "review-tab",
     [["pending", `待办 ${num(due.length)}`], ["observations", "文章快照"], ["daily", "每日数据"]],
     tab,
@@ -20420,7 +21430,7 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "as_of",
     "due_at"
   ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
-  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
+  return tabs2 + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
     const id2 = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id2);
     return `<tr><td class="title-cell">${id2 ? `<button class="article-link" data-action="article-detail" data-id="${e(id2)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
       label3
@@ -20773,7 +21783,7 @@ function actionResetFilters({}) {
   renderShell();
   return;
 }
-var actions = {
+var actions3 = {
   "media-menu": ({ event }) => {
     event.preventDefault();
     navigate("review");
@@ -20986,9 +21996,9 @@ function equalValue(a, b) {
 function savedArticle(value, pending) {
   return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
 }
-function uncertainArticleSave(cache2, message) {
+function uncertainArticleSave(cache2, message2) {
   cache2.saveAttempt.phase = "unknown";
-  return new Error(message || "保存结果尚未确认，请先在文章列表核对；当前表单不会重复提交，请勿重复新建。");
+  return new Error(message2 || "保存结果尚未确认，请先在文章列表核对；当前表单不会重复提交，请勿重复新建。");
 }
 async function reconcileArticleSave(cache2, request2, isCurrent) {
   if (!cache2.saveAttempt.id) throw uncertainArticleSave(cache2);
@@ -21003,11 +22013,11 @@ async function reconcileArticleSave(cache2, request2, isCurrent) {
   if (savedArticle(remote, cache2.saveAttempt)) return remote;
   throw uncertainArticleSave(cache2, "保存结果与当前记录未能确认一致，当前表单不会再次提交。请重新打开最新记录核对。");
 }
-async function saveArticleForm({ form, data: data3 }, { request: request2 = api, uuid: uuid5 = () => crypto.randomUUID() } = {}) {
+async function saveArticleForm({ form, data: data3 }, { request: request2 = api, uuid: uuid6 = () => crypto.randomUUID() } = {}) {
   const cache2 = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache2);
   if (cache2.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
   const body4 = buildArticleFormPayload(data3, cache2.record), id2 = form.dataset.id || "";
-  cache2.saveAttempt = { id: id2, body: structuredClone(body4), key: uuid5(), phase: "saving" };
+  cache2.saveAttempt = { id: id2, body: structuredClone(body4), key: uuid6(), phase: "saving" };
   let value;
   try {
     value = await request2(id2 ? `/articles/${encodeURIComponent(id2)}` : "/articles", {
@@ -21187,11 +22197,11 @@ async function handleFormSubmit(event) {
   if (!form.matches("#login-form,#article-form,#review-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;
-  const button3 = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data3 = Object.fromEntries(
+  const button3 = $("button[type=submit]", form), message2 = $(".form-message", form), values = new FormData(form), data3 = Object.fromEntries(
     values
   );
   if (button3?.disabled) return;
-  if (message) message.textContent = "";
+  if (message2) message2.textContent = "";
   if (button3) button3.disabled = true;
   try {
     const handler = forms[form.id];
@@ -21199,7 +22209,7 @@ async function handleFormSubmit(event) {
   } catch (err) {
     if (err.staleSession || isRequestAbort(err)) return;
     if (form.id === "article-form" && !articleFormCurrent(form)) return;
-    if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
+    if (message2 && message2.isConnected) message2.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
     else toast(err.message, true);
   } finally {
     if (button3?.isConnected) button3.disabled = false;
@@ -21240,7 +22250,7 @@ async function handleClick(event) {
   }
   const action = target.dataset.action, id2 = target.dataset.id;
   try {
-    const handler = Object.hasOwn(actions, action) ? actions[action] : null;
+    const handler = Object.hasOwn(actions3, action) ? actions3[action] : null;
     if (handler) await handler({ target, event, action, id: id2 });
   } catch (err) {
     if (!err.staleSession && !isRequestAbort(err)) toast(err.message, true);
@@ -21304,8 +22314,8 @@ function handleChange(event) {
     state.filters[el3.name] = el3.value;
     reloadFilteredPage("[name=" + el3.name + "]");
   } else if (el3.id === "review-account") {
-    const select = $("#review-article");
-    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el3.value).map((a) => `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
+    const select2 = $("#review-article");
+    select2.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el3.value).map((a) => `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
   }
 }
 function handleToggle(event) {

@@ -722,3 +722,63 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   #ai-reports .ai-calendar-layout > .ai-calendar-step:first-child { order:0; }
 }
 .review-weekly-latest > summary { min-height:0; }
+
+/* Owner-only V archive uses the shared review palette and panels. */
+.content-review .review-archive-entry {
+  display:inline-flex; align-items:center; justify-self:start; width:fit-content; min-height:44px;
+}
+.content-review.review-archive { display:grid; gap:var(--space-16); }
+.review-archive .review-panel-head { margin-bottom:0; }
+.content-review.review-archive .review-archive-tabs > button[aria-pressed="true"] {
+  background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent);
+  font-weight:var(--font-weight-heading);
+}
+.review-archive .review-archive-stack { display:grid; gap:var(--space-16); min-width:0; }
+.review-archive .review-archive-group {
+  border:var(--review-line-width) solid var(--color-divider); border-radius:var(--radius-12); overflow:hidden; min-width:0;
+}
+.review-archive .review-archive-group > h3 {
+  margin:0; padding:var(--space-12) var(--space-16); background:var(--color-table-heading-surface);
+}
+.review-archive .review-archive-group > ul,.review-archive .review-archive-items { list-style:none; margin:0; padding:0; }
+.review-archive .review-archive-row {
+  display:flex; flex-wrap:wrap; gap:var(--space-8) var(--space-16); align-items:center;
+  border-top:var(--review-line-width) solid var(--color-divider); padding:var(--space-12) var(--space-16);
+}
+.review-archive .review-archive-row > button { flex:1 1 18rem; min-width:0; }
+.review-archive .review-archive-badges { display:flex; flex-wrap:wrap; gap:var(--space-6); }
+.review-archive :is(.review-archive-grid,.review-archive-edit-grid) {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr)); gap:var(--space-12) var(--space-16);
+}
+.review-archive .review-archive-grid { margin:var(--space-12) 0 0; }
+.review-archive .review-archive-grid dt { margin-bottom:var(--space-6); color:var(--color-text-secondary); font-size:var(--font-size-13); }
+.review-archive .review-archive-grid dd { margin:0; overflow-wrap:anywhere; white-space:pre-wrap; }
+.review-archive .review-archive-totals { margin:0; }
+.review-archive .review-archive-totals > div {
+  border:var(--review-line-width) solid var(--color-divider); border-radius:var(--radius-12); padding:var(--space-12) var(--space-16);
+}
+.review-archive .review-archive-editor { display:grid; gap:var(--space-16); margin-top:var(--space-12); }
+.review-archive .review-archive-editor label { display:grid; gap:var(--space-6); min-width:0; }
+.review-archive .review-archive-editor label.review-archive-checkbox { display:flex; align-items:center; gap:var(--space-8); }
+.review-archive .review-archive-editor textarea { width:100%; resize:vertical; }
+.review-archive :is(details,.review-archive-items) { margin-top:var(--space-12); }
+.review-archive summary { cursor:pointer; }
+.review-archive .review-archive-items > li { padding:var(--space-8) 0; }
+.review-archive .review-archive-text {
+  max-height:34rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+  padding:var(--space-12); background:var(--color-table-heading-surface);
+}
+.review-archive .review-archive-table {
+  width:100%; overflow:auto; margin-top:var(--space-12); border:var(--review-line-width) solid var(--color-divider);
+}
+.review-archive .review-archive-table table { width:100%; border-collapse:collapse; text-align:left; font-variant-numeric:tabular-nums; }
+.review-archive .review-archive-table :is(th,td) {
+  padding:var(--space-8) var(--space-12); border-bottom:var(--review-line-width) solid var(--color-divider); overflow-wrap:anywhere;
+}
+.review-archive .review-archive-table thead { background:var(--color-table-heading-surface); }
+.review-archive .review-archive-table th { min-width:5rem; }
+.review-archive .review-archive-alert { padding:var(--space-12); border:var(--review-line-width) solid var(--color-divider-strong); }
+@media (max-width:767px) {
+  .review-archive .review-filters label { min-width:min(100%,9rem); flex:1 1 9rem; }
+  .review-archive .review-archive-row > button { flex-basis:100%; }
+}

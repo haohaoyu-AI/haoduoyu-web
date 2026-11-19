@@ -31,3 +31,11 @@ not prove completeness of newer review data. Migration 0020 only creates two
 new tables and two indexes; it changes no existing business rows. Its exact SQL
 is pinned by the migration contract hash. Successful run immutability and
 config optimistic-version updates are enforced by the application write paths.
+
+## V字内容归档备份 v19（迁移 0029）
+
+`haoduoyu-matrix-d1-v19` 增加六张归档表，并补齐旧复盘文章表的发布状态、入草稿时间和备选标题。归档记录、平台编号、指标历史、修改记录、导入和分页进度均随所属用户导出。会话备份中的私有正文匹配回执也限定为当前用户。独立库存校验覆盖 45 张恢复表和 3 张运行时重置表。
+
+v18 及更早格式继续可恢复。旧备份缺失的三个草稿字段恢复为空，旧备份也没有归档记录。生产迁移前需要独立验证完整数据库备份及其库存。会话范围内的网页备份和曾遗漏草稿字段的 v18 导出均不能证明当前生产数据已经完整保全。
+
+`0029_review_archive.sql` 只新增六张表及索引，不改写历史文章或快照。离线恢复与迁移测试使用禁用外联的临时 D1 和合成记录，覆盖迁移失败回滚、旧记录逐行保留、跨用户外键约束和备份往返。生产发布工作流只负责版本切换，数据库备份与迁移仍需核对实际操作权限和数据源。[归档恢复演练](docs/review-archive-release-rehearsal.md)

@@ -44,7 +44,7 @@ test('public daily score is one integer from 1 to 10 per date and stays in histo
   assert.deepEqual(month.data.items.map(item => [item.date, item.score]), [[date, 9]]);
   assert.equal((await app.db.prepare('SELECT user_id,score FROM matrix_daily_scores').first()).user_id, owner);
   const full = await exportBackup(app.db);
-  assert.equal(full.data.format, 'haoduoyu-matrix-d1-v18');
+  assert.equal(full.data.format, 'haoduoyu-matrix-d1-v19');
   assert.equal(full.data.tables.daily_scores.length, 1);
   const target = await fixture(t, {bootstrap:false});
   await restoreIntoEmptyDatabase(target.db, full, {allowEmptyRestore:true});

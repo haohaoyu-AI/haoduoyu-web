@@ -5,6 +5,7 @@ import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
+import {canAccessReviewArchive} from './core/review-archive-state.mjs';
 
 const columnStorageKey = 'haoduoyu.review.columns.v1';
 export const REVIEW_METRIC_COLUMNS = Object.freeze(['reads','impressions','fan_impressions','fan_reads','ctr','avg_read_seconds','completion_rate']);
@@ -211,7 +212,7 @@ export async function loadContentReview(context) {
   if (identity !== currentIdentity) {
     data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
   }
-  vm = {...vm,...requested,loading:true,error:''}; paintContentReviewPage();
+  vm = {...vm,...requested,archiveAllowed:canAccessReviewArchive(state.me,requested.account),loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
   const current = () => ticket === sequence && epoch === runtime.sessionEpoch && state.page === 'review' && route().account === requested.account && 
     Boolean(root());
