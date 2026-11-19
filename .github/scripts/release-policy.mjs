@@ -473,7 +473,15 @@ export const reviewArchiveRelease=Object.freeze({
   baseline:'4af9e71f-5d70-4cde-a80a-3d78ae7bcc13',
   bytes:3507870,sha256:'1aca85b7b31915a77443c3e191fbe8b9df61587ff0e28c090cba423932078cd2',
   label:'production-review-archive'});
-const acceptedRelease=commit=>commit===reviewArchiveRelease.commit?reviewArchiveRelease:
+// Review batch 1 on top of the deployed review archive (03021ba): pending drafts sort by draft save time; API docs. No migration.
+export const reviewBatchOneRelease=Object.freeze({
+  commit:'770fe76f6c050547479a4f5bff739e3fc991a974',
+  tree:'aecbd9f37b7f7c592c06190ad7e4a795f413fd5d',
+  baseline:'15bc6fac-ed02-46ac-9ad4-f880071c30e4',
+  bytes:3552279,sha256:'c6c4d909d5adbf433618e1a5d479b2d507cc934fdc59de39b6b2069b654e9dac',
+  label:'production-review-batch-one'});
+const acceptedRelease=commit=>commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
+  commit===reviewArchiveRelease.commit?reviewArchiveRelease:
   commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
   commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
   commit===draftStatusRelease.commit?draftStatusRelease:
