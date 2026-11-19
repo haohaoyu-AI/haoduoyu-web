@@ -10718,8 +10718,7 @@ function whenLabel(todo, today2 = bjtDate()) {
 }
 async function suggestForNote(item, labels4) {
   const text = String(item?.serverText ?? item?.draft ?? "").trim(), key = `${item?.id}:${item?.version}`;
-  const record = (item?.labels || []).includes("大小便记录");
-  if (!item?.id || [...text].length < 4 || record || readings.get(item.id)?.key === key) return;
+  if (!item?.id || [...text].length < 4 || readings.get(item.id)?.key === key) return;
   const reading = { key, status: "reading", todo: null, labels: [], done: {}, error: "" };
   readings.set(item.id, reading);
   repaint();

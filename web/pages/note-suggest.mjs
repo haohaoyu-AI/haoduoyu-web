@@ -18,9 +18,8 @@ function whenLabel(todo, today = bjtDate()) {
 /** Reads a just-sent 碎碎念 once per saved version. labels are the ones that exist; the note's own are left out. */
 export async function suggestForNote(item, labels) {
   const text = String(item?.serverText ?? item?.draft ?? "").trim(), key = `${item?.id}:${item?.version}`;
-  // Every sent note is read except very short ones and bowel/bladder logs, which are records, not plans.
-  const record = (item?.labels || []).includes("大小便记录");
-  if (!item?.id || [...text].length < 4 || record || readings.get(item.id)?.key === key) return;
+  // Very short notes are skipped; labels do not determine whether a note is eligible for reading.
+  if (!item?.id || [...text].length < 4 || readings.get(item.id)?.key === key) return;
   const reading = { key, status: "reading", todo: null, labels: [], done: {}, error: "" };
   readings.set(item.id, reading); repaint();
   try {
