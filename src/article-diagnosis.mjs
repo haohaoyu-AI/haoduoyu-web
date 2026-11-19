@@ -3,6 +3,7 @@ import {storeFor} from './storage.mjs';
 import {reviewUuid} from './content-review-validation.mjs';
 import {openaiReviewSettings} from './openai-review.mjs';
 import {reviewAiChoice} from './review-ai.mjs';
+import {reviewReceiptJoin,reviewCanonicalWhere,reviewReceiptColumns,reviewReceipt} from './review-publication-receipts.mjs';
 import {beijingDay} from './lib/time.mjs';
 import {ARTICLE_DIAGNOSIS_KEY,articleDiagnosisFacts,diagnosisPromptText,selectDiagnosisPrompt} from '../shared/article-diagnosis.mjs';
 
@@ -30,19 +31,29 @@ function view(article, saved) {
   return {article_id:article, result_text:saved?.result_text || null, created_at:saved?.created_at || null};
 }
 async function articleFor(db, owner, id) {
-  const article = await row(db, 'SELECT id,account,title,published_at FROM matrix_review_articles WHERE user_id=? AND id=?', owner, id);
+  const query = `SELECT a.id,a.account,a.title,a.published_at,${reviewReceiptColumns}
+    FROM matrix_review_articles a ${reviewReceiptJoin} WHERE a.user_id=? AND a.id=?`;
+  let article = await row(db, query, owner, id);
+  const canonical = reviewReceipt(article).canonical_id;
+  if (canonical) article = await row(db, query + ' AND ' + reviewCanonicalWhere, owner, canonical);
   if (!article) throw fail(404,'NOT_FOUND','文章不存在');
   return article;
 }
 async function savedDiagnosis(db, owner, id) {
-  return row(db, `SELECT article_id,result_text,created_at FROM ${table} WHERE user_id=? AND article_id=?`, owner, id);
+  return row(db, `SELECT d.article_id,d.result_text,d.created_at FROM ${table} d
+    JOIN matrix_review_articles a ON a.user_id=d.user_id AND a.id=d.article_id ${reviewReceiptJoin}
+    WHERE d.user_id=? AND (d.article_id=? OR json_extract(receipt.response_json,'$.canonical_id')=?)
+    ORDER BY (d.article_id=?) DESC,d.created_at DESC,d.article_id LIMIT 1`, owner, id, id, id);
 }
-async function accountEvidence(db, owner, account) {
-  const articles = await rows(db, 'SELECT id,account,title,published_at FROM matrix_review_articles WHERE user_id=? AND account=?', owner, account);
+async function accountEvidence(db, owner, account, articleId) {
+  const scope = ` WHERE a.user_id=? AND a.account=? AND ${reviewCanonicalWhere}
+    AND (COALESCE(a.publish_status,'published')='published' OR a.id=?)`;
+  const articles = await rows(db, 'SELECT a.id,a.account,a.title,a.published_at FROM matrix_review_articles a ' + reviewReceiptJoin + scope,
+    owner, account, articleId);
   const snapshots = await rows(db,
     `SELECT s.id,s.article_id,s.snapshot_date,s.age_hours,s.impressions,s.reads,s.ctr,s.completion_rate
-     FROM matrix_review_snapshots s JOIN matrix_review_articles a ON a.user_id=s.user_id AND a.id=s.article_id
-     WHERE s.user_id=? AND a.account=?`, owner, account);
+     FROM matrix_review_snapshots s JOIN matrix_review_articles a ON a.user_id=s.user_id AND a.id=s.article_id ${reviewReceiptJoin}${scope}`,
+    owner, account, articleId);
   const prompts = await rows(db,
     `SELECT id,prompt_key,scope,version,status,title,content_md,updated_at FROM matrix_review_prompt_versions
      WHERE user_id=? AND prompt_key=? AND status='active'`, owner, ARTICLE_DIAGNOSIS_KEY);
@@ -103,7 +114,7 @@ async function createDiagnosis(db, env, owner, article) {
   const day = beijingDay(Date.now());
   const used = await row(db, `SELECT count(*) AS n FROM ${table} WHERE user_id=? AND beijing_date=? AND result_text<>''`, owner, day);
   if (Number(used?.n) >= 20) throw fail(429,'DIAGNOSIS_LIMIT','今天的新诊断次数已用完，已保存的结果仍可直接查看');
-  const evidence = await accountEvidence(db, owner, article.account);
+  const evidence = await accountEvidence(db, owner, article.account, article.id);
   const promptRow = selectDiagnosisPrompt(evidence.prompts, article.account);
   const prompt = diagnosisPromptText(evidence.prompts, article.account);
   const facts = articleDiagnosisFacts(evidence, article);
@@ -121,6 +132,6 @@ export async function handleArticleDiagnosis({db,request,route,env,origin,owner,
   const actor = await actorFor(store, request, owner, env, origin, method === 'POST');
   if (method === 'POST') { await bodyFor(request); writeLimit(actor, owner); }
   const article = await articleFor(db, owner, id);
-  const saved = method === 'GET' ? await savedDiagnosis(db, owner, id) : await createDiagnosis(db, env, owner, article);
+  const saved = method === 'GET' ? await savedDiagnosis(db, owner, article.id) : await createDiagnosis(db, env, owner, article);
   return json(view(article.id, saved));
 }

@@ -15616,56 +15616,7 @@ function paintAiReportDayHead(date2) {
   if (head) head.innerHTML = date2 ? `<button type="button" class="notes-read-back" data-ai-report-back="1">← 返回时间轴</button><h3 class="notes-read-title">${e(reportDayTitle(date2))} 的汇报</h3><p class="notes-read-sub">汇报的是前一天（${e(reportDayTitle(new Date(Date.parse(date2 + "T00:00:00Z") - 864e5).toISOString().slice(0, 10)))}）做的事</p>` : "";
 }
 
-// shared/review-draft-match.mjs
-function normalizeReviewTitle(value) {
-  return String(value ?? "").replace(/\s+/gu, " ").trim();
-}
-function sameLink(left, right) {
-  if (!left || !right) return false;
-  try {
-    return new URL(left).href === new URL(right).href;
-  } catch {
-    return left === right;
-  }
-}
-function knownTitles(row) {
-  const titles = [row?.title, ...Array.isArray(row?.alternate_titles) ? row.alternate_titles : []];
-  return new Set(titles.map(normalizeReviewTitle).filter(Boolean));
-}
-function sampleAgrees(row, incoming) {
-  const checks = [];
-  if (incoming.sample_url && row.sample_url) checks.push(sameLink(incoming.sample_url, row.sample_url));
-  if (incoming.sample_title && row.sample_title) checks.push(normalizeReviewTitle(incoming.sample_title) === normalizeReviewTitle(row.sample_title));
-  if (incoming.reference_article_id && row.reference_article_id) checks.push(String(incoming.reference_article_id) === String(row.reference_article_id));
-  if (!checks.length) return false;
-  return checks.every(Boolean);
-}
-function samePlatformId(row, platformId) {
-  return Boolean(platformId) && typeof row?.platform_article_id === "string" && row.platform_article_id.trim() === platformId;
-}
-function matchPublishedDraft(articles, incoming) {
-  const rows = (Array.isArray(articles) ? articles : []).filter((row) => row && (incoming?.account == null || row.account === incoming.account));
-  const platformId = typeof incoming?.platform_article_id === "string" ? incoming.platform_article_id.trim() : "";
-  const sameId = platformId ? rows.filter((row) => samePlatformId(row, platformId)) : [];
-  const pendingSameId = sameId.filter((row) => row.publish_status === "pending");
-  if (pendingSameId.length === 1) return { kind: "id", row: pendingSameId[0] };
-  if (pendingSameId.length > 1) return { kind: "ambiguous", rows: pendingSameId, reason: "platform_article_id" };
-  const title = normalizeReviewTitle(incoming?.title);
-  const pending = rows.filter((row) => row.publish_status === "pending");
-  const corroborated = title ? pending.filter((row) => {
-    if (platformId && typeof row.platform_article_id === "string" && row.platform_article_id.trim() && row.platform_article_id.trim() !== platformId) return false;
-    if (!sampleAgrees(row, incoming || {})) return false;
-    return knownTitles(row).has(title);
-  }) : [];
-  if (corroborated.length === 1) return { kind: "corroborated", row: corroborated[0] };
-  if (corroborated.length > 1) return { kind: "ambiguous", rows: corroborated, reason: "sample_and_titles" };
-  const unmatchedSameId = sameId.filter((row) => row.publish_status === "unmatched");
-  const publishedSameId = sameId.filter((row) => row.publish_status !== "pending" && row.publish_status !== "unmatched");
-  if (unmatchedSameId.length === 1 && publishedSameId.length === 0) return { kind: "unmatched-repeat", row: unmatchedSameId[0] };
-  if (publishedSameId.length === 1 && unmatchedSameId.length === 0) return { kind: "id", row: publishedSameId[0] };
-  if (sameId.length > 1) return { kind: "ambiguous", rows: sameId, reason: "platform_article_id" };
-  return { kind: "none" };
-}
+// shared/review-publish-state.mjs
 function reviewPublishState(row) {
   if (row?.publish_status === "pending") return "pending";
   if (row?.publish_status === "unmatched") return "unmatched";
@@ -15784,7 +15735,7 @@ function enrichArticles(data3 = {}, { account: account3, baselineData } = {}) {
   const cohorts = /* @__PURE__ */ new Map();
   for (const row of rows) {
     if (!cohorts.has(row.account)) {
-      const samples = baselineRows.filter((item) => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
+      const samples = baselineRows.filter((item) => item.account === row.account && item.reads_24h !== null && reviewPublishState(item) === "published").sort(recentArticles).slice(0, 30);
       const values = samples.map((item) => item.reads_24h).sort((a, b) => a - b);
       cohorts.set(row.account, { sample_count: values.length, low: quantile(values, 0.3), high: quantile(values, 0.8), sample_ids: samples.map((item) => item.id) });
     }
@@ -18311,7 +18262,8 @@ function drawer(data3, rows, vm3) {
   const row = rows.find((r) => String(r.id) === String(vm3.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
-  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${publishBadge(row)} ${e(reviewPublishState(row) === "pending" ? reviewDateTime2(row.draft_saved_at || row.created_at) || "入草稿时间未提供" : reviewDateTime2(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2>${reviewPublishState(row) === "pending" ? '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' : reviewPublishState(row) === "unmatched" ? '<p class="review-unmatched-note">这篇没能对上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p>' : ""}<div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderArticleRemarks(row, data3.notes)}${renderTrafficCard(
+  const originalTitle = row.original_draft_title && row.original_draft_title !== row.title ? `<p class="review-note"><strong>原稿标题</strong> ${e(row.original_draft_title)}</p>` : "";
+  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${publishBadge(row)} ${e(reviewPublishState(row) === "pending" ? reviewDateTime2(row.draft_saved_at || row.created_at) || "入草稿时间未提供" : reviewDateTime2(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2>${originalTitle}${reviewPublishState(row) === "pending" ? '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' : reviewPublishState(row) === "unmatched" ? '<p class="review-unmatched-note">这篇没能对上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p>' : ""}<div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderArticleRemarks(row, data3.notes)}${renderTrafficCard(
     data3.snapshots,
     row.id
   )}${renderArticleDiagnosis(row, vm3)}${renderImitation(row, data3, vm3.account)}</aside></div>`;

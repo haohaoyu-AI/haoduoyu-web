@@ -9,7 +9,8 @@ import {dailyNotesOwner} from './daily-notes.mjs';
 import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual,reviewContentHash,reviewRuleChanges} from './content-review-validation.mjs';
 import {handleReviewResources,isReviewResourceRoute} from './review-resources.mjs';
 import {enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
-import {matchPublishedDraft} from '../shared/review-draft-match.mjs';
+import {matchPublishedDraft,platformArticleId} from '../shared/review-draft-match.mjs';
+import {readReviewReceipt,queueReviewReceipt,reviewReceipt,reviewReceiptJoin,reviewReceiptColumns,reviewCanonicalWhere,reviewReceiptFields,validatedMatchEvidence,validatedDraftRef,mergeMatchEvidence,publicationKeys,publicationReplayKey} from './review-publication-receipts.mjs';
 
 const tombstoneActor=owner=>'review-tombstones:'+owner;
 const tombstoneKey=(kind,id)=>'review-deleted:'+kind+':'+id;
@@ -19,6 +20,13 @@ const errorBody=error=>({code:error.code,message:error.message,...(error.existin
 const columnsFor=kind=>Object.keys(reviewSpecs[kind].fields);
 const columnFor=(spec,key)=>spec.json?.includes(key)?key+'_json':key;
 const valueFor=(spec,key,row)=>spec.json?.includes(key)&&row[key]!==null?JSON.stringify(stable(row[key])):row[key];
+const articleSelect='SELECT a.*, '+reviewReceiptColumns+' FROM matrix_review_articles a '+reviewReceiptJoin+' WHERE a.user_id=?';
+const visibleArticles=articleSelect+' AND '+reviewCanonicalWhere;
+const articleOrder=' ORDER BY a.published_at DESC,a.created_at DESC,a.id DESC';
+const readArticleRecord=(store,owner,id)=>store.get(articleSelect+' AND a.id=?',owner,id);
+const articleView=row=>({...reviewView('articles',row),...reviewReceiptFields(reviewReceipt(row))});
+const internalArticle=row=>({...reviewView('articles',row),...reviewReceipt(row)});
+const publicationView=(row,receipt)=>({...row,...reviewReceiptFields(receipt)});
 // Date-only values are business dates. Timestamp dates are always Beijing dates,
 // including filtering before LIMIT/OFFSET; no host-local timezone is consulted.
 const articlePublishedDaySql=`CASE
@@ -78,6 +86,10 @@ const publicView=(kind,row)=>kind==='playbooks'?{...writeView(kind,row),rules:ro
 async function accountData(store,owner,account=null) {
   const data={};
   for(const kind of ['articles','snapshots','reports','playbooks']) {
+    if(kind==='articles') {
+      data.articles=(await store.all(visibleArticles+(account===null?'':' AND a.account=?')+articleOrder,owner,...(account===null?[]:[account]))).map(articleView);
+      continue;
+    }
     const accountWhere=account===null?'':kind==='snapshots'?' AND article_id IN (SELECT id FROM matrix_review_articles WHERE user_id=? AND account=?)':' AND account=?';
     const args=account===null?[]:kind==='snapshots'?[owner,account]:[account];
     data[kind]=(await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+accountWhere+' ORDER BY '+reviewSpecs[kind].order,owner,...args)).map(row=>reviewView(kind,row));
@@ -87,15 +99,18 @@ async function accountData(store,owner,account=null) {
 async function readRow(store,kind,owner,id) {
   return reviewView(kind,await store.get('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=? AND id=?',owner,id));
 }
-async function checkRelations(store,kind,owner,id,row,previous=null) {
+async function checkRelations(store,kind,owner,id,row,previous=null,replacing=null) {
   let existing;
   if(kind==='articles'&&row.reference_article_id!==null&&(!previous||row.reference_article_id!==previous.reference_article_id||row.account!==previous.account)) {
     const ref=await store.get('SELECT ba.id FROM matrix_review_benchmark_articles ba JOIN matrix_review_benchmark_accounts b ON b.user_id=ba.user_id AND b.id=ba.benchmark_account_id WHERE ba.user_id=? AND ba.id=? AND ba.deleted_at IS NULL AND b.deleted_at IS NULL AND b.account=?',owner,row.reference_article_id,row.account);
     if(!ref)throw fail(404,'REFERENCE_NOT_FOUND','参考爆文不存在或不属于该账号');
   }
-  if(kind==='articles'&&row.platform_article_id!==null)existing=await store.get('SELECT id FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=? AND id<>?',owner,row.account,row.platform_article_id,id);
+  if(kind==='articles'&&row.platform_article_id!==null)existing=await store.get('SELECT id FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=? AND id<>? AND id<>?',owner,row.account,row.platform_article_id,id,replacing??id);
   if(kind==='snapshots') {
-    if(!await store.get('SELECT id FROM matrix_review_articles WHERE user_id=? AND id=?',owner,row.article_id))throw fail(404,'ARTICLE_NOT_FOUND','快照所属文章不存在');
+    const article=await readArticleRecord(store,owner,row.article_id);
+    if(!article)throw fail(404,'ARTICLE_NOT_FOUND','快照所属文章不存在');
+    const canonical=reviewReceipt(article).canonical_id;
+    if(canonical)errorWith(409,'REVIEW_ALREADY_LINKED','请将快照写入已关联的原稿记录',{existing_id:canonical});
     existing=await store.get('SELECT id FROM matrix_review_snapshots WHERE user_id=? AND article_id=? AND snapshot_date=? AND id<>?',owner,row.article_id,row.snapshot_date,id);
   }
   if(kind==='reports')existing=await store.get('SELECT id FROM matrix_review_reports WHERE user_id=? AND account=? AND period_type=? AND period_start=? AND id<>?',owner,row.account,row.period_type,row.period_start,id);
@@ -116,22 +131,64 @@ function intendsPublication(values) {
   if(values.publish_status==='pending'||values.publish_status==='unmatched')return false;
   return values.publish_status==='published'||values.published_at!=null;
 }
-async function retireUnmatchedPlaceholder(store,owner,peers,draftId,platformId) {
-  const placeholder=peers.find(row=>row.publish_status==='unmatched'&&row.id!==draftId&&typeof row.platform_article_id==='string'&&row.platform_article_id===platformId);
-  if(!placeholder)return;
-  store.queue('UPDATE matrix_review_snapshots SET article_id=? WHERE user_id=? AND article_id=?',draftId,owner,placeholder.id);
-  store.queue('DELETE FROM matrix_review_articles WHERE user_id=? AND id=? AND publish_status=?',owner,placeholder.id,'unmatched');
-  store.expectChange();
+const articlePeers=async(store,owner,account)=>(await store.all(visibleArticles+' AND a.account=?',owner,account)).map(internalArticle);
+const proofFor=input=>({match_evidence:validatedMatchEvidence(input.match_evidence),draft_ref:validatedDraftRef(input.draft_ref)});
+const rowData=row=>Object.fromEntries(['id',...columnsFor('articles'),...reviewSpecs.articles.timestamps,'content_hash'].map(key=>[key,row[key]]));
+function syncDecision(peers,values,proof,requestedId) {
+  const incoming={...values,...proof};
+  const key=publicationReplayKey(values,proof);
+  const existing=peers.find(row=>row.publish_status!=='pending'&&(
+    row.id===requestedId||requestedId&&row.matched_put?.id===requestedId||row.publication_keys?.includes(key)));
+  const sameImport=matchPublishedDraft(peers.filter(row=>row.publish_status==='unmatched'),incoming);
+  const imported=sameImport.kind==='unmatched-repeat'?sameImport.row:existing?.publish_status==='unmatched'?existing:null;
+  const match=matchPublishedDraft(peers,incoming);
+  if(['id','corroborated'].includes(match.kind))return {match,imported,key};
+  if(imported)return {match:{kind:'unmatched-repeat',row:imported},imported,key};
+  if(existing&&match.kind==='none'&&!platformArticleId(incoming))return {match:{kind:'id',row:existing},imported,key};
+  return {match,imported,key};
 }
-async function writePublicationRow(store,owner,current,values,actor,publish_status) {
+async function preparePublicationAlias(store,owner,draft,prior,actor,apply) {
+  if(!prior||prior.id===draft.id)return false;
+  const collision=await store.get('SELECT s.id FROM matrix_review_snapshots s JOIN matrix_review_snapshots d ON d.user_id=s.user_id AND d.snapshot_date=s.snapshot_date WHERE s.user_id=? AND s.article_id=? AND d.article_id=? LIMIT 1',owner,prior.id,draft.id);
+  if(collision)throw fail(409,'REVIEW_SNAPSHOT_CONFLICT','两条记录含有同日快照，已保留原值，需核对后关联');
+  if(!apply)return true;
+  const receipt=await readReviewReceipt(store,owner,prior.id);
+  queueReviewReceipt(store,owner,prior.id,{...receipt,canonical_id:draft.id,platform_article_id:prior.platform_article_id},receipt);
+  store.queue('UPDATE matrix_review_articles SET platform_article_id=NULL WHERE user_id=? AND id=? AND publish_status=?',owner,prior.id,'unmatched');
+  store.expectChange();
+  store.queue('UPDATE matrix_review_snapshots SET article_id=? WHERE user_id=? AND article_id=?',draft.id,owner,prior.id);
+  store.audit(actor.actor,'review.articles.link_publication',prior.id,{canonical_id:draft.id});
+  return true;
+}
+async function publishMatched(store,owner,current,values,proof,actor,{imported=null,key=null,putId=null}={}) {
+  const alias=await preparePublicationAlias(store,owner,current,imported,actor,true);
+  const prior=await readReviewReceipt(store,owner,current.id);
+  const importedReceipt=alias?await readReviewReceipt(store,owner,imported.id):{};
+  const draft=current.publish_status==='pending';
+  const publication=alias?{...values,...Object.fromEntries(
+    ['title','url','platform_article_id','published_at','sample_title','sample_url','reference_article_id','image_count','source_chat','alternate_titles']
+      .filter(field=>imported[field]!=null).map(field=>[field,imported[field]])
+  )}:values;
+  const updated=await writePublicationRow(store,owner,rowData(current),publication,actor,'published',{replacing:alias?imported.id:null});
+  const receipt={...prior,
+    ...(draft?{original_draft_title:current.title,draft_evidence:prior.match_evidence,draft_platform_article_id:platformArticleId(current)||undefined}:{}),
+    ...(putId?{matched_put:{id:putId,key}}:{}),
+    match_evidence:mergeMatchEvidence(draft?importedReceipt.match_evidence:prior.match_evidence,proof.match_evidence),
+    publication_keys:publicationKeys(importedReceipt.publication_keys?.reduce((all,item)=>publicationKeys(all,item),prior.publication_keys)??prior.publication_keys,key)};
+  queueReviewReceipt(store,owner,current.id,receipt,prior);
+  return {article:publicationView(updated,receipt),previousArticleId:alias?imported.id:null};
+}
+async function writePublicationRow(store,owner,current,values,actor,publish_status,{replacing=null}={}) {
   const spec=reviewSpecs.articles;
   const merged=reviewInput('articles',{...Object.fromEntries(columnsFor('articles').map(key=>[key,current[key]])),
     title:values.title,url:values.url??current.url,published_at:values.published_at??current.published_at,
     platform_article_id:values.platform_article_id??current.platform_article_id,
-    sample_title:values.sample_title??current.sample_title,sample_url:values.sample_url??current.sample_url,
-    reference_article_id:values.reference_article_id??current.reference_article_id,
-    alternate_titles:values.alternate_titles??current.alternate_titles,publish_status});
-  await checkRelations(store,'articles',owner,current.id,merged,current);
+    sample_title:current.sample_title??values.sample_title,sample_url:current.sample_url??values.sample_url,
+    reference_article_id:current.reference_article_id??values.reference_article_id,
+    alternate_titles:current.alternate_titles??values.alternate_titles,
+    draft_saved_at:current.draft_saved_at??values.draft_saved_at,
+    image_count:current.image_count??values.image_count,source_chat:current.source_chat??values.source_chat,publish_status});
+  await checkRelations(store,'articles',owner,current.id,merged,current,replacing);
   if(reviewEqual('articles',current,merged))return current;
   const row={...current,...merged,updated_at:new Date().toISOString()};
   delete row.content_hash;
@@ -141,26 +198,47 @@ async function writePublicationRow(store,owner,current,values,actor,publish_stat
   return {...row,content_hash:reviewContentHash(row)};
 }
 async function put(db,request,kind,owner,id,input,env,origin) {
+  const proof=kind==='articles'?proofFor(input):{};
+  if(kind==='articles') {
+    const {match_evidence:ignoredEvidence,draft_ref:ignoredRef,...fields}=input;
+    input=fields;
+  }
   if(kind==='playbooks'&&Object.hasOwn(input,'status')&&input.status===null)throw fail(400,'VALIDATION_ERROR','Invalid playbook status');
   const values=reviewInput(kind,input,{validateDaily:false}),spec=reviewSpecs[kind];
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true);
     if(await store.get('SELECT key FROM idempotency WHERE actor=? AND key=?',tombstoneActor(owner),tombstoneKey(kind,id)))throw fail(409,'REVIEW_DELETED','此标识已永久删除，请为新记录生成新 UUID');
+    const receipt=kind==='articles'?await readReviewReceipt(store,owner,id):{};
+    if(receipt.canonical_id&&intendsPublication(values)) {
+      const canonical=await readArticleRecord(store,owner,receipt.canonical_id);
+      if(!canonical||canonical.account!==values.account||platformArticleId(values)&&platformArticleId(canonical)!==platformArticleId(values))throw fail(409,'IDEMPOTENCY_CONFLICT','发布标识已关联，请先读取原记录');
+      return {replayed:true,response:json({...articleView(canonical),matched:true,requested_id:id})};
+    }
+    if(receipt.canonical_id)throw fail(409,'REVIEW_ALREADY_LINKED','请使用已关联的原稿记录');
     const current=await readRow(store,kind,owner,id);
     if(current) {
       if(kind==='playbooks'&&current.status===null&&values.status===publicView(kind,current).status)values.status=null;
       if(!reviewEqual(kind,current,values))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容；修改请使用 PATCH 和最新哈希');
-      return {replayed:true,response:json(writeView(kind,current))};
+      const saved=kind==='articles'&&queueReviewReceipt(store,owner,id,{...receipt,
+        match_evidence:mergeMatchEvidence(receipt.match_evidence,proof.match_evidence),draft_ref:proof.draft_ref??receipt.draft_ref},receipt);
+      return {actor,replayed:!saved,response:json(writeView(kind,publicationView(current,receipt)))};
     }
     reviewInput(kind,input);
     if(kind==='reports'&&values.period_type==='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
     if(kind==='articles'&&intendsPublication(values)) {
-      const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,values.account)).map(row=>reviewView('articles',row));
-      const match=matchPublishedDraft(peers,values);
+      const peers=await articlePeers(store,owner,values.account);
+      const {match,imported,key}=syncDecision(peers,values,proof,id);
       if((match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending') {
-        await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
-        const published=await writePublicationRow(store,owner,match.row,values,actor,'published');
-        return {actor,response:json({...writeView('articles',published),matched:true,match:match.kind,requested_id:id})};
+        const {article}=await publishMatched(store,owner,match.row,values,proof,actor,{imported,key,putId:id});
+        return {actor,replayed:!store.pending.length,response:json({...article,matched:true,match:match.kind,requested_id:id})};
+      }
+      if(match.kind==='id'||match.kind==='unmatched-repeat') {
+        const prior=match.row.matched_put;
+        if(prior?.id===id) {
+          if(prior.key!==key)throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同的发布内容');
+          return {replayed:true,response:json({...publicationView(rowData(match.row),match.row),matched:true,match:'id',requested_id:id})};
+        }
+        if(platformArticleId({...values,...proof}))errorWith(409,'REVIEW_UNIQUE_CONFLICT','同一业务记录已存在',{existing_id:match.row.id});
       }
       if(peers.some(row=>row.publish_status==='pending')&&(match.kind==='none'||match.kind==='ambiguous'))values.publish_status='unmatched';
     }
@@ -168,6 +246,7 @@ async function put(db,request,kind,owner,id,input,env,origin) {
     const time=new Date().toISOString(),row={id,...values,...Object.fromEntries(spec.timestamps.map(key=>[key,time]))};
     const keys=[...columnsFor(kind),...spec.timestamps],columns=['user_id','id',...keys.map(key=>columnFor(spec,key))];
     store.queue('INSERT INTO '+spec.table+'('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')',owner,id,...keys.map(key=>valueFor(spec,key,row)));
+    if(kind==='articles')queueReviewReceipt(store,owner,id,{...proof,publication_keys:intendsPublication(values)?[publicationReplayKey(values,proof)]:undefined},{});
     store.audit(actor.actor,'review.'+kind+'.create',id);
     const created=writeView(kind,{...row,content_hash:reviewContentHash(row)});
     return {actor,response:json(kind==='articles'&&values.publish_status==='unmatched'?{...created,matched:false,match:'unmatched'}:created,201)};
@@ -181,6 +260,7 @@ async function patch(db,request,kind,owner,id,input,env,origin) {
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true),current=await readRow(store,kind,owner,id);
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
+    if(kind==='articles'&&(await readReviewReceipt(store,owner,id)).canonical_id)throw fail(409,'REVIEW_ALREADY_LINKED','请修改已关联的原稿记录');
     if(current.content_hash!==expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再修改');
     // Compare an echoed default against the account after this PATCH. The
     // designated legacy draft is only a draft while it belongs to V字.
@@ -211,6 +291,7 @@ async function remove(db,request,kind,owner,id,input,env,origin) {
       return {replayed:true,response:json(JSON.parse(saved.response_json))};
     }
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
+    if(kind==='articles'&&(await readReviewReceipt(store,owner,id)).canonical_id)throw fail(409,'REVIEW_ALREADY_LINKED','这条发布记录已关联原稿');
     if(current.content_hash!==input.expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再删除');
     const time=new Date().toISOString();let children=[];
     if(kind==='articles') {
@@ -258,7 +339,7 @@ async function patchRule(db,request,owner,ruleId,input,env,origin) {
     return {actor,response:json(publicView('playbooks',result))};
   })).response;
 }
-const DRAFT_FIELDS=new Set(['id','account','platform_article_id','title','alternate_titles','sample_title','sample_url','reference_article_id','draft_saved_at']);
+const DRAFT_FIELDS=new Set(['id','account','platform_article_id','title','alternate_titles','sample_title','sample_url','reference_article_id','draft_saved_at','image_count','match_evidence','draft_ref']);
 const PUBLICATION_FIELDS=new Set([...DRAFT_FIELDS,'url','published_at','snapshot']);
 function rejectUnknown(input,allowed) {
   if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(key=>!allowed.has(key)))throw fail(400,'VALIDATION_ERROR','存在未知字段或请求体无效');
@@ -269,7 +350,7 @@ async function linkedBenchmark(store,owner,account,sampleUrl,referenceId) {
   const rows=await store.all('SELECT ba.id FROM matrix_review_benchmark_articles ba JOIN matrix_review_benchmark_accounts b ON b.user_id=ba.user_id AND b.id=ba.benchmark_account_id WHERE ba.user_id=? AND ba.url=? AND ba.deleted_at IS NULL AND b.deleted_at IS NULL AND b.account=?',owner,sampleUrl,account);
   return rows.length===1?rows[0].id:null;
 }
-async function queueSnapshot(store,owner,articleId,snapshot,actor,{knownArticle=false}={}) {
+async function queueSnapshot(store,owner,articleId,snapshot,actor,{knownArticle=false,previousArticleId=null}={}) {
   if(snapshot==null)return null;
   if(!snapshot||typeof snapshot!=='object'||Array.isArray(snapshot))throw fail(400,'VALIDATION_ERROR','snapshot 须为对象');
   const {id:snapId=randomUUID(),article_id:ignored,...body}=snapshot;
@@ -277,12 +358,13 @@ async function queueSnapshot(store,owner,articleId,snapshot,actor,{knownArticle=
   const values=reviewInput('snapshots',{...body,article_id:articleId});
   const existing=await readRow(store,'snapshots',owner,snapId);
   if(existing) {
-    if(!reviewEqual('snapshots',existing,values))throw fail(409,'IDEMPOTENCY_CONFLICT','快照 UUID 已用于不同内容');
-    return existing;
+    const current=existing.article_id===previousArticleId?{...existing,article_id:articleId}:existing;
+    if(!reviewEqual('snapshots',current,values))throw fail(409,'IDEMPOTENCY_CONFLICT','快照 UUID 已用于不同内容');
+    return {...current,content_hash:reviewContentHash(current)};
   }
-  const duplicate=await store.get('SELECT * FROM matrix_review_snapshots WHERE user_id=? AND article_id=? AND snapshot_date=? AND id<>?',owner,articleId,values.snapshot_date,snapId);
+  const duplicate=await store.get('SELECT * FROM matrix_review_snapshots WHERE user_id=? AND article_id IN (?,?) AND snapshot_date=? AND id<>?',owner,articleId,previousArticleId,values.snapshot_date,snapId);
   if(duplicate) {
-    const prior=reviewView('snapshots',duplicate);
+    const prior=reviewView('snapshots',{...duplicate,article_id:articleId});
     if(reviewEqual('snapshots',prior,values))return prior;
     errorWith(409,'REVIEW_UNIQUE_CONFLICT','同一业务记录已存在',{existing_id:duplicate.id});
   }
@@ -302,8 +384,9 @@ function articleInsert(store,owner,id,values,actor,time) {
 async function saveDraft(db,request,owner,input,env,origin) {
   rejectUnknown(input,DRAFT_FIELDS);
   const account=draftAccount(input.account);
-  const platform_article_id=reviewSpecs.articles.fields.platform_article_id(input.platform_article_id);
-  if(!platform_article_id)throw fail(400,'VALIDATION_ERROR','草稿必须带平台文章编号 platform_article_id');
+  const proof=proofFor(input);
+  const suppliedId=reviewSpecs.articles.fields.platform_article_id(input.platform_article_id??null);
+  const platform_article_id=platformArticleId({platform_article_id:suppliedId,draft_ref:proof.draft_ref})||null;
   const title=reviewSpecs.articles.fields.title(input.title);
   const alternate_titles=reviewSpecs.articles.fields.alternate_titles(input.alternate_titles??null);
   if(!alternate_titles)throw fail(400,'VALIDATION_ERROR','草稿必须带 4 条备选标题 alternate_titles');
@@ -313,20 +396,41 @@ async function saveDraft(db,request,owner,input,env,origin) {
   const reference_article_id=input.reference_article_id==null?null:reviewSpecs.articles.fields.reference_article_id(input.reference_article_id);
   const suppliedSavedAt=input.draft_saved_at==null?null:reviewSpecs.articles.fields.draft_saved_at(input.draft_saved_at);
   const requestedId=input.id==null?null:input.id;
+  const imageCount=reviewSpecs.articles.fields.image_count(input.image_count??null);
   if(requestedId!=null&&!reviewUuid.test(requestedId))throw fail(400,'VALIDATION_ERROR','id 须为 UUID');
+  if(!requestedId&&!platform_article_id)throw fail(400,'VALIDATION_ERROR','没有平台文章编号时，草稿必须带稳定的 UUID id');
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true);
-    const byPlatform=await store.get('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=?',owner,account,platform_article_id);
-    const platformRow=byPlatform?reviewView('articles',byPlatform):null;
-    if(platformRow&&platformRow.publish_status!=='pending')return {actor,response:json({...writeView('articles',platformRow),matched:true,kept:true})};
+    const byPlatform=platform_article_id?await store.get('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=?',owner,account,platform_article_id):null;
+    const byUuid=requestedId?await readArticleRecord(store,owner,requestedId):null;
+    if(byUuid&&(byUuid.account!==account||reviewReceipt(byUuid).canonical_id||platform_article_id&&byUuid.platform_article_id&&platform_article_id!==byUuid.platform_article_id))
+      throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同文章');
+    const platformRow=reviewView('articles',byPlatform??byUuid);
+    if(platformRow&&platformRow.publish_status!=='pending') {
+      const receipt=await readReviewReceipt(store,owner,platformRow.id);
+      if(platformRow.publish_status!=='unmatched'||!platform_article_id||byUuid&&byUuid.id!==platformRow.id) {
+        return {replayed:true,response:json({...publicationView(platformRow,receipt),matched:platformRow.publish_status!=='unmatched',kept:true})};
+      }
+      const reference=await linkedBenchmark(store,owner,account,platformRow.sample_url??sample_url,
+        platformRow.reference_article_id??(platformRow.sample_url&&platformRow.sample_url!==sample_url?null:reference_article_id));
+      const updated=await writePublicationRow(store,owner,platformRow,{...platformRow,sample_title,sample_url,reference_article_id:reference,
+        draft_saved_at:suppliedSavedAt,alternate_titles,image_count:imageCount},actor,'published');
+      const merged={...receipt,original_draft_title:title,draft_platform_article_id:platform_article_id,
+        draft_evidence:proof.match_evidence,draft_ref:proof.draft_ref,draft_sample:{title:sample_title,url:sample_url}};
+      queueReviewReceipt(store,owner,platformRow.id,merged,receipt);
+      return {actor,response:json({...publicationView(updated,merged),matched:true,match:'id'})};
+    }
     if(requestedId&&platformRow&&requestedId!==platformRow.id)errorWith(409,'REVIEW_UNIQUE_CONFLICT','该平台文章编号已对应另一篇草稿',{existing_id:platformRow.id});
-    if(requestedId&&!platformRow&&await readRow(store,'articles',owner,requestedId))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容');
     const reference=await linkedBenchmark(store,owner,account,sample_url,reference_article_id);
     const time=new Date().toISOString();
     const id=platformRow?.id||requestedId||randomUUID();
-    const values=reviewInput('articles',{account,platform:'toutiao',platform_article_id,title,alternate_titles,sample_title,sample_url,reference_article_id:reference,draft_saved_at:suppliedSavedAt||platformRow?.draft_saved_at||time,publish_status:'pending',published_at:null,url:null});
+    const values=reviewInput('articles',{...(platformRow?Object.fromEntries(columnsFor('articles').map(key=>[key,platformRow[key]])):{}),
+      account,platform:'toutiao',platform_article_id:platform_article_id??platformRow?.platform_article_id??null,title,alternate_titles,sample_title,sample_url,reference_article_id:reference,
+      draft_saved_at:suppliedSavedAt||platformRow?.draft_saved_at||time,publish_status:'pending',published_at:null,url:null,image_count:imageCount??platformRow?.image_count??null});
     await checkRelations(store,'articles',owner,id,values,platformRow);
-    if(platformRow&&reviewEqual('articles',platformRow,values))return {actor,response:json({...writeView('articles',platformRow),matched:true,match:'id'})};
+    const receipt=platformRow?await readReviewReceipt(store,owner,id):{};
+    queueReviewReceipt(store,owner,id,{...receipt,match_evidence:mergeMatchEvidence(receipt.match_evidence,proof.match_evidence),draft_ref:proof.draft_ref??receipt.draft_ref},receipt);
+    if(platformRow&&reviewEqual('articles',platformRow,values))return {actor,replayed:!store.pending.length,response:json({...platformRow,matched:true,match:'id'})};
     if(platformRow) {
       const row={...platformRow,...values,updated_at:time};
       delete row.content_hash;
@@ -343,23 +447,26 @@ async function saveDraft(db,request,owner,input,env,origin) {
 async function savePublication(db,request,owner,input,env,origin) {
   rejectUnknown(input,PUBLICATION_FIELDS);
   const account=draftAccount(input.account);
-  const values=reviewInput('articles',{account,title:input.title,platform_article_id:input.platform_article_id??null,url:input.url??null,published_at:input.published_at,sample_title:input.sample_title??null,sample_url:input.sample_url??null,reference_article_id:input.reference_article_id??null,alternate_titles:input.alternate_titles??null,publish_status:'published'});
+  const values=reviewInput('articles',{account,title:input.title,platform_article_id:input.platform_article_id??null,url:input.url??null,published_at:input.published_at,sample_title:input.sample_title??null,sample_url:input.sample_url??null,reference_article_id:input.reference_article_id??null,alternate_titles:input.alternate_titles??null,image_count:input.image_count??null,publish_status:'published'});
+  const proof=proofFor(input);
   if(!values.published_at)throw fail(400,'VALIDATION_ERROR','发布回写必须带 published_at');
   const requestedId=input.id==null?null:input.id;
   if(requestedId!=null&&!reviewUuid.test(requestedId))throw fail(400,'VALIDATION_ERROR','id 须为 UUID');
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true);
-    const peers=(await store.all('SELECT * FROM matrix_review_articles WHERE user_id=? AND account=?',owner,account)).map(row=>reviewView('articles',row));
-    const match=matchPublishedDraft(peers,values);
-    let article,matched=false,matchKind=match.kind,created=false;
+    const peers=await articlePeers(store,owner,account);
+    const {match,imported,key}=syncDecision(peers,values,proof,requestedId);
+    let article,matched=false,matchKind=match.kind,created=false,previousArticleId=null;
     const draftHit=(match.kind==='id'||match.kind==='corroborated')&&match.row.publish_status==='pending';
     const publishedHit=match.kind==='id'&&match.row.publish_status!=='pending'&&match.row.publish_status!=='unmatched';
     if(draftHit||publishedHit) {
-      if(draftHit)await retireUnmatchedPlaceholder(store,owner,peers,match.row.id,values.platform_article_id);
-      article=await writePublicationRow(store,owner,match.row,values,actor,'published');
+      ({article,previousArticleId}=await publishMatched(store,owner,match.row,values,proof,actor,{imported:draftHit?imported:null,key}));
       matched=true;
     } else if(match.kind==='unmatched-repeat') {
-      article=await writePublicationRow(store,owner,match.row,values,actor,'unmatched');
+      article=await writePublicationRow(store,owner,rowData(match.row),values,actor,'unmatched');
+      const receipt=await readReviewReceipt(store,owner,article.id);
+      queueReviewReceipt(store,owner,article.id,{...receipt,match_evidence:mergeMatchEvidence(receipt.match_evidence,proof.match_evidence),
+        draft_ref:proof.draft_ref??receipt.draft_ref,publication_keys:publicationKeys(receipt.publication_keys,key)},receipt);
       matched=false;matchKind='unmatched';
     } else {
       created=true;
@@ -371,10 +478,68 @@ async function savePublication(db,request,owner,input,env,origin) {
       const createdValues={...values,publish_status:status==='published'? 'published':status};
       await checkRelations(store,'articles',owner,id,createdValues);
       article=articleInsert(store,owner,id,createdValues,actor,time);
+      queueReviewReceipt(store,owner,id,{...proof,publication_keys:[key]},{});
       matched=false;matchKind=status==='unmatched'?match.kind:'created';
     }
-    const snapshot=await queueSnapshot(store,owner,article.id,input.snapshot,actor,{knownArticle:created});
-    return {actor,response:json({...writeView('articles',article),matched,match:matchKind,...(snapshot?{snapshot}:{})},created?201:200)};
+    const snapshot=await queueSnapshot(store,owner,article.id,input.snapshot,actor,{knownArticle:created,previousArticleId});
+    return {actor,replayed:!store.pending.length,response:json({...article,matched,match:matchKind,...(snapshot?{snapshot}:{})},created?201:200)};
+  })).response;
+}
+async function reconcilePublication(db,request,owner,input,env,origin) {
+  rejectUnknown(input,new Set(['article_id','expected_hash','draft_id','draft','apply']));
+  const {article_id:id,expected_hash:expected,draft_id:draftId,draft:draftInput,apply=false}=input;
+  if(!reviewUuid.test(id??'')||!reviewHash.test(expected??'')||typeof apply!=='boolean'||
+    Boolean(draftId)===Boolean(draftInput)||draftId&&(!reviewUuid.test(draftId)||draftId===id))
+    throw fail(400,'VALIDATION_ERROR','核对需要文章 UUID、expected_hash 和一条原稿依据');
+  let verifiedDraft;
+  if(draftInput) {
+    rejectUnknown(draftInput,new Set(['platform_article_id','title','sample_url']));
+    const fields=reviewSpecs.articles.fields;
+    verifiedDraft={platform_article_id:fields.platform_article_id(draftInput.platform_article_id??null),
+      title:fields.title(draftInput.title),sample_url:fields.sample_url(draftInput.sample_url??null)};
+    if(!verifiedDraft.platform_article_id||!verifiedDraft.sample_url)throw fail(400,'VALIDATION_ERROR','原稿依据须带平台文章编号和样本链接');
+  }
+  const verification=digest(JSON.stringify(stable({id,expected,draftId,verifiedDraft})));
+  return (await mutate(db,async store=>{
+    const actor=await actorFor(store,request,owner,env,origin,true);
+    if(actor.kind!=='session')throw fail(403,'FORBIDDEN','仅工作区主人可核对历史发布');
+    const raw=await readArticleRecord(store,owner,id);
+    if(!raw)throw fail(404,'NOT_FOUND','发布记录不存在');
+    const current=reviewView('articles',raw),prior=reviewReceipt(raw);
+    if(prior.reconciliation===verification&&current.publish_status!=='pending') {
+      const canonical=prior.canonical_id?await readArticleRecord(store,owner,prior.canonical_id):raw;
+      if(!canonical)throw fail(409,'REVIEW_ALREADY_LINKED','原稿记录已改变，请重新核对');
+      return {replayed:true,response:json({...articleView(canonical),matched:true,preview:!apply})};
+    }
+    if(current.content_hash!==expected)throw fail(409,'VERSION_CONFLICT','发布记录已改变，请读取最新内容再核对');
+    if(prior.canonical_id||current.publish_status!=='unmatched'||!current.published_at)
+      throw fail(409,'REVIEW_NOT_UNMATCHED','该记录不再是待核对的发布记录');
+    if(draftId) {
+      const peers=await articlePeers(store,owner,current.account);
+      const match=matchPublishedDraft(peers,{...current,...prior});
+      if(!['id','corroborated'].includes(match.kind)||match.row.id!==draftId||match.row.publish_status!=='pending')
+        throw fail(409,'REVIEW_EVIDENCE_MISMATCH','现有证据未唯一对应此原稿');
+      if(!apply) {
+        await preparePublicationAlias(store,owner,match.row,current,actor,false);
+        return {replayed:true,response:json({...articleView(raw),canonical_id:draftId,original_draft_title:match.row.title,matched:true,preview:true})};
+      }
+      const {article}=await publishMatched(store,owner,match.row,current,proofFor(prior),actor,{imported:current});
+      queueReviewReceipt(store,owner,id,{...prior,canonical_id:draftId,platform_article_id:current.platform_article_id,reconciliation:verification},prior);
+      return {actor,response:json({...article,matched:true,preview:false})};
+    }
+    const publishedId=platformArticleId(current);
+    if(verifiedDraft.platform_article_id!==publishedId||verifiedDraft.sample_url!==current.sample_url||!current.sample_title||verifiedDraft.title===current.title)
+      throw fail(409,'REVIEW_EVIDENCE_MISMATCH','核对的原稿编号、标题和样本与发布记录不一致');
+    const peers=await articlePeers(store,owner,current.account);
+    const candidate=matchPublishedDraft(peers,{...current,...prior});
+    if(candidate.kind!=='unmatched-repeat'||candidate.row.id!==id)
+      throw fail(409,'REVIEW_EVIDENCE_MISMATCH','存在其他原稿候选，请先核对候选记录');
+    if(!apply)return {replayed:true,response:json({...articleView(raw),original_draft_title:verifiedDraft.title,matched:true,preview:true})};
+    const reference=await linkedBenchmark(store,owner,current.account,current.sample_url,current.reference_article_id);
+    const updated=await writePublicationRow(store,owner,current,{...current,reference_article_id:reference},actor,'published');
+    const receipt={...prior,original_draft_title:verifiedDraft.title,draft_platform_article_id:publishedId,reconciliation:verification};
+    queueReviewReceipt(store,owner,id,receipt,prior);
+    return {actor,response:json({...publicationView(updated,receipt),matched:true,preview:false})};
   })).response;
 }
 async function handle(db,request,route,env,origin,initialRevision) {
@@ -382,6 +547,10 @@ async function handle(db,request,route,env,origin,initialRevision) {
   if(isReviewAiRoute(route))return handleReviewAi({db,request,route,env,origin,owner,actorFor,writeLimit,accountData,account:reviewSpecs.articles.fields.account});
   if(isArticleDiagnosisRoute(route))return handleArticleDiagnosis({db,request,route,env,origin,owner,actorFor,writeLimit});
   if(isReviewPromptRoute(route))return handleReviewPrompts(db,request,route,env,origin,initialRevision,{owner,actorFor,writeLimit});
+  if(route==='/review/publications/reconcile') {
+    if(method!=='POST'||url.search)throw fail(404,'NOT_FOUND','内容复盘接口不存在');
+    return reconcilePublication(db,request,owner,await bodyFor(request),env,origin);
+  }
   if(route==='/review/drafts'||route==='/review/publications') {
     if(method!=='POST'||url.search)throw fail(404,'NOT_FOUND','内容复盘接口不存在');
     const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);
@@ -431,16 +600,21 @@ async function handle(db,request,route,env,origin,initialRevision) {
     await actorFor(store,request,owner,env,origin);
     if(filters.expected!==null&&filters.expected!==before)throw fail(409,'READ_REVISION_CHANGED','数据已更新，请从第一页重新读取');
     if(id) {
-      const row=await readRow(store,kind,owner,id);if(!row)throw fail(404,'NOT_FOUND','记录不存在');
       if(kind==='articles') {
+        const requested=await readArticleRecord(store,owner,id);
+        const canonical=reviewReceipt(requested).canonical_id;
+        const raw=canonical?await readArticleRecord(store,owner,canonical):requested;
+        if(!raw)throw fail(404,'NOT_FOUND','记录不存在');
+        const row=articleView(raw);
         const data=await accountData(store,owner,row.account);
-        const snapshots=data.snapshots.filter(item=>item.article_id===id).sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date)||a.id.localeCompare(b.id));
+        const snapshots=data.snapshots.filter(item=>item.article_id===row.id).sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date)||a.id.localeCompare(b.id));
         return json({...enrichArticle(row,data.snapshots,data.playbooks,data.reports,data.articles),snapshots});
       }
+      const row=await readRow(store,kind,owner,id);if(!row)throw fail(404,'NOT_FOUND','记录不存在');
       return json(publicView(kind,row));
     }
     if(kind==='articles') {
-      const rows=await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+filters.where.map(sql=>' AND '+sql).join('')+' ORDER BY '+reviewSpecs[kind].order,owner,...filters.args);
+      const rows=await store.all(visibleArticles+filters.where.map(sql=>' AND '+sql).join('')+articleOrder,owner,...filters.args);
       const data=await accountData(store,owner,url.searchParams.has('account')?reviewSpecs.articles.fields.account(url.searchParams.get('account')):null);
       const enriched=new Map(enrichArticles(data,{}).map(row=>[row.id,row]));
       const all=rows.map(row=>enriched.get(row.id)).filter(row=>!filters.verdict||(filters.verdict==='pending'?row.verdict===null:row.verdict===filters.verdict));

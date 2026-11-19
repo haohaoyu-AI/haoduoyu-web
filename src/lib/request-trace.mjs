@@ -16,6 +16,10 @@ for(const kind of ['articles','snapshots','reports','playbooks','benchmark-accou
   routes.set('/api/v1/review/'+kind,'/api/v1/review/'+kind);
   dynamic.push([new RegExp('^/api/v1/review/'+kind+'/[^/]+$'),'/api/v1/review/'+kind+'/{id}']);
 }
+for(const path of ['/api/v1/review/drafts','/api/v1/review/publications','/api/v1/review/publications/reconcile']) {
+  paths.push(path);
+  routes.set(path,path);
+}
 for(const kind of ['benchmark-accounts','benchmark-articles','notes','account-health']) dynamic.push([new RegExp('^/api/v1/review/'+kind+'/[^/]+/restore$'),'/api/v1/review/'+kind+'/{id}/restore']);
 routes.set('/api/v1/review/benchmark-articles:batch','/api/v1/review/benchmark-articles:batch');
 paths.push('/api/v1/review/benchmark-articles:batch');

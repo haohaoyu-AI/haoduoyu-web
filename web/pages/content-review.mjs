@@ -14,7 +14,7 @@ import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/re
 import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs';
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
-import {reviewPublishLabel, reviewPublishState} from '../../shared/review-draft-match.mjs';
+import {reviewPublishLabel, reviewPublishState} from '../../shared/review-publish-state.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -450,13 +450,16 @@ function drawer(data,rows,vm) {
     'aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" ` +
     `tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
+  const originalTitle = row.original_draft_title && row.original_draft_title !== row.title ?
+    `<p class="review-note"><strong>原稿标题</strong> ${e(row.original_draft_title)}</p>` : '';
   return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" ` +
     `aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div ` +
       `class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span ` +
         `class="review-note">${publishBadge(row)} ${e(reviewPublishState(row) === 'pending' ?
           (reviewDateTime(row.draft_saved_at || row.created_at) || '入草稿时间未提供') :
           (reviewDateTime(row.published_at) || '发布时间未提供'))} · 上海时间</span><h2 id="review-detail-title">${e(row.title || 
-          '未命名文章')}</h2>${reviewPublishState(row) === 'pending' ? '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' :
+          '未命名文章')}</h2>${originalTitle}${reviewPublishState(row) === 'pending' ?
+          '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' :
           reviewPublishState(row) === 'unmatched' ? '<p class="review-unmatched-note">这篇没能对上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p>' : ''}<div ` +
           `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderArticleRemarks(row,data.notes)}` +
           `${renderTrafficCard(data.snapshots,

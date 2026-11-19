@@ -28,11 +28,17 @@ function fixture(t) {
 const alternates=['备选甲','备选乙','备选丙','备选丁'];
 const draftBody=(account='V字')=>({account,platform_article_id:'item-'+account,title:'草稿标题',alternate_titles:alternates,
   sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample',draft_saved_at:'2026-11-18T01:05:00+08:00'});
+const crossAccountEvidence={body:[
+  '工厂试验台在复验阶段更换陶瓷轴承，三号传感器在下午第一次测得回流口温度恢复到规定范围。',
+  '后续检查记录了电机绕组和绝缘层的组装顺序，两位值班技师分别测量了固定夹具的偏心量。',
+  '这一轮结果由复核组逐条对照原始台账，确认之前的故障集中在转轴停机后的降温过程。',
+].join('\n\n'),source_urls:['https://example.org/source/1','https://example.org/source/2','https://example.org/source/3'],
+  people:['合成人物'],events:['陶瓷轴承试验'],numbers:['27.4%','73摄氏度']};
 
 test('a saved draft is written immediately and a later published title updates that same row',async t=>{
   const app=fixture(t);
   assert.equal((await app.call('drafts','POST',{...draftBody(),account:'好多鱼'})).status,400);
-  const z=await app.call('drafts','POST',draftBody('Z极客'));
+  const z=await app.call('drafts','POST',{...draftBody('Z极客'),match_evidence:crossAccountEvidence});
   const v=await app.call('drafts','POST',draftBody('V字'));
   assert.equal(v.status,201);assert.equal(v.data.publish_status,'pending');assert.equal(v.data.account,'V字');
   assert.equal(v.data.draft_saved_at,'2026-11-17T17:05:00.000Z');
@@ -48,7 +54,7 @@ test('a saved draft is written immediately and a later published title updates t
   const rows=(await app.call('articles?account='+encodeURIComponent('V字'))).data.items;
   assert.equal(rows.length,1);assert.equal(rows[0].id,v.data.id);
   assert.equal(z.data.account,'Z极客');assert.notEqual(z.data.id,v.data.id);
-  const cross=await app.call('publications','POST',{account:'Z极客',title:'备选丙',published_at:'2026-11-18T09:00:00+08:00',sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample'});
+  const cross=await app.call('publications','POST',{account:'Z极客',title:'备选丙',published_at:'2026-11-18T09:00:00+08:00',sample_title:'对标原文',sample_url:'https://www.toutiao.com/article/sample',match_evidence:crossAccountEvidence});
   assert.equal(cross.data.id,z.data.id);assert.equal(cross.data.publish_status,'published');
 });
 
@@ -71,8 +77,14 @@ test('title-only published writes do not attach to a draft, and the same platfor
   const saved=await app.call('drafts','POST',draftBody('V字'));
   const byTitle=await app.call('articles/'+randomUUID(),'PUT',{account:'V字',title:'备选甲',published_at:'2026-11-18T09:00:00+08:00'});
   assert.equal(byTitle.data.publish_status,'unmatched');assert.notEqual(byTitle.data.id,saved.data.id);
-  const byId=await app.call('articles/'+randomUUID(),'PUT',{account:'V字',title:'现场另选的标题',published_at:'2026-11-18T09:30:00+08:00',platform_article_id:'item-V字'});
+  const publicationPath='articles/'+randomUUID();
+  const publication={account:'V字',title:'现场另选的标题',published_at:'2026-11-18T09:30:00+08:00',platform_article_id:'item-V字'};
+  const byId=await app.call(publicationPath,'PUT',publication);
   assert.equal(byId.status,200);assert.equal(byId.data.id,saved.data.id);assert.equal(byId.data.publish_status,'published');assert.equal(byId.data.title,'现场另选的标题');
+  const replay=await app.call(publicationPath,'PUT',publication);
+  assert.equal(replay.status,200);assert.equal(replay.data.id,saved.data.id);
+  const conflict=await app.call(publicationPath,'PUT',{...publication,title:'另一篇发布正文'});
+  assert.equal(conflict.error.code,'IDEMPOTENCY_CONFLICT');
   assert.equal((await app.call('articles?account='+encodeURIComponent('V字'))).data.items.filter(row=>row.platform_article_id==='item-V字').length,1);
 });
 
