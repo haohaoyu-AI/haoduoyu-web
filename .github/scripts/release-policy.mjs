@@ -543,6 +543,8 @@ export const cockpitRedesignRelease=Object.freeze({
   commit:'22940f90847028ffef8f3919cf8dd69f66fd08e2',
   tree:'45da20cd164c9249130da4e60324c2b73428bf72',
   baseline:'da3d3b80-8f10-4fae-83a2-4d8342df503f',
+  // Exact upload from run 44767098291; the deploy call briefly returned 404.
+  uploadedVersion:'579264fb-63c9-4be9-a343-bda08d1abb5f',
   bytes:3618654,sha256:'97b3933fe724ea73c78c2f37d12299a8c160d805d651a09e354e3f4b252fb440',
   label:'production-cockpit-redesign'});
 const acceptedRelease=commit=>commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
