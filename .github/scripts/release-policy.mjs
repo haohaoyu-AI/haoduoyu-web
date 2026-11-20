@@ -515,7 +515,15 @@ export const noteSuggestRecordLabelRelease=Object.freeze({
   baseline:'d90d3aec-3cdf-42d6-8bee-398e6097ce05',
   bytes:3599847,sha256:'21cb5d2e7917e7770fd06270352e684b08b8d431567ac0758c4f79f35467ccf1',
   label:'production-note-suggest-record-label'});
-const acceptedRelease=commit=>commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
+// 未来待办 move/complete uses the scope endpoint, on top of the deployed 5d224dc. No migration.
+export const futureMoveFixRelease=Object.freeze({
+  commit:'ba7268bdef6d496c4d2e7344c9c44cea697ad22e',
+  tree:'ab4598bde3f94d5a42f16fdbd0d044bb766a8111',
+  baseline:'70293ee5-b3d6-4e41-84f8-abef50472289',
+  bytes:3599837,sha256:'6f3294adfd52a18e86315e6f66af608e4b38954e495a239006c899a1394b8ef6',
+  label:'production-future-move-fix'});
+const acceptedRelease=commit=>commit===futureMoveFixRelease.commit?futureMoveFixRelease:
+  commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
   commit===noteImpliedRelease.commit?noteImpliedRelease:
   commit===noteHintRelease.commit?noteHintRelease:
   commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
