@@ -192,11 +192,11 @@ function overview(data,vm) {
     statCard('平均阅读时长',value(reviewDuration(current.avgReadSeconds)),change(current.avgReadSeconds,earlier.avgReadSeconds)),
     statCard('平均阅读完成率',value(reviewNumber(current.completion,'completion_rate')),change(current.completion,earlier.completion)),
   ].join('');
-  return renderWeeklyReview(data,vm) +
-    `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" ` +
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
-    `<div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data,vm,current.window)}</section>`;
+    `<div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data,vm,current.window)}</section>` +
+    renderWeeklyReview(data,vm);
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">

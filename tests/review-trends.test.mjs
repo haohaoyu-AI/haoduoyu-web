@@ -119,8 +119,11 @@ test('navigation, empty data, daily table, validation, account isolation and HTM
   assert.match(html,/class="review-trends review-cockpit-trends"/);
   assert.doesNotMatch(html,/统计口径与数据时间/);
   assert.doesNotMatch(html,/data-review-secondary="trends"/);
-  assert.match(html,/阅读走势/);
-  assert.match(html,/点击率走势/);
+  assert.match(html,/本期每篇文章卡在哪/);
+  assert.match(html,/本期文章排行/);
+  const html30 = renderContentReviewContent(source,{...model,filters:{metricsRange:'30d'}});
+  assert.match(html30,/阅读走势/);
+  assert.match(html30,/点击率走势/);
   assert.doesNotMatch(html,/数据趋势|逐日数据|review-cockpit-charts/);
   assert.doesNotMatch(html,/<script>/);
   assert.doesNotMatch(html,/ style="/,'the strict style policy forbids inline styles');

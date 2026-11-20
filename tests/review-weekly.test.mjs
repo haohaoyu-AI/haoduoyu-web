@@ -10,17 +10,20 @@ const reports=[report('2026-10-23','2026-10-30','# 合成周复盘一\n\n合成�
   report('2026-11-14','2026-11-14','合成日报',{period_type:'daily'}),
   report('2026-11-09','2026-11-15','合成：别的账号',{account:'鱼见'})];
 
-test('the newest weekly review is one folded row at the top; earlier weeks follow inside, newest first',()=>{
+test('the newest weekly review renders expanded; earlier weeks stay folded inside往期周复盘, newest first',()=>{
   assert.deepEqual(weeklyReviews(reports,'V字').map(item=>item.period_end),['2026-11-15','2026-11-08','2026-10-30']);
-  const html=renderWeeklyReview({reports},{account:'V字'});
-  assert.match(html,/<details class="review-weekly-latest"><summary><span class="review-weekly-title">周复盘<\/span><span class="review-weekly-date">11月9日 至 11月15日<\/span><span class="review-weekly-preview">合成：本周发了 5 篇。<\/span>/);
-  assert.doesNotMatch(html,/<details[^>]* open/,'everything starts folded');
+  const html=renderWeeklyReview({reports},{account:'V字',now:'2026-11-20T06:00:00Z'});
+  assert.match(html,/<div class="review-weekly-latest"><div class="review-weekly-head"><h3 class="review-weekly-title">上周复盘<\/h3><span class="review-weekly-date">11月9日 至 11月15日<\/span><span class="review-weekly-badge">本周周报待周日生成<\/span><\/div>/);
+  assert.doesNotMatch(html,/<details class="review-weekly-latest">/,'latest weekly review is expanded without a fold');
   assert.match(html,/合成：本周发了 5 篇/);assert.doesNotMatch(html,/合成日报|别的账号/);
   assert.match(html,/&lt;b&gt;x&lt;\/b&gt;/,'report text is escaped');
-  const older=html.split('往期')[1];
+  const older=html.split('往期周复盘（2 份）')[1];
   assert.ok(older.indexOf('11月2日 至 11月8日')<older.indexOf('10月23日 至 10月30日'));
   assert.equal((older.match(/<details class="review-weekly-week">/g)||[]).length,2,'earlier weeks start folded');
   assert.match(older,/<span class="review-weekly-preview">合成：第二周 两篇 爆款。<\/span>/);
+  const current=renderWeeklyReview({reports},{account:'V字',now:'2026-11-15T12:00:00Z'});
+  assert.match(current,/<h3 class="review-weekly-title">本周复盘<\/h3>/);
+  assert.doesNotMatch(current,/本周周报待周日生成/);
 });
 
 test('no weekly review means no block, and the preview skips headings',()=>{

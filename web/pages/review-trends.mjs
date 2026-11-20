@@ -109,11 +109,85 @@ function figure(result,{key,rolling,kind,title,hint,format,tick,height,threshold
     >${grid}${hitLine}${dots}${lines}${hitLabel}${days}</svg></div>
     <p class="review-trend-readout" data-trend-readout-target data-default="${e(resting)}">${e(resting)}</p></section>`;
 }
-function legend(result) {
+function legend(result, {showLine = true} = {}) {
   const item = (mark,label) => `<li><i class="review-trend-key ${mark}" aria-hidden="true"></i>${e(label)}</li>`;
   return `<ul class="review-trend-legend">${item('hit','爆')}${item('middle','中')}${item('flop','扑')}
     ${result.summary.provisional_count || result.summary.unknown_age_count ? item('provisional','不满 24 小时的数据，暂定') : ''}
-    ${item('line',`近 ${result.rolling.days} 天中位数`)}</ul>`;
+    ${showLine ? item('line',`近 ${result.rolling.days} 天中位数`) : ''}</ul>`;
+}
+function quadrantFigure(result) {
+  const points = result.points.filter(point => known(point.reads) && known(point.ctr));
+  const head = '<div class="review-trend-figure-head"><h3>本期每篇文章卡在哪</h3>' +
+    '<span class="review-note">横轴点击率、纵轴阅读；右上是爆款区，左下说明标题封面没人点</span></div>';
+  if (!points.length) return `<section class="review-trend-figure review-quadrant-figure">${head}
+    <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
+  const height = 270, top = 18, bottom = height - 34;
+  const hitThreshold = result.thresholds?.hit;
+  const ctrKpi = (result.kpis || []).find(tile => tile.key === 'median_ctr');
+  const ctrLine = known(ctrKpi?.previous) ? ctrKpi.previous : known(result.summary.median_ctr) ? result.summary.median_ctr : null;
+  const ctrLineLabel = known(ctrKpi?.previous) ? `上期点击率中位 ${percent(ctrKpi.previous)}` : known(ctrLine) ? `本期点击率中位 ${percent(ctrLine)}` : '';
+  const ctrMax = Math.max(20, Math.ceil((Math.max(...points.map(point => point.ctr), ctrLine ?? 0) + 2) / 5) * 5);
+  const readValues = [...points.map(point => point.reads), ...(known(hitThreshold) ? [hitThreshold] : [])];
+  const {y, ticks} = scale(readValues, 'log', top, bottom);
+  const x = value => `${(Math.min(1, Math.max(0, value / ctrMax)) * 100).toFixed(2)}%`;
+  const ctrStep = ctrMax <= 25 ? 5 : 10;
+  const ctrTicks = [];
+  for (let mark = 0; mark <= ctrMax; mark += ctrStep) ctrTicks.push(mark);
+  const grid = ticks.map(mark => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
+    <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(readsTick(mark))}</text>`).join('');
+  const xLabels = ctrTicks.map(mark =>
+    `<text x="${x(mark)}" y="${height - 10}" text-anchor="middle">${e(percentTick(mark))}</text>`).join('');
+  const hitY = known(hitThreshold) ? y(hitThreshold) : null;
+  const ctrPct = known(ctrLine) ? Math.min(100, Math.max(0, ctrLine / ctrMax * 100)) : null;
+  const zones = hitY !== null && ctrPct !== null
+    ? `<rect class="review-quad-zone is-hot" x="${ctrPct.toFixed(2)}%" y="${top}" width="${(100 - ctrPct).toFixed(2)}%" height="${Math.max(0, hitY - top).toFixed(2)}"/>
+       <rect class="review-quad-zone is-cold" x="0%" y="${hitY.toFixed(2)}" width="${ctrPct.toFixed(2)}%" height="${Math.max(0, bottom - hitY).toFixed(2)}"/>`
+    : '';
+  const hitLine = hitY !== null ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${hitY.toFixed(2)}" y2="${hitY.toFixed(2)}"/>` : '';
+  const hitLabel = hitY !== null ? `<text class="review-trend-threshold-label" x="100%" y="${(hitY - 6).toFixed(2)}" text-anchor="end">爆款线 ${e(reads(hitThreshold))}</text>` : '';
+  const vLine = ctrPct !== null ? `<line class="review-quad-ctr-line" x1="${ctrPct.toFixed(2)}%" x2="${ctrPct.toFixed(2)}%" y1="${top}" y2="${bottom}"/>` : '';
+  const vLabel = ctrPct !== null ? `<text class="review-quad-ctr-label" x="${Math.min(92, ctrPct + 1.2).toFixed(2)}%" y="${top + 12}">${e(ctrLineLabel)}</text>` : '';
+  const quadLabels = hitY !== null && ctrPct !== null
+    ? `<text class="review-quad-label is-hot" x="99%" y="${top + 28}" text-anchor="end">标题好 · 推得动</text>
+       <text class="review-quad-label is-cold" x="1%" y="${bottom - 8}">标题没人点</text>
+       <text class="review-quad-label" x="99%" y="${bottom - 8}" text-anchor="end">有人点 · 没推起来</text>`
+    : '';
+  const order = {爆:2,扑:1};
+  const dots = [...points].sort((a,b) => (order[a.verdict] || 0) - (order[b.verdict] || 0)).map(point =>
+    `<circle class="review-trend-dot ${VERDICT_CLASS[point.verdict] || 'unjudged'}${point.provisional ? ' provisional' : ''}"
+      cx="${x(point.ctr)}" cy="${y(point.reads).toFixed(2)}" r="${point.verdict === '爆' ? 6.5 : 5}"
+      data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join('');
+  const best = [...points].sort((a,b) => b.reads - a.reads)[0];
+  const resting = best ? `最高：${readout(best)}` : '';
+  return `<section class="review-trend-figure review-quadrant-figure">${head}<div class="review-trend-chart"><svg height="${height}" role="img"
+    aria-label="本期每篇文章卡在哪：共 ${points.length} 篇有点击率与阅读数据的文章，横轴为点击率，纵轴为 24 小时阅读。"
+    >${zones}${grid}${hitLine}${vLine}${quadLabels}${dots}${hitLabel}${vLabel}${xLabels}</svg></div>
+    <p class="review-trend-readout" data-trend-readout-target data-default="${e(resting)}">${e(resting)}</p></section>`;
+}
+function rankedList(result) {
+  const items = [...result.points].sort((a,b) => (known(b.reads) ? 1 : 0) - (known(a.reads) ? 1 : 0) || (b.reads ?? -1) - (a.reads ?? -1));
+  const head = '<div class="review-trend-figure-head"><h3>本期文章排行</h3>' +
+    '<span class="review-note">按 24 小时阅读排序 · 右侧依次为阅读、点击率，点击打开详情</span></div>';
+  if (!items.length) return `<section class="review-cockpit-rank">${head}
+    <p class="review-trend-empty" role="status">当前范围没有已发布文章。</p></section>`;
+  const maxReads = Math.max(10, result.thresholds?.hit || 0, ...items.map(item => item.reads || 0));
+  const maxLog = Math.log10(maxReads);
+  const rows = items.map((item, index) => {
+    const verdictKey = VERDICT_CLASS[item.verdict] || 'unjudged';
+    const verdictLabel = item.verdict || '未判';
+    const pct = known(item.reads) && item.reads > 0 ? Math.max(4, Math.min(100, Math.round(Math.log10(Math.max(item.reads, 1)) / maxLog * 100))) : 0;
+    const when = item.timed ? reviewDateTime(item.published_at).slice(5) : item.date.slice(5);
+    return `<li class="review-rank-item" data-review-row="${e(item.id)}">
+      <span class="review-rank-num">${index + 1}</span>
+      <span class="review-rank-chip ${verdictKey}">${e(verdictLabel)}</span>
+      <button type="button" class="review-rank-title" data-review-article="${e(item.id)}" title="${e(item.title || '未命名')}">${e(item.title || '未命名')}</button>
+      <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="8" rx="4"/><rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? ' provisional' : ''}" width="${pct}" height="8" rx="4"/></svg>
+      <span class="review-rank-reads">${e(reads(item.reads))}</span>
+      <span class="review-rank-ctr">${e(percent(item.ctr))}</span>
+      <span class="review-rank-meta">${e(when)}${item.provisional ? ' · 不满 24h 暂定' : ''}</span>
+    </li>`;
+  }).join('');
+  return `<section class="review-cockpit-rank" aria-label="本期文章排行">${head}<ol class="review-rank-list">${rows}</ol></section>`;
 }
 function method(result) {
   const s = result.summary,dates = s.snapshot_start ? `${s.snapshot_start}${s.snapshot_end !== s.snapshot_start ? ' 至 ' + s.snapshot_end : ''}` : '未取得';
@@ -143,15 +217,22 @@ export function renderCockpitMethod(data, vm, window) {
   const now = vm.now || new Date().toISOString();
   return method(reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now}));
 }
-/** Restore the v101 article plots while sharing v102's single cockpit date window. */
+/** Cockpit view: short windows (this/last week) use CTR×Reads quadrant + ranked list; 30d keeps trend lines. */
 export function renderCockpitTrends(data,vm,window) {
   const now = vm.now || new Date().toISOString();
   const result = reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now});
   const pending = result.points.filter(point => point.provisional && (known(point.reads) || known(point.ctr))).length;
   const held = (result.excluded?.pending || 0) + (result.excluded?.unmatched || 0);
+  const shortWindow = result.days <= 14;
   const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ''}` +
     `${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ''}` +
-    `${result.end === day(now) ? '今天尚未结束。' : ''}缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`;
+    `${result.end === day(now) ? '今天尚未结束。' : ''}${shortWindow ? '缺失不补零；切换到「近30天」可看中位数走势线。' : `缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`}`;
+  if (shortWindow) {
+    return `<section class="review-trends review-cockpit-trends" aria-label="本期文章表现分析">${legend(result,{showLine:false})}
+      ${quadrantFigure(result)}
+      ${rankedList(result)}
+      <p class="review-note review-trend-note">${e(note)}</p></section>`;
+  }
   return `<section class="review-trends review-cockpit-trends" aria-label="文章阅读与点击率走势">${legend(result)}
     ${figure(result,{key:'reads',rolling:'rolling_reads',kind:'log',title:'阅读走势',height:260,format:reads,tick:readsTick,
       hint:'每个点是一篇文章，线越往上整体越好',threshold:result.thresholds?.hit,daily:false})}
