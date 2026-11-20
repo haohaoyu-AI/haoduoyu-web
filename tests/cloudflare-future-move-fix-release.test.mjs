@@ -13,6 +13,7 @@ test('future-move-fix is registered as an exact first upload on the deployed bas
     TARGET_COMMIT: 'ba7268bdef6d496c4d2e7344c9c44cea697ad22e',
     EXPECTED_CURRENT_VERSION: '70293ee5-b3d6-4e41-84f8-abef50472289',
     LOCAL_UPLOAD_STOPPED: 'true',
+    UPLOADED_VERSION: 'd59cae9f-7ae1-46b8-9f0a-50ab27171e46',
   };
   assert.equal(validateRequest(env), release);
   assert.equal(release.tree, 'ab4598bde3f94d5a42f16fdbd0d044bb766a8111');

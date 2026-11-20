@@ -520,6 +520,8 @@ export const futureMoveFixRelease=Object.freeze({
   commit:'ba7268bdef6d496c4d2e7344c9c44cea697ad22e',
   tree:'ab4598bde3f94d5a42f16fdbd0d044bb766a8111',
   baseline:'70293ee5-b3d6-4e41-84f8-abef50472289',
+  // Exact upload from run 44659110496; the deploy call briefly returned 404.
+  uploadedVersion:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
   bytes:3599837,sha256:'6f3294adfd52a18e86315e6f66af608e4b38954e495a239006c899a1394b8ef6',
   label:'production-future-move-fix'});
 const acceptedRelease=commit=>commit===futureMoveFixRelease.commit?futureMoveFixRelease:
