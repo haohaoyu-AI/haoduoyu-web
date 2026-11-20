@@ -524,7 +524,15 @@ export const futureMoveFixRelease=Object.freeze({
   uploadedVersion:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
   bytes:3599837,sha256:'6f3294adfd52a18e86315e6f66af608e4b38954e495a239006c899a1394b8ef6',
   label:'production-future-move-fix'});
-const acceptedRelease=commit=>commit===futureMoveFixRelease.commit?futureMoveFixRelease:
+// 待办备注 saves retry with the fresh version after a 409, on top of the deployed ba7268b. No migration.
+export const todoNoteConflictRelease=Object.freeze({
+  commit:'771ef8d76fbd260cf94014f615a5a07bc6f53379',
+  tree:'bd4ad575e8ca8b7d6d9794b8c12e71fc824bda1c',
+  baseline:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
+  bytes:3602277,sha256:'48c2bb975a65d06890dcbebee5d5a6792e5332c503bbbba184222b45991606b0',
+  label:'production-todo-note-conflict'});
+const acceptedRelease=commit=>commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
+  commit===futureMoveFixRelease.commit?futureMoveFixRelease:
   commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
   commit===noteImpliedRelease.commit?noteImpliedRelease:
   commit===noteHintRelease.commit?noteHintRelease:
