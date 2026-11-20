@@ -5,6 +5,7 @@ import { state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
+import { getOfflineRuntime } from "../offline/runtime.mjs";
 import { closeModal, openModal } from "../ui/modal.mjs";
 import { TODO_COUNT_MAX, todoCount, todoCountChange } from "../core/todo-count.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
@@ -187,12 +188,44 @@ function openTodoNote(options) {
 const NOTE_RETRY_DELAYS = [0, 500, 1500];
 const noteConflict = error => error?.status === 409;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function saveNoteFresh({ id, text, base, version, latest }) {
+// Ticking a to-do is queued offline and sent a moment later, while a note is saved straight away.
+// Wait (briefly) until that queued write for this to-do has reached the server, so both use one
+// version line; afterwards record the saved note in the offline copy as well.
+async function settleQueuedTodo(type, id) {
+  const offline = getOfflineRuntime();
+  if (!offline?.todoSettled) return;
+  for (let i = 0; i < 24; i++) {
+    try { if (await offline.todoSettled(type, id)) return; } catch { return; }
+    if (i === 0) void offline.sync?.().catch?.(() => {});
+    await pause(250);
+  }
+}
+async function rememberSavedNote(type, row) {
+  const offline = getOfflineRuntime();
+  if (!offline?.acceptTodoNote || !row) return;
+  try { await offline.acceptTodoNote(type, row, offline.captureRateLimitContext?.()); } catch { /* the server copy is already saved */ }
+}
+async function saveNoteFresh({ id, text, base, version, latest, type = "todo", onSend = () => {} }) {
+  await settleQueuedTodo(type, id);
+  const fresh0 = await latest().catch(() => null);
+  if (fresh0 && Number.isSafeInteger(fresh0.version)) {
+    if ((fresh0.note || "") === text) return fresh0;
+    if ((fresh0.note || "") !== base) return { changedElsewhere: true, fresh: fresh0 };
+    version = fresh0.version;
+  }
+  onSend(true);
+  try {
+    const saved = await sendNote({ id, text, base, version, latest });
+    if (saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
+    return saved;
+  } finally { onSend(false); }
+}
+async function sendNote({ id, text, base, version, latest }) {
   let lastError = null;
   for (const delay of [null, ...NOTE_RETRY_DELAYS]) {
     if (delay !== null) {
       await pause(delay);
-      const fresh = await latest();
+      const fresh = await latest().catch(() => null);
       if (!fresh) throw lastError;
       if ((fresh.note || "") === text) return fresh;
       if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
@@ -220,7 +253,7 @@ async function commitFutureNote(input) {
   view.noteEdit.committing=true; view.noteEdit.text=text;
   try {
     const saved=await saveNoteFresh({id:item.id,text,base:view.noteEdit.base ?? (item.note || ""),version:item.version,
-      latest:async()=>(await api('/unscheduled-todos'))?.items?.find(row=>row.id===item.id)});
+      type:'unscheduled_todo',latest:async()=>(await api('/unscheduled-todos'))?.items?.find(row=>row.id===item.id)});
     if(saved.changedElsewhere){
       Object.assign(item,saved.fresh); if(!saved.fresh.note)delete item.note;
       if(view.noteEdit?.id===item.id){view.noteEdit.committing=false;view.noteEdit.base=saved.fresh.note || "";}
@@ -252,7 +285,9 @@ async function commitTodoNote(input) {
   if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
   day.noteEdit.committing=true; day.noteEdit.text=text;
   try {
+    const edit=day.noteEdit;
     const saved=await saveNoteFresh({id:item.id,text,base:day.noteEdit.base ?? (item.note || ""),version:item.version,
+      onSend:on=>{edit.sending=on;},
       latest:async()=>(await api(`/todos?date=${encodeURIComponent(day.date)}`))?.items?.find(row=>row.id===item.id)});
     if(!todoSessionActive(owner))return;
     if(saved.changedElsewhere){
