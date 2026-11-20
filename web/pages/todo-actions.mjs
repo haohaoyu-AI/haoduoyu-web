@@ -163,7 +163,7 @@ function openFutureNote(options) {
   const view=futureTodoView(),id=options.id || options.target?.dataset.id;
   const item=view.items.find(row=>row.id===id&&!row.deleted_at&&!row.deleted);
   if(!item||view.pending||view.uncertain[id])return;
-  view.noteEdit={id:item.id,text:item.note || ""};
+  view.noteEdit={id:item.id,text:item.note || "",base:item.note || ""};
   view.noteError="";
   paintUnscheduledTodos();
   placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
@@ -174,11 +174,43 @@ function openTodoNote(options) {
   const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
   if(!context||todoBusy(context.day,context.item.id))return;
   const {item,day}=context;
-  day.noteEdit={id:item.id,text:item.note || ""};
+  day.noteEdit={id:item.id,text:item.note || "",base:item.note || ""};
   day.noteError="";
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
+// A note save can race another write to the same to-do (ticking it done a moment earlier, another
+// device, an AI writing through the connector). The server then answers 409 because our copy's version
+// is old. Instead of telling the person to refresh (which throws away what they typed), re-read the
+// to-do and save again with the fresh version. Only when the note itself was changed elsewhere do we
+// stop and ask, keeping the typed text in the box.
+const NOTE_RETRY_DELAYS = [0, 500, 1500];
+const noteConflict = error => error?.status === 409;
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function saveNoteFresh({ id, text, base, version, latest }) {
+  let lastError = null;
+  for (const delay of [null, ...NOTE_RETRY_DELAYS]) {
+    if (delay !== null) {
+      await pause(delay);
+      const fresh = await latest();
+      if (!fresh) throw lastError;
+      if ((fresh.note || "") === text) return fresh;
+      if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
+      version = fresh.version;
+    }
+    try {
+      return await api(`/todos/${encodeURIComponent(id)}/note`, { method: "PATCH", body: { note: text, version } });
+    } catch (error) {
+      if (!noteConflict(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+const elsewhereMessage = note => note ? `这条备注刚在别处改成了「${note}」。你写的还在框里，点空白会用你的版本保存。` :
+  "这条备注刚在别处被清空了。你写的还在框里，点空白会用你的版本保存。";
+const noteFailure = error => error.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" :
+  noteConflict(error) ? "这项待办正在别处更新，备注还没存上，内容已保留。稍后点空白再存一次。" : error.message || "保存失败，请重试";
 async function commitFutureNote(input) {
   if(futureRepainting())return;
   const view=futureTodoView(),item=view.items.find(row=>row.id===input.dataset.id);
@@ -187,16 +219,23 @@ async function commitFutureNote(input) {
   if(text===(item.note || "")){view.noteEdit=null;view.noteError="";paintUnscheduledTodos();return;}
   view.noteEdit.committing=true; view.noteEdit.text=text;
   try {
-    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
-    Object.assign(item,saved);
-    if(!saved.note)delete item.note;
-    if(view.noteEdit?.id===item.id)view.noteEdit=null;
-    view.noteError="";
+    const saved=await saveNoteFresh({id:item.id,text,base:view.noteEdit.base ?? (item.note || ""),version:item.version,
+      latest:async()=>(await api('/unscheduled-todos'))?.items?.find(row=>row.id===item.id)});
+    if(saved.changedElsewhere){
+      Object.assign(item,saved.fresh); if(!saved.fresh.note)delete item.note;
+      if(view.noteEdit?.id===item.id){view.noteEdit.committing=false;view.noteEdit.base=saved.fresh.note || "";}
+      view.noteError=elsewhereMessage(saved.fresh.note);
+    } else {
+      Object.assign(item,saved);
+      if(!saved.note)delete item.note;
+      if(view.noteEdit?.id===item.id)view.noteEdit=null;
+      view.noteError="";
+    }
   } catch(error) {
     if(isRequestAbort(error))return;
     if(view.noteEdit?.id===item.id){
       view.noteEdit.committing=false;
-      view.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+      view.noteError=noteFailure(error);
     }
   }
   paintUnscheduledTodos();
@@ -213,16 +252,23 @@ async function commitTodoNote(input) {
   if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
   day.noteEdit.committing=true; day.noteEdit.text=text;
   try {
-    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
+    const saved=await saveNoteFresh({id:item.id,text,base:day.noteEdit.base ?? (item.note || ""),version:item.version,
+      latest:async()=>(await api(`/todos?date=${encodeURIComponent(day.date)}`))?.items?.find(row=>row.id===item.id)});
     if(!todoSessionActive(owner))return;
-    mergeTodo(day,saved);
-    if(day.noteEdit?.id===item.id)day.noteEdit=null;
-    day.noteError="";
+    if(saved.changedElsewhere){
+      mergeTodo(day,saved.fresh);
+      if(day.noteEdit?.id===item.id){day.noteEdit.committing=false;day.noteEdit.base=saved.fresh.note || "";}
+      day.noteError=elsewhereMessage(saved.fresh.note);
+    } else {
+      mergeTodo(day,saved);
+      if(day.noteEdit?.id===item.id)day.noteEdit=null;
+      day.noteError="";
+    }
   } catch(error) {
     if(!todoSessionActive(owner))return;
     if(day.noteEdit?.id===item.id){
       day.noteEdit.committing=false;
-      day.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+      day.noteError=noteFailure(error);
     }
   }
   if(todoSessionActive(owner)){
