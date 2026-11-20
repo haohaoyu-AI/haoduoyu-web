@@ -5411,6 +5411,37 @@ async function acceptMovedTodo(context, { source, todo }, token) {
     return Array.isArray(day7?.data?.items) ? "saved" : "refresh";
   });
 }
+async function acceptTodoNote(context, type, row, token) {
+  const active6 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
+  if (!active6() || !["todo", "unscheduled_todo"].includes(type) || !row?.id || !Number.isSafeInteger(row.version)) return "refresh";
+  const id2 = type + ":" + row.id, key = entityKey(token.scope, id2);
+  const result = await context.db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
+    if (!active6()) return "refresh";
+    const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
+    if (operations2.some((op) => op.scope === token.scope && op.entity_id === id2 && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && (conflict.operation?.entity_id || conflict.entity_id) === id2)) return "pending";
+    const old = await tx.get("entities", key);
+    if (!old?.server) return "missing";
+    if (old.dirty) return "pending";
+    if (old.server.version > row.version) return "refresh";
+    const server = { ...old.server, version: row.version, updated_at: row.updated_at || old.server.updated_at };
+    if (row.note) server.note = row.note;
+    else delete server.note;
+    await tx.put("entities", { ...old, server });
+    return "saved";
+  });
+  if (result === "saved" && active6()) {
+    await context.refresh();
+    context.broadcast();
+  }
+  return result;
+}
+async function todoSettled(context, type, todoId) {
+  const owner2 = context.state.scope;
+  if (!owner2) return true;
+  const id2 = type + ":" + todoId;
+  const [pending, conflicts] = await Promise.all([context.outbox.list(owner2), context.outbox.conflicts.list(owner2)]);
+  return !pending.some((op) => op.entity_id === id2) && !conflicts.some((row) => (row.operation?.entity_id || row.entity_id) === id2);
+}
 function createOfflineRuntime(options4) {
   const context = runtimeContext(options4);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
@@ -5470,6 +5501,8 @@ function createOfflineRuntime(options4) {
     },
     // Confirmed server moves are reflected without discarding local edits.
     acceptMovedTodo: (move, token) => acceptMovedTodo(context, move, token),
+    acceptTodoNote: (type, row, token) => acceptTodoNote(context, type, row, token),
+    todoSettled: (type, id2) => todoSettled(context, type, id2),
     queue: context.queue,
     resolve: context.resolve,
     invalidate: context.invalidate,
@@ -9367,6 +9400,7 @@ init_requests();
 init_state();
 init_todos_state();
 init_popover();
+init_runtime();
 init_modal();
 function todoBusy(day7, id2) {
   return day7.updates.has(id2) || day7.removals.has(id2) || day7.templateWrites.has(id2);
@@ -9527,7 +9561,7 @@ function openFutureNote(options4) {
   const view2 = futureTodoView(), id2 = options4.id || options4.target?.dataset.id;
   const item = view2.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
   if (!item || view2.pending || view2.uncertain[id2]) return;
-  view2.noteEdit = { id: item.id, text: item.note || "" };
+  view2.noteEdit = { id: item.id, text: item.note || "", base: item.note || "" };
   view2.noteError = "";
   paintUnscheduledTodos();
   placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
@@ -9538,11 +9572,76 @@ function openTodoNote(options4) {
   const context = todoActionContext({ ...options4, date: options4.date || options4.target?.dataset.date, owner: options4.owner || options4.target?.dataset.owner });
   if (!context || todoBusy(context.day, context.item.id)) return;
   const { item, day: day7 } = context;
-  day7.noteEdit = { id: item.id, text: item.note || "" };
+  day7.noteEdit = { id: item.id, text: item.note || "", base: item.note || "" };
   day7.noteError = "";
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
+var NOTE_RETRY_DELAYS = [0, 500, 1500];
+var noteConflict = (error2) => error2?.status === 409;
+var pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function settleQueuedTodo(type, id2) {
+  const offline = getOfflineRuntime();
+  if (!offline?.todoSettled) return;
+  for (let i = 0; i < 24; i++) {
+    try {
+      if (await offline.todoSettled(type, id2)) return;
+    } catch {
+      return;
+    }
+    if (i === 0) void offline.sync?.().catch?.(() => {
+    });
+    await pause(250);
+  }
+}
+async function rememberSavedNote(type, row) {
+  const offline = getOfflineRuntime();
+  if (!offline?.acceptTodoNote || !row) return;
+  try {
+    await offline.acceptTodoNote(type, row, offline.captureRateLimitContext?.());
+  } catch {
+  }
+}
+async function saveNoteFresh({ id: id2, text, base, version: version2, latest: latest2, type = "todo", onSend = () => {
+} }) {
+  await settleQueuedTodo(type, id2);
+  const fresh0 = await latest2().catch(() => null);
+  if (fresh0 && Number.isSafeInteger(fresh0.version)) {
+    if ((fresh0.note || "") === text) return fresh0;
+    if ((fresh0.note || "") !== base) return { changedElsewhere: true, fresh: fresh0 };
+    version2 = fresh0.version;
+  }
+  onSend(true);
+  try {
+    const saved = await sendNote({ id: id2, text, base, version: version2, latest: latest2 });
+    if (saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
+    return saved;
+  } finally {
+    onSend(false);
+  }
+}
+async function sendNote({ id: id2, text, base, version: version2, latest: latest2 }) {
+  let lastError = null;
+  for (const delay of [null, ...NOTE_RETRY_DELAYS]) {
+    if (delay !== null) {
+      await pause(delay);
+      const fresh = await latest2().catch(() => null);
+      if (!fresh) throw lastError;
+      if ((fresh.note || "") === text) return fresh;
+      if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
+      version2 = fresh.version;
+    }
+    try {
+      return await api(`/todos/${encodeURIComponent(id2)}/note`, { method: "PATCH", body: { note: text, version: version2 } });
+    } catch (error2) {
+      if (!noteConflict(error2)) throw error2;
+      lastError = error2;
+    }
+  }
+  throw lastError;
+}
+var elsewhereMessage = (note) => note ? `这条备注刚在别处改成了「${note}」。你写的还在框里，点空白会用你的版本保存。` : "这条备注刚在别处被清空了。你写的还在框里，点空白会用你的版本保存。";
+var noteFailure = (error2) => error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : noteConflict(error2) ? "这项待办正在别处更新，备注还没存上，内容已保留。稍后点空白再存一次。" : error2.message || "保存失败，请重试";
 async function commitFutureNote(input) {
   if (futureRepainting()) return;
   const view2 = futureTodoView(), item = view2.items.find((row) => row.id === input.dataset.id);
@@ -9557,16 +9656,33 @@ async function commitFutureNote(input) {
   view2.noteEdit.committing = true;
   view2.noteEdit.text = text;
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note: text, version: item.version } });
-    Object.assign(item, saved);
-    if (!saved.note) delete item.note;
-    if (view2.noteEdit?.id === item.id) view2.noteEdit = null;
-    view2.noteError = "";
+    const saved = await saveNoteFresh({
+      id: item.id,
+      text,
+      base: view2.noteEdit.base ?? (item.note || ""),
+      version: item.version,
+      type: "unscheduled_todo",
+      latest: async () => (await api("/unscheduled-todos"))?.items?.find((row) => row.id === item.id)
+    });
+    if (saved.changedElsewhere) {
+      Object.assign(item, saved.fresh);
+      if (!saved.fresh.note) delete item.note;
+      if (view2.noteEdit?.id === item.id) {
+        view2.noteEdit.committing = false;
+        view2.noteEdit.base = saved.fresh.note || "";
+      }
+      view2.noteError = elsewhereMessage(saved.fresh.note);
+    } else {
+      Object.assign(item, saved);
+      if (!saved.note) delete item.note;
+      if (view2.noteEdit?.id === item.id) view2.noteEdit = null;
+      view2.noteError = "";
+    }
   } catch (error2) {
     if (isRequestAbort(error2)) return;
     if (view2.noteEdit?.id === item.id) {
       view2.noteEdit.committing = false;
-      view2.noteError = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
+      view2.noteError = noteFailure(error2);
     }
   }
   paintUnscheduledTodos();
@@ -9589,16 +9705,35 @@ async function commitTodoNote(input) {
   day7.noteEdit.committing = true;
   day7.noteEdit.text = text;
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note: text, version: item.version } });
+    const edit = day7.noteEdit;
+    const saved = await saveNoteFresh({
+      id: item.id,
+      text,
+      base: day7.noteEdit.base ?? (item.note || ""),
+      version: item.version,
+      onSend: (on) => {
+        edit.sending = on;
+      },
+      latest: async () => (await api(`/todos?date=${encodeURIComponent(day7.date)}`))?.items?.find((row) => row.id === item.id)
+    });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day7, saved);
-    if (day7.noteEdit?.id === item.id) day7.noteEdit = null;
-    day7.noteError = "";
+    if (saved.changedElsewhere) {
+      mergeTodo(day7, saved.fresh);
+      if (day7.noteEdit?.id === item.id) {
+        day7.noteEdit.committing = false;
+        day7.noteEdit.base = saved.fresh.note || "";
+      }
+      day7.noteError = elsewhereMessage(saved.fresh.note);
+    } else {
+      mergeTodo(day7, saved);
+      if (day7.noteEdit?.id === item.id) day7.noteEdit = null;
+      day7.noteError = "";
+    }
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
     if (day7.noteEdit?.id === item.id) {
       day7.noteEdit.committing = false;
-      day7.noteError = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
+      day7.noteError = noteFailure(error2);
     }
   }
   if (todoSessionActive(owner2)) {
@@ -10327,7 +10462,8 @@ function inputTodo(target) {
   }
 }
 function showTodoFailure(day7, error2) {
-  if (!isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
+  if (isRequestAbort(error2) || error2.staleSession) return;
+  day7.error = /preceding local version/.test(error2.message || "") ? "这项待办上一步还在同步，请等几秒再点一次。" : error2.message;
 }
 function setTodoNotice(day7, text) {
   const owner2 = todoOwner(), version2 = ++day7.noticeVersion;
@@ -10515,6 +10651,12 @@ async function toggleTodo(target, { floating = false } = {}) {
   if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day7, item.id)) {
     target.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
+    return;
+  }
+  if (day7.noteEdit?.id === item.id && day7.noteEdit.sending) {
+    target.checked = item.completed;
+    setTodoNotice(day7, "备注正在保存，请稍后再点。");
+    paintTodos();
     return;
   }
   const completed = target.checked;
@@ -14242,7 +14384,7 @@ function editing(context) {
     context.emit();
     if (!composing) context.schedule(item);
   }
-  async function sendNote(item, pending, { offlineUnknown = false } = {}) {
+  async function sendNote2(item, pending, { offlineUnknown = false } = {}) {
     context.stop(item);
     item.pending = pending;
     item.phase = "saving";
@@ -14301,7 +14443,7 @@ function editing(context) {
     }
     const snapshot = Object.fromEntries(noteFields.map((field2) => [field2, item[field2]]));
     const body4 = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
-    return sendNote(item, {
+    return sendNote2(item, {
       kind: "notes",
       id: id2,
       path: "/memos/notes/" + id2,
@@ -14326,7 +14468,7 @@ function editing(context) {
     await saveNote(id2);
     return id2;
   }
-  return { edit, sendNote, saveNote, createNote };
+  return { edit, sendNote: sendNote2, saveNote, createNote };
 }
 function resolution(context) {
   async function checkNote(id2 = context.state.noteId) {

@@ -652,6 +652,40 @@ async function acceptMovedTodo(context, {source, todo}, token) {
     return Array.isArray(day?.data?.items) ? 'saved' : 'refresh';
   });
 }
+// A to-do note is saved straight to the server (it is not an offline queue operation). Reflect the
+// confirmed note and version in the cached row, so queued edits and cached reads do not fall back to
+// the older version and the person does not see the note disappear.
+async function acceptTodoNote(context, type, row, token) {
+  const active = () => token && context.state.scope === token.scope &&
+    context.state.verifiedScope === token.scope && context.generation === token.generation;
+  if (!active() || !['todo', 'unscheduled_todo'].includes(type) || !row?.id || !Number.isSafeInteger(row.version)) return 'refresh';
+  const id = type + ':' + row.id, key = entityKey(token.scope, id);
+  const result = await context.db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
+    if (!active()) return 'refresh';
+    const [operations, conflicts] = await Promise.all([tx.getAll('outbox'), tx.getAll('conflicts')]);
+    if (operations.some(op => op.scope === token.scope && op.entity_id === id && !['done', 'archived'].includes(op.status)) ||
+        conflicts.some(conflict => conflict.scope === token.scope && conflict.resolved_at === null &&
+          (conflict.operation?.entity_id || conflict.entity_id) === id)) return 'pending';
+    const old = await tx.get('entities', key);
+    if (!old?.server) return 'missing';
+    if (old.dirty) return 'pending';
+    if (old.server.version > row.version) return 'refresh';
+    const server = {...old.server, version: row.version, updated_at: row.updated_at || old.server.updated_at};
+    if (row.note) server.note = row.note; else delete server.note;
+    await tx.put('entities', {...old, server});
+    return 'saved';
+  });
+  if (result === 'saved' && active()) { await context.refresh(); context.broadcast(); }
+  return result;
+}
+// True once this to-do has no queued, sending or conflicting offline operation.
+async function todoSettled(context, type, todoId) {
+  const owner = context.state.scope;
+  if (!owner) return true;
+  const id = type + ':' + todoId;
+  const [pending, conflicts] = await Promise.all([context.outbox.list(owner), context.outbox.conflicts.list(owner)]);
+  return !pending.some(op => op.entity_id === id) && !conflicts.some(row => (row.operation?.entity_id || row.entity_id) === id);
+}
 export function createOfflineRuntime(options) {
   const context = runtimeContext(options);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
@@ -703,6 +737,8 @@ export function createOfflineRuntime(options) {
     },
     // Confirmed server moves are reflected without discarding local edits.
     acceptMovedTodo: (move, token) => acceptMovedTodo(context, move, token),
+    acceptTodoNote: (type, row, token) => acceptTodoNote(context, type, row, token),
+    todoSettled: (type, id) => todoSettled(context, type, id),
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture, retainedDrafts: drafts.list, retainedDraftRecords: drafts.records,

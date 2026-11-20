@@ -442,7 +442,9 @@ function inputTodo(target) {
   if (target.id === "todo-text" && validTodoDate(date)) { todoDay(date).draft = target.value; notifyTodoChanges(); }
 }
 function showTodoFailure(day, error) {
-  if (!isRequestAbort(error) && !error.staleSession) day.error = error.message;
+  if (isRequestAbort(error) || error.staleSession) return;
+  day.error = /preceding local version/.test(error.message || "") ?
+    "这项待办上一步还在同步，请等几秒再点一次。" : error.message;
 }
 function setTodoNotice(day, text) {
   const owner = todoOwner(), version = ++day.noticeVersion;
@@ -611,6 +613,13 @@ async function toggleTodo(target, {floating = false} = {}) {
   if (!item || item.deleted_at || day.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day, item.id)) {
     target.checked = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
+    return;
+  }
+  // A note for this to-do is on its way to the server with the same version; wait for it.
+  if (day.noteEdit?.id === item.id && day.noteEdit.sending) {
+    target.checked = item.completed;
+    setTodoNotice(day, "备注正在保存，请稍后再点。");
+    paintTodos();
     return;
   }
   const completed = target.checked;
