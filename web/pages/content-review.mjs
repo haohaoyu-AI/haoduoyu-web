@@ -4,16 +4,15 @@ import {renderTrafficCard} from './review-traffic-card.mjs';
 import {renderArticleDiagnosis} from './review-diagnosis.mjs';
 import {renderCockpitTrends} from './review-trends.mjs';
 import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
-import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
+import {renderArticleList, renderDetailPatterns} from './review-article-list.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderArticleRemarks} from './review-remarks.mjs';
 import {renderWeeklyReview} from './review-weekly.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
-import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
-import {activityArticles, enrichArticles} from '../../shared/review-analytics.mjs';
+import {day, finiteNumber, parseJson, reviewDateTime} from '../core/review-data.mjs';
+import {enrichArticles} from '../../shared/review-analytics.mjs';
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
-import {reviewListObservation, reviewObservationHours} from '../core/review-list-observation.mjs';
 import {reviewPublishLabel, reviewPublishState} from '../../shared/review-publish-state.mjs';
 import {archiveHref} from '../core/review-archive-state.mjs';
 
@@ -76,21 +75,6 @@ function chart(points,{small = false} = {}) {
       `aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" ` +
         `y2="${bottom}"/>${lines}${dots}${hover}${labels}</svg><div class="review-chart-scale"><span>阅读轴 0 – ` +
           `${e(reviewNumber(max('reads_24h')))}</span><span>CTR 轴 0 – ${e(reviewNumber(max('ctr_24h'),'ctr'))}</span></div></div>`;
-}
-function sampleFor(row,data) {
-  const reference = row.reference_article_id == null ? null : (data.benchmarkArticles || []).find(item =>
-    item.account === row.account && String(item.id) === String(row.reference_article_id));
-  const title = reference?.title || row.sample_title || '';
-  const url = safeReviewUrl(reference?.url) || safeReviewUrl(row.sample_url);
-  const reads = finiteNumber(reference?.reads);
-  return title || url ? {title, url, reads:reads !== null && reads >= 0 ? reads : null} : null;
-}
-function sampleLabel(row,data) {
-  const sample = sampleFor(row,data);
-  if (!sample) return '';
-  const label = `仿：${sample.title || '参考文章'}${sample.reads == null ? '' : `（阅读 ${reviewNumber(sample.reads)}）`}`;
-  const href = safeReviewUrl(sample.url);
-  return `<span class="review-reference">${href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : e(label)}</span>`;
 }
 function articleReason(row,data,account) {
   return (data.reports || []).filter(report => report.account === account)
@@ -204,144 +188,13 @@ function articleListPanel(rows,vm,data) {
 <button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div>
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div></section>`;
 }
-function activityDay(row) {
-  if (reviewPublishState(row) === 'pending') return day(row.draft_saved_at) || day(row.created_at);
-  return day(row.published_at);
-}
-function articleLibrary(rows,vm,data = {}) {
-  const view = articleView(vm);
-  const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === 
-    '7d' ? -6 : -29);
-  const publish = ['pending','published','unmatched'].includes(f.publish) ? f.publish : '';
-  const selected = rows.filter(r => {
-    const when = activityDay(r);
-    return (reviewPublishState(r) === 'unmatched' || !from || (when && when >= from && when <= today)) && (!f.from || when >= f.from && when) &&
-      (!f.to || when <= f.to && when) && (!f.verdict || r.verdict === f.verdict) && (!publish || reviewPublishState(r) === publish);
-  }).sort(activityArticles);
-  const pendingCount = selected.filter(row => reviewPublishState(row) === 'pending').length;
-  const publishedCount = selected.filter(row => reviewPublishState(row) === 'published').length;
+function articleLibrary(rows,vm,data) {
   const unmatchedRows = rows.filter(row => reviewPublishState(row) === 'unmatched');
-  const chosen = Array.isArray(vm.metricColumns) ? vm.metricColumns : ['reads'];
-  const columns = REVIEW_LIST_METRICS.filter(metric => chosen.includes(metric.key));
-  const picker = `<details class="review-columns-picker" data-review-columns-picker${vm.metricPickerOpen ? ' open' : ''}><summary ` +
-    `data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map(metric => `<label><input type="checkbox" ` +
-      `data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? ' checked' : ''}>${e(metric.label)}</label>`).join('')}</div></details>`;
-  const statusChoices = [['','全部状态'],['pending','待发布'],['published','已发布'],['unmatched','未能对上']];
-  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all',
-    '全部时间']],range)}</select></label><label>发布状态<select class="input" data-review-filter="publish">${options(statusChoices,
-      publish)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],
-      f.verdict || '')}</select></label>${view === GROUP_VIEW ? groupPicker(vm) : ''}${view === TABLE_VIEW ? picker : ''}</div>`;
   const flaggedItem = row => `<li><button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
     `aria-haspopup="dialog">${publishBadge(row)} ${e(row.title || '未命名文章')}</button></li>`;
   const flagged = unmatchedRows.length ? `<div class="review-unmatched" role="status"><strong>未能对上 ${e(unmatchedRows.length)} 篇</strong>` +
     `<p>这些记录对不上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p><ul>${unmatchedRows.map(flaggedItem).join('')}</ul></div>` : '';
-  const top = viewSwitch(vm, view, `已发布 ${publishedCount} · 待发布 ${pendingCount}`) + filters + flagged;
-  if (!selected.length) return top + empty('当前筛选下没有文章');
-  const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString());
-    const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} ` +
-      `小时</span>` : '';
-    const held = reviewPublishState(row);
-    const metricBody = metric => {
-      if (held === 'pending') return publishBadge(row);
-      const value = e(formatReviewListMetric(observation, metric.key));
-      if (held === 'unmatched') return `${publishBadge(row)} ${value}`;
-      return `${value}${metric.key === 'reads' ? age : ''}`;
-    };
-    const metrics = columns.map(metric => [metric.label,metricBody(metric)]);
-    const judgement = held === 'pending' || held === 'unmatched' ? publishBadge(row) :
-      observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
-    const supplement = chosen.includes('reads') ? '' : observation.kind === 'immature' ? '未满24h' : age;
-    return [
-    ['发布时间',held === 'pending' ? (row.draft_saved_at ? `${e(reviewDateTime(row.draft_saved_at))}<br><span class="review-note">存草稿</span>` : '—') :
-      e(reviewDateTime(row.published_at) || '—')],
-    ['标题',`${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || 
-      '未命名文章')}</button>${sampleLabel(row,data)}`],
-    ...metrics,
-    ['判定',`${judgement}${supplement}`]
-  ]; };
-  const wide = columns.length > 1;
-  const minimum = wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : '';
-  const table = list => `<div class="review-table-wrap${wide ? ' review-columns-wide' : ''}"${minimum}>` +
-    `<table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题',
-      ...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${list.map(row => `<tr ` +
-        `data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td ` +
-          `data-label="${e(label)}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  if (view === TIMELINE_VIEW) return top + articleTimeline(selected, data, vm);
-  return top + (view === GROUP_VIEW ? groupedArticles(selected, vm, activeGroup(vm), table) : table(selected));
-}
-/** View values; none can be a tag dimension name the bot writes. The timeline is the default. */
-export const TIMELINE_VIEW = '@timeline', TABLE_VIEW = '@table', GROUP_VIEW = '@group';
-export function articleView(vm) {
-  if (vm.filters?.group === TABLE_VIEW) return TABLE_VIEW;
-  return activeGroup(vm) ? GROUP_VIEW : TIMELINE_VIEW;
-}
-/** The three ways to look at the list, as buttons above the filters, with the article count. */
-function viewSwitch(vm, view, count) {
-  const dimension = vm.tags?.dimensions?.includes(vm.lastGroup) ? vm.lastGroup : vm.tags?.dimensions?.[0] || '';
-  const button = (value, label, extra = '') => `<button type="button" class="btn" data-review-view="${e(value)}" ` +
-    `aria-pressed="${view === (value === dimension ? GROUP_VIEW : value)}"${extra}>${label}</button>`;
-  return `<div class="review-view-row"><div class="segmented review-view-switch" role="group" aria-label="文章列表显示方式">` +
-    button(TIMELINE_VIEW, '时间轴') + button(TABLE_VIEW, '表格') +
-    button(dimension, '按套路', dimension ? '' : ' disabled title="grok 还没有填写套路标签"') +
-    `</div><span class="review-view-count">${e(count)}</span></div>`;
-}
-const ARTICLE_WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
-const readsText = value => value === null || value === undefined ? '—' : value >= 10000 ? `${(value / 10000).toFixed(1)} 万` :
-  Math.round(value).toLocaleString('zh-CN');
-/** Publishing as a diary timeline: one row per Beijing publish day, newest first, each article with its 24h reads and verdict. */
-function articleTimeline(rows, data, vm) {
-  const days = new Map();
-  for (const row of rows) { const date = activityDay(row) || '未记录'; days.set(date, [...(days.get(date) || []), row]); }
-  const now = vm.now || new Date().toISOString();
-  const lines = list => list.map(row => { const observation = reviewListObservation(row, data.snapshots, now);
-    const state = reviewPublishState(row);
-    const reads = state === 'pending' ? '待发布' : state === 'unmatched' ? '未能对上' : observation.kind === 'immature' ? '未满24h' : '阅读 ' + readsText(row.reads_24h);
-    const when = state === 'pending' ? reviewDateTime(row.draft_saved_at || row.created_at) : reviewDateTime(row.published_at);
-    return `<span class="review-tl-article">${publishBadge(row)}<button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
-      `aria-haspopup="dialog">${e(row.title || '未命名文章')}</button><small>${e([when.slice(11), reads].filter(Boolean).join(' · '))}` +
-      `${state === 'published' && row.verdict ? ' · ' + e(row.verdict) : ''}</small></span>`; }).join('');
-  return `<div class="notes-tl review-tl">${[...days.entries()].sort(([a], [b]) => (a === '未记录') - (b === '未记录') || b.localeCompare(a)).map(([date, list]) => {
-    const hits = list.filter(row => reviewPublishState(row) === 'published' && row.verdict === '爆').length;
-    const known = /^\d{4}-\d{2}-\d{2}$/.test(date);
-    return `<div class="notes-tl-day"><span class="notes-tl-date"><span class="notes-tl-num">${known ? Number(date.slice(8)) : '—'}</span>` +
-      `<span class="notes-tl-week">${known ? ARTICLE_WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()] : ''}</span>` +
-      `<span class="notes-tl-week">${known ? Number(date.slice(5,7)) + '月' : '未记录'}</span></span>` +
-      `<span class="notes-tl-dot"></span><span class="notes-tl-card">${lines(list)}` +
-      (list.length > 1 || hits ? `<span class="notes-tl-foot">${[list.length > 1 ? list.length + ' 篇' : '', hits ? '爆 ' + hits : '']
-        .filter(Boolean).join(' · ')}</span>` : '') + '</span></div>'; }).join('')}</div>`;
-}
-// The same articles, viewed by time (default) or grouped by one of the bot's pattern dimensions.
-function activeGroup(vm) {
-  const group = vm.filters?.group || '';
-  return group && vm.tags?.dimensions?.includes(group) ? group : '';
-}
-function groupPicker(vm) {
-  const dimensions = vm.tags?.dimensions || [];
-  const choices = dimensions.map(name => [name, '按' + name]);
-  return `<label>套路维度<select class="input" data-review-filter="group">${options(choices, activeGroup(vm))}</select></label>`;
-}
-const middle = values => { const list = values.filter(value => value !== null && value !== undefined && Number.isFinite(value)).sort((a, b) => a - b);
-  return list.length ? list.length % 2 ? list[(list.length - 1) / 2] : (list[list.length / 2 - 1] + list[list.length / 2]) / 2 : null; };
-function groupedArticles(rows, vm, dimension, table) {
-  const groups = new Map(), tags = vm.tags?.tags || {};
-  for (const row of rows) {
-    const name = tags[row.id]?.[dimension] || '未分类';
-    if (!groups.has(name)) groups.set(name, []);
-    groups.get(name).push(row);
-  }
-  const ordered = [...groups.entries()].sort(([a, x], [b, y]) => (a === '未分类') - (b === '未分类') || y.length - x.length ||
-    (middle(y.map(row => row.reads_24h)) ?? 0) - (middle(x.map(row => row.reads_24h)) ?? 0));
-  return `<div class="review-article-groups">${ordered.map(([name, list]) => {
-    const publishedRows = list.filter(row => reviewPublishState(row) === 'published');
-    const measured = publishedRows.filter(row => row.reads_24h !== null);
-    const ctr = middle(publishedRows.map(row => row.ctr_24h)), few = measured.length < 3;
-    const hits = publishedRows.filter(row => row.verdict === '爆').length;
-    return `<details class="review-article-group"><summary><span class="review-article-group-name">${e(name)}${few
-      ? ' <small class="review-note">样本少</small>' : ''}</span><span class="review-article-group-figures"><span><b>${list.length}</b> 篇</span>
-      <span>阅读中位数 <b>${e(readsText(middle(measured.map(row => row.reads_24h))))}</b></span>
-      <span>点击率 <b>${ctr === null ? '—' : e(ctr.toFixed(1)) + '%'}</b></span><span>爆款 <b>${hits}</b></span></span>
-      </summary>${table(list)}</details>`; }).join('')}</div>
-    <p class="review-note">按${e(dimension)}分组，数字只算当前筛选内有 24 小时数据的文章；少于 3 篇的组仅供参考。分类由 grok 填写。</p>`;
+  return renderArticleList(rows,vm,data.snapshots,flagged,tag);
 }
 const sections = [['keep_topic','保留选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','发布检查']];
 const statuses = [['candidate','待验证'],['trial','试用中'],['kept','有效'],['dropped','无效'],['hold','观察中']];
@@ -445,6 +298,12 @@ function verdictBasis(row) {
     `${reviewNumber(b.low_threshold)} 判扑`;
   return '';
 }
+function legacyArticleRecord(row) {
+  const fields = [['topic_category','选题分类'],['title_pattern','旧标题套路'],['playbook_version_used','手册版本']];
+  const values = fields.filter(([key]) => row[key] != null && String(row[key]).trim());
+  return values.length ? `<details class="review-article-legacy"><summary>旧记录</summary><dl>${values.map(([key,label]) =>
+    `<div><dt>${label}</dt><dd>${e(row[key])}</dd></div>`).join('')}</dl></details>` : '';
+}
 function drawer(data,rows,vm) {
   if (!vm.article) return '';
   const row = rows.find(r => String(r.id) === String(vm.article));
@@ -452,6 +311,7 @@ function drawer(data,rows,vm) {
     'aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" ` +
     `tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
+  const basis = verdictBasis(row);
   const originalTitle = row.original_draft_title && row.original_draft_title !== row.title ?
     `<p class="review-note"><strong>原稿标题</strong> ${e(row.original_draft_title)}</p>` : '';
   return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" ` +
@@ -463,9 +323,10 @@ function drawer(data,rows,vm) {
           '未命名文章')}</h2>${originalTitle}${reviewPublishState(row) === 'pending' ?
           '<p class="review-note">这篇还在草稿箱，阅读和点击率不计入统计。发布后会更新这一行。</p>' :
           reviewPublishState(row) === 'unmatched' ? '<p class="review-unmatched-note">这篇没能对上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p>' : ''}<div ` +
-          `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderArticleRemarks(row,data.notes)}` +
-          `${renderTrafficCard(data.snapshots,
-            row.id)}${renderArticleDiagnosis(row,vm)}${renderImitation(row,data,vm.account)}</aside></div>`;
+          `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderTrafficCard(data.snapshots,row.id)}` +
+          (basis ? `<p class="review-verdict-basis"><strong>判定依据</strong> ${e(basis)}</p>` : '') +
+          renderDetailPatterns(row,vm.tags) + renderImitation(row,data,vm.account) + renderArticleRemarks(row,data.notes) +
+          renderArticleDiagnosis(row,vm) + legacyArticleRecord(row) + '</aside></div>';
 }
 
 export function renderContentReview() { return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" ' +
@@ -493,7 +354,7 @@ export function renderContentReviewContent(data,vm) {
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes','prompts']
     .some(key => (data[key] || []).length);
   const selected = activeSection(vm);
-  const quiet = !hasData && selected !== 'trends';
+  const quiet = !hasData && !['articles','trends'].includes(selected);
   const body = archives(data,vm,rows,quiet ? empty('暂无内容复盘数据') +
     '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : undefined);
   return `<div class="review-body"${vm.article ? ' inert' : ''}>${archive}${body}</div>${drawer(data,rows,vm)}`;

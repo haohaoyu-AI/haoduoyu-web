@@ -74,7 +74,7 @@ test('hidden note kinds cannot expose their text or unsafe markup', () => {
   assert.doesNotMatch(html,/SECRET_NOTE_|<script>|&lt;script&gt;|review-kind/);
 });
 
-test('article rows contain four columns and isolate references and details', () => {
+test('article rows contain eight columns and isolate references and details', () => {
   const input={
     articles:[{id:'a',account,title:'ARTICLE_A',published_at:'2026-10-29',reference_article_id:'ref',applied_rule_ids:['r1']},
       {id:'b',account,title:'ARTICLE_B',published_at:'2026-10-28'}],
@@ -84,13 +84,14 @@ test('article rows contain four columns and isolate references and details', () 
     playbooks:[{id:'p',account,status:'active',version:1,rules:[{rule_id:'r1',section:'title',text:'RULE_ONLY_IN_MANUAL'}]}]
   };
   const html=render(input,{secondary:'articles'}), row=html.match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)?.[1];
-  assert.ok(row); assert.equal((row.match(/<td\b/g)||[]).length,4);
-  assert.match(row,/REFERENCE_TITLE/); assert.match(row,/href="https:\/\/example\.com\/reference"/);
+  assert.ok(row); assert.equal((row.match(/<td\b/g)||[]).length,8);
+  assert.doesNotMatch(row,/REFERENCE_TITLE/);
   assert.doesNotMatch(row,/OTHER_REASON|RULE_ONLY_IN_MANUAL/);
   const otherRow=html.match(/<tr data-review-row="b">([\s\S]*?)<\/tr>/)?.[1];
   assert.ok(otherRow); assert.doesNotMatch(otherRow,/review-reference/);
   const detail=render(input,{article:'a'});
   assert.match(detail,/role="dialog" aria-modal="true"/);
+  assert.match(detail,/data-review-benchmark="ref">REFERENCE_TITLE/);
   assert.doesNotMatch(detail,/OTHER_REASON|RULE_ONLY_IN_MANUAL/);
 });
 

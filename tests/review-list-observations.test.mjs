@@ -18,12 +18,12 @@ test('list retains recorded nearest observations with their ages and account iso
     assert.match(row(`a${i}`),new RegExp(`${ages[i]} 小时`));
     assert.match(row(`a${i}`),/review-tag/);
   }
-  assert.match(row('a0'),/data-label="阅读">0<span/);
-  assert.match(row('missing-read'),/data-label="阅读">—<span[^>]*>发布后 23 小时/);
+  assert.match(row('a0'),/data-label="24h 阅读"[^>]*><span[^>]*>0/);
+  assert.match(row('missing-read'),/data-label="24h 阅读"[^>]*><span title="发布后 23 小时">—/);
   assert.doesNotMatch(row('missing-read'),/review-tag/);
-  assert.match(row('a5'),/data-label="阅读">未满24h<\/td>/);
-  assert.match(row('a6'),/data-label="阅读">66<span[^>]*>发布后 73 小时/);
+  assert.match(row('a5'),/data-label="24h 阅读"[^>]*>未满24h<\/td>/);
+  assert.match(row('a6'),/data-label="24h 阅读"[^>]*><span title="发布后 73 小时">66/);
   assert.match(row('a6'),/review-tag">长尾/);
-  assert.match(row('a7'),/data-label="阅读">未满24h<\/td>/);
-  assert.doesNotMatch(html,/FOREIGN|9999|24h 阅读<\/th>/);
+  assert.match(row('a7'),/data-label="24h 阅读"[^>]*>未满24h<\/td>/);
+  assert.doesNotMatch(html,/FOREIGN|9999/);
 });
