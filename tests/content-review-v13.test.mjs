@@ -108,17 +108,17 @@ test('statistics range offers only weeks and falls back from old or invalid valu
   }
 });
 
-test('article list links its references and detail renders recorded traffic fields', () => {
+test('article list keeps a fixed metric set; details show references and full traffic', () => {
   const input=fixture(), html=htmlFor(input,{secondary:'articles'});
-  for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,4);
-  const a=row(html,'own-a'), b=row(html,'own-b'), u=row(html,'unknown');
-  assert.match(a,/review-reference[\s\S]*https:\/\/example\.com\/reference\/0/);
-  assert.match(b,/review-reference[\s\S]*https:\/\/example\.com\/fallback/);
-  assert.match(b,/data-label="阅读">0<span[^>]*>发布后 23 小时<\/span><\/td>/);
-  assert.doesNotMatch(u,/review-reference|review-sample-icon/);
-  assert.doesNotMatch(a,/data-label="24h CTR"|FOREIGN_/);
+  for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,8);
+  assert.doesNotMatch(html,/review-reference|FOREIGN_/);
+  assert.match(row(html,'own-b'),/data-label="24h 阅读"[^>]*><span title="发布后 23 小时">0<\/span>/);
   const detail=htmlFor(input,{article:'own-a'});
-  for (const value of ['展现量','粉丝展现量','阅读量','粉丝阅读量','点击率','平均阅读完成率','平均阅读时长','1,100','1,000','100','10.0%','14.7%','1分5秒']) assert.ok(detail.includes(value),value);
+  assert.match(detail,/data-review-benchmark="ref-0"/);
+  assert.match(htmlFor(input,{article:'own-b'}),/https:\/\/example\.com\/fallback/);
+  for (const value of ['展现量','粉丝展现量','阅读量','粉丝阅读量','点击率','平均阅读完成率','平均阅读时长','1,100','1,000','100','10.0%','14.7%','1分5秒']) {
+    assert.ok(detail.includes(value),value);
+  }
   assert.doesNotMatch(detail,/超过.*同类作品/);
 });
 
@@ -160,8 +160,10 @@ test('hidden account-health data cannot create a visible panel and untrusted sam
   const healthOnly=htmlFor({accountHealth:[{id:'h',account,judgement:'限流',action:'SECRET_HEALTH'}]});
   assert.match(healthOnly,/暂无内容复盘数据/);
   assert.doesNotMatch(healthOnly,/账号健康|SECRET_HEALTH|限流/);
-  const html=htmlFor({articles:[{id:'x',account,title:'<img src=x onerror=alert(1)>',published_at:'2026-11-01',
-    sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]},{secondary:'articles'});
+  const input={articles:[{id:'x',account,title:'<img src=x onerror=alert(1)>',published_at:'2026-11-01',
+    sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]};
+  const html=htmlFor(input,{secondary:'articles'});
   assert.doesNotMatch(html,/<img|<script>|href="javascript:/);
-  assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;BAD&lt;\/script&gt;/);
+  assert.match(html,/&lt;img/); assert.doesNotMatch(html,/BAD/);
+  assert.match(htmlFor(input,{article:'x'}),/&lt;script&gt;BAD&lt;\/script&gt;/);
 });

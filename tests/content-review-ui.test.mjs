@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeReviewData} from '../web/core/review-data.mjs';
-import {renderContentReviewContent,renderReviewMarkdown,safeReviewUrl,reviewNumber,REVIEW_VIEWS} from '../web/pages/content-review.mjs';
+import {renderContentReviewContent,renderReviewMarkdown,safeReviewUrl,reviewNumber,REVIEW_VIEWS,REVIEW_SECTIONS} from '../web/pages/content-review.mjs';
 import {readReviewCollection,readContentReviewData,readContentReviewDataWithRetry,reviewRoute} from '../web/review-controller.mjs';
 
 const account = 'synthetic';
@@ -11,7 +11,7 @@ const fixture = () => normalizeReviewData({
   snapshots:[{id:'s',article_id:'a',snapshot_date:'2026-10-30',age_hours:24,reads:0,ctr:0,completion_rate:30},
     {id:'older',article_id:'a',snapshot_date:'2026-10-29',age_hours:12,reads:0,ctr:5},
     {id:'missing-age',article_id:'b',snapshot_date:'2026-10-29',reads:13,ctr:2}],
-  reports:[{id:'r',account,period_type:'weekly',period_start:'2026-10-26',period_end:'2026-11-01',summary_md:'第一句结论。第二句不应出现在概览。'}],
+  reports:[{id:'r',account,period_type:'weekly',period_start:'2026-10-26',period_end:'2026-11-01',summary_md:'第一句结论。用于验证展开后的周复盘。'}],
   playbooks:[{id:'p2',account,version:2,published_on:'2026-10-29',content_md:'## 当前原则\n先核实事实，再形成判断。其余正文。',rules:[{rule_id:'r-1',section:'title',text:'Exact applied rule',status:'kept',evidence:{metric:'ctr',n_with:9,n_without:13,with_median:8.2,without_median:0},trials:0}]},
     {id:'p1',account,version:1,published_on:'2026-10-28',content_md:'Historical text.',rules:[{rule_id:'r-1',section:'title',text:'Old rule'}]}]
 });
@@ -21,9 +21,9 @@ test('legacy view URLs render an accurate empty state and preserve numeric forma
   assert.deepEqual(REVIEW_VIEWS.map(([id]) => id),['overview','articles','playbook']);
   for (const [view] of REVIEW_VIEWS) {
     const html = renderContentReviewContent(normalizeReviewData(),model(view));
-    assert.match(html,/暂无内容复盘数据/);
+    assert.match(html,view === 'articles' ? /当前筛选下没有文章/ : /暂无内容复盘数据/);
     assert.doesNotMatch(html,/class="review-stat"|<svg|style=/);
-    assert.equal((html.match(/role="tab" /g) || []).length,7);
+    assert.equal((html.match(/role="tab" /g) || []).length,REVIEW_SECTIONS.length);
   }
   assert.equal(reviewNumber(null),'—');
   assert.equal(reviewNumber(0),'0');
@@ -36,20 +36,21 @@ test('overview shows six metrics and only supported secondary sections',() => {
   assert.equal((html.match(/class="review-stat"/g) || []).length,6);
   assert.doesNotMatch(html,/文章列表/);
   assert.match(renderContentReviewContent(fixture(),model('articles')),/文章列表/);
-  assert.equal((html.match(/role="tab" /g) || []).length,7);
+  assert.equal((html.match(/role="tab" /g) || []).length,REVIEW_SECTIONS.length);
   assert.match(html,/<svg/);
-  assert.doesNotMatch(html,/第一句结论|第二句不应|data-review-view="daily"|review-alerts/);
+  assert.match(html,/第一句结论。用于验证展开后的周复盘。/);
+  assert.doesNotMatch(html,/data-review-view="daily"|review-alerts/);
 });
 
 test('article library escapes titles and distinguishes zeros from missing observations',() => {
-  const html = renderContentReviewContent(fixture(),{...model('articles'),metricColumns:['reads','ctr']});
-  assert.doesNotMatch(html,/<img|href="javascript:|<[^>]+\sonerror=/);
+  const html = renderContentReviewContent(fixture(),{...model('articles')});
+  assert.doesNotMatch(html,/<img|href="javascript:/);
   assert.match(html,/&lt;img/);
   const a=html.match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)[1];
   const b=html.match(/<tr data-review-row="b">([\s\S]*?)<\/tr>/)[1];
-  assert.match(a,/data-label="阅读">0<span[^>]*>发布后 24 小时<\/span><\/td>/);
-  assert.match(a,/data-label="点击率">0\.0%<\/td>/);
-  assert.match(b,/data-label="阅读">—<\/td>/);
+  assert.match(a,/data-label="24h 阅读"[^>]*><span title="发布后 24 小时">0<\/span><\/td>/);
+  assert.match(a,/data-label="点击率"[^>]*>0\.0%<\/td>/);
+  assert.match(b,/data-label="24h 阅读"[^>]*>—<\/td>/);
   assert.doesNotMatch(b,/>13(?:<|\.)/);
   assert.ok(html.indexOf('data-review-row="a"') < html.indexOf('data-review-row="b"'));
 });
@@ -130,13 +131,13 @@ test('server revision conflict retries all pages once, then stops on another con
   assert.equal(firstPages,2);
 });
 
-test('article library and drawer show true Shanghai time and filters exclude unknown dates',() => {
+test('article library and drawer show Shanghai time and the date range excludes undated rows',() => {
   const data = fixture(); data.articles[0].published_at = '2026-10-26T20:05:00Z';
   data.articles.push({id:'unknown',account,title:'unknown publication',published_at:null});
-  const html = renderContentReviewContent(data,{...model('articles'),article:'a',filters:{group:'@table',range:'all',from:'2026-10-27',to:'2026-10-27'}});
-  assert.match(html,/2026-10-27 04:05/); assert.doesNotMatch(html,/2026-10-26 20:05/);
-  assert.match(html,/data-review-row="a"/); assert.doesNotMatch(html,/data-review-row="unknown"/);
-  const excluded = renderContentReviewContent(data,{...model('articles'),filters:{group:'@table',range:'all',to:'2026-10-26'}});
+  const html = renderContentReviewContent(data,{...model('articles'),article:'a',filters:{group:'@table',range:'all'}});
+  assert.match(html,/2026-10-27 04:05/); assert.match(html,/10-27 周二 <span[^>]*>04:05/); assert.doesNotMatch(html,/2026-10-26 20:05/);
+  assert.match(html,/data-review-row="a"/); assert.match(html,/data-review-row="unknown"/);
+  const excluded = renderContentReviewContent(data,{...model('articles'),now:'2026-11-04T00:00:00Z',filters:{group:'@table',range:'7d'}});
   assert.doesNotMatch(excluded,/data-review-row="a"|data-review-row="unknown"/);
 });
 
@@ -148,7 +149,7 @@ test('new tab URLs take priority and old review views map to the three-view navi
 });
 
 
-test('references stay visible while health and draft data remain hidden',() => {
+test('references appear in the drawer while health and draft rules remain hidden',() => {
   const data=fixture();
   data.articles[0].reference_article_id='ref'; data.articles[1].sample_title='样本标题'; data.articles[1].sample_url='https://example.com/legacy';
   data.benchmarkArticles=[{id:'ref',account,benchmark_account_id:'ba',title:'参考标题',url:'https://example.com/ref',reads:12000}];
@@ -157,7 +158,9 @@ test('references stay visible while health and draft data remain hidden',() => {
   data.playbooks=[{id:'draft',account,version:2,status:'draft',content_md:'DRAFT_SECRET',rules:[]},
     {id:'active',account,version:1,status:'active',content_md:'ACTIVE_MANUAL',rules:[]}];
   const html=renderContentReviewContent(data,{...model(),secondary:'articles'});
-  assert.match(html,/参考标题/); assert.match(html,/样本标题/);
+  assert.doesNotMatch(html,/参考标题|样本标题/);
+  assert.match(renderContentReviewContent(data,{...model('articles'),article:'a'}),/参考标题/);
+  assert.match(renderContentReviewContent(data,{...model('articles'),article:'b'}),/样本标题/);
   assert.doesNotMatch(html,/HIDDEN_HEALTH_ACTION|DRAFT_SECRET/);
   const book=renderContentReviewContent(data,{...model(),secondary:'review'});
   assert.match(book,/ACTIVE_MANUAL/); assert.doesNotMatch(book,/DRAFT_SECRET/);
@@ -167,7 +170,7 @@ test('unknown references and untrusted sample URLs remain inert; hidden notes st
   const data=fixture(); data.articles[0].reference_article_id='missing'; data.articles[0].sample_title=null; data.articles[0].sample_url=null;
   data.articles[1].sample_title='<unsafe>'; data.articles[1].sample_url='javascript:alert(1)';
   data.notes=[{id:'n',account,title:'<script>',body_md:'<img src=x>'}];
-  const html=renderContentReviewContent(data,{...model(),secondary:'articles'});
+  const html=renderContentReviewContent(data,{...model('articles'),article:'b'});
   assert.match(html,/&lt;unsafe&gt;/);
   assert.doesNotMatch(html,/<script>|<img|href="javascript:|&lt;script&gt;|&lt;img src=x&gt;/);
 });
@@ -191,13 +194,11 @@ test('new and migrated notes and health remain hidden from current review',() =>
   assert.doesNotMatch(html,/HIDDEN_REPORT|HIDDEN_LEGACY_NOTE|HIDDEN_LEGACY_BENCHMARK|HIDDEN_LEGACY_HEALTH|HIDDEN_NEW_NOTE|HIDDEN_BODY|HIDDEN_ACTION|review-health-badge/);
 });
 
-test('article list opens as the publish timeline with a visible view switch',() => {
-  const data = fixture();
-  const html = renderContentReviewContent(data,{...model('articles'),filters:{range:'all'}});
-  assert.match(html,/data-review-view="@timeline" aria-pressed="true"/);
-  assert.match(html,/data-review-view="@table" aria-pressed="false"/);
-  assert.match(html,/class="notes-tl review-tl"/);
-  assert.doesNotMatch(html,/data-review-columns-picker/,'metric columns only appear for the table');
-  const table = renderContentReviewContent(data,{...model('articles'),filters:{range:'all',group:'@table'}});
-  assert.match(table,/review-articles-table/);assert.match(table,/data-review-columns-picker/);
+test('article list opens as the weekly total table and disables the pattern modes without tags',() => {
+  const html = renderContentReviewContent(fixture(),{...model('articles'),filters:{range:'all',group:'@timeline'}});
+  assert.match(html,/data-review-view="@table" aria-pressed="true">总表/);
+  assert.match(html,/disabled title="还没有套路标签">按标题套路/);
+  assert.match(html,/disabled title="还没有套路标签">按文章套路/);
+  assert.match(html,/review-week-summary/);
+  assert.doesNotMatch(html,/review-tl|显示指标|发布状态<select/);
 });

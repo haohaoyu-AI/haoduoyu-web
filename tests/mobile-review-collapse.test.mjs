@@ -5,7 +5,7 @@ import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 const data=normalizeReviewData({articles:[{id:'one',account:'A',title:'完整文章标题',published_at:'2026-11-07T01:00:00Z'},
   {id:'two',account:'B',title:'其他账号',published_at:'2026-11-07T01:00:00Z'}]});
-const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{group:'@table',group:'@table'},loading:false,error:'',article:'',secondary:'articles'};
+const vm={account:'A',now:'2026-11-08T01:00:00Z',filters:{group:'@table'},loading:false,error:'',article:'',secondary:'articles'};
 test('article collection stays open without a collapse control and preserves its data markup',()=>{
   const html=renderContentReviewContent(data,vm);
   assert.match(html,/data-review-articles-expanded="true"/);
@@ -14,11 +14,11 @@ test('article collection stays open without a collapse control and preserves its
   assert.match(html,/全屏展示/);
   assert.doesNotMatch(html,/其他账号|展开 ↓|收起 ↑|收起文章列表/);
 });
-test('expanded state retains detail, filter and metric controls, including empty-filter views',()=>{
-  const html=renderContentReviewContent(data,{...vm,metricColumns:['reads','ctr']});
+test('expanded state retains detail, filter and sort controls, including empty-filter views',()=>{
+  const html=renderContentReviewContent(data,vm);
   assert.match(html,/data-review-articles-expanded="true"/);
   assert.match(html,/data-review-filter="range"/);
-  assert.match(html,/data-review-column="ctr" checked/);
+  assert.match(html,/data-review-sort="ctr"/);
   assert.match(html,/data-review-article="one"/);
   assert.match(html,/toggle-fullscreen/);
   const empty=renderContentReviewContent(data,{...vm,filters:{group:'@table',verdict:'爆'}});

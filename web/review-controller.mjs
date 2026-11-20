@@ -3,26 +3,15 @@ import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
-import {storage} from './core/storage.mjs';
+import {reviewSortKeys} from './pages/review-article-list.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
 import {canAccessReviewArchive} from './core/review-archive-state.mjs';
-
-const columnStorageKey = 'haoduoyu.review.columns.v1';
-export const REVIEW_METRIC_COLUMNS = Object.freeze(['reads','impressions','fan_impressions','fan_reads','ctr','avg_read_seconds','completion_rate']);
-export function readReviewColumnPreference(raw) {
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return ['reads'];
-    const selected = REVIEW_METRIC_COLUMNS.filter(key => parsed.includes(key));
-    return parsed.length && !selected.length ? ['reads'] : selected;
-  } catch { return ['reads']; }
-}
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health','prompts/current'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {
   account:'V字',view:'overview',secondary:'cockpit',week:'this',date:'',start:'',end:'',periods:[],filters:{},
-  metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,articlesExpanded:true,diagnoses:{},
+  diagnoses:{},
   article:'',version:'',compare:'',loading:true,error:'',
 };
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
@@ -131,33 +120,7 @@ function focusBenchmark(id) {
   node.scrollIntoView({block:'start'});
   node.focus({preventScroll:true});
 }
-function positionReviewColumnsPicker() {
-  const picker = root()?.querySelector('[data-review-columns-picker]');
-  if (!picker?.open) return;
-  const trigger = picker.querySelector('[data-review-columns-trigger]');
-  const menu = picker.querySelector('.review-columns-menu');
-  if (!trigger || !menu) return;
-  const viewport = window.visualViewport;
-  const viewportTop = viewport?.offsetTop || 0;
-  let viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
-  const nav = document.querySelector('.mobile-nav');
-  if (nav && nav.getClientRects().length && getComputedStyle(nav).visibility !== 'hidden') {
-    const rect = nav.getBoundingClientRect();
-    if (rect.bottom > viewportTop && rect.top < viewportBottom) viewportBottom = Math.min(viewportBottom,rect.top);
-  }
-  const rect = trigger.getBoundingClientRect();
-  const gap = 8;
-  const above = Math.max(0,rect.top - viewportTop - gap);
-  const below = Math.max(0,viewportBottom - rect.bottom - gap);
-  const placeUp = menu.scrollHeight + 2 > below && above > below;
-  picker.dataset.reviewColumnsPlacement = placeUp ? 'up' : 'down';
-  menu.style.setProperty('--review-columns-max-height',`${Math.floor(placeUp ? above : below)}px`);
-}
-let columnPositionFrame = 0;
-function scheduleReviewColumnsPosition() {
-  if (columnPositionFrame || !root()?.querySelector('[data-review-columns-picker][open]')) return;
-  columnPositionFrame = requestAnimationFrame(() => { columnPositionFrame = 0; positionReviewColumnsPicker(); });
-}
+let searchTimer;
 let returnFocusId = '', returnScroll = 0;
 function syncReviewFullscreen() {
   const node = root(), button = node?.querySelector('[data-review-action="toggle-fullscreen"]');
@@ -173,22 +136,10 @@ async function toggleReviewFullscreen() {
     node.classList.remove('review-list-fullscreen');
     if (document.fullscreenElement === node) await document.exitFullscreen().catch(() => {});
   } else {
-    vm.articlesExpanded = true; paintContentReviewPage();
     node.classList.add('review-list-fullscreen');
     if (node.requestFullscreen) await node.requestFullscreen().catch(() => {});
   }
   syncReviewFullscreen();
-}
-async function toggleArticleList() {
-  const node = root();
-  if (!node || vm.loading || vm.error) return;
-  const expanded = !vm.articlesExpanded;
-  if (!expanded && node.classList.contains('review-list-fullscreen')) await toggleReviewFullscreen();
-  vm.articlesExpanded = expanded; vm.metricPickerOpen = false;
-  paintContentReviewPage();
-  const button = root()?.querySelector('.review-articles-toggle');
-  button?.focus({preventScroll:true});
-  if (!expanded) root()?.querySelector('.review-articles-panel')?.scrollIntoView({block:'start',behavior:'instant'});
 }
 const aiContext = () => ({account:vm.account, playbooks:() => data.playbooks, reload:() => void loadContentReview(pageContext),
   applyPlaybook:saved => { data = {...data, playbooks:data.playbooks.map(item => String(item.id) === String(saved.id) ? {...item, ...saved} : item)}; }});
@@ -196,21 +147,33 @@ export function paintContentReviewPage() {
   const node = root(); if (!node) return;
   vm.ai = reviewAiView();
   // Keep an open one-off selector and its focus across the repaint an AI update triggers.
-  const focused = document.activeElement?.dataset?.aiOnce ? document.activeElement.dataset.aiOnce : '';
+  const focused = document.activeElement;
+  const aiSelection = focused?.dataset?.aiOnce;
+  const search = focused?.matches('[data-review-search]') ? focused : null;
+  const open = new Set([...node.querySelectorAll('[data-review-keep-open][open]')].map(el => el.dataset.reviewKeepOpen));
   node.innerHTML = renderContentReviewContent(data,vm);
-  if (focused) node.querySelector(`[data-ai-once="${focused}"]`)?.focus({preventScroll:true});
+  for (const details of node.querySelectorAll('[data-review-keep-open]')) {
+    details.open = open.has(details.dataset.reviewKeepOpen);
+  }
+  if (aiSelection) node.querySelector(`[data-ai-once="${aiSelection}"]`)?.focus({preventScroll:true});
+  const nextSearch = search && node.querySelector('[data-review-search]');
+  if (nextSearch) {
+    nextSearch.value = search.value;
+    nextSearch.focus({preventScroll:true});
+    if (search.selectionStart !== null) nextSearch.setSelectionRange(search.selectionStart,search.selectionEnd,search.selectionDirection);
+  }
   syncReviewFullscreen();
   const dialog = node.querySelector('[role="dialog"]');
   for (const child of node.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector('.review-drawer-close')?.focus({preventScroll:true});
-  if (vm.metricPickerOpen) positionReviewColumnsPicker();
 }
 export async function loadContentReview(context) {
   registerEvents(); pageContext = context;
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
   if (identity !== currentIdentity) {
-    data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
+    clearTimeout(searchTimer);
+    data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; vm.diagnoses = {}; identity = currentIdentity;
   }
   vm = {...vm,...requested,archiveAllowed:canAccessReviewArchive(state.me,requested.account),loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
@@ -229,22 +192,18 @@ export async function loadContentReview(context) {
     vm.loading = false; vm.error = error.message || '读取失败，请稍后重试。'; paintContentReviewPage();
   }
 }
-// Pattern tags are optional decoration of the article list; a failed read only leaves the time view.
+// The total table stays available when pattern tags cannot be read.
 async function loadArticleTags(read, account, current) {
   try {
     const tags = await read('/review/ai/tags?account=' + encodeURIComponent(account));
     if (!current()) return;
     vm.tags = tags && Array.isArray(tags.dimensions) ? tags : null; paintContentReviewPage();
-  } catch { if (current()) vm.tags = null; }
+  } catch { if (current()) { vm.tags = null; paintContentReviewPage(); } }
 }
 function closeArticle() {
   vm.article = ''; writeRoute({article:''}); paintContentReviewPage();
   const node = [...(root()?.querySelectorAll('[data-review-article]') || [])].find(el => el.dataset.reviewArticle === returnFocusId);
   node?.focus({preventScroll:true}); window.scrollTo({top:returnScroll,behavior:'instant'});
-}
-function selectTab(view,focus = false) {
-  vm.view = view; vm.article = ''; vm.benchmark = ''; writeRoute({view,article:'',benchmark:''}); paintContentReviewPage();
-  if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({preventScroll:true});
 }
 function changeTrend(target) {
   const key = target.dataset.reviewTrend;
@@ -333,8 +292,6 @@ function describeTrendPoint(event,leaving) {
 }
 function onReviewClick(event) {
   const node = root();
-  const picker = node?.querySelector('[data-review-columns-picker]');
-  if (picker?.open && !picker.contains(event.target)) { picker.open = false; vm.metricPickerOpen = false; }
   const benchmarkLink = event.target.closest?.('a[data-review-benchmark]');
   if (benchmarkLink && node?.contains(benchmarkLink)) {
     event.preventDefault();
@@ -345,8 +302,6 @@ function onReviewClick(event) {
   if (event.target.closest?.('a')) return;
   const target = event.target.closest?.('button,[data-review-row]');
   if (!target || !node?.contains(target)) return;
-  if (target.dataset.reviewView !== undefined) { chooseArticleView(target.dataset.reviewView); return; }
-  if (target.dataset.reviewAction === 'toggle-articles') { void toggleArticleList(); return; }
   if (target.dataset.reviewAction === 'toggle-fullscreen') { void toggleReviewFullscreen(); return; }
   if (target.dataset.reviewAction === 'show-health') {
     vm.view = 'overview'; vm.secondary = 'attention'; vm.article = '';
@@ -358,6 +313,8 @@ function onReviewClick(event) {
   }
   if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
   if (vm.loading || vm.error) return;
+  if (target.dataset.reviewView) { chooseArticleView(target.dataset.reviewView); return; }
+  if (changeArticleList(target)) return;
   if (target.dataset.aiAction) { reviewAiClick(target, aiContext()); return; }
   if (target.dataset.reviewAction === 'toggle-prompt') {
     const source = target.closest('.review-prompt-card')?.querySelector('.review-prompt-source'), folded = source?.classList.toggle('is-folded');
@@ -373,7 +330,6 @@ function onReviewClick(event) {
     vm.secondary = target.dataset.reviewSecondary; vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();
     root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
   }
-  if (target.dataset.reviewView) { selectTab(target.dataset.reviewView,true); return; }
   if (target.dataset.reviewWeek) { vm.week = target.dataset.reviewWeek; writeRoute({week:vm.week}); paintContentReviewPage();
     root()?.querySelector(`[data-review-week="${vm.week}"]`)?.focus({preventScroll:true}); return; }
   if (target.dataset.reviewAction === 'close-article') { closeArticle(); return; }
@@ -395,11 +351,6 @@ function onReviewKeydown(event) {
     }
     return;
   }
-  const picker = node.querySelector('[data-review-columns-picker]');
-  if (event.key === 'Escape' && picker?.open) {
-    event.preventDefault(); picker.open = false; vm.metricPickerOpen = false;
-    picker.querySelector('[data-review-columns-trigger]')?.focus({preventScroll:true}); return;
-  }
   if (event.key === 'Escape' && node.classList.contains('review-list-fullscreen')) {
     event.preventDefault(); void toggleReviewFullscreen(); return;
   }
@@ -412,9 +363,11 @@ function onReviewKeydown(event) {
       root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
   }
   if (event.target.matches('[data-review-view]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
-    event.preventDefault(); const ids = REVIEW_VIEWS.map(([id]) => id), index = ids.indexOf(vm.view);
-    selectTab(event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) %
-      ids.length],true);
+    event.preventDefault();
+    const enabled = [...node.querySelectorAll('[data-review-view]:not([disabled])')];
+    const index = enabled.indexOf(event.target), step = event.key === 'ArrowRight' ? 1 : -1;
+    const next = event.key === 'Home' ? enabled[0] : event.key === 'End' ? enabled.at(-1) : enabled[(index + step + enabled.length) % enabled.length];
+    if (next) chooseArticleView(next.dataset.reviewView);
   }
 }
 function registerEvents() {
@@ -428,17 +381,8 @@ function registerEvents() {
     } else if (node && document.fullscreenElement === node) node.dataset.nativeFullscreen = 'true';
     syncReviewFullscreen();
   });
-  document.addEventListener('toggle',event => {
-    const picker = event.target;
-    if (picker.matches?.('[data-review-columns-picker]') && root()?.contains(picker)) {
-      vm.metricPickerOpen = picker.open;
-      if (picker.open) positionReviewColumnsPicker();
-    }
-  },true);
-  window.addEventListener('resize',scheduleReviewColumnsPosition,{passive:true});
-  document.addEventListener('scroll',scheduleReviewColumnsPosition,{capture:true,passive:true});
-  window.visualViewport?.addEventListener('resize',scheduleReviewColumnsPosition,{passive:true});
-  window.visualViewport?.addEventListener('scroll',scheduleReviewColumnsPosition,{passive:true});
+  document.addEventListener('input',onArticleSearch);
+  document.addEventListener('compositionend',onArticleSearch);
   document.addEventListener('click', onReviewClick);
   document.addEventListener('mouseover',event => describeTrendPoint(event,false));
   document.addEventListener('mouseout',event => describeTrendPoint(event,true));
@@ -448,30 +392,9 @@ function registerEvents() {
     if (!node?.contains(target) || vm.loading || vm.error) return;
     if (reviewAiInput(target)) return;
     if (target.dataset.reviewTrend) { changeTrend(target); return; }
-    const column = target.dataset.reviewColumn;
-    if (column !== undefined) {
-      if (!REVIEW_METRIC_COLUMNS.includes(column)) return;
-      const selected = new Set(vm.metricColumns);
-      if (target.checked) selected.add(column); else selected.delete(column);
-      vm.metricColumns = REVIEW_METRIC_COLUMNS.filter(key => selected.has(key));
-      vm.metricPickerOpen = true;
-      storage.set(columnStorageKey,JSON.stringify(vm.metricColumns));
-      const scrollLeft = node.querySelector('.review-table-wrap')?.scrollLeft || 0;
-      const scrollY = window.scrollY;
-      paintContentReviewPage();
-      const current = root();
-      const picker = current?.querySelector('[data-review-columns-picker]');
-      if (picker) picker.open = true;
-      const table = current?.querySelector('.review-table-wrap');
-      if (table) table.scrollLeft = scrollLeft;
-      current?.querySelector(`[data-review-column="${column}"]`)?.focus({preventScroll:true});
-      window.scrollTo({top:scrollY,behavior:'instant'});
-      positionReviewColumnsPicker();
-      return;
-    }
     if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
-    vm.filters[key] = target.value; if (key === 'group') rememberArticleView(target.value);
+    vm.filters[key] = target.value;
     paintContentReviewPage();
     const filterRoot = target.closest('.review-trends') ? root()?.querySelector('.review-trends') : root();
     filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({preventScroll:true});
@@ -481,20 +404,44 @@ function registerEvents() {
     else { syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark); } });
 }
 
-// The article list view (timeline, table or a tag grouping) is remembered on this device only.
 const ARTICLE_VIEW_KEY = 'haoduoyu-review-article-view';
 function savedArticleView() {
-  try {
-    const value = localStorage.getItem(ARTICLE_VIEW_KEY);
-    if (value && !value.startsWith('@')) vm.lastGroup = value;
-    return value ? {group:value} : {};
-  } catch { return {}; }
-}
-function rememberArticleView(value) {
-  if (value && !value.startsWith('@')) vm.lastGroup = value;
-  try { localStorage.setItem(ARTICLE_VIEW_KEY, value); } catch { /* Private mode or blocked storage: the choice lasts this visit. */ }
+  try { return {group:localStorage.getItem(ARTICLE_VIEW_KEY) || ''}; }
+  catch { return {}; }
 }
 function chooseArticleView(value) {
-  vm.filters.group = value; rememberArticleView(value); paintContentReviewPage();
+  vm.filters.group = value;
+  try { localStorage.setItem(ARTICLE_VIEW_KEY,value); } catch { /* The VM still retains the choice. */ }
+  paintContentReviewPage();
   root()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({preventScroll:true});
+}
+function changeArticleList(target) {
+  const {reviewSort,reviewPattern,reviewDimension,reviewPatternClear} = target.dataset;
+  if (reviewSortKeys.includes(reviewSort)) {
+    const current = vm.filters.sort;
+    const ascending = current?.key === reviewSort && current.direction === 'descending';
+    const group = target.closest('[data-review-keep-open]')?.dataset.reviewKeepOpen;
+    vm.filters.sort = {key:reviewSort,direction:ascending ? 'ascending' : 'descending'};
+    paintContentReviewPage();
+    const container = group ? [...root().querySelectorAll('[data-review-keep-open]')].find(el => el.dataset.reviewKeepOpen === group) : root();
+    container?.querySelector(`[data-review-sort="${reviewSort}"]`)?.focus({preventScroll:true});
+    return true;
+  }
+  if (reviewPattern === undefined && reviewPatternClear === undefined) return false;
+  vm.filters.pattern = reviewPattern === undefined ? null : {dimension:reviewDimension,name:reviewPattern};
+  paintContentReviewPage();
+  const selector = vm.filters.pattern ? '[data-review-pattern-clear]' : '[data-review-search]';
+  root()?.querySelector(selector)?.focus({preventScroll:true});
+  return true;
+}
+function onArticleSearch(event) {
+  const target = event.target;
+  if (!target.matches?.('[data-review-search]') || !root()?.contains(target)) return;
+  clearTimeout(searchTimer);
+  if (event.isComposing) return;
+  const query = target.value;
+  searchTimer = setTimeout(() => {
+    vm.filters.query = query;
+    if (!vm.loading && !vm.error) paintContentReviewPage();
+  },200);
 }
