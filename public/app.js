@@ -6529,7 +6529,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
     move: (sourceId, body4) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + (finishing ? "/complete-today" : "/move"), { method: "POST", body: body4 }),
     async checkReady(item) {
       guard();
-      const index = await timedNetwork("/workbench-snapshot/index?version=2");
+      const index = await timedNetwork("/workbench-snapshot/scope");
       guard();
       if (index?.complete !== true || index.projection !== "current" || index.scope_id !== token.scope) throw new Error("无法核对当前数据范围");
       const queue = await offline.queue();
