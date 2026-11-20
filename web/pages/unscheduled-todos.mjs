@@ -308,7 +308,8 @@ export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
     body)=>timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId)+(finishing?'/complete-today':'/move'),{method:'POST',body}),
     async checkReady(item) {
       guard();
-      const index=await timedNetwork('/workbench-snapshot/index?version=2'); guard();
+      // The full index was retired (426); the small scope endpoint answers the same three fields.
+      const index=await timedNetwork('/workbench-snapshot/scope'); guard();
       if (index?.complete!==true || index.projection!=='current' || index.scope_id!==token.scope) throw new Error('无法核对当前数据范围');
       const queue=await offline.queue(); guard();
       const ids=['unscheduled_todo:'+item.id,'todo:'+item.id];
