@@ -531,7 +531,15 @@ export const todoNoteConflictRelease=Object.freeze({
   baseline:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
   bytes:3602277,sha256:'48c2bb975a65d06890dcbebee5d5a6792e5332c503bbbba184222b45991606b0',
   label:'production-todo-note-conflict'});
-const acceptedRelease=commit=>commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
+// 待办备注 waits for a queued tick before saving, on top of the deployed 771ef8d. No migration.
+export const todoNoteSettleRelease=Object.freeze({
+  commit:'afb932c3758028e0c9ce45bce81bd909f7ebf744',
+  tree:'dbdfe3f67c1f4bf34778a82ac83f5465d1c584f2',
+  baseline:'39513a4f-caae-4989-93e7-f474f8b1cad6',
+  bytes:3606362,sha256:'e356644b80e089dd87d9bdf87d82b498fc1beba49d52e08371a369bc89c52c33',
+  label:'production-todo-note-settle'});
+const acceptedRelease=commit=>commit===todoNoteSettleRelease.commit?todoNoteSettleRelease:
+  commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
   commit===futureMoveFixRelease.commit?futureMoveFixRelease:
   commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
   commit===noteImpliedRelease.commit?noteImpliedRelease:
