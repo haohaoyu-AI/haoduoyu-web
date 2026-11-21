@@ -589,7 +589,15 @@ export const reviewLibraryHeaderFixRelease=Object.freeze({
   baseline:'908a7041-ae07-46f1-9ba5-6a3ca7dd8943',
   bytes:3670436,sha256:'237af0ecaef63c7efbcdefcc70c06b44573372dc2fbc4efd0ce698072f9ca9a1',
   label:'production-review-library-header-fix'});
-const acceptedRelease=commit=>commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
+// Whole-site warm-glass visual unification & zero-horizontal-scroll benchmark library table on 5a3e54c. No migration.
+export const siteUnifiedPolishRelease=Object.freeze({
+  commit:'5a98e2af2a617c5cf28ddd9eee0cfb2aa3a036ea',
+  tree:'f18de9b03c15e373fafa8f57003894a9c42cc478',
+  baseline:'acd70961-f9d6-46fd-bb8f-38cdd75f1d65',
+  bytes:3683705,sha256:'248d44c9e9ca122bf67414f4a0a1128092ac83c708e0970b1a5dc825d543eb00',
+  label:'production-site-unified-polish'});
+const acceptedRelease=commit=>commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
+  commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
   commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
   commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
   commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
