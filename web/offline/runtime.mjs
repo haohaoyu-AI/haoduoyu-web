@@ -510,7 +510,7 @@ function mutationActions(context) {
     return structuredClone(entity.local);
   }
   async function call(path, input = {}, readRetried = false) {
-    const {offlineGuard: guard = () => {}, ...options} = input;
+    const {offlineGuard: guard = () => {}, requireNetwork = false, ...options} = input;
     guard();
     const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
     const memo = features.memos && memoRoute(path);
@@ -535,11 +535,13 @@ function mutationActions(context) {
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
       if (offlineReadRoute(path).kind === 'todo') state.partial = false;
       if (!state.scope) return value;
-      return await rememberRead(context, path, value, baseline, memo);
+      const projection = await rememberRead(context, path, value, baseline, memo);
+      // Note CAS must compare against the actual server row, even if another tab has queued a local edit.
+      return requireNetwork ? value : projection;
     } catch (error) {
       if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
       if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return call(path, input, true);
-      if (!networkFailure(error)) throw error;
+      if (requireNetwork || !networkFailure(error)) throw error;
       return readCachedOffline(context, path, guard);
     }
   }

@@ -2,6 +2,7 @@ import { api } from "../core/api.mjs";
 import { $, e } from "../core/dom.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
 import { state } from "../core/state.mjs";
+import { dailyTodoDraft, persistDailyTodoDraft } from "../core/todo-note-drafts.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
@@ -12,7 +13,7 @@ import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
 import { futureRepainting, futureTodoView, paintUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { loadTodos, paintTodos, setTodoNotice, todoRepainting } from "./todos.mjs";
 function todoBusy(day, id) {
-  return day.updates.has(id) || day.removals.has(id) || day.templateWrites.has(id);
+  return day.updates.has(id) || day.noteCompletions.has(id) || day.removals.has(id) || day.templateWrites.has(id);
 }
 function todoActionContext({ id, date, owner = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date) || date !== todoDate() || !todoSessionActive(owner)) return null;
@@ -51,7 +52,7 @@ async function changeTodoCount(options, action, target = 0) {
   try {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
     if (!todoSessionActive(owner)) return false;
-    mergeTodo(day, saved); day.noteError = "";
+    mergeTodo(day, saved);
     return true;
   } catch (error) {
     if (isRequestAbort(error) || !todoSessionActive(owner)) return false;
@@ -89,7 +90,7 @@ async function submitTodoCount({ form, data }) {
   if (saved) closeModal(); else { button.disabled = false; message.textContent = "没有保存，请重试"; }
 }
 function readNote(node) {
-  const raw = node?.isContentEditable ? node.textContent : node?.value;
+  const raw = node?.value ?? node?.textContent;
   return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4000);
 }
 function placeNoteCaret(node) {
@@ -121,7 +122,13 @@ function rememberNote(node) {
     return;
   }
   const day = todoDay(node.dataset.date);
-  if (day.noteEdit?.id === node.dataset.id) day.noteEdit.text = text;
+  const draft = day.noteEdit;
+  if (draft?.id !== node.dataset.id || draft.text === text) return;
+  draft.text = text;
+  draft.error = "";
+  // Reverting to the old text is still an edit while a different value is being saved.
+  if (draft.save) draft.check = true;
+  persistDailyTodoDraft(day, draft);
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
@@ -156,7 +163,9 @@ function watchTodoNotes() {
   document.addEventListener("keydown", event => {
     if (event.key === "Enter" && event.target?.matches?.("[data-todo-note-input]")) {
       event.preventDefault();
-      event.target.blur();
+      const node = event.target;
+      if (node.dataset.future !== "1") void commitTodoNote(node, {retry: true});
+      node.blur();
     }
   });
 }
@@ -173,10 +182,11 @@ function openTodoNote(options) {
   watchTodoNotes();
   if(options.target?.dataset.future==="1")return openFutureNote(options);
   const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
-  if(!context||todoBusy(context.day,context.item.id))return;
-  const {item,day}=context;
-  day.noteEdit={id:item.id,text:item.note || "",base:item.note || ""};
-  day.noteError="";
+  if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
+  const {item, day} = context;
+  const draft = dailyTodoDraft(day, item.id) || {id: item.id, text: item.note || "", base: item.note || ""};
+  day.noteDrafts.set(item.id, draft);
+  day.noteEdit = draft;
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -193,34 +203,41 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 // version line; afterwards record the saved note in the offline copy as well.
 async function settleQueuedTodo(type, id) {
   const offline = getOfflineRuntime();
-  if (!offline?.todoSettled) return;
+  if (!offline?.todoSettled) return true;
   for (let i = 0; i < 24; i++) {
-    try { if (await offline.todoSettled(type, id)) return; } catch { return; }
+    try { if (await offline.todoSettled(type, id)) return true; } catch { return false; }
     if (i === 0) void offline.sync?.().catch?.(() => {});
     await pause(250);
   }
+  return false;
 }
 async function rememberSavedNote(type, row) {
   const offline = getOfflineRuntime();
   if (!offline?.acceptTodoNote || !row) return;
   try { await offline.acceptTodoNote(type, row, offline.captureRateLimitContext?.()); } catch { /* the server copy is already saved */ }
 }
-async function saveNoteFresh({ id, text, base, version, latest, type = "todo", onSend = () => {} }) {
-  await settleQueuedTodo(type, id);
-  const fresh0 = await latest().catch(() => null);
-  if (fresh0 && Number.isSafeInteger(fresh0.version)) {
-    if ((fresh0.note || "") === text) return fresh0;
-    if ((fresh0.note || "") !== base) return { changedElsewhere: true, fresh: fresh0 };
-    version = fresh0.version;
+async function saveNoteFresh({ id, text, base, version, latest, type = "todo", active = () => true }) {
+  const settled = await settleQueuedTodo(type, id);
+  if (!active()) throw new DOMException("请求已取消", "AbortError");
+  if (!settled && type === "todo") throw new Error("这项待办上一步还在同步，请等几秒再点一次。");
+  const fresh = type === "todo" ? await latest() : await latest().catch(() => null);
+  if (type === "todo" && (!fresh || fresh.deleted_at || !Number.isSafeInteger(fresh.version))) {
+    throw Object.assign(new Error("这项待办暂不可用"), {status: 404});
   }
-  onSend(true);
-  try {
-    const saved = await sendNote({ id, text, base, version, latest });
-    if (saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
-    return saved;
-  } finally { onSend(false); }
+  if (!active()) throw new DOMException("请求已取消", "AbortError");
+  if (fresh && Number.isSafeInteger(fresh.version)) {
+    if ((fresh.note || "") === text) {
+      if (type === "todo") await rememberSavedNote(type, fresh);
+      return fresh;
+    }
+    if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
+    version = fresh.version;
+  }
+  const saved = await sendNote({ id, text, base, version, latest, active });
+  if (active() && saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
+  return saved;
 }
-async function sendNote({ id, text, base, version, latest }) {
+async function sendNote({ id, text, base, version, latest, active }) {
   let lastError = null;
   for (const delay of [null, ...NOTE_RETRY_DELAYS]) {
     if (delay !== null) {
@@ -231,6 +248,7 @@ async function sendNote({ id, text, base, version, latest }) {
       if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
       version = fresh.version;
     }
+    if (!active()) throw new DOMException("请求已取消", "AbortError");
     try {
       return await api(`/todos/${encodeURIComponent(id)}/note`, { method: "PATCH", body: { note: text, version } });
     } catch (error) {
@@ -274,42 +292,64 @@ async function commitFutureNote(input) {
   paintUnscheduledTodos();
   if(view.noteEdit?.id===item.id)document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
 }
-async function commitTodoNote(input) {
-  if(input?.dataset?.future==="1")return commitFutureNote(input);
-  if (todoRepainting()) return;
-  const context=todoActionContext({id:input.dataset.id,date:input.dataset.date});
-  if(!context)return;
-  const {day,item,owner}=context;
-  if(day.noteEdit?.id!==item.id||day.noteEdit.committing)return;
-  const text=readNote(input);
-  if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
-  day.noteEdit.committing=true; day.noteEdit.text=text;
+function finishDailyTodoNote(day, draft) {
+  if (day.noteEdit === draft) day.noteEdit = null;
+  day.noteDrafts.delete(draft.id);
+}
+async function storeDailyTodoNote(day, item, owner, draft, text) {
+  const active = () => todoSessionActive(owner);
   try {
-    const edit=day.noteEdit;
-    const saved=await saveNoteFresh({id:item.id,text,base:day.noteEdit.base ?? (item.note || ""),version:item.version,
-      onSend:on=>{edit.sending=on;},
-      latest:async()=>(await api(`/todos?date=${encodeURIComponent(day.date)}`))?.items?.find(row=>row.id===item.id)});
-    if(!todoSessionActive(owner))return;
-    if(saved.changedElsewhere){
-      mergeTodo(day,saved.fresh);
-      if(day.noteEdit?.id===item.id){day.noteEdit.committing=false;day.noteEdit.base=saved.fresh.note || "";}
-      day.noteError=elsewhereMessage(saved.fresh.note);
-    } else {
-      mergeTodo(day,saved);
-      if(day.noteEdit?.id===item.id)day.noteEdit=null;
-      day.noteError="";
+    const saved = await saveNoteFresh({
+      id: item.id, text, base: draft.base, version: item.version, active,
+      latest: async () => {
+        const data = await api(`/todos?date=${encodeURIComponent(day.date)}`, {requireNetwork: true});
+        return data?.items?.find(row => row.id === item.id);
+      },
+    });
+    if (!active()) return false;
+    mergeTodo(day, saved.changedElsewhere ? saved.fresh : saved);
+    day.revision++;
+    if (saved.changedElsewhere) {
+      const note = saved.fresh.note;
+      draft.error = note ? `另一设备已保存「${note}」。你的草稿仍在，请先核对两个版本。` :
+        "另一设备已清空备注。你的草稿仍在，请先核对。";
+      return false;
     }
-  } catch(error) {
-    if(!todoSessionActive(owner))return;
-    if(day.noteEdit?.id===item.id){
-      day.noteEdit.committing=false;
-      day.noteError=noteFailure(error);
-    }
+    draft.base = text;
+    draft.check = false;
+    persistDailyTodoDraft(day, draft);
+    if (draft.text !== text) return false;
+    finishDailyTodoNote(day, draft);
+    return true;
+  } catch (error) {
+    if (active()) draft.error = `备注未保存，草稿已保留。按回车可重试。${error?.message ? " " + error.message : ""}`;
+    return false;
+  } finally {
+    draft.save = null;
+    if (active()) paintTodos();
   }
-  if(todoSessionActive(owner)){
-    paintTodos();
-    if(day.noteEdit?.id===item.id)document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+}
+function saveDailyTodoNote(day, item, owner) {
+  const draft = dailyTodoDraft(day, item.id);
+  if (!draft) return true;
+  if (draft.save) return draft.save;
+  if (!draft.check && draft.text === draft.base) {
+    finishDailyTodoNote(day, draft);
+    return true;
   }
+  draft.error = "";
+  draft.save = storeDailyTodoNote(day, item, owner, draft, draft.text);
+  return draft.save;
+}
+async function commitTodoNote(input, {retry = false} = {}) {
+  if (input?.dataset?.future === "1") return commitFutureNote(input);
+  if (todoRepainting()) return;
+  const context = todoActionContext({id: input.dataset.id, date: input.dataset.date});
+  if (!context || context.day.noteEdit?.id !== context.item.id) return;
+  const {day, item, owner} = context;
+  rememberNote(input);
+  if (day.noteEdit.error && !retry) return;
+  if (await saveDailyTodoNote(day, item, owner) && todoSessionActive(owner)) paintTodos();
 }
 async function submitTodoNote({form,data}) {
   const context=todoActionContext({id:form.dataset.id,date:form.dataset.date,owner:form.dataset.owner});
@@ -463,4 +503,4 @@ async function changeTodoTemplate(options, remove = false) {
   }
 }
 export { changeTodoCount, openTodoCount, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
-  renderTodoUndo, restoreTodo, todoBusy };
+  renderTodoUndo, restoreTodo, saveDailyTodoNote, todoBusy };

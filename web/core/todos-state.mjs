@@ -26,7 +26,7 @@ function todoDay(date = todoDate()) {
   if (!todosState.days.has(date)) {
     todosState.days.set(date, { date, items: [], draft: "", create: null, adding: false, loading: false, loaded: false,
       error: "", notice: "", noticeVersion: 0, revision: 0, sequence: 0, updates: new Map(), templateCreates: new Map(),
-      removals: new Map(), templateLinks: new Map(), templateWrites: new Set() });
+      removals: new Map(), templateLinks: new Map(), templateWrites: new Set(), noteDrafts: new Map(), noteCompletions: new Set() });
   }
   return todosState.days.get(date);
 }
