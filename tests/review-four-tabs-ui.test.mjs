@@ -92,7 +92,7 @@ test('library tab renders 4 KPI cards, verdict/pending chips and preserves exact
   assert.match(html,/仿写阅读中位/);
   assert.match(html,/class="review-lib-chip hit">爆<\/span>/);
   assert.match(html,/class="review-lib-chip is-pending">待发布<\/span>/);
-  assert.match(html,/data-label="样本什么时候发的"/);
-  assert.match(html,/data-label="我们什么时候仿写入库的"/);
-  assert.doesNotMatch(html,/UNUSED_SAMPLE|配图数|发布时间|收录日期|仿写账号|style="/);
+  assert.match(html,/data-label="样本发布时间"/);
+  assert.match(html,/data-label="仿写发布时间"/);
+  assert.doesNotMatch(html,/UNUSED_SAMPLE|配图数|>发布时间<|收录日期|仿写账号|style="/);
 });

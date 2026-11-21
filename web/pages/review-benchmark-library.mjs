@@ -79,7 +79,7 @@ export function renderBenchmarkLibrary(data = {}, account = '') {
     `<article class="review-sub-kpi"><span>样本阅读中位</span><strong>${e(sampleReadsMed)}</strong><small>参考爆文基准</small></article>` +
     `<article class="review-sub-kpi"><span>仿写阅读中位</span><strong>${e(ownReadsMed)}</strong>` +
     `<small>${ownCtrMed !== '—' ? `点击率中位 ${e(ownCtrMed)}` : '按最新已采快照'}</small></article></div>`;
-  const headers = ['对标账号','样本标题','样本什么时候发的','样本阅读','仿写标题','我们什么时候仿写入库的','仿写数据'];
+  const headers = ['对标账号','样本标题','样本发布时间','样本阅读','仿写标题','仿写发布时间','仿写数据'];
   const cellClasses = ['review-lib-cell-account','review-lib-cell-sample','review-lib-cell-sample-time',
     'review-lib-cell-sample-reads','review-lib-cell-own','review-lib-cell-own-time','review-lib-cell-metrics'];
   const body = samples.flatMap(({item,published,used}) => used.map((article,index) => {
@@ -90,9 +90,9 @@ export function renderBenchmarkLibrary(data = {}, account = '') {
     const state = reviewPublishState(article);
     const verdict = verdictOf(article);
     const verdictClass = verdict === '爆' ? 'hit' : verdict === '扑' ? 'flop' : 'middle';
-    const chip = state === 'pending' ? '<span class="review-lib-chip is-pending">待发布</span> '
-      : state === 'unmatched' ? '<span class="review-lib-chip is-unmatched">未对上</span> '
-      : ['爆','中','扑'].includes(verdict) ? `<span class="review-lib-chip ${verdictClass}">${e(verdict)}</span> ` : '';
+    const chip = state === 'pending' ? '<span class="review-lib-chip is-pending">待发布</span>'
+      : state === 'unmatched' ? '<span class="review-lib-chip is-unmatched">未对上</span>'
+      : ['爆','中','扑'].includes(verdict) ? `<span class="review-lib-chip ${verdictClass}">${e(verdict)}</span>` : '';
     const imitation = state === 'pending' ? '待发布' : state === 'unmatched' ? '未能对上' : metricText(latestSnapshot(data.snapshots, article.id));
     const cells = [
       e(owner.name || '未命名账号'),

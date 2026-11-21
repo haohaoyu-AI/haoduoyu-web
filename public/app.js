@@ -18735,7 +18735,7 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
   const ownCtrMed = ownCtrRaw !== null ? `${ownCtrRaw.toFixed(1)}%` : "—";
   const verdictPills = judged ? `<div class="review-lib-kpi-pills"><span class="review-count-pill hit">爆 <b>${e(hits)}</b></span><span class="review-count-pill middle">中 <b>${e(middles)}</b></span><span class="review-count-pill flop">扑 <b>${e(flops)}</b></span></div>` : "<strong>—</strong>";
   const kpis = `<div class="review-sub-kpis review-library-kpis"><article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(usedPairs.length)} 篇</strong><small>对应 ${e(samples.length)} 篇对标样本${pendingCount ? ` · 待发布 ${e(pendingCount)} 篇` : ""}</small></article><article class="review-sub-kpi"><span>仿写表现</span>${verdictPills}<small>${judged ? `爆率 ${e(hitRate)} · 已判定 ${e(judged)} 篇` : "暂无已判定样本"}</small></article><article class="review-sub-kpi"><span>样本阅读中位</span><strong>${e(sampleReadsMed)}</strong><small>参考爆文基准</small></article><article class="review-sub-kpi"><span>仿写阅读中位</span><strong>${e(ownReadsMed)}</strong><small>${ownCtrMed !== "—" ? `点击率中位 ${e(ownCtrMed)}` : "按最新已采快照"}</small></article></div>`;
-  const headers = ["对标账号", "样本标题", "样本什么时候发的", "样本阅读", "仿写标题", "我们什么时候仿写入库的", "仿写数据"];
+  const headers = ["对标账号", "样本标题", "样本发布时间", "样本阅读", "仿写标题", "仿写发布时间", "仿写数据"];
   const cellClasses = [
     "review-lib-cell-account",
     "review-lib-cell-sample",
@@ -18753,7 +18753,7 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
     const state2 = reviewPublishState(article);
     const verdict = verdictOf(article);
     const verdictClass2 = verdict === "爆" ? "hit" : verdict === "扑" ? "flop" : "middle";
-    const chip = state2 === "pending" ? '<span class="review-lib-chip is-pending">待发布</span> ' : state2 === "unmatched" ? '<span class="review-lib-chip is-unmatched">未对上</span> ' : ["爆", "中", "扑"].includes(verdict) ? `<span class="review-lib-chip ${verdictClass2}">${e(verdict)}</span> ` : "";
+    const chip = state2 === "pending" ? '<span class="review-lib-chip is-pending">待发布</span>' : state2 === "unmatched" ? '<span class="review-lib-chip is-unmatched">未对上</span>' : ["爆", "中", "扑"].includes(verdict) ? `<span class="review-lib-chip ${verdictClass2}">${e(verdict)}</span>` : "";
     const imitation = state2 === "pending" ? "待发布" : state2 === "unmatched" ? "未能对上" : metricText(latestSnapshot(data3.snapshots, article.id));
     const cells = [
       e(owner2.name || "未命名账号"),

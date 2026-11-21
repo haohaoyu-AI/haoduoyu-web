@@ -1374,26 +1374,32 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   background:var(--color-white-a-74); box-shadow:var(--shadow-metric);
 }
 #content-review .review-benchmark-table {
-  width:100%; min-width:860px; border-collapse:collapse; table-layout:fixed;
+  width:100%; min-width:920px; border-collapse:collapse; table-layout:fixed;
   font-size:13px; font-variant-numeric:tabular-nums;
 }
 #content-review .review-benchmark-table th {
   padding:10px 10px; background:var(--trend-surface); color:var(--color-text-secondary);
-  font-size:12px; font-weight:500; border-bottom:1px solid var(--color-divider); white-space:nowrap;
+  font-size:12px; font-weight:500; line-height:1.35; text-align:left;
+  border-bottom:1px solid var(--color-divider); white-space:normal; word-break:keep-all;
 }
 #content-review .review-benchmark-table td {
   padding:11px 10px; border-bottom:1px solid var(--color-divider); vertical-align:top; line-height:1.5;
 }
 #content-review .review-benchmark-table tbody tr:hover { background:var(--trend-surface); }
-#content-review .review-benchmark-table .review-lib-cell-account { width:108px; font-weight:500; color:var(--color-text); }
-#content-review .review-benchmark-table .review-lib-cell-sample { width:22%; }
-#content-review .review-benchmark-table .review-lib-cell-sample-time { width:106px; color:var(--color-text-secondary); font-size:12px; }
-#content-review .review-benchmark-table .review-lib-cell-sample-reads { width:84px; text-align:right; font-weight:600; color:var(--color-text); }
-#content-review .review-benchmark-table .review-lib-cell-own { width:24%; }
-#content-review .review-benchmark-table .review-lib-cell-own-time { width:106px; color:var(--color-text-secondary); font-size:12px; }
-#content-review .review-benchmark-table .review-lib-cell-metrics { width:170px; color:var(--color-text-secondary); font-size:12.5px; }
+#content-review .review-benchmark-table .review-lib-cell-account { width:112px; }
+#content-review .review-benchmark-table .review-lib-cell-sample-time { width:114px; }
+#content-review .review-benchmark-table .review-lib-cell-sample-reads { width:84px; text-align:right; }
+#content-review .review-benchmark-table .review-lib-cell-own-time { width:114px; }
+#content-review .review-benchmark-table .review-lib-cell-metrics { width:168px; }
+#content-review .review-benchmark-table td.review-lib-cell-account {
+  white-space:normal; font-weight:500; color:var(--color-text);
+}
+#content-review .review-benchmark-table td.review-lib-cell-sample-time,
+#content-review .review-benchmark-table td.review-lib-cell-own-time { color:var(--color-text-secondary); font-size:12px; }
+#content-review .review-benchmark-table td.review-lib-cell-sample-reads { font-weight:600; color:var(--color-text); }
+#content-review .review-benchmark-table td.review-lib-cell-metrics { color:var(--color-text-secondary); font-size:12.5px; }
 #content-review .review-lib-chip {
-  display:inline-block; min-width:24px; margin-right:4px; padding:1px 6px; border-radius:6px;
+  display:inline-block; min-width:24px; margin-right:6px; padding:1px 6px; border-radius:6px;
   font-size:11px; font-weight:600; line-height:1.35; text-align:center; vertical-align:1px;
   color:#fff; background:var(--trend-middle);
 }

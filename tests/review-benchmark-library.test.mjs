@@ -24,7 +24,9 @@ test('imitated library keeps Shanghai order, real links and only copied rows', (
   const html=renderBenchmarkLibrary(data,'A');
   const row=id=>html.match(new RegExp(`<tr id="review-benchmark-${id}"[^>]*>([\\s\\S]*?)</tr>`))?.[1] || '';
   assert.deepEqual([...html.matchAll(/<tr id="review-benchmark-([^"]+)/g)].map(m=>m[1]),['newer','dateonly','older','missing']);
-  assert.doesNotMatch(html,/UNUSED_SAMPLE|配图数|发布时间|收录日期/);
+  assert.doesNotMatch(html,/UNUSED_SAMPLE|配图数|>发布时间<|收录日期/);
+  assert.match(html,/>样本发布时间<\/th>/);
+  assert.match(html,/>仿写发布时间<\/th>/);
   assert.match(row('newer'),/data-label="样本阅读">100/);
   assert.match(row('newer'),/data-label="对标账号">甲账号/);
   assert.match(row('older'),/data-label="样本阅读">0<\/td>/);

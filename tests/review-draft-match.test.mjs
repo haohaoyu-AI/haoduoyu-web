@@ -123,10 +123,10 @@ test('爆文库 shows when the sample was published and when the imitation was s
     benchmarkArticles:[{id:'sample',account:'V字',benchmark_account_id:'ba',title:'样本标题',url:'https://example.com/sample',published_at:'2026-11-01T01:00:00Z',reads:1200}],
     articles:[{id:'ours',account:'V字',title:'仿写标题',reference_article_id:'sample',publish_status:'pending',draft_saved_at:'2026-11-02T03:30:00Z'}]
   },'V字');
-  assert.match(html,/样本什么时候发的/);
-  assert.match(html,/我们什么时候仿写入库的/);
-  assert.match(html,/data-label="样本什么时候发的">2026-11-01 09:00/);
-  assert.match(html,/data-label="我们什么时候仿写入库的">2026-11-02 11:30/);
+  assert.match(html,/样本发布时间/);
+  assert.match(html,/仿写发布时间/);
+  assert.match(html,/data-label="样本发布时间">2026-11-01 09:00/);
+  assert.match(html,/data-label="仿写发布时间">2026-11-02 11:30/);
   assert.match(html,/data-label="仿写数据">待发布/);
   const page = renderContentReviewContent(normalizeReviewData({articles:[{id:'box',account:'V字',title:'草稿',publish_status:'pending',draft_saved_at:'2026-11-02T01:00:00Z'}]}),
     {account:'V字',view:'overview',secondary:'cockpit',now:'2026-11-02T04:00:00Z',filters:{metricsRange:'this'},article:'',loading:false,error:''});
