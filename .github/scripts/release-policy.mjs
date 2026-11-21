@@ -568,7 +568,15 @@ export const dailyTodoNoteCompletionRelease=Object.freeze({
   baseline:'6c6e8ce8-cc5c-4c2d-a0ee-871f47dfb5c2',
   bytes:3621041,sha256:'e63ccaa0da335d905e9a1a8bd517141969cba31d427407676e9e3397361add06',
   label:'production-daily-todo-note-completion'});
-const acceptedRelease=commit=>commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
+// Mobile cockpit optimization and Cockpit-unified full-metric article details on ad2ca53. No migration.
+export const cockpitMobileAndArticlesRelease=Object.freeze({
+  commit:'f80696fd62dafdb1744d634e554afcdfee1e77bd',
+  tree:'9139cdc748707810926666052c6db17aef48dc3e',
+  baseline:'1695c7c4-99ac-43e3-bdcb-63581c2f8348',
+  bytes:3642499,sha256:'d1c248609c0851b046fc5bfc23aba51c6498c727e8495a84cf14ef6b4c7032fb',
+  label:'production-cockpit-mobile-and-articles'});
+const acceptedRelease=commit=>commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
+  commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
   commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
   commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
   commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
