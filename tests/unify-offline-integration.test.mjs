@@ -129,6 +129,25 @@ test('checkbox, soft delete and explicit undo retain complete entity and local v
     [undefined, 1, 2, 3]);
   assert.equal(f.remote.get(id).version, 4); assert.equal(f.remote.get(id).deleted_at, null);
 });
+test('a server-required todo read skips both dirty overlays and cached network fallbacks', async t => {
+  const f = fixture(t), id = randomUUID(), path = '/todos?date=' + date;
+  const original = {id, date, text: '合成待办', note:'旧备注', version:1, completed:false,
+    created_at:stamp, updated_at:stamp, deleted_at:null};
+  f.remote.set(id, original);
+  await initialize(f);
+  f.source.online = false;
+  await f.app.call('/todos/' + id, {method:'PATCH', body:{completed:true,version:1}});
+  assert.equal((await f.app.call(path)).items[0].completed, true);
+  await assert.rejects(f.app.call(path, {requireNetwork:true}), {code:'NETWORK_UNAVAILABLE'});
+  f.remote.set(id, {...original, note:'另一设备已保存', version:2});
+  f.source.online = true;
+  const fresh = (await f.app.call(path, {requireNetwork:true})).items[0];
+  assert.equal(fresh.completed, false);
+  assert.equal(fresh.note, '另一设备已保存');
+  assert.equal(fresh.version, 2);
+  assert.equal((await f.app.call(path)).items[0].completed, true);
+});
+
 test('fresh server list overlays only dirty locals and never resurrects absent clean cache rows', async t => {
   const f = fixture(t), id = randomUUID();
   f.remote.set(id, {id, date, text: '旧线上', version: 1, completed: false, created_at: stamp, updated_at: stamp, deleted_at: null});

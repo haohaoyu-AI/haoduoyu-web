@@ -1,6 +1,7 @@
 import { addFutureTodo, loadDueTodos, loadUnscheduledTodos, paintUnscheduledTodos, refreshFutureTodos, renderUnscheduledTodos, setFutureBridge }
   from "./unscheduled-todos.mjs";
 import { todoNoteField as renderTodoNote } from "./todo-note-field.mjs";
+import { dailyTodoDraft } from "../core/todo-note-drafts.mjs";
 import { todoCount } from "../core/todo-count.mjs";
 import { watchVisibleTodoDay } from "../core/todo-live-refresh.mjs";
 import { api, apiNetwork } from "../core/api.mjs";
@@ -14,7 +15,7 @@ import { runtime, state } from "../core/state.mjs";
 import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, todoTemplateAdded, validTodoDate } from "../core/todos-state.mjs";
 import { todosState } from "../core/todos-state.mjs";
 import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderInlineTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
-import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
+import { renderTodoUndo, saveDailyTodoNote, todoBusy } from "./todo-actions.mjs";
 import { confirmSmartTodo, paintSmartTodo, smartTodoReady, smartTodoWanted, startSmartTodo } from "./todo-smart.mjs";
 import {
   receiveTodoPreferences, todoCompletedMode, todoPreferences
@@ -195,9 +196,6 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoNoteField(item, day, pending) {
-  return renderTodoNote(item, { date: day.date, pending, editing: day.noteEdit, error: day.noteError });
-}
 function todoCountButton(item, day, pending) {
   const count = todoCount(item.note);
   if (!count || day.noteEdit?.id === item.id) return "";
@@ -210,13 +208,16 @@ function todoRow(item, day) {
   const pending = todoBusy(day, item.id);
   const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
   const removal = day.removals.get(item.id), deleted = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
-  if (deleted || (completed && todoCompletedMode() === "hide" && state.todoPanel !== "history")) return "";
+  if (deleted) return "";
+  const draft = dailyTodoDraft(day, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
+  if (completed && !hasDraft && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
+  const note = renderTodoNote(item, {date: day.date, pending, editing: day.noteEdit, error: draft?.error, hasDraft});
   const check = `todo-check-${e(item.id)}`;
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label class="daily-todo-check" for="${check}"><input id="${check}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check}">${e(item.text)}</label>
-${todoNoteField(item, day, pending)}</div>${todoCountButton(item, day, pending)}
+${note}</div>${todoCountButton(item, day, pending)}
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -268,7 +269,7 @@ async function setTodoPanel(panel) {
   $(selector)?.focus();
 }
 function todoPending(day) {
-  return Boolean(day.adding || day.updates.size || day.templateWrites.size ||
+  return Boolean(day.adding || day.updates.size || day.noteCompletions.size || day.templateWrites.size ||
     [...day.removals.values()].some(ticket => ticket.phase !== "ready") || todoPreferences().pending);
 }
 function todoStatus(day) {
@@ -609,20 +610,33 @@ async function submitTodoTemplate(template) {
 async function toggleTodo(target, {floating = false} = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
   const day = todoDay(target.dataset.date), owner = todoOwner();
-  const item = day.items.find((row) => row.id === target.dataset.todoId);
+  const id = target.dataset.todoId;
+  let item = day.items.find(row => row.id === id);
   if (!item || item.deleted_at || day.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day, item.id)) {
     target.checked = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
     return;
   }
-  // A note for this to-do is on its way to the server with the same version; wait for it.
-  if (day.noteEdit?.id === item.id && day.noteEdit.sending) {
-    target.checked = item.completed;
-    setTodoNotice(day, "备注正在保存，请稍后再点。");
-    paintTodos();
-    return;
-  }
   const completed = target.checked;
+  const note = saveDailyTodoNote(day, item, owner);
+  if (note !== true) {
+    day.noteCompletions.add(id);
+    target.checked = item.completed;
+    paintTodos();
+    const saved = await note;
+    if (!todoSessionActive(owner)) return;
+    day.noteCompletions.delete(id);
+    if (!saved) {
+      day.error = "备注还未存好，本次操作未提交。草稿已保留。";
+      paintTodos();
+      return;
+    }
+    item = day.items.find(row => row.id === id);
+    if (!item || item.deleted_at || day.date !== (floating ? bjtDate() : todoDate())) {
+      paintTodos();
+      return;
+    }
+  }
   day.updates.set(item.id, completed);
   day.error = "";
   day.notice = "";
@@ -639,12 +653,12 @@ async function toggleTodo(target, {floating = false} = {}) {
     day.updates.set(item.id, item.completed);
     showTodoFailure(day, error);
     if (error.status === 409 && (floating || day.date === todoDate())) {
-      day.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      if (floating) {
-        await loadFloatingToday();
-        if (todoSessionActive(owner)) day.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      } else await loadTodos();
-      if (todoSessionActive(owner) && item.template_id) refreshOpenTodoTemplates();
+      if (floating) await loadFloatingToday();
+      else await loadTodos();
+      if (todoSessionActive(owner)) {
+        day.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
+        if (item.template_id) refreshOpenTodoTemplates();
+      }
     }
   } finally {
     if (todoSessionActive(owner)) {

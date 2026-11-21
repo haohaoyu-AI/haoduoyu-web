@@ -10,6 +10,7 @@ export async function frontendSource({initialize = false} = {}) {
     'popoverId', 'modalRequestVersion', 'menuFocus', 'entryObserver', 'entryBlocks',
     'articleIndexGeneration', 'sessionEpoch'];
   const aliases = `\nfor (const field of ${JSON.stringify(fields)}) {
+    if (Object.prototype.hasOwnProperty.call(globalThis, field)) continue;
     Object.defineProperty(globalThis, field, {
       configurable: true, get() { return runtime[field]; },
       set(value) { runtime[field] = value; }

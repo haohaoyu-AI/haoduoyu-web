@@ -358,7 +358,9 @@ function todoDay(date2 = todoDate()) {
       templateCreates: /* @__PURE__ */ new Map(),
       removals: /* @__PURE__ */ new Map(),
       templateLinks: /* @__PURE__ */ new Map(),
-      templateWrites: /* @__PURE__ */ new Set()
+      templateWrites: /* @__PURE__ */ new Set(),
+      noteDrafts: /* @__PURE__ */ new Map(),
+      noteCompletions: /* @__PURE__ */ new Set()
     });
   }
   return todosState.days.get(date2);
@@ -5242,7 +5244,7 @@ function mutationActions(context) {
   }
   async function call(path, input = {}, readRetried = false) {
     const { offlineGuard: guard = () => {
-    }, ...options4 } = input;
+    }, requireNetwork = false, ...options4 } = input;
     guard();
     const method2 = (options4.method || "GET").toUpperCase(), route2 = writableRoute(path, options4, features);
     const memo = features.memos && memoRoute(path);
@@ -5269,14 +5271,15 @@ function mutationActions(context) {
       if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
       if (offlineReadRoute(path).kind === "todo") state2.partial = false;
       if (!state2.scope) return value;
-      return await rememberRead(context, path, value, baseline, memo);
+      const projection = await rememberRead(context, path, value, baseline, memo);
+      return requireNetwork ? value : projection;
     } catch (error2) {
       if ([401, 403].includes(error2.status)) {
         await context.invalidate({ forget: true });
         throw error2;
       }
       if (error2.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
-      if (!networkFailure(error2)) throw error2;
+      if (requireNetwork || !networkFailure(error2)) throw error2;
       return readCachedOffline(context, path, guard);
     }
   }
@@ -5719,17 +5722,17 @@ function toast(message2, error2 = false) {
 
 // web/pages/todo-note-field.mjs
 init_dom();
-function todoNoteField(item, { pending = false, editing: editing3 = null, error: error2 = "", date: date2 = "", future = false } = {}) {
+function todoNoteField(item, { pending = false, editing: editing3 = null, error: error2 = "", date: date2 = "", future = false, hasDraft = false } = {}) {
   const active6 = editing3?.id === item.id;
-  const alert = error2 && active6 ? `<span class="todo-note-error" role="alert">${e(error2)}</span>` : "";
+  const alert = error2 && (active6 || hasDraft) ? `<span class="todo-note-error" role="alert">${e(error2)}</span>` : "";
   const marker = future ? ` data-future="1"` : "";
   if (active6) {
     const editable = pending ? "false" : "true";
     return `<span class="todo-note-hit todo-note-text todo-note-input" data-todo-note-input role="textbox" contenteditable="${editable}" enterkeyhint="done" spellcheck="false" aria-multiline="false" aria-label="备注" data-id="${e(item.id)}" data-date="${e(date2)}"${marker}>${e(editing3.text ?? "")}</span>${alert}`;
   }
-  const text = item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
-  const label3 = item.note ? "编辑备注" : "添加备注";
-  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(date2)}"${marker} aria-label="${label3}"${pending ? " disabled" : ""}>${text}</button>`;
+  const label3 = hasDraft ? "恢复备注草稿" : item.note ? "编辑备注" : "添加备注";
+  const text = hasDraft ? label3 : item.note ? `<span class="todo-note-text">${e(item.note)}</span>` : "";
+  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(date2)}"${marker} aria-label="${label3}"${pending ? " disabled" : ""}>${text}</button>${alert}`;
 }
 
 // shared/todo-period.mjs
@@ -8836,6 +8839,35 @@ function keyModal() {
   )}<fieldset class="form-field permission-fields"><legend class="field-label">允许访问的账号 <span class="required">*</span></legend><div class="checkboxes">${state.accounts.filter((a) => a.active).map((a) => `<label class="check-option"><input type="checkbox" name="account_ids" value="${e(a.id)}" ${state.account === a.id ? "checked" : ""}>${e(accountLabel(a))}</label>`).join("")}</div></fieldset><fieldset class="form-field permission-fields"><legend class="field-label">允许的操作</legend><div class="checkboxes"><label class="check-option"><input type="checkbox" name="permissions" value="read" checked>读取文章与数据</label><label class="check-option"><input type="checkbox" name="permissions" value="write">新增与更新数据</label></div></fieldset></div>${formEnd("创建凭证")}</form>`);
 }
 
+// web/core/todo-note-drafts.mjs
+init_state();
+function draftKey(day7, id2) {
+  return state.me?.id ? `haoduoyu:todo-note:${JSON.stringify([state.me.id, day7.date, id2])}` : "";
+}
+function dailyTodoDraft(day7, id2) {
+  if (day7.noteDrafts.has(id2)) return day7.noteDrafts.get(id2);
+  const key = draftKey(day7, id2);
+  try {
+    const stored = key && JSON.parse(sessionStorage.getItem(key));
+    if (stored && typeof stored.text === "string" && typeof stored.base === "string" && (stored.text !== stored.base || stored.check === true)) {
+      const draft = { id: id2, text: stored.text, base: stored.base, check: stored.check === true };
+      day7.noteDrafts.set(id2, draft);
+      return draft;
+    }
+  } catch {
+  }
+  return null;
+}
+function persistDailyTodoDraft(day7, draft) {
+  const key = draftKey(day7, draft.id);
+  if (!key) return;
+  try {
+    if (!draft.check && draft.text === draft.base) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify({ text: draft.text, base: draft.base, check: draft.check }));
+  } catch {
+  }
+}
+
 // web/core/todo-count.mjs
 var tally = /^\s*(\d{1,3})\/(\d{1,3}|∞) ?次[\s·]*/;
 var TODO_COUNT_MAX = 99;
@@ -9403,7 +9435,7 @@ init_popover();
 init_runtime();
 init_modal();
 function todoBusy(day7, id2) {
-  return day7.updates.has(id2) || day7.removals.has(id2) || day7.templateWrites.has(id2);
+  return day7.updates.has(id2) || day7.noteCompletions.has(id2) || day7.removals.has(id2) || day7.templateWrites.has(id2);
 }
 function todoActionContext({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date2) || date2 !== todoDate() || !todoSessionActive(owner2)) return null;
@@ -9442,7 +9474,6 @@ async function changeTodoCount(options4, action, target = 0) {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
     if (!todoSessionActive(owner2)) return false;
     mergeTodo(day7, saved);
-    day7.noteError = "";
     return true;
   } catch (error2) {
     if (isRequestAbort(error2) || !todoSessionActive(owner2)) return false;
@@ -9486,7 +9517,7 @@ async function submitTodoCount({ form, data: data3 }) {
   }
 }
 function readNote(node3) {
-  const raw = node3?.isContentEditable ? node3.textContent : node3?.value;
+  const raw = node3?.value ?? node3?.textContent;
   return String(raw ?? "").replace(/\r?\n/g, "").slice(0, 4e3);
 }
 function placeNoteCaret(node3) {
@@ -9518,7 +9549,12 @@ function rememberNote(node3) {
     return;
   }
   const day7 = todoDay(node3.dataset.date);
-  if (day7.noteEdit?.id === node3.dataset.id) day7.noteEdit.text = text;
+  const draft = day7.noteEdit;
+  if (draft?.id !== node3.dataset.id || draft.text === text) return;
+  draft.text = text;
+  draft.error = "";
+  if (draft.save) draft.check = true;
+  persistDailyTodoDraft(day7, draft);
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
@@ -9553,7 +9589,9 @@ function watchTodoNotes() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && event.target?.matches?.("[data-todo-note-input]")) {
       event.preventDefault();
-      event.target.blur();
+      const node3 = event.target;
+      if (node3.dataset.future !== "1") void commitTodoNote(node3, { retry: true });
+      node3.blur();
     }
   });
 }
@@ -9570,10 +9608,11 @@ function openTodoNote(options4) {
   watchTodoNotes();
   if (options4.target?.dataset.future === "1") return openFutureNote(options4);
   const context = todoActionContext({ ...options4, date: options4.date || options4.target?.dataset.date, owner: options4.owner || options4.target?.dataset.owner });
-  if (!context || todoBusy(context.day, context.item.id)) return;
+  if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
   const { item, day: day7 } = context;
-  day7.noteEdit = { id: item.id, text: item.note || "", base: item.note || "" };
-  day7.noteError = "";
+  const draft = dailyTodoDraft(day7, item.id) || { id: item.id, text: item.note || "", base: item.note || "" };
+  day7.noteDrafts.set(item.id, draft);
+  day7.noteEdit = draft;
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -9582,17 +9621,18 @@ var noteConflict = (error2) => error2?.status === 409;
 var pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function settleQueuedTodo(type, id2) {
   const offline = getOfflineRuntime();
-  if (!offline?.todoSettled) return;
+  if (!offline?.todoSettled) return true;
   for (let i = 0; i < 24; i++) {
     try {
-      if (await offline.todoSettled(type, id2)) return;
+      if (await offline.todoSettled(type, id2)) return true;
     } catch {
-      return;
+      return false;
     }
     if (i === 0) void offline.sync?.().catch?.(() => {
     });
     await pause(250);
   }
+  return false;
 }
 async function rememberSavedNote(type, row) {
   const offline = getOfflineRuntime();
@@ -9602,25 +9642,28 @@ async function rememberSavedNote(type, row) {
   } catch {
   }
 }
-async function saveNoteFresh({ id: id2, text, base, version: version2, latest: latest2, type = "todo", onSend = () => {
-} }) {
-  await settleQueuedTodo(type, id2);
-  const fresh0 = await latest2().catch(() => null);
-  if (fresh0 && Number.isSafeInteger(fresh0.version)) {
-    if ((fresh0.note || "") === text) return fresh0;
-    if ((fresh0.note || "") !== base) return { changedElsewhere: true, fresh: fresh0 };
-    version2 = fresh0.version;
+async function saveNoteFresh({ id: id2, text, base, version: version2, latest: latest2, type = "todo", active: active6 = () => true }) {
+  const settled = await settleQueuedTodo(type, id2);
+  if (!active6()) throw new DOMException("请求已取消", "AbortError");
+  if (!settled && type === "todo") throw new Error("这项待办上一步还在同步，请等几秒再点一次。");
+  const fresh = type === "todo" ? await latest2() : await latest2().catch(() => null);
+  if (type === "todo" && (!fresh || fresh.deleted_at || !Number.isSafeInteger(fresh.version))) {
+    throw Object.assign(new Error("这项待办暂不可用"), { status: 404 });
   }
-  onSend(true);
-  try {
-    const saved = await sendNote({ id: id2, text, base, version: version2, latest: latest2 });
-    if (saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
-    return saved;
-  } finally {
-    onSend(false);
+  if (!active6()) throw new DOMException("请求已取消", "AbortError");
+  if (fresh && Number.isSafeInteger(fresh.version)) {
+    if ((fresh.note || "") === text) {
+      if (type === "todo") await rememberSavedNote(type, fresh);
+      return fresh;
+    }
+    if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
+    version2 = fresh.version;
   }
+  const saved = await sendNote({ id: id2, text, base, version: version2, latest: latest2, active: active6 });
+  if (active6() && saved && !saved.changedElsewhere) await rememberSavedNote(type, saved);
+  return saved;
 }
-async function sendNote({ id: id2, text, base, version: version2, latest: latest2 }) {
+async function sendNote({ id: id2, text, base, version: version2, latest: latest2, active: active6 }) {
   let lastError = null;
   for (const delay of [null, ...NOTE_RETRY_DELAYS]) {
     if (delay !== null) {
@@ -9631,6 +9674,7 @@ async function sendNote({ id: id2, text, base, version: version2, latest: latest
       if ((fresh.note || "") !== base) return { changedElsewhere: true, fresh };
       version2 = fresh.version;
     }
+    if (!active6()) throw new DOMException("请求已取消", "AbortError");
     try {
       return await api(`/todos/${encodeURIComponent(id2)}/note`, { method: "PATCH", body: { note: text, version: version2 } });
     } catch (error2) {
@@ -9688,58 +9732,67 @@ async function commitFutureNote(input) {
   paintUnscheduledTodos();
   if (view2.noteEdit?.id === item.id) document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
 }
-async function commitTodoNote(input) {
-  if (input?.dataset?.future === "1") return commitFutureNote(input);
-  if (todoRepainting()) return;
-  const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
-  if (!context) return;
-  const { day: day7, item, owner: owner2 } = context;
-  if (day7.noteEdit?.id !== item.id || day7.noteEdit.committing) return;
-  const text = readNote(input);
-  if (text === (item.note || "")) {
-    day7.noteEdit = null;
-    day7.noteError = "";
-    paintTodos();
-    return;
-  }
-  day7.noteEdit.committing = true;
-  day7.noteEdit.text = text;
+function finishDailyTodoNote(day7, draft) {
+  if (day7.noteEdit === draft) day7.noteEdit = null;
+  day7.noteDrafts.delete(draft.id);
+}
+async function storeDailyTodoNote(day7, item, owner2, draft, text) {
+  const active6 = () => todoSessionActive(owner2);
   try {
-    const edit = day7.noteEdit;
     const saved = await saveNoteFresh({
       id: item.id,
       text,
-      base: day7.noteEdit.base ?? (item.note || ""),
+      base: draft.base,
       version: item.version,
-      onSend: (on) => {
-        edit.sending = on;
-      },
-      latest: async () => (await api(`/todos?date=${encodeURIComponent(day7.date)}`))?.items?.find((row) => row.id === item.id)
-    });
-    if (!todoSessionActive(owner2)) return;
-    if (saved.changedElsewhere) {
-      mergeTodo(day7, saved.fresh);
-      if (day7.noteEdit?.id === item.id) {
-        day7.noteEdit.committing = false;
-        day7.noteEdit.base = saved.fresh.note || "";
+      active: active6,
+      latest: async () => {
+        const data3 = await api(`/todos?date=${encodeURIComponent(day7.date)}`, { requireNetwork: true });
+        return data3?.items?.find((row) => row.id === item.id);
       }
-      day7.noteError = elsewhereMessage(saved.fresh.note);
-    } else {
-      mergeTodo(day7, saved);
-      if (day7.noteEdit?.id === item.id) day7.noteEdit = null;
-      day7.noteError = "";
+    });
+    if (!active6()) return false;
+    mergeTodo(day7, saved.changedElsewhere ? saved.fresh : saved);
+    day7.revision++;
+    if (saved.changedElsewhere) {
+      const note = saved.fresh.note;
+      draft.error = note ? `另一设备已保存「${note}」。你的草稿仍在，请先核对两个版本。` : "另一设备已清空备注。你的草稿仍在，请先核对。";
+      return false;
     }
+    draft.base = text;
+    draft.check = false;
+    persistDailyTodoDraft(day7, draft);
+    if (draft.text !== text) return false;
+    finishDailyTodoNote(day7, draft);
+    return true;
   } catch (error2) {
-    if (!todoSessionActive(owner2)) return;
-    if (day7.noteEdit?.id === item.id) {
-      day7.noteEdit.committing = false;
-      day7.noteError = noteFailure(error2);
-    }
+    if (active6()) draft.error = `备注未保存，草稿已保留。按回车可重试。${error2?.message ? " " + error2.message : ""}`;
+    return false;
+  } finally {
+    draft.save = null;
+    if (active6()) paintTodos();
   }
-  if (todoSessionActive(owner2)) {
-    paintTodos();
-    if (day7.noteEdit?.id === item.id) document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+}
+function saveDailyTodoNote(day7, item, owner2) {
+  const draft = dailyTodoDraft(day7, item.id);
+  if (!draft) return true;
+  if (draft.save) return draft.save;
+  if (!draft.check && draft.text === draft.base) {
+    finishDailyTodoNote(day7, draft);
+    return true;
   }
+  draft.error = "";
+  draft.save = storeDailyTodoNote(day7, item, owner2, draft, draft.text);
+  return draft.save;
+}
+async function commitTodoNote(input, { retry = false } = {}) {
+  if (input?.dataset?.future === "1") return commitFutureNote(input);
+  if (todoRepainting()) return;
+  const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
+  if (!context || context.day.noteEdit?.id !== context.item.id) return;
+  const { day: day7, item, owner: owner2 } = context;
+  rememberNote(input);
+  if (day7.noteEdit.error && !retry) return;
+  if (await saveDailyTodoNote(day7, item, owner2) && todoSessionActive(owner2)) paintTodos();
 }
 async function submitTodoNote({ form, data: data3 }) {
   const context = todoActionContext({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner });
@@ -10188,9 +10241,6 @@ function todoDateControls(date2) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoNoteField2(item, day7, pending) {
-  return todoNoteField(item, { date: day7.date, pending, editing: day7.noteEdit, error: day7.noteError });
-}
 function todoCountButton(item, day7, pending) {
   const count3 = todoCount(item.note);
   if (!count3 || day7.noteEdit?.id === item.id) return "";
@@ -10203,13 +10253,16 @@ function todoRow(item, day7) {
   const pending = todoBusy(day7, item.id);
   const completed = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
   const removal = day7.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
-  if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
+  if (deleted2) return "";
+  const draft = dailyTodoDraft(day7, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
+  if (completed && !hasDraft && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
+  const note = todoNoteField(item, { date: day7.date, pending, editing: day7.noteEdit, error: draft?.error, hasDraft });
   const check2 = `todo-check-${e(item.id)}`;
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day7.date)}">
 <label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day7.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check2}">${e(item.text)}</label>
-${todoNoteField2(item, day7, pending)}</div>${todoCountButton(item, day7, pending)}
+${note}</div>${todoCountButton(item, day7, pending)}
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day7.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -10265,7 +10318,7 @@ async function setTodoPanel(panel2) {
   $(selector)?.focus();
 }
 function todoPending(day7) {
-  return Boolean(day7.adding || day7.updates.size || day7.templateWrites.size || [...day7.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
+  return Boolean(day7.adding || day7.updates.size || day7.noteCompletions.size || day7.templateWrites.size || [...day7.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
 }
 function todoStatus(day7) {
   if (todoPending(day7) || day7.error || todoPreferences().error) return "";
@@ -10647,19 +10700,33 @@ async function submitTodoTemplate(template) {
 async function toggleTodo(target, { floating = false } = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
   const day7 = todoDay(target.dataset.date), owner2 = todoOwner();
-  const item = day7.items.find((row) => row.id === target.dataset.todoId);
+  const id2 = target.dataset.todoId;
+  let item = day7.items.find((row) => row.id === id2);
   if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day7, item.id)) {
     target.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
     return;
   }
-  if (day7.noteEdit?.id === item.id && day7.noteEdit.sending) {
-    target.checked = item.completed;
-    setTodoNotice(day7, "备注正在保存，请稍后再点。");
-    paintTodos();
-    return;
-  }
   const completed = target.checked;
+  const note = saveDailyTodoNote(day7, item, owner2);
+  if (note !== true) {
+    day7.noteCompletions.add(id2);
+    target.checked = item.completed;
+    paintTodos();
+    const saved = await note;
+    if (!todoSessionActive(owner2)) return;
+    day7.noteCompletions.delete(id2);
+    if (!saved) {
+      day7.error = "备注还未存好，本次操作未提交。草稿已保留。";
+      paintTodos();
+      return;
+    }
+    item = day7.items.find((row) => row.id === id2);
+    if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) {
+      paintTodos();
+      return;
+    }
+  }
   day7.updates.set(item.id, completed);
   day7.error = "";
   day7.notice = "";
@@ -10676,12 +10743,12 @@ async function toggleTodo(target, { floating = false } = {}) {
     day7.updates.set(item.id, item.completed);
     showTodoFailure(day7, error2);
     if (error2.status === 409 && (floating || day7.date === todoDate())) {
-      day7.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      if (floating) {
-        await loadFloatingToday();
-        if (todoSessionActive(owner2)) day7.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      } else await loadTodos();
-      if (todoSessionActive(owner2) && item.template_id) refreshOpenTodoTemplates();
+      if (floating) await loadFloatingToday();
+      else await loadTodos();
+      if (todoSessionActive(owner2)) {
+        day7.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
+        if (item.template_id) refreshOpenTodoTemplates();
+      }
     }
   } finally {
     if (todoSessionActive(owner2)) {

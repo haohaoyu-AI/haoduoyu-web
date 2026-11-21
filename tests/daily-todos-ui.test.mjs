@@ -157,9 +157,9 @@ test('template reads from an earlier selected date cannot replace the current in
   assert.equal(c.run('templateState().loading'),false);
 });
 
-function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}) {
+function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false, draftStorage = new Map()} = {}) {
   let currentTime = Date.parse(now), uuid = 0, timerId = 0, index = 0;
-  const timers = new Map(), events = new Map(), windowEvents = new Map(), nodes = new Map();
+  const timers = new Map(), intervals = new Map(), events = new Map(), windowEvents = new Map(), nodes = new Map();
   const entries = [`http://localhost/${search}`], location = {href: entries[0], search};
   const node = () => ({
     innerHTML: '', firstChild: null, isConnected: true, dataset: {}, style: {},
@@ -188,11 +188,17 @@ function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}
     static now() {return currentTime;}
   }
   const setTimer = callback => {const id = ++timerId;timers.set(id, callback);return id;};
+  const setIntervalTimer = (callback, delay) => {const id = ++timerId;intervals.set(id, {callback, delay});return id;};
   const context = vm.createContext({
-    AbortController, AbortSignal, DOMException, Headers, Response, URL, URLSearchParams, Intl, console,
+    AbortController, AbortSignal, DOMException, Headers, Response, URL, URLSearchParams, Intl, console, queueMicrotask,
     Date: Clock, crypto: {randomUUID: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12, '0')}`},
     document, location, history, localStorage: {getItem() {return null;}, setItem() {}},
+    sessionStorage: {getItem: key => draftStorage.get(key), setItem: (key, value) => draftStorage.set(key, value),
+      removeItem: key => draftStorage.delete(key)},
+    CSS: {escape: value => value},
     window: {
+      navigator: {onLine: true},
+      setInterval: setIntervalTimer, clearInterval: id => intervals.delete(id),
       addEventListener: (name, handler) => windowEvents.set(name, handler), scrollTo() {},
       matchMedia: query => ({matches: mobile && query === '(max-width:760px)'}),
     },
@@ -219,6 +225,7 @@ function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}
   run("state.me={id:'synthetic-todo-user',username:'Synthetic user',csrfToken:'synthetic-csrf'};state.page='todos'");
   return {
     run, nodes, events, windowEvents, location, timers,
+    refreshTimer() {return [...intervals.values()].find(timer => timer.delay === 20000).callback();},
     setNow(value) {currentTime = Date.parse(value);},
     put(name, value) {context[name] = value;},
     async dispatch(name, event) {for (const handler of events.get(name) || []) await handler(event);},
@@ -448,6 +455,122 @@ test('a completion conflict reloads the saved state and keeps the item available
   assert.equal(c.run('todoDay().items[0].completed'), true);
   assert.equal(c.run('todoDay().items[0].version'), 2);
   assert.equal(c.run('todoDay().updates.size'), 0);
+});
+
+function setupNoteCompletion(c, extra = {}) {
+  c.put('original', item('note-completion', '2026-10-23', {note:'已保存备注', ...extra}));
+  c.put('editor', {dataset:{id:'note-completion', date:'2026-10-23'}, isContentEditable:true, textContent:'合成新备注'});
+  c.put('checkbox', {dataset:{todoId:'note-completion', date:'2026-10-23'}, checked:true});
+  c.run(`paintTodos=()=>{};loadTodoTemplates=async()=>{};loadDueTodos=async()=>{};
+    state.todoDate=original.date;todoDay().items=[original];todoDay().loaded=true;
+    openTodoNote({id:original.id,date:original.date});rememberNote(editor);
+    let writes=[], noteReads=[], finishNote, rejectNote, savedRow=original;
+    api=(path,options={})=>{
+      if (!options.method) {noteReads.push({path, requireNetwork:options.requireNetwork});return Promise.resolve({items:[savedRow]});}
+      writes.push({path,body:options.body});
+      if(path.endsWith('/note')) return new Promise((resolve,reject)=>{
+        finishNote=()=>{savedRow={...savedRow,note:options.body.note,version:savedRow.version+1};resolve(savedRow)};
+        rejectNote=reject;
+      });
+      savedRow={...savedRow,completed:options.body.completed,version:savedRow.version+1};
+      return Promise.resolve(savedRow);
+    }`);
+}
+
+test('immediate completion waits for the blurred note, uses its acknowledged version and deduplicates clicks', async () => {
+  const c = client();
+  setupNoteCompletion(c);
+  c.run(`todoPreferences().mode='hide';let noteWrite=commitTodoNote(editor);let completion=toggleTodo(checkbox)`);
+  await c.run('toggleTodo(checkbox)');
+  await Promise.resolve();
+  assert.equal(c.run("writes.filter(write=>!write.path.endsWith('/note')).length"),0);
+  assert.match(c.run('renderTodos()'),/合成新备注/);
+  assert.equal(c.run('noteReads[0].requireNetwork'),true);
+  c.run('finishNote()');
+  await c.run('Promise.all([noteWrite,completion])');
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(writes.map(write=>write.body))')),[
+    {note:'合成新备注', version:1}, {completed:true, version:2},
+  ]);
+  assert.equal(c.run('todoDay().items[0].note'),'合成新备注');
+  assert.doesNotMatch(c.run('renderTodos()'),/恢复备注草稿|data-todo-id="note-completion"/);
+});
+
+test('another device’s note survives completion and rereading keeps the local draft available', async () => {
+  const c = client();
+  setupNoteCompletion(c);
+  c.run("savedRow={...original,note:'另一设备已保存',version:2};let completion=toggleTodo(checkbox)");
+  await c.run('completion');
+  assert.equal(c.run('writes.length'),0);
+  assert.match(c.run('renderTodos()'),/合成新备注/);
+  assert.match(c.run('renderTodos()'),/另一设备已保存/);
+  await c.run('loadTodos()');
+  await c.run('commitTodoNote(editor)');
+  assert.equal(c.run('writes.length'),0);
+  assert.equal(c.run('savedRow.note'),'另一设备已保存');
+  assert.match(c.run('renderTodos()'),/合成新备注/);
+});
+
+test('a failed note save keeps the draft through a page reload and separates accounts', async () => {
+  const draftStorage = new Map(), c = client({draftStorage});
+  setupNoteCompletion(c);
+  c.run('let noteWrite=commitTodoNote(editor)');
+  while (!c.run('Boolean(rejectNote)')) await Promise.resolve();
+  c.run("rejectNote(new Error('合成网络故障'))");
+  await c.run('noteWrite');
+  assert.match(c.run('renderTodos()'),/合成新备注/);
+  const reopened = client({draftStorage});
+  reopened.put('serverRow',item('note-completion','2026-10-23',{note:'已保存备注',completed:true}));
+  reopened.run("paintTodos=()=>{};todoPreferences().mode='hide';todoDay().items=[serverRow];todoDay().loaded=true");
+  assert.match(reopened.run('renderTodos()'),/恢复备注草稿/);
+  reopened.run("openTodoNote({id:serverRow.id,date:serverRow.date})");
+  assert.match(reopened.run('renderTodos()'),/合成新备注/);
+  reopened.run("state.me={id:'different-synthetic-user'};todoDay().items=[serverRow]");
+  assert.doesNotMatch(reopened.run('renderTodos()'),/合成新备注|恢复备注草稿/);
+});
+
+test('a busy same-item queue and manual or timed rereads leave the note draft recoverable', async () => {
+  const c = client();
+  setupNoteCompletion(c);
+  c.run(`let pendingQueue=true, polls=0;
+    getOfflineRuntime=()=>({state:{},todoSettled:async()=>{polls++;return !pendingQueue},sync:async()=>{}});
+    const liveWrite=setTimeout;setTimeout=(callback,delay)=>delay===250?queueMicrotask(callback):liveWrite(callback,delay);
+    let completion=toggleTodo(checkbox)`);
+  await c.run('completion');
+  assert.equal(c.run('polls'),24);
+  assert.equal(c.run('writes.length'),0);
+  assert.match(c.run('renderTodos()'),/这项待办上一步还在同步，请等几秒再点一次。/);
+  assert.match(c.run('renderTodos()'),/重新读取/);
+  c.run('refreshTodos()');
+  while (c.run('todoDay().loading')) await Promise.resolve();
+  assert.match(c.run('renderTodos()'),/合成新备注/);
+  const manualReads = c.run('noteReads.length');
+  await c.refreshTimer();
+  assert.equal(c.run('noteReads.length'),manualReads);
+  assert.equal(c.run('writes.length'),0);
+  c.run("todoDay().noteEdit=null;savedRow={...savedRow,completed:true,version:2};todoPreferences().mode='hide'");
+  await c.refreshTimer();
+  assert.equal(c.run('noteReads.length'),manualReads+1);
+  assert.equal(c.run('todoDay().items[0].completed'),true);
+  assert.match(c.run('renderTodos()'),/恢复备注草稿/);
+  c.run("openTodoNote({id:original.id,date:original.date});pendingQueue=false;let retry=commitTodoNote(editor,{retry:true})");
+  while (!c.run('Boolean(finishNote)')) await Promise.resolve();
+  c.run('finishNote()');
+  await c.run('retry');
+  assert.equal(c.run('savedRow.note'),'合成新备注');
+  assert.doesNotMatch(c.run('renderTodos()'),/恢复备注草稿/);
+});
+
+test('a newer edit made during a note save is retained and leaves completion untouched', async () => {
+  const c = client();
+  setupNoteCompletion(c);
+  c.run('let firstSave=commitTodoNote(editor);let completion=toggleTodo(checkbox)');
+  while (!c.run('Boolean(finishNote)')) await Promise.resolve();
+  c.run("editor.textContent='保存过程中继续输入';rememberNote(editor);finishNote()");
+  await c.run('Promise.all([firstSave,completion])');
+  assert.equal(c.run('writes.length'),1);
+  assert.equal(c.run('savedRow.note'),'合成新备注');
+  assert.equal(c.run('savedRow.completed'),false);
+  assert.match(c.run('renderTodos()'),/保存过程中继续输入/);
 });
 
 test('a stale pre-write read is refreshed before replacing the successfully added item', async () => {
