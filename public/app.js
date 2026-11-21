@@ -18137,14 +18137,28 @@ function playbookPromptBlocks(markdown) {
   return blocks;
 }
 var labels3 = { longform_write: "写文章", image: "配图", weitoutiao_write: "微头条", transfer_chat: "转写" };
+function promptBadge(title = "", key = "") {
+  if (key === "longform_write" || /写文|写文章/.test(title)) return ["写文", "is-hit"];
+  if (key === "image" || /配图|海报/.test(title)) return ["配图", "is-blue"];
+  if (key === "transfer_chat" || /转移|转写/.test(title)) return ["转移对话", "is-purple"];
+  if (key === "weitoutiao_write" || /微头条/.test(title)) return ["微头条", "is-hit"];
+  if (key === "article_diagnosis" || /诊断/.test(title)) return ["AI 诊断", "is-blue"];
+  return ["提示词", ""];
+}
+function charCountLabel(content2) {
+  const chars = String(content2 || "").replace(/\s+/g, "").length;
+  return chars ? `约 ${chars.toLocaleString("zh-CN")} 字` : "";
+}
 function copyButton(action, id2 = "") {
   const marker = id2 ? ` data-prompt-id="${e(id2)}"` : "";
   return `<button type="button" class="btn" data-review-action="${action}"${marker}>复制完整提示词</button>`;
 }
-function card(title, note, time3, content2, action) {
+function card(title, note, time3, content2, action, key = "") {
   const long = String(content2).split("\n").length > 10 || String(content2).length > 600;
   const when = time3 ? `<p class="review-note">生效时间：${e(time3)} · 上海时间</p>` : "";
-  return `<article class="review-prompt-card"><div class="review-v13-rule-meta"><h2>${e(title)}</h2><span class="review-note">${e(note)}</span></div>${when}<div class="review-prompt-copy-actions">${action}<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div><pre class="review-prompt-source${long ? " is-folded" : ""}">${e(content2)}</pre>` + // Folding only limits what is shown; the element still holds the whole prompt for copying.
+  const [badgeText, tone] = promptBadge(title, key);
+  const chars = charCountLabel(content2);
+  return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading"><div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2><span class="review-note">${e(note)}</span>${chars ? `<span class="review-prompt-chars">${e(chars)}</span>` : ""}</div>${when}</div><div class="review-prompt-copy-actions">${action}<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div></div><pre class="review-prompt-source${long ? " is-folded" : ""}">${e(content2)}</pre>` + // Folding only limits what is shown; the element still holds the whole prompt for copying.
   (long ? '<button type="button" class="btn text review-prompt-toggle" data-review-action="toggle-prompt" aria-expanded="false">展开全文</button>' : "") + "</article>";
 }
 function renderPromptPage(data3, vm3) {
@@ -18162,12 +18176,19 @@ function renderPromptPage(data3, vm3) {
     [prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "),
     reviewDateTime2(prompt.updated_at) || "未记录",
     prompt.content_md || "",
-    copyButton("copy-prompt", prompt.id)
+    copyButton("copy-prompt", prompt.id),
+    prompt.prompt_key
   ));
   const diagnosisNote = selected ? [selected.title, "v" + selected.version, scopeLabel(selected.scope)].filter(Boolean).join(" · ") : "默认提示词";
-  cards.push(card("AI诊断", diagnosisNote, selected ? reviewDateTime2(selected.updated_at) || "未记录" : "", diagnosis, copyButton("copy-diagnosis-prompt")));
+  cards.push(card("AI诊断", diagnosisNote, selected ? reviewDateTime2(selected.updated_at) || "未记录" : "", diagnosis, copyButton("copy-diagnosis-prompt"), "article_diagnosis"));
   for (const block of extras) cards.push(card(block.title, "规则手册中的提示词", "", block.content, copyButton("copy-prompt-block")));
-  return `<div class="review-prompt-page">${cards.join("")}</div>`;
+  const parts2 = [
+    prompts.length ? `独立版本 ${prompts.length} 份` : "",
+    extras.length ? `规则手册内置 ${extras.length} 份` : "",
+    "AI 诊断 1 份"
+  ].filter(Boolean).join(" · ");
+  const summaryBar = `<div class="review-prompt-summary"><span>共 <strong>${cards.length}</strong> 份提示词</span><span class="review-note">${e(parts2)}</span></div>`;
+  return `<div class="review-prompt-page">${summaryBar}${cards.join("")}</div>`;
 }
 
 // web/core/review-overview-metrics.mjs
@@ -18684,6 +18705,7 @@ function metricText(snapshot) {
 function renderBenchmarkLibrary(data3 = {}, account3 = "") {
   const accounts = new Map((data3.benchmarkAccounts || []).filter((item) => item.account === account3).map((item) => [String(item.id), item]));
   const ownArticles = (data3.articles || []).filter((item) => item.account === account3);
+  const verdictById = new Map(enrichArticles(data3, { account: account3 }).map((row) => [String(row.id), row.verdict]));
   const samples = (data3.benchmarkArticles || []).filter((item) => item.account === account3 && accounts.has(String(item.benchmark_account_id))).map((item) => ({
     item,
     published: reviewDateTime2(item.published_at),
@@ -18695,27 +18717,57 @@ function renderBenchmarkLibrary(data3 = {}, account3 = "") {
     return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
   });
   if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
+  const usedPairs = samples.flatMap((entry) => entry.used);
+  const pendingCount = usedPairs.filter((article) => reviewPublishState(article) === "pending").length;
+  const verdictOf = (article) => article.verdict || verdictById.get(String(article.id)) || "";
+  const hits = usedPairs.filter((article) => verdictOf(article) === "爆").length;
+  const middles = usedPairs.filter((article) => verdictOf(article) === "中").length;
+  const flops = usedPairs.filter((article) => verdictOf(article) === "扑").length;
+  const judged = hits + middles + flops;
+  const hitRate = judged ? `${(100 * hits / judged).toFixed(1)}%` : "—";
+  const sampleReadsMed = number2(median(samples.map((entry) => entry.item.reads))) || "—";
+  const ownSnapshots = usedPairs.filter((article) => reviewPublishState(article) === "published").map((article) => latestSnapshot(data3.snapshots, article.id)).filter(Boolean);
+  const ownReadsMed = number2(median(ownSnapshots.map((snapshot) => snapshot.reads))) || "—";
+  const ownCtrRaw = median(ownSnapshots.map((snapshot) => snapshot.ctr).filter((value) => {
+    const n = finiteNumber2(value);
+    return n !== null && n >= 0 && n <= 100;
+  }));
+  const ownCtrMed = ownCtrRaw !== null ? `${ownCtrRaw.toFixed(1)}%` : "—";
+  const verdictPills = judged ? `<div class="review-lib-kpi-pills"><span class="review-count-pill hit">爆 <b>${e(hits)}</b></span><span class="review-count-pill middle">中 <b>${e(middles)}</b></span><span class="review-count-pill flop">扑 <b>${e(flops)}</b></span></div>` : "<strong>—</strong>";
+  const kpis = `<div class="review-sub-kpis review-library-kpis"><article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(usedPairs.length)} 篇</strong><small>对应 ${e(samples.length)} 篇对标样本${pendingCount ? ` · 待发布 ${e(pendingCount)} 篇` : ""}</small></article><article class="review-sub-kpi"><span>仿写表现</span>${verdictPills}<small>${judged ? `爆率 ${e(hitRate)} · 已判定 ${e(judged)} 篇` : "暂无已判定样本"}</small></article><article class="review-sub-kpi"><span>样本阅读中位</span><strong>${e(sampleReadsMed)}</strong><small>参考爆文基准</small></article><article class="review-sub-kpi"><span>仿写阅读中位</span><strong>${e(ownReadsMed)}</strong><small>${ownCtrMed !== "—" ? `点击率中位 ${e(ownCtrMed)}` : "按最新已采快照"}</small></article></div>`;
   const headers = ["对标账号", "样本标题", "样本什么时候发的", "样本阅读", "仿写标题", "我们什么时候仿写入库的", "仿写数据"];
+  const cellClasses = [
+    "review-lib-cell-account",
+    "review-lib-cell-sample",
+    "review-lib-cell-sample-time",
+    "review-lib-cell-sample-reads",
+    "review-lib-cell-own",
+    "review-lib-cell-own-time",
+    "review-lib-cell-metrics"
+  ];
   const body4 = samples.flatMap(({ item, published, used }) => used.map((article, index) => {
     const owner2 = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl2(item.url);
     const title = e(item.title || "未命名文章");
     const reads3 = number2(item.reads);
     const state2 = reviewPublishState(article);
+    const verdict = verdictOf(article);
+    const verdictClass2 = verdict === "爆" ? "hit" : verdict === "扑" ? "flop" : "middle";
+    const chip = state2 === "pending" ? '<span class="review-lib-chip is-pending">待发布</span> ' : state2 === "unmatched" ? '<span class="review-lib-chip is-unmatched">未对上</span> ' : ["爆", "中", "扑"].includes(verdict) ? `<span class="review-lib-chip ${verdictClass2}">${e(verdict)}</span> ` : "";
     const imitation = state2 === "pending" ? "待发布" : state2 === "unmatched" ? "未能对上" : metricText(latestSnapshot(data3.snapshots, article.id));
     const cells = [
       e(owner2.name || "未命名账号"),
       target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
       e(published || "未记录"),
       e(reads3 || "—"),
-      articleLink(article, account3),
+      `${chip}${articleLink(article, account3)}`,
       e(reviewDateTime2(article.draft_saved_at || article.created_at) || "未记录"),
       e(imitation)
     ];
     const id2 = index === 0 ? ` id="review-benchmark-${e(encodeURIComponent(item.id))}"` : "";
-    return `<tr${id2} tabindex="-1">${cells.map((cell, cellIndex) => `<td data-label="${headers[cellIndex]}">${cell}</td>`).join("")}</tr>`;
+    return `<tr${id2} tabindex="-1">${cells.map((cell, cellIndex) => `<td class="${cellClasses[cellIndex]}" data-label="${headers[cellIndex]}">${cell}</td>`).join("")}</tr>`;
   })).join("");
-  return `<section class="review-benchmark-library"><h2>爆文库</h2><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body4}</tbody></table></div></section>`;
+  return `<section class="review-benchmark-library"><div class="review-library-head"><h2>爆文库</h2><span class="review-note">已仿写样本与我方表现对照</span></div>${kpis}<div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3, cellIndex) => `<th scope="col" class="${cellClasses[cellIndex]}">${label3}</th>`).join("")}</tr></thead><tbody>${body4}</tbody></table></div></section>`;
 }
 
 // web/core/review-archive-state.mjs
@@ -18949,22 +19001,48 @@ function activeSection(vm3) {
 function v13Accounts(data3) {
   const accounts = data3.benchmarkAccounts || [];
   if (!accounts.length) return empty2("暂无对标账号");
-  return accounts.map((account3) => {
+  const benchmarkArticles = data3.benchmarkArticles || [];
+  const ownArticles = data3.articles || [];
+  const accountBySampleId = new Map(benchmarkArticles.map((item) => [String(item.id), String(item.benchmark_account_id)]));
+  const imitatedByAccount = /* @__PURE__ */ new Map();
+  for (const article of ownArticles) {
+    if (article.reference_article_id == null) continue;
+    const ownerId = accountBySampleId.get(String(article.reference_article_id));
+    if (ownerId) imitatedByAccount.set(ownerId, (imitatedByAccount.get(ownerId) || 0) + 1);
+  }
+  const totalImitations = [...imitatedByAccount.values()].reduce((sum, count3) => sum + count3, 0);
+  const topAccount = accounts.map((account3) => ({ name: account3.name || "未命名账号", count: imitatedByAccount.get(String(account3.id)) || 0 })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count)[0] || null;
+  const kpis = [
+    `<article class="review-sub-kpi"><span>对标账号</span><strong>${e(reviewNumber(accounts.length))} 个</strong><small>当前账号参考库</small></article>`,
+    `<article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(reviewNumber(totalImitations))} 篇</strong><small>已关联样本引用</small></article>`,
+    topAccount ? `<article class="review-sub-kpi"><span>主力对标</span><strong>${e(topAccount.name)}</strong><small>仿写 ${e(reviewNumber(topAccount.count))} 篇</small></article>` : "",
+    benchmarkArticles.length ? `<article class="review-sub-kpi"><span>已建档样本</span><strong>${e(reviewNumber(benchmarkArticles.length))} 篇</strong><small>爆文库可复用样本</small></article>` : ""
+  ].filter(Boolean).join("");
+  const cards = accounts.map((account3) => {
     const topic = String(account3.topic_focus || "").trim();
     const rawPatterns = parseJson(account3.title_patterns, []);
     const patterns = Array.isArray(rawPatterns) ? rawPatterns.filter((item) => typeof item === "string" && item.trim()) : [];
     const structure2 = String(account3.structure_notes_md || "").trim();
     const structureParts = structure2.includes("\n") ? [structure2] : structure2.split(/(?<=。)(?=\S)/u);
     const details = [
-      topic ? `<section class="review-account-feature"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : "",
-      patterns.length ? `<section class="review-account-feature"><h4>标题特点</h4><div class="review-markdown">${patterns.map((item) => renderReviewMarkdown(item)).join("")}</div></section>` : "",
+      topic ? `<section class="review-account-feature is-topic"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : "",
+      patterns.length ? `<section class="review-account-feature is-title"><h4>标题特点</h4><div class="review-markdown">${patterns.map((item) => renderReviewMarkdown(item)).join("")}</div></section>` : "",
       structure2 ? `<details class="review-account-feature review-account-more"><summary><h4>其他特点</h4></summary><div
         class="review-markdown">${structureParts.map((part) => renderReviewMarkdown(part)).join("")}</div></details>` : ""
     ].join("");
     const profile = safeReviewUrl(account3.profile_url);
     const name = e(account3.name || "未命名账号");
-    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
+    const fans = finiteNumber2(account3.fans);
+    const imitated = imitatedByAccount.get(String(account3.id)) || 0;
+    const pills = [
+      fans !== null && fans > 0 ? `<span class="review-account-pill">${e(reviewNumber(fans))} 粉</span>` : "",
+      imitated > 0 ? `<span class="review-account-pill is-hit">已仿写 ${e(reviewNumber(imitated))} 篇</span>` : ""
+    ].filter(Boolean).join("");
+    const cadence = String(account3.posting_cadence || "").trim();
+    const cadenceHtml = cadence ? `<p class="review-account-cadence${/封号|停用/.test(cadence) ? " is-stopped" : ""}">${e(cadence)}</p>` : "";
+    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>${pills ? `<div class="review-account-pills">${pills}</div>` : ""}</div>${cadenceHtml}<div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
   }).join("");
+  return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div><div class="review-benchmark-cards">${cards}</div></div>`;
 }
 function sectionBody(selected, data3, vm3, rows) {
   if (selected === "articles") return articleListPanel(rows, vm3, data3);
@@ -19090,19 +19168,21 @@ function renderRuleBook(book, scope) {
   const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content2 = rulesIntroMarkdown(ownLayer ? book.content_md || "" : "");
   const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
+  const groupedCounts = [];
   const groups2 = v13RuleGroups.map(([id2, label3]) => {
     const group = rules2.filter((rule) => rule.section === id2);
-    return `<details class="review-v13-rule-group" open><summary>${e(label3)} · ${ruleCountLabel(group)}</summary>
-    ${group.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>`;
+    if (group.length) groupedCounts.push([id2, label3, group.length]);
+    return `<details class="review-v13-rule-group${group.length ? "" : " is-empty"}" data-rule-section="${e(id2)}"${group.length ? " open" : ""}><summary><span class="review-rule-group-label">${e(label3)}</span> · ${ruleCountLabel(group)}</summary>${group.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>`;
   }).join("");
   const ungrouped = rules2.filter((rule) => !v13RuleGroups.some(([id2]) => id2 === rule.section));
-  const other = ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ruleCountLabel(ungrouped)}</summary>
-    ${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>` : "";
+  if (ungrouped.length) groupedCounts.push(["other", "其他", ungrouped.length]);
+  const other = ungrouped.length ? `<details class="review-v13-rule-group" data-rule-section="other" open><summary><span class="review-rule-group-label">其他</span> · ${ruleCountLabel(ungrouped)}</summary>${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>` : "";
+  const chips = groupedCounts.length ? `<div class="review-rule-section-chips">${groupedCounts.map(([id2, label3, count3]) => `<span class="review-rule-chip" data-rule-section="${e(id2)}">${e(label3)} <b>${e(count3)}</b></span>`).join("")}</div>` : "";
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note">生效于 ${e(ownLayer ? day5(book.published_on) || "—" : "—")}</span>
-    <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
-    ${intro}${groups2}${other}</section>`;
+    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day5(book.published_on) || "—" : "—")}</span>
+    <span class="review-note review-rule-meta-pill">共 ${ruleCountLabel(rules2)}</span></div>
+    ${chips}${intro}${groups2}${other}</section>`;
 }
 function promptPage(data3, vm3) {
   return renderPromptPage(data3, vm3);

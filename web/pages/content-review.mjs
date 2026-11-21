@@ -103,7 +103,25 @@ function activeSection(vm) {
 function v13Accounts(data) {
   const accounts = data.benchmarkAccounts || [];
   if (!accounts.length) return empty('暂无对标账号');
-  return accounts.map(account => {
+  const benchmarkArticles = data.benchmarkArticles || [];
+  const ownArticles = data.articles || [];
+  const accountBySampleId = new Map(benchmarkArticles.map(item => [String(item.id), String(item.benchmark_account_id)]));
+  const imitatedByAccount = new Map();
+  for (const article of ownArticles) {
+    if (article.reference_article_id == null) continue;
+    const ownerId = accountBySampleId.get(String(article.reference_article_id));
+    if (ownerId) imitatedByAccount.set(ownerId, (imitatedByAccount.get(ownerId) || 0) + 1);
+  }
+  const totalImitations = [...imitatedByAccount.values()].reduce((sum, count) => sum + count, 0);
+  const topAccount = accounts.map(account => ({name: account.name || '未命名账号', count: imitatedByAccount.get(String(account.id)) || 0}))
+    .filter(item => item.count > 0).sort((a, b) => b.count - a.count)[0] || null;
+  const kpis = [
+    `<article class="review-sub-kpi"><span>对标账号</span><strong>${e(reviewNumber(accounts.length))} 个</strong><small>当前账号参考库</small></article>`,
+    `<article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(reviewNumber(totalImitations))} 篇</strong><small>已关联样本引用</small></article>`,
+    topAccount ? `<article class="review-sub-kpi"><span>主力对标</span><strong>${e(topAccount.name)}</strong><small>仿写 ${e(reviewNumber(topAccount.count))} 篇</small></article>` : '',
+    benchmarkArticles.length ? `<article class="review-sub-kpi"><span>已建档样本</span><strong>${e(reviewNumber(benchmarkArticles.length))} 篇</strong><small>爆文库可复用样本</small></article>` : ''
+  ].filter(Boolean).join('');
+  const cards = accounts.map(account => {
     const topic = String(account.topic_focus || '').trim();
     const rawPatterns = parseJson(account.title_patterns, []);
     const patterns = Array.isArray(rawPatterns) ? rawPatterns.filter(item => typeof item === 'string' && item.trim()) : [];
@@ -111,8 +129,8 @@ function v13Accounts(data) {
     // Preserve source text while giving existing sentence boundaries visual space.
     const structureParts = structure.includes('\n') ? [structure] : structure.split(/(?<=。)(?=\S)/u);
     const details = [
-      topic ? `<section class="review-account-feature"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : '',
-      patterns.length ? `<section class="review-account-feature"><h4>标题特点</h4><div class="review-markdown">${patterns.map(item => 
+      topic ? `<section class="review-account-feature is-topic"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : '',
+      patterns.length ? `<section class="review-account-feature is-title"><h4>标题特点</h4><div class="review-markdown">${patterns.map(item => 
         renderReviewMarkdown(item)).join('')}</div></section>` : '',
       structure ? `<details class="review-account-feature review-account-more"><summary><h4>其他特点</h4></summary><div
         class="review-markdown">${structureParts.map(part => 
@@ -120,11 +138,20 @@ function v13Accounts(data) {
     ].join('');
     const profile = safeReviewUrl(account.profile_url);
     const name = e(account.name || '未命名账号');
+    const fans = finiteNumber(account.fans);
+    const imitated = imitatedByAccount.get(String(account.id)) || 0;
+    const pills = [
+      fans !== null && fans > 0 ? `<span class="review-account-pill">${e(reviewNumber(fans))} 粉</span>` : '',
+      imitated > 0 ? `<span class="review-account-pill is-hit">已仿写 ${e(reviewNumber(imitated))} 篇</span>` : ''
+    ].filter(Boolean).join('');
+    const cadence = String(account.posting_cadence || '').trim();
+    const cadenceHtml = cadence ? `<p class="review-account-cadence${/封号|停用/.test(cadence) ? ' is-stopped' : ''}">${e(cadence)}</p>` : '';
     return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" ` +
       `href="${e(profile)}" ` +
-      `target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || 
+      `target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>${pills ? `<div class="review-account-pills">${pills}</div>` : ''}</div>${cadenceHtml}<div class="review-v13-account-features">${details || 
         '<p>暂无特点记录</p>'}</div></section>`;
   }).join('');
+  return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div><div class="review-benchmark-cards">${cards}</div></div>`;
 }
 function sectionBody(selected,data,vm,rows) {
   if (selected === 'articles') return articleListPanel(rows,vm,data);
@@ -258,19 +285,26 @@ function renderRuleBook(book,scope) {
   const title=titleLines.map(line => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content=rulesIntroMarkdown(ownLayer ? book.content_md || '' : '');
   const intro=content ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content)}</div>` : '';
+  const groupedCounts = [];
   const groups=v13RuleGroups.map(([id,label]) => {
     const group=rules.filter(rule => rule.section === id);
-    return `<details class="review-v13-rule-group" open><summary>${e(label)} · ${ruleCountLabel(group)}</summary>
-    ${group.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>`;
+    if (group.length) groupedCounts.push([id, label, group.length]);
+    return `<details class="review-v13-rule-group${group.length ? '' : ' is-empty'}" data-rule-section="${e(id)}"${group.length ? ' open' : ''}>` +
+      `<summary><span class="review-rule-group-label">${e(label)}</span> · ${ruleCountLabel(group)}</summary>` +
+      `${group.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>`;
   }).join('');
   const ungrouped=rules.filter(rule => !v13RuleGroups.some(([id]) => id === rule.section));
-  const other=ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ruleCountLabel(ungrouped)}</summary>
-    ${ungrouped.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>` : '';
+  if (ungrouped.length) groupedCounts.push(['other', '其他', ungrouped.length]);
+  const other=ungrouped.length ? `<details class="review-v13-rule-group" data-rule-section="other" open>` +
+    `<summary><span class="review-rule-group-label">其他</span> · ${ruleCountLabel(ungrouped)}</summary>` +
+    `${ungrouped.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>` : '';
+  const chips = groupedCounts.length ? `<div class="review-rule-section-chips">${groupedCounts.map(([id, label, count]) =>
+    `<span class="review-rule-chip" data-rule-section="${e(id)}">${e(label)} <b>${e(count)}</b></span>`).join('')}</div>` : '';
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span>
-    <span class="review-note">共 ${ruleCountLabel(rules)}</span></div>
-    ${intro}${groups}${other}</section>`;
+    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span>
+    <span class="review-note review-rule-meta-pill">共 ${ruleCountLabel(rules)}</span></div>
+    ${chips}${intro}${groups}${other}</section>`;
 }
 function promptPage(data,vm) {
   return renderPromptPage(data,vm);

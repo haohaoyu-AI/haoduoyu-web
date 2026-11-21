@@ -28,16 +28,30 @@ export function playbookPromptBlocks(markdown) {
   return blocks;
 }
 const labels = {longform_write:'写文章', image:'配图', weitoutiao_write:'微头条', transfer_chat:'转写'};
+function promptBadge(title = '', key = '') {
+  if (key === 'longform_write' || /写文|写文章/.test(title)) return ['写文', 'is-hit'];
+  if (key === 'image' || /配图|海报/.test(title)) return ['配图', 'is-blue'];
+  if (key === 'transfer_chat' || /转移|转写/.test(title)) return ['转移对话', 'is-purple'];
+  if (key === 'weitoutiao_write' || /微头条/.test(title)) return ['微头条', 'is-hit'];
+  if (key === 'article_diagnosis' || /诊断/.test(title)) return ['AI 诊断', 'is-blue'];
+  return ['提示词', ''];
+}
+function charCountLabel(content) {
+  const chars = String(content || '').replace(/\s+/g, '').length;
+  return chars ? `约 ${chars.toLocaleString('zh-CN')} 字` : '';
+}
 function copyButton(action, id = '') {
   const marker = id ? ` data-prompt-id="${e(id)}"` : '';
   return `<button type="button" class="btn" data-review-action="${action}"${marker}>复制完整提示词</button>`;
 }
-function card(title, note, time, content, action) {
+function card(title, note, time, content, action, key = '') {
   const long = String(content).split('\n').length > 10 || String(content).length > 600;
   const when = time ? `<p class="review-note">生效时间：${e(time)} · 上海时间</p>` : '';
-  return `<article class="review-prompt-card"><div class="review-v13-rule-meta"><h2>${e(title)}</h2>` +
-    `<span class="review-note">${e(note)}</span></div>${when}<div class="review-prompt-copy-actions">${action}` +
-    `<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div>` +
+  const [badgeText, tone] = promptBadge(title, key);
+  const chars = charCountLabel(content);
+  return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading"><div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2>` +
+    `<span class="review-note">${e(note)}</span>${chars ? `<span class="review-prompt-chars">${e(chars)}</span>` : ''}</div>${when}</div><div class="review-prompt-copy-actions">${action}` +
+    `<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div></div>` +
     `<pre class="review-prompt-source${long ? ' is-folded' : ''}">${e(content)}</pre>` +
     // Folding only limits what is shown; the element still holds the whole prompt for copying.
     (long ? '<button type="button" class="btn text review-prompt-toggle" data-review-action="toggle-prompt"' +
@@ -55,9 +69,15 @@ export function renderPromptPage(data, vm) {
   const extras = (data.playbooks || []).flatMap(book => playbookPromptBlocks(book.content_md)).filter(block => block.content && !shown.has(block.content));
   const cards = prompts.map(prompt => card(labels[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, 'v' + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '),
-    reviewDateTime(prompt.updated_at) || '未记录', prompt.content_md || '', copyButton('copy-prompt', prompt.id)));
+    reviewDateTime(prompt.updated_at) || '未记录', prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
   const diagnosisNote = selected ? [selected.title, 'v' + selected.version, scopeLabel(selected.scope)].filter(Boolean).join(' · ') : '默认提示词';
-  cards.push(card('AI诊断', diagnosisNote, selected ? reviewDateTime(selected.updated_at) || '未记录' : '', diagnosis, copyButton('copy-diagnosis-prompt')));
+  cards.push(card('AI诊断', diagnosisNote, selected ? reviewDateTime(selected.updated_at) || '未记录' : '', diagnosis, copyButton('copy-diagnosis-prompt'), 'article_diagnosis'));
   for (const block of extras) cards.push(card(block.title, '规则手册中的提示词', '', block.content, copyButton('copy-prompt-block')));
-  return `<div class="review-prompt-page">${cards.join('')}</div>`;
+  const parts = [
+    prompts.length ? `独立版本 ${prompts.length} 份` : '',
+    extras.length ? `规则手册内置 ${extras.length} 份` : '',
+    'AI 诊断 1 份'
+  ].filter(Boolean).join(' · ');
+  const summaryBar = `<div class="review-prompt-summary"><span>共 <strong>${cards.length}</strong> 份提示词</span><span class="review-note">${e(parts)}</span></div>`;
+  return `<div class="review-prompt-page">${summaryBar}${cards.join('')}</div>`;
 }
