@@ -554,7 +554,15 @@ export const reviewArticlesTableRelease=Object.freeze({
   baseline:'579264fb-63c9-4be9-a343-bda08d1abb5f',
   bytes:3614336,sha256:'cd6849758f9f196988cb24fc3c53c4318e1c71701d0459fad4652740b5953494',
   label:'production-review-articles-table'});
-const acceptedRelease=commit=>commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
+// Phone-only cockpit presentation on the diagnosed article-details release. No migration.
+export const mobileReviewCockpitRelease=Object.freeze({
+  commit:'7867cbfe2f0bce06b969be001410ba2a847a2086',
+  tree:'0b97f0aac4544c1a283e8bdbd6f568afeceed384',
+  baseline:'30ae2725-d45c-499d-b3f0-3601b4830145',
+  bytes:3617305,sha256:'cac27c5136d12025bcca244bf66d156e329ab17b94f7d0e71cadf26371d4f566',
+  label:'production-mobile-review-cockpit'});
+const acceptedRelease=commit=>commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
+  commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
   commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
   commit===todoNoteSettleRelease.commit?todoNoteSettleRelease:
   commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
