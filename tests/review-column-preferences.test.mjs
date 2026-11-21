@@ -19,11 +19,11 @@ test('Beijing Monday starts a new week and date-only rows retain an unknown time
 test('sorting uses numeric values from the displayed observation and keeps missing values last', () => {
   const rows = [{id:'zero'},{id:'missing'},{id:'measured'},{id:'invalid'}];
   const observations = new Map([
-    ['zero',{snapshot:{reads:0,ctr:0,completion_rate:0}}],
-    ['measured',{snapshot:{reads:100,ctr:10,completion_rate:20}}],
-    ['invalid',{snapshot:{reads:-1,ctr:101,completion_rate:110}}],
+    ['zero',{snapshot:{reads:0,impressions:0,ctr:0,completion_rate:0,avg_read_seconds:0,fan_reads:0,fan_impressions:0}}],
+    ['measured',{snapshot:{reads:100,impressions:2500,ctr:10,completion_rate:20,avg_read_seconds:135,fan_reads:320,fan_impressions:1800}}],
+    ['invalid',{snapshot:{reads:-1,impressions:-1,ctr:101,completion_rate:110,avg_read_seconds:-5,fan_reads:-1,fan_impressions:-1}}],
   ]);
-  for (const key of ['reads','ctr','completion_rate']) {
+  for (const key of ['reads','impressions','ctr','completion_rate','avg_read_seconds','fan_reads','fan_impressions']) {
     for (const [direction,first] of [['descending','measured'],['ascending','zero']]) {
       const ids = sortReviewArticles(rows,observations,{key,direction}).map(row => row.id);
       assert.equal(ids[0],first);

@@ -184,8 +184,7 @@ function overview(data,vm) {
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
-<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>
-<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div>
+<h2 class="review-articles-heading review-sr-only">文章列表</h2>
 <div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div></section>`;
 }
 function articleLibrary(rows,vm,data) {

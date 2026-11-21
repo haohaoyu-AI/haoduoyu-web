@@ -7,10 +7,18 @@ import {reviewPublishState} from '../../shared/review-publish-state.mjs';
 
 const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
 const verdicts = ['爆','中','扑'];
-const columns = [
-  ['published','发布时间',true], ['title','标题'], ['title-pattern','标题套路'], ['article-pattern','文章套路'],
-  ['reads','24h 阅读',true], ['ctr','点击率',true], ['completion_rate','完成率',true], ['verdict','判定']
+const verdictClass = {爆:'hit',中:'middle',扑:'flop'};
+const percentageKeys = new Set(['ctr','completion_rate']);
+const metricColumns = [
+  ['reads','24h 阅读'],
+  ['impressions','展现量'],
+  ['ctr','点击率'],
+  ['completion_rate','完读率'],
+  ['avg_read_seconds','阅读时长'],
+  ['fan_reads','粉丝阅读'],
+  ['fan_impressions','粉丝展现'],
 ];
+const columns = [['published','发布时间',true], ...metricColumns.map(([key,label]) => [key,label,true])];
 export const TABLE_VIEW = '@table';
 export const reviewSortKeys = columns.filter(([, ,sortable]) => sortable).map(([key]) => key);
 
@@ -48,11 +56,32 @@ const middle = values => {
   return list.length % 2 ? list[center] : (list[center - 1] + list[center]) / 2;
 };
 
-function summary(rows) {
+function metricValue(observation,key) {
+  const value = finiteNumber(observation?.snapshot?.[key]);
+  if (value === null || value < 0) return null;
+  return percentageKeys.has(key) && value > 100 ? null : value;
+}
+
+function summary(rows,observations) {
   const counts = verdicts.map(verdict => rows.filter(row => row.verdict === verdict).length);
   const judged = counts.reduce((total,count) => total + count,0);
-  return {counts,hitRate:judged ? 100 * counts[0] / judged : null,
-    reads:middle(rows.map(row => row.reads_24h)),ctr:middle(rows.map(row => row.ctr_24h))};
+  const pick = (key,fallback) => middle(rows.map(row => {
+    const observed = observations ? metricValue(observations.get(row.id),key) : null;
+    if (observed !== null) return observed;
+    return fallback ? finiteNumber(row[fallback]) : null;
+  }));
+  return {
+    counts,
+    judged,
+    hitRate:judged ? 100 * counts[0] / judged : null,
+    reads:pick('reads','reads_24h'),
+    impressions:pick('impressions'),
+    ctr:pick('ctr','ctr_24h'),
+    completion_rate:pick('completion_rate'),
+    avg_read_seconds:pick('avg_read_seconds'),
+    fan_reads:pick('fan_reads'),
+    fan_impressions:pick('fan_impressions'),
+  };
 }
 
 function groupBy(rows,keyFor) {
@@ -66,18 +95,18 @@ function groupBy(rows,keyFor) {
 }
 
 const tailRank = name => name === '未分类' ? 2 : name === '其他' ? 1 : 0;
-export function articlePatternGroups(rows,tags,dimension) {
+export function articlePatternGroups(rows,tags,dimension,observations) {
   return [...groupBy(rows,row => patternValue(tags,row.id,dimension) || '未分类')]
-    .map(([name,rows]) => ({name,rows,...summary(rows)}))
+    .map(([name,rows]) => ({name,rows,...summary(rows,observations)}))
     .sort((a,b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) ||
       (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name,'zh-CN'));
 }
 
-export function articleWeekGroups(rows) {
+export function articleWeekGroups(rows,observations) {
   return [...groupBy(rows,row => {
     const date = day(row.published_at);
     return date ? shiftDay(date,-((weekday(date) + 6) % 7)) : '';
-  })].map(([start,rows]) => ({start,end:shiftDay(start,6),rows,...summary(rows)}));
+  })].map(([start,rows]) => ({start,end:shiftDay(start,6),rows,...summary(rows,observations)}));
 }
 
 function filterDate(value,from,today) {
@@ -109,25 +138,23 @@ function compareNullable(left,right,direction) {
 export function sortReviewArticles(rows,observations,sort) {
   const direction = sort?.direction === 'ascending' ? 1 : -1;
   const key = sort?.key || 'published';
-  const value = row => {
-    const metric = finiteNumber(observations.get(row.id)?.snapshot?.[key]);
-    return metric !== null && metric >= 0 && (key === 'reads' || metric <= 100) ? metric : null;
-  };
   if (key === 'published') {
     return [...rows].sort((a,b) => Number(!day(a.published_at)) - Number(!day(b.published_at)) || -direction * recentArticles(a,b));
   }
-  return [...rows].sort((a,b) => compareNullable(value(a),value(b),direction) || recentArticles(a,b));
+  return [...rows].sort((a,b) => compareNullable(metricValue(observations.get(a.id),key),metricValue(observations.get(b.id),key),direction) ||
+    recentArticles(a,b));
 }
 
 const choose = (choices,value) => choices.map(([id,label]) =>
   `<option value="${e(id)}"${id === value ? ' selected' : ''}>${e(label)}</option>`).join('');
 
 function viewControls(dimensions,group,count) {
-  const views = [[TABLE_VIEW,'总表'],[dimensions[0],'按标题套路'],[dimensions[1],'按文章套路']];
+  const views = [[TABLE_VIEW,'全部文章'],[dimensions[0],'标题套路'],[dimensions[1],'文章套路']];
   return `<div class="review-view-row"><div class="segmented review-view-switch" role="group" aria-label="文章列表显示方式">` +
     views.map(([value,label]) => `<button type="button" class="btn" data-review-view="${e(value || '')}" ` +
       `aria-pressed="${Boolean(value) && group === value}"${value ? '' : ' disabled title="还没有套路标签"'}>${label}</button>`).join('') +
-    `</div><span class="review-view-count">已发布 ${count}${dimensions.some(Boolean) ? '' : ' · 还没有套路标签'}</span></div>`;
+    `</div><div class="review-view-actions"><span class="review-view-count">已发布 <b>${count}</b> 篇${dimensions.some(Boolean) ? '' : ' · 还没有套路标签'}</span>` +
+    `<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div></div>`;
 }
 
 function articleFilters(filters,range) {
@@ -142,6 +169,24 @@ function articleFilters(filters,range) {
       `aria-label="移除套路筛选：${e(pattern.dimension)} · ${e(pattern.name)}">${e(pattern.dimension)} · ${e(pattern.name)} ×</button>` : '');
 }
 
+const medianText = (value,key) => formatReviewListMetric({snapshot:{[key]:value}},key);
+const countsHtml = counts => verdicts.map((label,i) =>
+  `<span class="review-count-pill ${verdictClass[label]}">${label} <b>${counts[i]}</b></span>`).join('');
+
+function summaryStrip(stats,total) {
+  const rate = stats.hitRate === null ? '—' : `${stats.hitRate.toFixed(1)}%`;
+  return `<div class="review-article-kpis" aria-label="当前筛选汇总">` +
+    `<article class="review-article-kpi"><span>爆 / 中 / 扑</span><strong>${stats.counts[0]} / ${stats.counts[1]} / ${stats.counts[2]}</strong>` +
+    `<small>共 ${total} 篇 · 爆率 ${rate}</small></article>` +
+    `<article class="review-article-kpi"><span>24h 阅读中位</span><strong>${e(medianText(stats.reads,'reads'))}</strong>` +
+    `<small>展现中位 ${e(medianText(stats.impressions,'impressions'))}</small></article>` +
+    `<article class="review-article-kpi"><span>点击 / 完读中位</span><strong>${e(medianText(stats.ctr,'ctr'))}</strong>` +
+    `<small>完读中位 ${e(medianText(stats.completion_rate,'completion_rate'))}</small></article>` +
+    `<article class="review-article-kpi"><span>时长 / 粉丝阅读</span><strong>${e(medianText(stats.avg_read_seconds,'avg_read_seconds'))}</strong>` +
+    `<small>粉阅 ${e(medianText(stats.fan_reads,'fan_reads'))} · 粉展 ${e(medianText(stats.fan_impressions,'fan_impressions'))}</small></article>` +
+    `</div>`;
+}
+
 function titleButton(row) {
   const title = e(row.title || '未命名文章');
   return `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
@@ -154,10 +199,11 @@ function draftBox(rows) {
       `${titleButton(row)}</li>`).join('')}</ul>` : '<p class="review-note">草稿箱为空</p>') + '</details>';
 }
 
-function patternButton(tags,row,dimension) {
+function patternButton(tags,row,dimension,prefix,kind) {
   const name = patternValue(tags,row.id,dimension);
-  return name ? `<button type="button" class="review-pattern-label" data-review-pattern="${e(name)}" ` +
-    `data-review-dimension="${e(dimension)}" title="${e(name)}">${e(name)}</button>` : '—';
+  if (!name) return '';
+  return `<button type="button" class="review-pattern-label is-${kind}" data-review-pattern="${e(name)}" ` +
+    `data-review-dimension="${e(dimension)}" title="${e(dimension)}：${e(name)}"><span class="review-pattern-prefix">${prefix}</span>${e(name)}</button>`;
 }
 
 export function renderDetailPatterns(row,tags) {
@@ -166,15 +212,51 @@ export function renderDetailPatterns(row,tags) {
     `<div><dt>${labels[index]}</dt><dd>${e(patternValue(tags,row.id,dimension) || '—')}</dd></div>`).join('')}</dl>`;
 }
 
-function rowHtml(row,observation,tags,dimensions,tag) {
-  const judgement = observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : row.verdict ? tag(row.verdict) : '—';
+function verdictChip(row,observation) {
+  if (observation.kind === 'longtail') return '<span class="review-article-verdict longtail review-tag">长尾</span>';
+  if (row.verdict && verdictClass[row.verdict]) {
+    return `<span class="review-tag ${verdictClass[row.verdict]} review-article-verdict">${e(row.verdict)}</span>`;
+  }
+  return '<span class="review-article-verdict unjudged" aria-label="未判定">—</span>';
+}
+
+function readsBar(readsValue,maxLog,verdictKey,provisional) {
+  if (readsValue === null || readsValue <= 0 || maxLog <= 0) return '';
+  const pct = Math.max(6, Math.min(100, Math.round(Math.log10(Math.max(readsValue, 1)) / maxLog * 100)));
+  return `<svg class="review-rank-bar review-article-bar" viewBox="0 0 100 5" preserveAspectRatio="none" aria-hidden="true">` +
+    `<rect class="review-rank-bar-track" width="100" height="5" rx="2.5"/>` +
+    `<rect class="review-rank-bar-fill ${verdictKey}${provisional ? ' provisional' : ''}" width="${pct}" height="5" rx="2.5"/></svg>`;
+}
+
+function verdictMixBar(counts) {
+  const total = counts.reduce((sum,n) => sum + n,0);
+  if (!total) return '';
+  const hitW = Math.round(counts[0] / total * 100);
+  const midW = Math.round(counts[1] / total * 100);
+  const flopW = Math.max(0, 100 - hitW - midW);
+  return `<svg class="review-mix-bar" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">` +
+    `<rect class="review-mix-hit" x="0" width="${hitW}" height="6"/>` +
+    `<rect class="review-mix-middle" x="${hitW}" width="${midW}" height="6"/>` +
+    `<rect class="review-mix-flop" x="${hitW + midW}" width="${flopW}" height="6"/></svg>`;
+}
+
+function rowHtml(row,observation,tags,dimensions,maxLog) {
   const published = articleListDate(row.published_at);
   const date = published.replace(/ (\d{2}:\d{2})$/, ' <span class="review-publish-clock">$1</span>');
-  const reads = e(formatReviewListMetric(observation,'reads'));
-  const observed = observation.hours === null ? reads :
-    `<span title="发布后 ${e(reviewObservationHours(observation.hours))} 小时">${reads}</span>`;
-  const cells = [date,titleButton(row),...dimensions.map(dimension => patternButton(tags,row,dimension)),observed,
-    ...['ctr','completion_rate'].map(key => e(formatReviewListMetric(observation,key))),judgement];
+  const titleTag = patternButton(tags,row,dimensions[0],'标','title');
+  const articleTag = patternButton(tags,row,dimensions[1],'文','article');
+  const patterns = (titleTag || articleTag) ? `<span class="review-row-patterns">${titleTag}${articleTag}</span>` : '';
+  const identity = `<div class="review-article-identity">${verdictChip(row,observation)}` +
+    `<div class="review-article-main">${titleButton(row)}<div class="review-article-meta">` +
+    `<span class="review-article-date">${date}</span>${patterns}</div></div></div>`;
+  const readsFormatted = e(formatReviewListMetric(observation,'reads'));
+  const readsVal = metricValue(observation,'reads');
+  const vKey = verdictClass[row.verdict] || 'unjudged';
+  const provisional = observation.hours !== null && observation.hours < 24;
+  const readsCell = (observation.hours === null ? readsFormatted :
+    `<span title="发布后 ${e(reviewObservationHours(observation.hours))} 小时">${readsFormatted}</span>`) +
+    readsBar(readsVal,maxLog,vKey,provisional);
+  const cells = [identity, readsCell, ...metricColumns.slice(1).map(([key]) => e(formatReviewListMetric(observation,key)))];
   return `<tr data-review-row="${e(row.id)}">${columns.map(([key,label],index) =>
     `<td data-label="${label}" class="review-cell-${key}">${cells[index]}</td>`).join('')}</tr>`;
 }
@@ -194,24 +276,34 @@ function columnHeaders(sort) {
   }).join('');
 }
 
-const medianText = (value,key) => formatReviewListMetric({snapshot:{[key]:value}},key);
-const countsText = counts => verdicts.map((label,i) => `<span>${label} <b>${counts[i]}</b></span>`).join('');
-
 function weekBody(week,lines) {
   const date = week.start ? `${week.start.slice(5)} 至 ${week.end.slice(5)}` : '发布时间未提供';
-  return `<tbody><tr class="review-week-summary"><th scope="rowgroup" colspan="8"><div><strong>${date}</strong>` +
-    `<span>${week.rows.length} 篇</span>${countsText(week.counts)}<span>阅读中位 ${medianText(week.reads,'reads')}</span>` +
+  return `<tbody><tr class="review-week-summary"><th scope="rowgroup" colspan="${columns.length}"><div>` +
+    `<strong class="review-week-label">${date}</strong><span class="review-week-count">${week.rows.length} 篇</span>` +
+    `${countsHtml(week.counts)}<span class="review-week-stat">阅读中位 <b>${e(medianText(week.reads,'reads'))}</b></span>` +
+    `<span class="review-week-stat">点击中位 <b>${e(medianText(week.ctr,'ctr'))}</b></span>` +
+    `<span class="review-week-stat">完读中位 <b>${e(medianText(week.completion_rate,'completion_rate'))}</b></span>` +
     `</div></th></tr>${lines(week.rows)}</tbody>`;
 }
 
 function patternGroup(group,dimension,headers,lines) {
-  const few = group.rows.length < 5 ? ' <small class="review-note">样本少</small>' : '';
+  const few = group.rows.length < 5 ? '<span class="review-sample-badge">样本少</span>' : '';
   const rate = group.hitRate === null ? '—' : `${group.hitRate.toFixed(1)}%`;
+  const hitTone = group.hitRate > 0 ? ' is-hitrate is-positive' : ' is-hitrate';
   return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension,group.name]))}"><summary>` +
-    `<span class="review-article-group-name">${e(group.name)}${few}</span><span class="review-article-group-figures">` +
-    `<span><b>${group.rows.length}</b> 篇</span>${countsText(group.counts)}<span>爆率 <b>${rate}</b></span>` +
-    `<span>24h 阅读中位 <b>${medianText(group.reads,'reads')}</b></span><span>点击率中位 <b>${medianText(group.ctr,'ctr')}</b></span>` +
-    `</span></summary>${table(headers,`<tbody>${lines(group.rows)}</tbody>`)}</details>`;
+    `<div class="review-group-top"><span class="review-article-group-name">${e(group.name)}</span>` +
+    `<span class="review-group-count">${group.rows.length} 篇</span>${few}` +
+    `<div class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</div></div>` +
+    `<dl class="review-article-group-figures">` +
+    `<div class="${hitTone.trim()}"><dt>爆率</dt><dd>${rate}</dd></div>` +
+    `<div><dt>阅读中位</dt><dd>${e(medianText(group.reads,'reads'))}</dd></div>` +
+    `<div><dt>展现中位</dt><dd>${e(medianText(group.impressions,'impressions'))}</dd></div>` +
+    `<div><dt>点击中位</dt><dd>${e(medianText(group.ctr,'ctr'))}</dd></div>` +
+    `<div><dt>完读中位</dt><dd>${e(medianText(group.completion_rate,'completion_rate'))}</dd></div>` +
+    `<div><dt>时长中位</dt><dd>${e(medianText(group.avg_read_seconds,'avg_read_seconds'))}</dd></div>` +
+    `<div><dt>粉阅中位</dt><dd>${e(medianText(group.fan_reads,'fan_reads'))}</dd></div>` +
+    `<div><dt>粉展中位</dt><dd>${e(medianText(group.fan_impressions,'fan_impressions'))}</dd></div>` +
+    `</dl></summary>${table(headers,`<tbody>${lines(group.rows)}</tbody>`)}</details>`;
 }
 
 export function renderArticleList(rows,vm,snapshots,flagged,tag) {
@@ -224,12 +316,16 @@ export function renderArticleList(rows,vm,snapshots,flagged,tag) {
   const byArticle = groupBy(snapshots || [],snapshot => String(snapshot.article_id));
   const observations = new Map(published.map(row => [row.id,reviewListObservation(row,byArticle.get(String(row.id)),now)]));
   const ordered = sortReviewArticles(published,observations,filters.sort);
-  const lines = list => list.map(row => rowHtml(row,observations.get(row.id),vm.tags,dimensions,tag)).join('');
+  const maxReads = Math.max(10, ...ordered.map(row => metricValue(observations.get(row.id),'reads') ?? 0));
+  const maxLog = Math.log10(maxReads);
+  const stats = summary(ordered,observations);
+  const lines = list => list.map(row => rowHtml(row,observations.get(row.id),vm.tags,dimensions,maxLog)).join('');
   const headers = columnHeaders(filters.sort);
+  const kpis = summaryStrip(stats,ordered.length);
   if (group !== TABLE_VIEW) {
-    const groups = articlePatternGroups(ordered,vm.tags,group);
-    return top + `<div class="review-article-groups">${groups.map(entry => patternGroup(entry,group,headers,lines)).join('')}</div>`;
+    const groups = articlePatternGroups(ordered,vm.tags,group,observations);
+    return top + kpis + `<div class="review-article-groups">${groups.map(entry => patternGroup(entry,group,headers,lines)).join('')}</div>`;
   }
-  const bodies = filters.sort ? `<tbody>${lines(ordered)}</tbody>` : articleWeekGroups(ordered).map(week => weekBody(week,lines)).join('');
-  return top + table(headers,bodies);
+  const bodies = filters.sort ? `<tbody>${lines(ordered)}</tbody>` : articleWeekGroups(ordered,observations).map(week => weekBody(week,lines)).join('');
+  return top + kpis + table(headers,bodies);
 }

@@ -30,37 +30,44 @@ const render = (filters = {},overrides = {}) => renderContentReviewContent(fixtu
 const row = (html,id) => html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`))?.[1] || '';
 const cell = (html,id,label) => row(html,id).match(new RegExp(`<td data-label="${label}"[^>]*>([\\s\\S]*?)</td>`))?.[1];
 
-test('fixed table renders published rows, with pending and unmatched records outside the table', () => {
+test('fixed table renders published rows with all seven metrics, keeping pending and unmatched records outside', () => {
   const html = render();
   const headers = [...html.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(headers,['published','title','title-pattern','article-pattern','reads','ctr','completion_rate','verdict']);
+  assert.deepEqual(headers,['published','reads','impressions','ctr','completion_rate','avg_read_seconds','fan_reads','fan_impressions']);
   assert.match(html,/review-article-drafts" data-review-keep-open="drafts"><summary>草稿箱 1 篇/);
   assert.match(html,/<time>11-16 周一 14:00<\/time>.*data-review-article="draft"/);
   assert.match(html,/未能对上 1 篇/);
   for (const id of ['draft','unmatched','foreign']) assert.equal(row(html,id),'',id);
-  assert.match(cell(html,'sample','标题'),/title="&lt;合成&gt;数字标题 &amp; 剧情"/);
-  assert.match(cell(html,'sample','标题套路'),/data-review-dimension="标题归类".*>数字对照<\/button>/);
-  assert.equal(cell(html,'unclassified','文章套路'),'—');
+  const sampleIdentity = cell(html,'sample','发布时间');
+  assert.match(sampleIdentity,/title="&lt;合成&gt;数字标题 &amp; 剧情"/);
+  assert.match(sampleIdentity,/data-review-dimension="标题归类"[^>]*><span[^>]*>标<\/span>数字对照<\/button>/);
+  assert.match(sampleIdentity,/data-review-dimension="正文结构"[^>]*><span[^>]*>文<\/span>先抛问题<\/button>/);
+  assert.doesNotMatch(cell(html,'unclassified','发布时间'),/data-review-pattern=/);
   assert.match(cell(html,'sample','24h 阅读'),/>0</);
+  assert.equal(cell(html,'sample','展现量'),'1.3 万');
   assert.equal(cell(html,'sample','点击率'),'0.0%');
-  assert.equal(cell(html,'sample','完成率'),'60.0%');
-  assert.doesNotMatch(html,/负载|FOREIGN|旧分类|旧套路|9999|展现量|平均阅读时长/);
+  assert.equal(cell(html,'sample','完读率'),'60.0%');
+  assert.equal(cell(html,'sample','阅读时长'),'—');
+  assert.equal(cell(html,'sample','粉丝阅读'),'—');
+  assert.equal(cell(html,'sample','粉丝展现'),'—');
+  assert.doesNotMatch(html,/负载|FOREIGN|旧分类|旧套路|9999/);
   assert.match(render({}, {article:'draft'}),/<h2 id="review-detail-title">草稿标题<\/h2>/);
 });
 
 test('read-only dimensions are resolved from payload and grouped counts reflect all filters', () => {
   assert.deepEqual(articlePatternDimensions(tags),[headline,writing]);
   const html = render({group:headline,query:' 剧情 ',verdict:'扑',pattern:{dimension:writing,name:'先抛问题'}});
-  assert.match(html,/data-review-view="标题归类" aria-pressed="true">按标题套路/);
-  assert.match(html,/data-review-view="正文结构" aria-pressed="false">按文章套路/);
+  assert.match(html,/data-review-view="标题归类" aria-pressed="true">标题套路/);
+  assert.match(html,/data-review-view="正文结构" aria-pressed="false">文章套路/);
   assert.match(html,/data-review-pattern-clear/);
   assert.match(html,/review-article-group" data-review-keep-open="[^"]+"><summary>/);
-  assert.match(html,/数字对照.*样本少/);
-  assert.match(html,/爆率 <b>0\.0%<\/b>/);
-  assert.match(html,/24h 阅读中位 <b>0<\/b>/);
+  assert.match(html,/数字对照[\s\S]*样本少/);
+  assert.match(html,/<dt>爆率<\/dt><dd>0\.0%<\/dd>/);
+  assert.match(html,/<dt>阅读中位<\/dt><dd>0<\/dd>/);
+  assert.match(html,/<dt>展现中位<\/dt><dd>1\.3 万<\/dd>/);
   assert.equal(row(html,'unclassified'),'');
   assert.doesNotMatch(html,/review-week-summary|未分类/);
-  assert.match(render({group:writing}),/先抛问题.*样本少/);
+  assert.match(render({group:writing}),/先抛问题[\s\S]*样本少/);
 });
 
 test('pattern groups prioritize sample size, hit rate and reads, with fallback groups last', () => {

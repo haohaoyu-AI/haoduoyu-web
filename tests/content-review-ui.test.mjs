@@ -196,9 +196,9 @@ test('new and migrated notes and health remain hidden from current review',() =>
 
 test('article list opens as the weekly total table and disables the pattern modes without tags',() => {
   const html = renderContentReviewContent(fixture(),{...model('articles'),filters:{range:'all',group:'@timeline'}});
-  assert.match(html,/data-review-view="@table" aria-pressed="true">总表/);
-  assert.match(html,/disabled title="还没有套路标签">按标题套路/);
-  assert.match(html,/disabled title="还没有套路标签">按文章套路/);
+  assert.match(html,/data-review-view="@table" aria-pressed="true">全部文章/);
+  assert.match(html,/disabled title="还没有套路标签">标题套路/);
+  assert.match(html,/disabled title="还没有套路标签">文章套路/);
   assert.match(html,/review-week-summary/);
   assert.doesNotMatch(html,/review-tl|显示指标|发布状态<select/);
 });

@@ -95,7 +95,7 @@ def check_cockpit(page, current, width):
         assert 4 <= len(axis) <= 6, axis
         assert all(left['right'] + 2 <= right['left'] for left, right in zip(axis, axis[1:])), axis
         assert current['title']['width'] >= width * .55, current['title']
-        assert current['title']['height'] >= 44, current['title']
+        assert current['row']['height'] >= 44, current['row']
         assert current['bar']['height'] > 0, current['bar']
         expect(first_row.locator('.review-rank-reads')).to_be_visible()
         expect(first_row.locator('.review-rank-ctr')).to_be_visible()

@@ -58,11 +58,10 @@ def check_layout(page, width, row):
     if width == 375:
         assert row.evaluate('row => getComputedStyle(row).display') == 'grid'
         boxes = [row.locator('.review-cell-' + key).bounding_box()
-                 for key in ('title', 'published', 'title-pattern', 'reads', 'ctr', 'verdict')]
-        assert boxes[0]['y'] < boxes[1]['y']
-        assert max(box['y'] for box in boxes[1:]) - min(box['y'] for box in boxes[1:]) < 2
-        expect(row.locator('.review-cell-article-pattern')).to_be_hidden()
-        expect(row.locator('.review-cell-completion_rate')).to_be_hidden()
+                 for key in ('published', 'reads', 'ctr', 'completion_rate', 'avg_read_seconds', 'impressions', 'fan_reads', 'fan_impressions')]
+        assert boxes[0]['y'] < boxes[1]['y'] < boxes[5]['y']
+        assert max(box['y'] for box in boxes[1:5]) - min(box['y'] for box in boxes[1:5]) < 2
+        assert max(box['y'] for box in boxes[5:]) - min(box['y'] for box in boxes[5:]) < 2
     else:
         assert row.evaluate('row => getComputedStyle(row).display') == 'table-row'
         assert len(row.locator('td:visible').all()) == 8
@@ -83,9 +82,9 @@ def review_modes(browser, width):
     page.goto(URL)
     table = page.locator('.review-articles-table')
     first_row = page.locator('[data-review-row]:visible').first
-    title_mode = page.get_by_role('button', name='按标题套路', exact=True)
-    article_mode = page.get_by_role('button', name='按文章套路', exact=True)
-    total_mode = page.get_by_role('button', name='总表', exact=True)
+    title_mode = page.get_by_role('button', name='标题套路', exact=True)
+    article_mode = page.get_by_role('button', name='文章套路', exact=True)
+    total_mode = page.get_by_role('button', name='全部文章', exact=True)
     expect(title_mode).to_be_enabled(timeout=20000)
     expect(total_mode).to_have_attribute('aria-pressed', 'true')
     page.locator('[data-review-filter="range"]').select_option('all')
@@ -120,7 +119,7 @@ def review_modes(browser, width):
     expect(page.locator('th.review-cell-reads')).to_have_attribute('aria-sort', 'descending')
     sort.click()
     expect(page.locator('th.review-cell-reads')).to_have_attribute('aria-sort', 'ascending')
-    first_row.locator('.review-cell-title-pattern button').click()
+    first_row.locator('.review-pattern-label.is-title').click()
     expect(page.locator('[data-review-pattern-clear]')).to_be_visible()
     expect(page.locator('[data-review-row]')).to_have_count(6)
     page.locator('[data-review-pattern-clear]').click()
@@ -157,7 +156,7 @@ def no_tags(browser):
     page = context.new_page()
     page.goto(URL)
     expect(page.get_by_text('还没有套路标签', exact=False)).to_be_visible(timeout=20000)
-    for label in ('按标题套路', '按文章套路'):
+    for label in ('标题套路', '文章套路'):
         expect(page.get_by_role('button', name=label, exact=True)).to_be_disabled()
     context.close()
 

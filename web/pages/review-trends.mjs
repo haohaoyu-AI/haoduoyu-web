@@ -147,11 +147,17 @@ function quadrantFigure(result) {
        <rect class="review-quad-zone is-cold" x="0%" y="${hitY.toFixed(2)}" width="${ctrPct.toFixed(2)}%" height="${Math.max(0, bottom - hitY).toFixed(2)}"/>`
     : '';
   const hitLine = hitY !== null ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${hitY.toFixed(2)}" y2="${hitY.toFixed(2)}"/>` : '';
-  const hitLabel = hitY !== null ? `<text class="review-trend-threshold-label" x="100%" y="${(hitY - 6).toFixed(2)}" text-anchor="end">爆款线 ${e(reads(hitThreshold))}</text>` : '';
+  const hitLabelAbove = hitY !== null && hitY - top >= 26;
+  const hitLabelY = hitY !== null ? (hitLabelAbove ? hitY - 6 : hitY + 14) : top;
+  const hitLabel = hitY !== null ? `<text class="review-trend-threshold-label" x="100%" y="${hitLabelY.toFixed(2)}" text-anchor="end">爆款线 ${e(reads(hitThreshold))}</text>` : '';
   const vLine = ctrPct !== null ? `<line class="review-quad-ctr-line" x1="${ctrPct.toFixed(2)}%" x2="${ctrPct.toFixed(2)}%" y1="${top}" y2="${bottom}"/>` : '';
-  const vLabel = ctrPct !== null ? `<text class="review-quad-ctr-label" x="${Math.min(92, ctrPct + 1.2).toFixed(2)}%" y="${top + 12}">${e(ctrLineLabel)}</text>` : '';
+  const vLabelAnchor = ctrPct !== null && ctrPct > 72 ? 'end' : 'start';
+  const vLabelX = ctrPct !== null ? (ctrPct > 72 ? Math.max(8, ctrPct - 1.2) : Math.min(92, ctrPct + 1.2)) : 0;
+  const vLabel = ctrPct !== null ? `<text class="review-quad-ctr-label" x="${vLabelX.toFixed(2)}%" y="${top + 12}" text-anchor="${vLabelAnchor}">${e(ctrLineLabel)}</text>` : '';
+  const hotLabelY = hitY !== null ? (hitLabelAbove && hitY - top < 48 ? top + 12 : Math.min(hitY - 22, top + 28)) : top + 28;
+  const showHotCorner = hitY !== null && hitY - top >= 24 && ctrPct !== null && ctrPct <= 84;
   const quadLabels = hitY !== null && ctrPct !== null
-    ? `<text class="review-quad-label is-hot" x="99%" y="${top + 28}" text-anchor="end">标题好 · 推得动</text>
+    ? `${showHotCorner ? `<text class="review-quad-label is-hot" x="99%" y="${Math.max(top + 12, hotLabelY).toFixed(2)}" text-anchor="end">标题好 · 推得动</text>` : ''}
        <text class="review-quad-label is-cold" x="1%" y="${bottom - 8}">标题没人点</text>
        <text class="review-quad-label" x="99%" y="${bottom - 8}" text-anchor="end">有人点 · 没推起来</text>`
     : '';
@@ -175,7 +181,7 @@ function quadrantGuides(hitY,hitThreshold,ctrPct,ctrLineLabel) {
   ].join('');
   if (!lines) return '';
   const zones = hitY !== null && ctrPct !== null
-    ? '<li class="review-quad-guide-zone">右上 · 标题好、推得动</li><li class="review-quad-guide-zone">左下 · 标题没人点</li>' +
+    ? '<li class="review-quad-guide-zone is-hot">右上 · 标题好、推得动</li><li class="review-quad-guide-zone is-cold">左下 · 标题没人点</li>' +
       '<li class="review-quad-guide-zone">右下 · 有人点、没推起来</li>'
     : '';
   return `<ul class="review-quadrant-guides" aria-label="象限图标注">${lines}${zones}</ul>`;
@@ -183,7 +189,7 @@ function quadrantGuides(hitY,hitThreshold,ctrPct,ctrLineLabel) {
 function rankedList(result) {
   const items = [...result.points].sort((a,b) => (known(b.reads) ? 1 : 0) - (known(a.reads) ? 1 : 0) || (b.reads ?? -1) - (a.reads ?? -1));
   const head = '<div class="review-trend-figure-head"><h3>本期文章排行</h3>' +
-    '<span class="review-note">按 24 小时阅读排序 · 右侧依次为阅读、点击率，点击打开详情</span></div>';
+    '<span class="review-note">按 24 小时阅读排序 · 点击任意一行打开详情</span></div>';
   if (!items.length) return `<section class="review-cockpit-rank">${head}
     <p class="review-trend-empty" role="status">当前范围没有已发布文章。</p></section>`;
   const maxReads = Math.max(10, result.thresholds?.hit || 0, ...items.map(item => item.reads || 0));
@@ -198,8 +204,8 @@ function rankedList(result) {
       <span class="review-rank-chip ${verdictKey}">${e(verdictLabel)}</span>
       <button type="button" class="review-rank-title" data-review-article="${e(item.id)}" title="${e(item.title || '未命名')}">${e(item.title || '未命名')}</button>
       <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="8" rx="4"/><rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? ' provisional' : ''}" width="${pct}" height="8" rx="4"/></svg>
-      <span class="review-rank-reads">${e(reads(item.reads))}</span>
-      <span class="review-rank-ctr">${e(percent(item.ctr))}</span>
+      <span class="review-rank-reads"><small class="review-rank-metric-label">阅读 </small>${e(reads(item.reads))}</span>
+      <span class="review-rank-ctr"><small class="review-rank-metric-label">点击 </small>${e(percent(item.ctr))}</span>
       <span class="review-rank-meta">${e(when)}${item.provisional ? ' · 不满 24h 暂定' : ''}</span>
     </li>`;
   }).join('');
