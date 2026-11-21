@@ -66,7 +66,9 @@ test('settings queue host is outside the content disabled while offline',async()
   const start=source.indexOf('function mainContent()');const end=source.indexOf('function reuseShell()',start);
   const fn=source.slice(start,end);assert.ok(start>=0&&end>start);
   assert.ok(fn.indexOf('id="offline-settings-entry"')>=0);
-  assert.ok(fn.indexOf('id="offline-settings-entry"')<fn.indexOf('id="page-content"'));
+  const pageContent = fn.indexOf('id="page-content"');
+  const queueHost = fn.indexOf('id="offline-settings-entry"');
+  assert.ok(pageContent>=0&&queueHost>pageContent);
 });
 
 test('automatic synchronization still starts and retries on focus and online events',async()=>{

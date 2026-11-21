@@ -17,8 +17,8 @@ class="${mobile ? 'mobile-nav-item' : 'nav-item'}${selected ? ' active' : ''}" a
 ${selected ? 'aria-current="page"' : ''}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 export function mediaNavigation(mobile = false) {
-  const account = state.account || 'V字';
-  return navigationLink({id:'review',icon:'chart',label:mobile ? '复盘' : '内容复盘',account},mobile);
+  const item = nav.find(entry => entry.id === 'review');
+  return navigationLink({...item, account: state.account || 'V字'}, mobile);
 }
 export function renderMediaTabs() { return ''; }
 export function notesNavigation(mobile = false) {
@@ -30,10 +30,8 @@ export function sidebarNavigation() {
 }
 export function settingsNavigation() { return navigationLink(nav.find(item => item.id === 'settings')); }
 export function mobileNavigation() {
-  const items = [['todos','待办'],['notes','碎碎念']];
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id,label]) =>
-    navigationLink({...nav.find(item => item.id === id),label},true))
-    .join('')}${mediaNavigation(true)}${navigationLink(nav.find(item => item.id === 'ai-reports'),true)}</nav>`;
+  const items = nav.filter(item => item.id !== 'settings').map(item => item.id === 'review' ? mediaNavigation(true) : navigationLink(item, true));
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.join('')}</nav>`;
 }
 export function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>

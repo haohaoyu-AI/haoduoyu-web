@@ -92,6 +92,10 @@ function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
 export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['library','爆文库']];
+export const REVIEW_SECTION_GROUPS = [
+  ['data', '看数据', ['cockpit', 'articles']],
+  ['method', '学方法', ['benchmarks', 'library', 'rules', 'prompts']]
+];
 function activeSection(vm) {
   const raw = vm.secondary === 'review' ? 'rules' : vm.secondary === 'trends' ? 'cockpit' : vm.secondary;
   if (REVIEW_SECTIONS.some(([id]) => id === raw)) return raw;
@@ -161,14 +165,20 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
   return overview(data,vm);
 }
-function archives(data,vm,rows,override) {
+function archives(data,vm,rows,override,archive = '') {
   const selected = activeSection(vm);
   const body = override ?? sectionBody(selected,data,vm,rows);
-  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id,label]) => 
-    `<button ` +
-    `type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === 
-      id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" ` +
-        `role="tabpanel" aria-labelledby="review-secondary-${selected}">${body}</div></section>`;
+  const labelById = new Map(REVIEW_SECTIONS);
+  const tabHtml = id => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" ` +
+    `aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">` +
+    `${e(labelById.get(id) || id)}</button>`;
+  const groupsHtml = REVIEW_SECTION_GROUPS.map(([groupId,groupLabel,ids]) =>
+    `<div class="review-tab-group" data-review-tab-group="${e(groupId)}"><span class="review-tab-group-label">${e(groupLabel)}</span>` +
+    `${ids.map(tabHtml).join('')}</div>`).join('');
+  return `<section class="review-secondary"><div class="review-secondary-bar">` +
+    `<div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>` +
+    `<div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">` +
+    `${body}</div></section>`;
 }
 
 function metricChange(label, current, previous, prefix = '') {
@@ -389,6 +399,6 @@ export function renderContentReviewContent(data,vm) {
   const selected = activeSection(vm);
   const quiet = !hasData && !['articles','trends'].includes(selected);
   const body = archives(data,vm,rows,quiet ? empty('暂无内容复盘数据') +
-    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : undefined);
-  return `<div class="review-body"${vm.article ? ' inert' : ''}>${archive}${body}</div>${drawer(data,rows,vm)}`;
+    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : undefined,archive);
+  return `<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;
 }

@@ -29,8 +29,13 @@ function renderAccounts() {
 data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
 }
 function renderKeys(keys) {
-  return `<section class="card">${keys.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>凭证名称</th><th>账号范围</th>\
-<th>权限</th><th>最近使用</th><th>状态</th><th></th></tr></thead><tbody>${keys.map((k) => {
+  const head = '<div class="section-heading"><div><h2>AI 接入凭证</h2>' +
+    '<p class="hint">供自动化工具按账号范围读取或录入数据；凭据创建后仅显示一次。</p></div>' +
+    '<div class="head-actions"><a href="/api-docs" class="btn small" target="_blank" rel="noopener noreferrer">' +
+    `${icon("link", 14)}接入文档</a><button type="button" class="btn primary small" data-action="new-key">` +
+    `${icon("plus", 14)}创建凭证</button></div></div>`;
+  return `<section class="card">${head}${keys.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>凭证名称</th><th>账号范围</th>` +
+    '<th>权限</th><th>最近使用</th><th>状态</th><th></th></tr></thead><tbody>' + keys.map((k) => {
     let ids = k.account_ids || k.account_ids_json || [], permissions = k.permissions || k.permissions_json || [];
     if (typeof ids === "string") {
       try {
@@ -48,10 +53,10 @@ function renderKeys(keys) {
     }
     return `<tr><td>${e(k.name)}<div class="cell-sub">创建 ${e(time(k.created_at))}</div></td><td class="key-scope">${ids.map((id) => e(accountName(
     id))).join("<br>") || "无账号权限"}</td><td>${permissions.map((p) => `<span class="badge ${p === "write" ? "up" : ""}">${p === "read" ?
-       "读取" : p === "write" ? "写入" : e(p)}</span>`).join(" ")}</td><td>${k.last_used_at ? e(time(k.last_used_at)) : "尚未使用"}</td><td><span \
-class="badge ${k.revoked_at ? "" : "up"}">${k.revoked_at ? "已撤销" : "有效"}</span></td><td>${k.revoked_at ? "" : `<button class="btn \
-small danger" data-action="revoke-key" data-id="${e(k.id)}" data-name="${e(k.name)}">撤销</button>`}</td></tr>`;
-  }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
+       "读取" : p === "write" ? "写入" : e(p)}</span>`).join(" ")}</td><td>${k.last_used_at ? e(time(k.last_used_at)) : "尚未使用"}</td><td><span ` +
+      `class="badge ${k.revoked_at ? "" : "up"}">${k.revoked_at ? "已撤销" : "有效"}</span></td><td>${k.revoked_at ? "" : `<button class="btn ` +
+      `small danger" data-action="revoke-key" data-id="${e(k.id)}" data-name="${e(k.name)}">撤销</button>`}</td></tr>`;
+  }).join("") + '</tbody></table></div>' : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
   const labels = [["合并存稿", "PATCH /articles"], ["新增文章", "article.create", "POST /articles"], ["修改文章", "article.update", "PUT /articles/:id"], ["追加复盘快照",
@@ -64,14 +69,19 @@ function auditLabel(action) {
   return labels.find((row) => row.includes(route))?.[0] || route || "未知操作";
 }
 function renderSecurity() {
-  return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form \
-id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" \
-id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label \
-for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" \
-minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码\
-</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" \
-required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button>\
-</div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
+  const logoutSection = state.me && !state.me.publicBusiness
+    ? `<div class="detail-section security-logout"><h3>工作台会话</h3><p class="hint">退出当前账号登录状态。</p>` +
+      `<button class="btn" type="button" data-action="logout">${icon("logout", 14)}退出登录</button></div>`
+    : "";
+  return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form ` +
+    `id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" ` +
+    `id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label ` +
+    `for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" ` +
+    `minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码` +
+    `</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" ` +
+    `required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button>` +
+    `</div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div>` +
+    `${logoutSection}</section>`;
 }
 function renderAudit(audit, keys = []) {
   const actors = [...new Set(audit.map((r) => r.actor))], groups = [];

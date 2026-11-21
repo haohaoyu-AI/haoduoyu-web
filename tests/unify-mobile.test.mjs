@@ -66,7 +66,7 @@ function browser({width=390,search='?page=todos',shell=true}={}) {
 
 test('phone bottom navigation includes AI reports separately from the settings menu',()=>{
   const app=browser(),html=app.run('mobileNavigation()');
-  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','review','ai-reports']);
+  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['review','todos','notes','ai-reports']);
   assert.doesNotMatch(html,/<details|data-nav="settings"|data-nav="articles"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-nav="settings"/);
   assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="ai-reports"/);

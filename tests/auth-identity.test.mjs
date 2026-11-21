@@ -11,7 +11,7 @@ function auditHtml(identity, rows) {
   const body = {style: {}};
   const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,
     document: {body, activeElement: body, querySelector() {}, querySelectorAll: () => [], addEventListener() {}},
-    window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
+    window: {addEventListener() {}, setInterval() { return 0; }, clearInterval() {}}, location: {href: 'http://localhost/', search: ''},
     history: {replaceState() {}}, URL, URLSearchParams, Intl,
     localStorage: {getItem() {}}, requestAnimationFrame() {}, setTimeout, clearTimeout,
     __auditFixtureIdentity: identity, __auditFixtureRows: rows,

@@ -2,7 +2,7 @@ import {loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi}
 import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
-import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
+import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS, REVIEW_SECTION_GROUPS} from './pages/content-review.mjs';
 import {reviewSortKeys} from './pages/review-article-list.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
 import {canAccessReviewArchive} from './core/review-archive-state.mjs';
@@ -355,8 +355,9 @@ function onReviewKeydown(event) {
     event.preventDefault(); void toggleReviewFullscreen(); return;
   }
   if (event.target.matches('[data-review-secondary]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
-    event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), current = vm.secondary === 'review' ? 'rules' : vm.secondary, index = Math.max(0,
-      ids.indexOf(current));
+    event.preventDefault();
+    const ids = REVIEW_SECTION_GROUPS.flatMap(([, , groupIds]) => groupIds);
+    const current = vm.secondary === 'review' ? 'rules' : vm.secondary, index = Math.max(0, ids.indexOf(current));
     vm.secondary = event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) %
       ids.length];
     vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();

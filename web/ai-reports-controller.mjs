@@ -1,19 +1,19 @@
 import {loadExperimentsPanel} from './experiments-panel-controller.mjs';
-import {OPENAI_TABS, openAiSessionAvailable, readOpenAiRuns} from './core/openai-review-state.mjs';
 import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
-import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay,reportShownDay,paintAiReportTimeline,
+import {paintAiReports,paintAiDailyReminders,paintAiCalendar,reportDay,reportShownDay,paintAiReportTimeline,
   paintDecisionHistory,paintAiReportDayHead}
   from './pages/ai-reports.mjs';
 
+const AI_DAILY_TABS = Object.freeze(['reminders', 'reports']);
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
 // Reports read for the timeline, and the work day opened from it ('' shows the list).
 let allReports = null, openReportDay = '';
 
 function selectDailyTab(name) {
-  if (!OPENAI_TABS.includes(name)) return;
+  if (!AI_DAILY_TABS.includes(name)) return;
   state.aiDailyTab = name;
   const root = document.querySelector('#ai-reports');
   if (!root) return;
@@ -129,7 +129,6 @@ function registerAiReportEvents() {
     const tab = event.target.closest?.('[data-ai-daily-tab]')?.dataset.aiDailyTab;
     if (tab) {
       selectDailyTab(tab); updateRoute();
-      if (tab === 'openai') void loadAiReports();
     } else if (event.target.closest?.('[data-openai-diary-refresh]')) void loadAiReports();
     else if (event.target.closest?.('[data-ai-decision-history]')) void loadDecisionHistory(event.target.closest('[data-ai-decision-history]'));
     else if (event.target.closest?.('[data-ai-report-month]')) moveMonth(Number(event.target.closest('[data-ai-report-month]').dataset.aiReportMonth));
@@ -140,7 +139,7 @@ function registerAiReportEvents() {
     else {
       const day = event.target.closest?.('[data-ai-report-select]')?.dataset.aiReportSelect;
       if (day && validDailyNotesDate(day)) { selectedDate = day; visibleMonth = day.slice(0,7);
-        state.aiDailyDate = day; state.openAiRun = ''; updateRoute(); void loadAiReports(); }
+        state.aiDailyDate = day; updateRoute(); void loadAiReports(); }
     }
   });
 }

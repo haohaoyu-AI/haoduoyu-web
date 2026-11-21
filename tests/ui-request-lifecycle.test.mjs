@@ -23,7 +23,7 @@ function client(fetch) {
   const location = {href: 'http://localhost/', search: ''};
   const context = vm.createContext({fetch, Response, Headers, AbortController, AbortSignal, DOMException,
     URL, URLSearchParams, Intl, setTimeout, clearTimeout, document,
-    window: {addEventListener() {}, scrollTo() {}}, location,
+    window: {addEventListener() {}, scrollTo() {}, setInterval() {return 0;}, clearInterval() {}}, location,
     history: {replaceState(_state, _title, url) {location.href = String(url); location.search = new URL(url, 'http://localhost').search;},
       pushState(_state, _title, url) {location.href = String(url); location.search = new URL(url, 'http://localhost').search;}},
     localStorage: {getItem() {}, setItem() {}}, requestAnimationFrame() {}});
@@ -222,18 +222,6 @@ test('identical concurrent writes remain two transports and survive page cancell
   c.run('beginPageRequests();beginPageRequests()');
   assert.equal(d.calls.length, 2);assert.equal(d.calls.every(row=>!row.options.signal), true);
   d.finish({saved:true});assert.equal((await a).saved,true);assert.equal((await b).saved,true);
-});
-test('an aborted page index cannot delete or refill the next page index entry', async () => {
-  const d = delayed(), c = client(d.fetch);
-  c.run('let firstScope=beginPageRequests()');
-  const old = c.run("articleIndex('',firstScope)").then(() => null,error => error);
-  await waitForTransport(() => d.calls.length > 0);
-  c.run('let nextScope=beginPageRequests()');const next=c.run("articleIndex('',nextScope)");
-  await waitForTransport(() => d.calls.length >= 2);
-  d.pending[1].resolve(ok([{id:'fresh',title:'Synthetic fresh'}]));
-  assert.equal((await next)[0].id,'fresh');assert.equal((await old).name,'AbortError');
-  assert.equal(c.run('articleIndexes.size'),1);
-  assert.equal((await c.run("articleIndex('',nextScope)"))[0].id,'fresh');assert.equal(d.calls.length,2);
 });
 test('last consumer cancellation aborts a response body read and removes the pending transport', async () => {
   let bodyStarted, transportSignal, calls = 0;

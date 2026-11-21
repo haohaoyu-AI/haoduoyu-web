@@ -337,4 +337,19 @@
   --review-filter-min:148px;
   --review-drawer-width:640px;
   --review-drawer-z:80;
+
+  /* Unified warm-glass semantic & breakpoint tokens */
+  --site-accent:#c8562a;
+  --site-accent-deep:#a44420;
+  --site-accent-soft:rgba(200,86,42,.10);
+  --site-blue:#2f6fb0;
+  --site-surface-warm:#fbf8f6;
+  --site-card-bg:rgba(255,253,251,.78);
+  --trend-hit:var(--site-accent);
+  --trend-flop:var(--site-blue);
+  --trend-middle:#9a948f;
+  --trend-surface:var(--site-surface-warm);
+  --bp-mobile:767px;
+  --bp-tablet:1199px;
+  --bp-desktop:1200px;
 }

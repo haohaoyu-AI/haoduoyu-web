@@ -1,24 +1,19 @@
-import {stopOpenAiReviewTimers} from './openai-review-controller.mjs';
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
 import { retryUntil } from "./core/retry-after.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
 import { $, $$, e, icon } from "./core/dom.mjs";
-import { num, rowsForAccount } from "./core/format.mjs";
+import { num } from "./core/format.mjs";
 import { readRoute, updateRoute, mobilePage } from "./core/router.mjs";
 import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
-import { articleDraft } from "./pages/articles.mjs";
-import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin, renderInitializationError } from "./pages/login.mjs";
 import { renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
 import { renderDailyNotes } from "./pages/daily-notes.mjs";
 import { loadDailyNotes, paintDailyNotesPage } from "./daily-notes-controller.mjs";
-import { renderMemos } from "./pages/memos.mjs";
-import { loadMemos, paintMemosPage } from "./memos-controller.mjs";
 import { skeleton } from "./ui/components.mjs";
 import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
@@ -26,10 +21,8 @@ import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
-  renderMediaTabs, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
-import {renderWorkbenchSettings, renderTodoSettings} from "./pages/workbench-settings.mjs";
-import {renderWorkReminders} from "./pages/work-reminders.mjs";
-import {loadWorkReminders} from "./work-reminders-controller.mjs";
+  syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
+import {renderTodoSettings} from "./pages/workbench-settings.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
@@ -38,18 +31,30 @@ import {canAccessReviewArchive} from "./core/review-archive-state.mjs";
 import {aiSettingsPage, loadAiSettings} from "./ai-settings-controller.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 import {loadReviewArchive, reviewArchiveActive} from "./review-archive-controller.mjs";
+
+const PAGE_HEADERS = {
+  review: ["内容复盘", "数据表现与爆款方法沉淀"],
+  todos: ["每日待办", "今日任务与日程安排"],
+  notes: ["碎碎念", "随时记录想法与状态"],
+  "ai-reports": ["AI 日报", "待拍板事项与每日 AI 汇报"],
+  settings: ["设置", "待办偏好、AI 配置与账号安全"]
+};
+function renderPageHeader() {
+  const [defaultTitle, defaultSub] = PAGE_HEADERS[state.page] || PAGE_HEADERS.review;
+  const archive = state.page === "review" && reviewArchiveActive();
+  const title = archive ? "V字档案" : defaultTitle;
+  const subtitle = archive ? "历史归档、导入与对比（仅 V字）" : defaultSub;
+  const account = ["review", "ai-reports"].includes(state.page)
+    ? `<span class="page-account-pill" aria-label="当前账号">账号：${e(state.account || "V字")}</span>` : "";
+  const login = state.page === "settings" && state.me?.publicBusiness
+    ? '<a class="btn small" href="?page=login">管理员登录</a>' : "";
+  const actions = account || login ? `<div class="head-actions">${account}${login}</div>` : "";
+  return `<div class="heading-left"><div class="page-head-titles"><h1>${e(title)}</h1><p class="page-head-sub">${e(subtitle)}</p></div></div>${actions}`;
+}
 function mainContent() {
-  const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo, ai: settingsTabs.ai} :
-    Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace" && key !== "openai"));
-  const settingsHint = state.page !== "settings" ? "" : state.me?.publicBusiness ?
-    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : state.me ?
-    '<p class="hint"><button class="btn text" type="button" data-action="logout">退出登录</button></p>' : "";
-  return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    settingsChoices), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${settingsHint}` +
-    `${state.page === "settings" ? '<section class="card panel" ' +
-      'aria-label="本地待处理"><h2>本地待处理</h2><p ' +
-      'class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+  const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo, ai: settingsTabs.ai} : settingsTabs;
+  const tabs = state.page === "settings" ? segmented("settings-tab", Object.entries(settingsChoices), state.settingsTab, "设置分类", "tab", "page-tabs") : "";
+  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>${state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -67,7 +72,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.page === "settings" && (state.settingsTab === "workspace" || state.settingsTab === "openai" ||
+  if (state.page === "settings" && (!Object.hasOwn(settingsTabs, state.settingsTab) ||
     state.me?.publicBusiness && !["todo", "ai"].includes(state.settingsTab)))
     state.settingsTab = "todo";
   stopPageEntry();
@@ -111,8 +116,7 @@ function handleResponsiveLayout() {
 }
 function navigateLink(page) {
   const target = mobilePage(page);
-  const same = target === state.page && (target !== "memos" || !state.memoView) &&
-    (target !== "review" || !reviewArchiveActive()) &&
+  const same = target === state.page && (target !== "review" || !reviewArchiveActive()) &&
     (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
@@ -122,14 +126,15 @@ function navigateLink(page) {
 }
 function navigate(page, tab) {
   page = mobilePage(page);
-  if (page === "memos" && tab === "trash") { page = "settings"; tab = "workspace"; }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
-  if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
-  if (page === "settings") state.settingsTab = (legacy || tab) === "workspace" ? "todo" : legacy || (Object.hasOwn(settingsTabs, tab) ? tab : "todo");
+  if (page === "settings") {
+    const resolved = tab === "keys" || tab === "openai" ? "ai" : tab === "workspace" ? "todo" : tab;
+    state.settingsTab = legacy || (Object.hasOwn(settingsTabs, resolved) ? resolved : "todo");
+  }
   updateRoute(true, {exitReviewArchive:true});
   closeModal();
   renderShell();
@@ -140,10 +145,7 @@ function pageLoading(page) {
   if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
-  if (page === "memos") return renderMemos();
-  if (page === "reminders") return renderWorkReminders();
   if (page === "ai-reports") return renderAiReports();
-  if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -153,30 +155,10 @@ function setPageBody(html, page) {
   }
   else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
-  else if (page === "memos") paintMemosPage();
-  else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports") return;
+  else if (page === "ai-reports") return;
   else replacePageContent(html, true);
 }
-function publishedArticleLinks(html) {
-  const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
-  if (state.topPlatform) query.set("platform", state.topPlatform);
-  if (state.account) query.set("account", state.account);
-  return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
-}
-async function loadArticleOverview(version, context) {
-  const query = new URLSearchParams({period:state.overviewPeriod,top_n:state.topN,top_platform:state.topPlatform});
-  if (state.account) query.set('account_id',state.account);
-  const data = await api(`/overview?${query}`, {context});
-  if (version !== runtime.renderVersion) return "";
-  state.dashboard = data;
-  return renderMediaOverview(data);
-}
-function renderMediaOverview(data) {
-  return publishedArticleLinks(renderDashboardSummary(data));
-}
 async function renderPage() {
-  stopOpenAiReviewTimers();
   if (redirectMobileArticlePage()) { renderShell(); return; }
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -189,19 +171,13 @@ async function renderPage() {
   if (hasTodos) loadTodos(context);
   $("#page-content")?.setAttribute("aria-busy", "true");
   try {
-    let html = "", data;
+    let html = "";
     switch (page) {
       case "todos":
         html = renderTodos();
         break;
       case "notes":
         await loadDailyNotes();
-        break;
-      case "memos":
-        await loadMemos();
-        break;
-      case "reminders":
-        await loadWorkReminders();
         break;
       case "ai-reports":
         await loadAiReports({resetDate:true});
@@ -211,12 +187,11 @@ async function renderPage() {
         else await loadContentReview(context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") break;
-        else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
-        else if (state.settingsTab === "ai") { html = aiSettingsPage(); void loadAiSettings(); }
-        else if (state.settingsTab === "keys") {
-          data = await api("/api-keys", { context });
-          html = renderKeys(data);
+        if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
+        else if (state.settingsTab === "ai") {
+          const keys = state.me?.publicBusiness ? null : await api("/api-keys", { context });
+          html = `${aiSettingsPage()}${keys ? `<div class="settings-keys-card">${renderKeys(keys)}</div>` : ""}`;
+          void loadAiSettings();
         } else if (state.settingsTab === "security") html = renderSecurity();
         else {
           const [audit, keys] = await Promise.all([api("/audit", { context }), api("/api-keys", { context })]);
@@ -227,33 +202,17 @@ async function renderPage() {
     if (version === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = null;
-        counter.hidden = count == null;
-        counter.textContent = count == null ? "" : num(count);
+        counter.hidden = true;
+        counter.textContent = "";
       }
     }
   } catch (err) {
-    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) setPageBody(`<div class="card \
-error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" \
-data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
+    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) setPageBody(`<div class="card ` +
+      `error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p>` +
+      `<button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   } finally {
     if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }
-}
-async function reloadFilteredPage(focus = "[data-action=article-filter]") {
-  state.listPage = 1;
-  updateRoute();
-  const version = runtime.renderVersion + 1;
-  await renderPage();
-  if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(focus)?.focus();
-}
-function applyArticleFilters(form) {
-  const draft = articleDraft(form);
-  state.filters = draft.filters;
-  state.columns = draft.columns;
-  state.account = draft.account;
-  closePopover();
-  reloadFilteredPage();
 }
 async function init({ freshLogin = false } = {}) {
   resetSessionIndexes();
@@ -298,14 +257,10 @@ async function init({ freshLogin = false } = {}) {
   }
 }
 export {
-  applyArticleFilters,
   init,
   handleResponsiveLayout,
   navigate,
   navigateLink,
-  publishedArticleLinks,
-  renderMediaOverview,
-  reloadFilteredPage,
   renderPage,
   renderShell
 };

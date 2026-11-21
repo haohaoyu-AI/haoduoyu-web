@@ -12,24 +12,27 @@ const SECURITY={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referre
 function client() {
   const context=vm.createContext({AbortController,AbortSignal,DOMException,Headers,URL,URLSearchParams,Intl,
     document:{querySelector(){return null;},querySelectorAll(){return [];},addEventListener(){},body:{style:{}}},
-    window:{addEventListener(){}},localStorage:{getItem(){},setItem(){}},location:{href:'http://localhost/',search:''},
+    window:{addEventListener(){},setInterval(){return 0;},clearInterval(){}},localStorage:{getItem(){},setItem(){}},location:{href:'http://localhost/',search:''},
     setTimeout,clearTimeout,requestAnimationFrame(){}});
   new vm.Script(source).runInContext(context);
   return script=>vm.runInContext(script,context);
 }
-test('chart renderers emit escaped data instead of any parser-applied inline style',()=>{
+test('active page renderers emit escaped data without any inline style attributes',()=>{
   const run=client();
-  run("state.accounts=[{id:'a',platform:'zhihu',name:'Synthetic <safe>'}];state.trendMetric='reads'");
-  const data={accounts:[{id:'a',platform:'zhihu',name:'Synthetic <safe>'}],
-    publication_trend:[{date:'2026-10-20',accounts:[{account_id:'a',count:2}]}],
-    trend:[{date:'2026-10-20',accounts:[{account_id:'a',metrics:{reads:0}}]},
-      {date:'2026-10-21',accounts:[{account_id:'a',metrics:{reads:2}}]}]};
-  run('syntheticChart='+JSON.stringify(data));
-  for(const renderer of ['renderPublicationTrend','renderTrend']) {
-    const html=run(renderer+'(syntheticChart)');
-    assert.doesNotMatch(html,/\sstyle\s*=/i,'baseline still emits inline style attributes');
-    assert.match(html,/data-chart-color=/);assert.match(html,/Synthetic &lt;safe&gt;/);
+  run(`state.me={id:'u1',username:'Synthetic <safe>'};
+    reviewSample=normalizeReviewData({
+      articles:[{id:'a1',account:'V字',title:'Synthetic <safe>',published_at:'2026-10-20T03:00:00Z'}],
+      snapshots:[{id:'s1',article_id:'a1',snapshot_date:'2026-10-21',age_hours:24,reads:1200,impressions:10000,ctr:12}]
+    });
+    reviewVm={account:'V字',now:'2026-10-22T00:00:00Z',filters:{},secondary:'cockpit',article:'',loading:false,error:''};`);
+  for(const html of [
+    run('renderContentReviewContent(reviewSample, reviewVm)'),
+    run('renderAiReports()'),
+    run('renderTodos()')
+  ]) {
+    assert.doesNotMatch(html,/\sstyle\s*=/i,'active renderers must not emit inline style attributes under strict CSP');
   }
+  assert.match(run('renderContentReviewContent(reviewSample, reviewVm)'),/Synthetic &lt;safe&gt;/);
 });
 test('strict style policy and every other security header apply to HTML, assets, API, 304 and errors',async t=>{
   const check=response=>{

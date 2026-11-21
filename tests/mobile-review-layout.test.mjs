@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const css = await readFile(new URL('../public/review.css',import.meta.url),'utf8');
 const list = css.slice(css.indexOf('/* Article detail list'));
-const mobile = list.slice(list.indexOf('@media (max-width:760px)'));
+const mobile = list.slice(list.indexOf('@media (max-width:767px)'));
 
 test('the fixed desktop table aligns all seven metrics and clamps long titles to two lines', () => {
   assert.match(list,/min-width:820px; table-layout:fixed/);

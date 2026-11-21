@@ -1,4 +1,3 @@
-import {renderOpenAiRun, openAiLogin} from './openai-review.mjs';
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday} from '../core/daily-notes-state.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
@@ -106,7 +105,7 @@ export function paintAiReports(items, error = '', loading = false, selectedDate 
     const stamp = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? '未知');
     const author = String(row.author ?? '');
     const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp)}">` +
+    groups[group].push(`<article class="card field-spaced ai-report-card" title="提交于 ${e(stamp)}">` +
       `<p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p>` +
       `<div class="ai-report-markdown">${renderSafeMarkdown(body)}</div></article>`);
   }
@@ -137,14 +136,6 @@ export function paintDecisionHistory(days, {loading = false, error = ''} = {}) {
   if (!box) return;
   box.innerHTML = error ? `<p class="body-summary-error">${e(error)}</p>` : loading ? '<p class="muted">正在读取…</p>' :
     decisionHistory(days);
-}
-
-export function paintOpenAiDiary(items = [], {error = '', loading = false, owner = true} = {}) {
-  const root = document.querySelector('#ai-diagnosis');
-  if (!root) return;
-  root.querySelector('#openai-diary-status').textContent = error || (loading ? '正在读取分析记录…' : '');
-  root.querySelector('#openai-diary-list').innerHTML = !owner ? openAiLogin : loading || error ? '' :
-    items.length ? items.map(renderOpenAiRun).join('') : '<p>这一天没有 OpenAI API 分析记录。</p>';
 }
 
 const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
@@ -197,7 +188,7 @@ function todayReports(today, list) {
   const order = ['Grok bot', 'Gemini', 'GPT', '其他作者'];
   const sorted = [...list].sort((a, b) => order.indexOf(reportGroup(a.author)) - order.indexOf(reportGroup(b.author)) ||
     String(a.created_at).localeCompare(String(b.created_at)));
-  return `<section class="ai-today">${head}${sorted.map(row => `<article class="ai-today-report" style="overflow-wrap:anywhere">` +
+  return `<section class="ai-today">${head}${sorted.map(row => `<article class="ai-today-report">` +
     `<p><strong class="${reportAuthorClass(row.author)}">${e(String(row.author ?? ''))}：</strong></p>` +
     `<div class="ai-report-markdown">${renderSafeMarkdown(reportContent(row.content).body)}</div></article>`).join('')}</section>`;
 }
