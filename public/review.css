@@ -744,10 +744,43 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-rank-reads,.review-rank-ctr { text-align:right; font-size:var(--font-size-13); font-variant-numeric:tabular-nums; }
 .review-rank-ctr { color:var(--color-text-secondary); }
 .review-rank-meta { grid-column:3 / 7; font-size:11.5px; color:var(--color-text-muted); margin-top:-4px; }
+/* Keep the chart annotations outside the plot when the cockpit is narrow. */
+.review-quadrant-guides { display:none; }
 @media (max-width:600px) {
-  .review-rank-item { grid-template-columns:18px 36px minmax(0,1fr) 52px 44px; }
-  .review-rank-bar { display:none; }
-  .review-rank-meta { grid-column:3 / 6; }
+  .content-review .review-overview-metrics .review-stats { gap:8px; }
+  .content-review .review-overview-metrics .review-stat { min-width:0; padding:12px; }
+  .content-review .review-overview-metrics .review-stat > strong { margin:8px 0 4px; }
+  .content-review .review-overview-metrics .review-stat-change { margin:4px 0 0; overflow-wrap:anywhere; }
+  .content-review .review-overview-metrics > .review-filters { gap:8px; margin-bottom:12px; }
+  .content-review .review-overview-metrics .review-inline-refresh { min-height:44px; }
+  .review-quadrant-figure .review-trend-chart { padding-inline:50px 18px; }
+  .review-quadrant-figure :is(.review-quad-dense-tick,.review-quad-label,.review-quad-ctr-label,.review-trend-threshold-label) {
+    display:none;
+  }
+  .review-quadrant-guides {
+    display:flex; flex-wrap:wrap; gap:4px 10px; margin:0 0 8px; padding:0; list-style:none;
+    color:var(--color-text-secondary); font-size:12px; line-height:1.45;
+  }
+  .review-quadrant-guides :is(.review-quad-guide-hit,.review-quad-guide-median)::before {
+    content:''; display:inline-block; width:12px; margin:0 4px 3px 0; border-top:1px dashed currentColor;
+  }
+  .review-quad-guide-hit { color:var(--trend-hit); }
+  .review-quad-guide-zone { color:var(--color-text-muted); }
+
+  .review-rank-item {
+    grid-template-columns:18px minmax(0,1fr) max-content minmax(40px,max-content);
+    gap:4px 8px; padding:6px 0 8px;
+  }
+  .review-rank-num { grid-area:1 / 1; align-self:start; margin-top:7px; }
+  .review-rank-chip { grid-area:1 / 4; align-self:start; margin-top:5px; }
+  .review-rank-title {
+    grid-area:1 / 2 / 2 / 4; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+    min-height:44px; line-height:20px; white-space:normal; overflow-wrap:anywhere;
+  }
+  .review-rank-meta { grid-area:2 / 2; margin:0; }
+  .review-rank-reads { grid-area:2 / 3; }
+  .review-rank-ctr { grid-area:2 / 4; }
+  .review-rank-bar { grid-area:3 / 2 / 4 / 5; height:4px; }
 }
 
 .review-weekly { margin-top:var(--space-24); }

@@ -135,8 +135,11 @@ function quadrantFigure(result) {
   for (let mark = 0; mark <= ctrMax; mark += ctrStep) ctrTicks.push(mark);
   const grid = ticks.map(mark => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(readsTick(mark))}</text>`).join('');
-  const xLabels = ctrTicks.map(mark =>
-    `<text x="${x(mark)}" y="${height - 10}" text-anchor="middle">${e(percentTick(mark))}</text>`).join('');
+  const xLabels = ctrTicks.map((mark,index) => {
+    const dense = ctrTicks.length > 6 && index % 2 === 1 && index < ctrTicks.length - 1;
+    return `<text${dense ? ' class="review-quad-dense-tick"' : ''} x="${x(mark)}" y="${height - 10}" ` +
+      `text-anchor="middle">${e(percentTick(mark))}</text>`;
+  }).join('');
   const hitY = known(hitThreshold) ? y(hitThreshold) : null;
   const ctrPct = known(ctrLine) ? Math.min(100, Math.max(0, ctrLine / ctrMax * 100)) : null;
   const zones = hitY !== null && ctrPct !== null
@@ -162,7 +165,20 @@ function quadrantFigure(result) {
   return `<section class="review-trend-figure review-quadrant-figure">${head}<div class="review-trend-chart"><svg height="${height}" role="img"
     aria-label="本期每篇文章卡在哪：共 ${points.length} 篇有点击率与阅读数据的文章，横轴为点击率，纵轴为 24 小时阅读。"
     >${zones}${grid}${hitLine}${vLine}${quadLabels}${dots}${hitLabel}${vLabel}${xLabels}</svg></div>
+    ${quadrantGuides(hitY,hitThreshold,ctrPct,ctrLineLabel)}
     <p class="review-trend-readout" data-trend-readout-target data-default="${e(resting)}">${e(resting)}</p></section>`;
+}
+function quadrantGuides(hitY,hitThreshold,ctrPct,ctrLineLabel) {
+  const lines = [
+    hitY === null ? '' : `<li class="review-quad-guide-hit">爆款线 ${e(reads(hitThreshold))}</li>`,
+    ctrPct === null ? '' : `<li class="review-quad-guide-median">${e(ctrLineLabel)}</li>`,
+  ].join('');
+  if (!lines) return '';
+  const zones = hitY !== null && ctrPct !== null
+    ? '<li class="review-quad-guide-zone">右上 · 标题好、推得动</li><li class="review-quad-guide-zone">左下 · 标题没人点</li>' +
+      '<li class="review-quad-guide-zone">右下 · 有人点、没推起来</li>'
+    : '';
+  return `<ul class="review-quadrant-guides" aria-label="象限图标注">${lines}${zones}</ul>`;
 }
 function rankedList(result) {
   const items = [...result.points].sort((a,b) => (known(b.reads) ? 1 : 0) - (known(a.reads) ? 1 : 0) || (b.reads ?? -1) - (a.reads ?? -1));
