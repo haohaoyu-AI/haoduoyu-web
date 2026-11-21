@@ -135,7 +135,7 @@ test('article library and drawer show Shanghai time and the date range excludes 
   const data = fixture(); data.articles[0].published_at = '2026-10-26T20:05:00Z';
   data.articles.push({id:'unknown',account,title:'unknown publication',published_at:null});
   const html = renderContentReviewContent(data,{...model('articles'),article:'a',filters:{group:'@table',range:'all'}});
-  assert.match(html,/2026-10-27 04:05/); assert.match(html,/10-27 周二 <span[^>]*>04:05/); assert.doesNotMatch(html,/2026-10-26 20:05/);
+  assert.match(html,/2026-10-27 04:05/); assert.match(html,/10-27 周二 04:05/); assert.doesNotMatch(html,/2026-10-26 20:05/);
   assert.match(html,/data-review-row="a"/); assert.match(html,/data-review-row="unknown"/);
   const excluded = renderContentReviewContent(data,{...model('articles'),now:'2026-11-04T00:00:00Z',filters:{group:'@table',range:'7d'}});
   assert.doesNotMatch(excluded,/data-review-row="a"|data-review-row="unknown"/);

@@ -191,8 +191,8 @@ function articleLibrary(rows,vm,data) {
   const unmatchedRows = rows.filter(row => reviewPublishState(row) === 'unmatched');
   const flaggedItem = row => `<li><button type="button" class="review-title-button" data-review-article="${e(row.id)}" ` +
     `aria-haspopup="dialog">${publishBadge(row)} ${e(row.title || '未命名文章')}</button></li>`;
-  const flagged = unmatchedRows.length ? `<div class="review-unmatched" role="status"><strong>未能对上 ${e(unmatchedRows.length)} 篇</strong>` +
-    `<p>这些记录对不上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p><ul>${unmatchedRows.map(flaggedItem).join('')}</ul></div>` : '';
+  const flagged = unmatchedRows.length ? `<details class="review-unmatched" data-review-keep-open="unmatched"><summary>未能对上 ${e(unmatchedRows.length)} 篇` +
+    `</summary><p>这些记录对不上草稿箱里的同一篇，没有计入发文、阅读和点击率。</p><ul>${unmatchedRows.map(flaggedItem).join('')}</ul></details>` : '';
   return renderArticleList(rows,vm,data.snapshots,flagged,tag);
 }
 const sections = [['keep_topic','保留选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','发布检查']];
