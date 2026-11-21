@@ -596,7 +596,15 @@ export const siteUnifiedPolishRelease=Object.freeze({
   baseline:'acd70961-f9d6-46fd-bb8f-38cdd75f1d65',
   bytes:3683705,sha256:'248d44c9e9ca122bf67414f4a0a1128092ac83c708e0970b1a5dc825d543eb00',
   label:'production-site-unified-polish'});
-const acceptedRelease=commit=>commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
+// Whole-site structural refactor: unified nav & header, grouped review tabs, V字-scoped archive, sunset ai-diagnosis & hidden modules. No migration.
+export const siteStructureRefactorRelease=Object.freeze({
+  commit:'71b98025a120d014276c7ea1c0f74813eadc669e',
+  tree:'ea0ccd8a70b1ff33a22f98b5ee117a307c22842c',
+  baseline:'4666fbdd-b275-4238-98ca-940476fa01be',
+  bytes:3421189,sha256:'b55afd33f761605d46cc9a193c881f0d239a3c6a02d80bfd80213f6a22fd9d25',
+  label:'production-site-structure-refactor'});
+const acceptedRelease=commit=>commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
+  commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
   commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
   commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
   commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
