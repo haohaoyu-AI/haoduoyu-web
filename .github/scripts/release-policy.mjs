@@ -561,7 +561,15 @@ export const mobileReviewCockpitRelease=Object.freeze({
   baseline:'30ae2725-d45c-499d-b3f0-3601b4830145',
   bytes:3617305,sha256:'cac27c5136d12025bcca244bf66d156e329ab17b94f7d0e71cadf26371d4f566',
   label:'production-mobile-review-cockpit'});
-const acceptedRelease=commit=>commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
+// Daily todo note protection on the diagnosed mobile cockpit production source. No migration.
+export const dailyTodoNoteCompletionRelease=Object.freeze({
+  commit:'ad2ca5356a242f1dee91b9fbe58f79b276393909',
+  tree:'8b5bfa1823dbaffdcbe48eb64f4225bb58dd5e9d',
+  baseline:'6c6e8ce8-cc5c-4c2d-a0ee-871f47dfb5c2',
+  bytes:3621041,sha256:'e63ccaa0da335d905e9a1a8bd517141969cba31d427407676e9e3397361add06',
+  label:'production-daily-todo-note-completion'});
+const acceptedRelease=commit=>commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
+  commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
   commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
   commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
   commit===todoNoteSettleRelease.commit?todoNoteSettleRelease:
