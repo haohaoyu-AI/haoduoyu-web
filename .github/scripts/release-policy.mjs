@@ -575,7 +575,15 @@ export const cockpitMobileAndArticlesRelease=Object.freeze({
   baseline:'1695c7c4-99ac-43e3-bdcb-63581c2f8348',
   bytes:3642499,sha256:'d1c248609c0851b046fc5bfc23aba51c6498c727e8495a84cf14ef6b4c7032fb',
   label:'production-cockpit-mobile-and-articles'});
-const acceptedRelease=commit=>commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
+// Unified Cockpit aesthetic & responsive polish for benchmarks, rules, prompts, and library on f80696f. No migration.
+export const reviewFourTabsPolishRelease=Object.freeze({
+  commit:'243a6c857faff447dc4e29ca39735b084d806bb3',
+  tree:'63b3d402ffd9b5c9758d65c3c746aa92e07e0997',
+  baseline:'59557306-5d25-4c55-8f43-883b2d8ef4d0',
+  bytes:3670245,sha256:'63b5c1ea193c5a9dc0f30fbca498b790af0c28f363ad2d277ad5bfde6c141332',
+  label:'production-review-four-tabs-polish'});
+const acceptedRelease=commit=>commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
+  commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
   commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
   commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
   commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
