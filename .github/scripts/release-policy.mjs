@@ -547,7 +547,15 @@ export const cockpitRedesignRelease=Object.freeze({
   uploadedVersion:'579264fb-63c9-4be9-a343-bda08d1abb5f',
   bytes:3618654,sha256:'97b3933fe724ea73c78c2f37d12299a8c160d805d651a09e354e3f4b252fb440',
   label:'production-cockpit-redesign'});
-const acceptedRelease=commit=>commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
+// PR #148: article detail frontend on the diagnosed cockpit release. No migration.
+export const reviewArticlesTableRelease=Object.freeze({
+  commit:'cc6162e932550b059626aeb8dfbb8f04a5d43b4e',
+  tree:'8bacb3e76bba155a8d6280e84aa68b8543e2d708',
+  baseline:'579264fb-63c9-4be9-a343-bda08d1abb5f',
+  bytes:3614336,sha256:'cd6849758f9f196988cb24fc3c53c4318e1c71701d0459fad4652740b5953494',
+  label:'production-review-articles-table'});
+const acceptedRelease=commit=>commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
+  commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
   commit===todoNoteSettleRelease.commit?todoNoteSettleRelease:
   commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
   commit===futureMoveFixRelease.commit?futureMoveFixRelease:
