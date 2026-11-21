@@ -582,7 +582,15 @@ export const reviewFourTabsPolishRelease=Object.freeze({
   baseline:'59557306-5d25-4c55-8f43-883b2d8ef4d0',
   bytes:3670245,sha256:'63b5c1ea193c5a9dc0f30fbca498b790af0c28f363ad2d277ad5bfde6c141332',
   label:'production-review-four-tabs-polish'});
-const acceptedRelease=commit=>commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
+// Fix benchmark library header overlap and shorten time headers to 样本发布时间 & 仿写发布时间 on 243a6c8. No migration.
+export const reviewLibraryHeaderFixRelease=Object.freeze({
+  commit:'5a3e54cb060f950bb5054c839a2de428c9d9b239',
+  tree:'7fe3733a2b37a18881dd94c8222231d70a16e65c',
+  baseline:'908a7041-ae07-46f1-9ba5-6a3ca7dd8943',
+  bytes:3670436,sha256:'237af0ecaef63c7efbcdefcc70c06b44573372dc2fbc4efd0ce698072f9ca9a1',
+  label:'production-review-library-header-fix'});
+const acceptedRelease=commit=>commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
+  commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
   commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
   commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
   commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
