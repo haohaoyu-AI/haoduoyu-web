@@ -100,10 +100,11 @@ test('explicit sorting removes the week headings and sets only the active aria-s
   assert.match(html,/class="review-cell-ctr" aria-sort="ascending"/);
 });
 
-test('drawer orders traffic, verdict, patterns, reference, remarks, diagnosis and non-empty legacy fields', () => {
+test('drawer orders traffic, verdict, patterns, reference, remarks and non-empty legacy fields, with AI 诊断 retired', () => {
   const html = render({}, {article:'sample'}).split('class="review-drawer-overlay"')[1];
   const order = ['review-detail-title','review-traffic-card','review-verdict-basis','review-detail-patterns',
-    'review-imitation','review-remarks','class="review-diagnosis"','review-article-legacy'];
+    'review-imitation','review-remarks','review-article-legacy'];
+  assert.doesNotMatch(html,/review-diagnosis|AI诊断/);
   let previous = -1;
   for (const name of order) {
     const at = html.indexOf(name);

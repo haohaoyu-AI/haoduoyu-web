@@ -27,7 +27,8 @@ import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
 import {renderReviewArchiveShell} from "./pages/review-archive.mjs";
-import {canAccessReviewArchive} from "./core/review-archive-state.mjs";
+import {archiveHref, canAccessReviewArchive} from "./core/review-archive-state.mjs";
+const reviewHomeHref = "?page=review&account=V%E5%AD%97";
 import {aiSettingsPage, loadAiSettings} from "./ai-settings-controller.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 import {loadReviewArchive, reviewArchiveActive} from "./review-archive-controller.mjs";
@@ -44,8 +45,13 @@ function renderPageHeader() {
   const archive = state.page === "review" && reviewArchiveActive();
   const title = archive ? "V字档案" : defaultTitle;
   const subtitle = archive ? "历史归档、导入与对比（仅 V字）" : defaultSub;
+  // One pill for the account and, on 内容复盘 for the owner, the 档案 entry (or the way back from it).
+  const name = state.account || "V字";
+  const archiveLink = state.page === "review" && name === "V字" && canAccessReviewArchive(state.me, name)
+    ? (archive ? `<a class="page-account-link" href="${e(reviewHomeHref)}">‹ 返回复盘</a>`
+      : `<a class="page-account-link" href="${e(archiveHref)}">档案 ›</a>`) : "";
   const account = ["review", "ai-reports"].includes(state.page)
-    ? `<span class="page-account-pill" aria-label="当前账号">账号：${e(state.account || "V字")}</span>` : "";
+    ? `<span class="page-account-pill${archiveLink ? " has-link" : ""}"><span aria-label="当前账号">${e(name)}</span>${archiveLink}</span>` : "";
   const login = state.page === "settings" && state.me?.publicBusiness
     ? '<a class="btn small" href="?page=login">管理员登录</a>' : "";
   const actions = account || login ? `<div class="head-actions">${account}${login}</div>` : "";

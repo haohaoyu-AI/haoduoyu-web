@@ -36,7 +36,8 @@ export function renderArchiveFrame(view,body,{error='',notice=''}={}) {
     `data-archive-view="${key}" aria-pressed="${view === key}">${label}</button>`).join('');
   const feedback = error ? `<p class="review-archive-alert" role="alert">${e(error)}</p>` :
     notice ? `<p class="review-note" role="status">${e(notice)}</p>` : '';
-  return `<div class="review-panel-head"><h2>V字档案</h2><a class="btn text" href="${reviewHref}">返回内容复盘</a></div>` +
+  // The page header already says V字档案 and its pill links back to 内容复盘.
+  return `<h2 class="review-sr-only">V字档案</h2>` +
     `<nav class="review-secondary-tabs review-archive-tabs" aria-label="档案页面">${tabs}</nav>${feedback}${body}`;
 }
 

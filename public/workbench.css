@@ -950,6 +950,12 @@ body.floating-workbench {
   border:1px solid var(--color-divider); background:var(--site-surface-warm);
   color:var(--color-text-secondary); font-size:12px; font-weight:500; white-space:nowrap;
 }
+#page-header .page-account-pill.has-link { padding:0 0 0 11px; gap:8px; }
+#page-header .page-account-link {
+  display:inline-flex; align-items:center; min-height:26px; padding:0 11px 0 9px; border-left:1px solid var(--color-divider);
+  border-radius:0 999px 999px 0; color:var(--color-primary); text-decoration:none; font-weight:600;
+}
+#page-header .page-account-link:hover { background:var(--color-white-a-55); }
 
 /* Overall shell, layout measure, sidebar, and thin scrollbars */
 @media (min-width:768px) {

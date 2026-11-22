@@ -1,7 +1,6 @@
 import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
-import {renderArticleDiagnosis} from './review-diagnosis.mjs';
 import {renderCockpitTrends} from './review-trends.mjs';
 import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {renderArticleList, renderDetailPatterns} from './review-article-list.mjs';
@@ -14,7 +13,6 @@ import {day, finiteNumber, parseJson, reviewDateTime} from '../core/review-data.
 import {enrichArticles} from '../../shared/review-analytics.mjs';
 import {metricDelta, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 import {reviewPublishLabel, reviewPublishState} from '../../shared/review-publish-state.mjs';
-import {archiveHref} from '../core/review-archive-state.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -92,9 +90,9 @@ function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
 export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['library','爆文库']];
+// One flat row of tabs (the 看数据 / 学方法 grouping was removed at the user's request, 2026-11-22).
 export const REVIEW_SECTION_GROUPS = [
-  ['data', '看数据', ['cockpit', 'articles']],
-  ['method', '学方法', ['benchmarks', 'library', 'rules', 'prompts']]
+  ['all', '', ['cockpit', 'articles', 'benchmarks', 'library', 'rules', 'prompts']]
 ];
 function activeSection(vm) {
   const raw = vm.secondary === 'review' ? 'rules' : vm.secondary === 'trends' ? 'cockpit' : vm.secondary;
@@ -172,9 +170,7 @@ function archives(data,vm,rows,override,archive = '') {
   const tabHtml = id => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" ` +
     `aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">` +
     `${e(labelById.get(id) || id)}</button>`;
-  const groupsHtml = REVIEW_SECTION_GROUPS.map(([groupId,groupLabel,ids]) =>
-    `<div class="review-tab-group" data-review-tab-group="${e(groupId)}"><span class="review-tab-group-label">${e(groupLabel)}</span>` +
-    `${ids.map(tabHtml).join('')}</div>`).join('');
+  const groupsHtml = REVIEW_SECTION_GROUPS.flatMap(([, , ids]) => ids).map(tabHtml).join('');
   return `<section class="review-secondary"><div class="review-secondary-bar">` +
     `<div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>` +
     `<div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">` +
@@ -294,7 +290,9 @@ function renderRuleBook(book,scope) {
   const titleLines=firstSection < 0 ? lines : lines.slice(0,firstSection);
   const title=titleLines.map(line => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content=rulesIntroMarkdown(ownLayer ? book.content_md || '' : '');
-  const intro=content ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content)}</div>` : '';
+  // The version's preface is background for the AIs; fold it so the rules themselves come first.
+  const intro=content ? `<details class="review-v13-intro"><summary>版本说明</summary>` +
+    `<div class="review-markdown">${renderReviewMarkdown(content)}</div></details>` : '';
   const groupedCounts = [];
   const groups=v13RuleGroups.map(([id,label]) => {
     const group=rules.filter(rule => rule.section === id);
@@ -312,8 +310,7 @@ function renderRuleBook(book,scope) {
     `<span class="review-rule-chip" data-rule-section="${e(id)}">${e(label)} <b>${e(count)}</b></span>`).join('')}</div>` : '';
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span>
-    <span class="review-note review-rule-meta-pill">共 ${ruleCountLabel(rules)}</span></div>
+    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span></div>
     ${chips}${intro}${groups}${other}</section>`;
 }
 function promptPage(data,vm) {
@@ -369,7 +366,7 @@ function drawer(data,rows,vm) {
           `class="review-detail-links">${tag(row.verdict)}${external(row.url,'查看原文 ↗')}</div></div>${renderTrafficCard(data.snapshots,row.id)}` +
           (basis ? `<p class="review-verdict-basis"><strong>判定依据</strong> ${e(basis)}</p>` : '') +
           renderDetailPatterns(row,vm.tags) + renderImitation(row,data,vm.account) + renderArticleRemarks(row,data.notes) +
-          renderArticleDiagnosis(row,vm) + legacyArticleRecord(row) + '</aside></div>';
+          legacyArticleRecord(row) + '</aside></div>';
 }
 
 export function renderContentReview() { return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" ' +
@@ -388,8 +385,8 @@ function scopedReviewData(data,account) {
 }
 export function renderContentReviewContent(data,vm) {
   data = scopedReviewData(data,vm.account);
-  const archive = vm.archiveAllowed && vm.account==='V字' ?
-    `<a class="btn review-archive-entry" href="${e(archiveHref)}">V字档案</a>` : '';
+  // The 档案 entry lives in the page header pill (账号 ｜ 档案), so nothing is added here.
+  const archive = '';
   if (vm.loading) return archive + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm.error) return archive + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" ` +
     `data-review-action="refresh">重新读取</button></div>`;
