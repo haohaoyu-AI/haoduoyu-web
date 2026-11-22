@@ -610,7 +610,15 @@ export const siteTidyBatch1Release=Object.freeze({
   baseline:'b40e5045-a27a-4c25-8476-a384b2b0babd',
   bytes:3424883,sha256:'5d9e8ab42115adf9ed5d81ab2ebd54a0ad6eb18f4e23c0bd738602c5e6187c0b',
   label:'production-site-tidy-batch1'});
-const acceptedRelease=commit=>commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
+// AI 日报: 待拍板 on top, 日报 / 周报; the cockpit links to 周报. No migration.
+export const aiDailyWeeklyRelease=Object.freeze({
+  commit:'277119622254558ce52e23ea5f3b8ccc40d9adf2',
+  tree:'b655a977e4fdc7948361f35bea953f7f78f75913',
+  baseline:'c015edfa-985a-4ca0-bbf4-39d583f9fc43',
+  bytes:3429465,sha256:'f015652ebb00c25f07f08fd86a7dd74a65f2750c6858d3c693cc050e8884278c',
+  label:'production-ai-daily-weekly'});
+const acceptedRelease=commit=>commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
+  commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
   commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
   commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
   commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
