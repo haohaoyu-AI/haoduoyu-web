@@ -624,7 +624,15 @@ export const todoEditTextRelease=Object.freeze({
   baseline:'e705cb0c-bf63-4197-8a94-e86ea5676fb7',
   bytes:3439190,sha256:'5f0a7a47b19a61e7130dca74191ef2adff64475c150a78811ac0028d235dafb7',
   label:'production-todo-edit-text'});
-const acceptedRelease=commit=>commit===todoEditTextRelease.commit?todoEditTextRelease:
+// 内容复盘最近更新时间: a line above the tabs, 生效 / 最后更新 on rules and prompts, read from the audit log. No migration.
+export const reviewUpdatedTimesRelease=Object.freeze({
+  commit:'7661f5439d394affcb67ff7e7551fe7fe2ef2f28',
+  tree:'cd6da66c08e4bc969a44863be5f158522adf9b64',
+  baseline:'0c4cc004-5641-479f-9375-ab886be8b2a8',
+  bytes:3443014,sha256:'8d1cd473babc7d6f111045ddbf5012574233bd16b638781d9fe43853b449fc54',
+  label:'production-review-updated-times'});
+const acceptedRelease=commit=>commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
+  commit===todoEditTextRelease.commit?todoEditTextRelease:
   commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
   commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
   commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
