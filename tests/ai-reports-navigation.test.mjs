@@ -21,7 +21,12 @@ test('AI reports are reachable in public and private desktop and mobile navigati
 
 test('report reading page has no report entry controls and offers date navigation', () => {
   const html = renderAiReports();
-  assert.doesNotMatch(html, /<(?:details|summary|form|textarea)\b/i);
+  assert.doesNotMatch(html, /<(?:form|textarea)\b/i);
+  // The only fold is the 7-day 待拍板 history; 待拍板 itself sits on top of the page, not in a tab.
+  assert.equal((html.match(/<details\b/g) || []).length, 1);
+  assert.match(html, /<details class="ai-decision-more">/);
+  assert.ok(html.indexOf('ai-decision-top') < html.indexOf('data-ai-daily-tab'));
+  assert.doesNotMatch(html, /data-ai-daily-tab="reminders"/);
   assert.doesNotMatch(html, /ai-report-(?:form|author|content|message|author-hint)/);
   assert.match(html, /id="ai-report-list-status"/);
   assert.match(html, /id="ai-report-list"/);
@@ -29,12 +34,12 @@ test('report reading page has no report entry controls and offers date navigatio
   assert.doesNotMatch(html, /id="ai-report-date"|data-ai-report-today/);
   assert.match(html, /data-ai-report-month="-1"/);
   assert.match(html, /data-ai-report-month="1"/);
-  for (const name of ['reminders','reports']) {
+  for (const name of ['reports','weekly']) {
     assert.match(html, new RegExp(`data-ai-daily-tab="${name}"`));
     assert.match(html, new RegExp(`data-ai-daily-panel="${name}"`));
   }
   assert.match(html, /data-ai-daily-tab="reports" aria-pressed="true"/);
-  assert.match(html, /data-ai-daily-panel="reminders" hidden/);
+  assert.match(html, /data-ai-daily-panel="weekly" hidden/);
   assert.doesNotMatch(html, /账号优化|当天工作提醒|前一天 AI 汇报/);
 });
 

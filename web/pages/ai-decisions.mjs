@@ -33,6 +33,10 @@ export function dayDecisions(items = []) {
 export function decisionCount(items = []) {
   return dayDecisions(items).reduce((sum, {decisions}) => sum + (decisions?.length || 0), 0);
 }
+/** Decisions still waiting: those Grok has not yet marked 已采纳 / 已否决 / 待定. */
+export function openDecisionCount(items = []) {
+  return dayDecisions(items).reduce((sum, {decisions}) => sum + (decisions || []).filter(item => !decisionStatus(item).status).length, 0);
+}
 
 // Grok marks earlier questions once you have answered in the chat: 已采纳, 已否决 or 待定, in brackets or at the end.
 const STATUS = /\s*(?:[【（(\[]\s*(已采纳|已否决|待定)\s*[】）)\]]|[—\-→:：]\s*(已采纳|已否决|待定)\s*[。.]?\s*$)/;

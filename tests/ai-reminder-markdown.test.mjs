@@ -22,12 +22,12 @@ const ask = (...items) => '**昨天做了什么**\n- 合成：其他段落不显
   '\n已按你的决定执行：合成：不显示';
 test('the 待拍板 panel renders only the decision items, with bold and lists', t => {
   const dom = withReminderDom(t);
-  assert.match(renderAiReports(), /data-ai-daily-tab="reminders" aria-pressed="false">待拍板/);
+  assert.match(renderAiReports(), /class="ai-decision-top"/);
   paintAiDailyReminders({items: [{summary: ask('**日期字段**：2030-01-01', '核对原文')}]});
   const html = dom.html();
   assert.match(html, /<li class="ai-report-markdown"><p><strong>日期字段<\/strong>：2030-01-01<\/p><\/li>/);
   assert.match(html, /核对原文/);
-  assert.match(html, /2 件待你拍板/);
+  assert.match(html, /待拍板 <b>2<\/b>/);
   assert.doesNotMatch(html, /其他段落不显示|已按你的决定执行|\*\*日期字段/);
 });
 
@@ -58,7 +58,8 @@ test('empty, loading and error reminder states retain their previous behavior', 
   assert.equal(dom.html(), '');
   paintAiDailyReminders({items: []});
   assert.equal(dom.status(), '');
-  assert.equal(dom.html(), '<p>暂无工作提醒</p>');
+  // No reminder today now folds to one quiet line instead of an empty panel.
+  assert.match(dom.html(), /class="ai-decision-done"[\s\S]*今天没有要你拍板的事/);
 });
 
 test('repeated rendering preserves every source field, order and summary bytes', t => {

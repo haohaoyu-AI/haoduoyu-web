@@ -38,7 +38,9 @@ test('overview shows six metrics and only supported secondary sections',() => {
   assert.match(renderContentReviewContent(fixture(),model('articles')),/文章列表/);
   assert.equal((html.match(/role="tab" /g) || []).length,REVIEW_SECTIONS.length);
   assert.match(html,/<svg/);
-  assert.match(html,/第一句结论。用于验证展开后的周复盘。/);
+  // The weekly review now lives in AI 日报 → 周报; the cockpit links there.
+  assert.doesNotMatch(html,/第一句结论。用于验证展开后的周复盘。/);
+  assert.match(html,/review-weekly-link[\s\S]*ai_tab=weekly[\s\S]*看周复盘（10月26日–11月01日）/);
   assert.doesNotMatch(html,/data-review-view="daily"|review-alerts/);
 });
 

@@ -6,7 +6,7 @@ import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {renderArticleList, renderDetailPatterns} from './review-article-list.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderArticleRemarks} from './review-remarks.mjs';
-import {renderWeeklyReview} from './review-weekly.mjs';
+import {weeklyReviews} from './review-weekly.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime} from '../core/review-data.mjs';
@@ -213,7 +213,15 @@ function overview(data,vm) {
     `data-review-filter="metricsRange">${options([['this','本周'],['last','上周'],['30d','近30天']],range)}</select></label>` +
     `<button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div>` +
     `<div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data,vm,current.window)}</section>` +
-    renderWeeklyReview(data,vm);
+    weeklyLink(data,vm);
+}
+// The weekly review moved to AI 日报 → 周报 (2026-11-22); the cockpit keeps a one-line way there.
+function weeklyLink(data,vm) {
+  const [latest] = weeklyReviews(data.reports, vm.account);
+  if (!latest) return '';
+  const week = `${String(latest.period_start || '').slice(5).replace('-','月')}日–${String(latest.period_end || '').slice(5).replace('-','月')}日`;
+  return `<p class="review-weekly-link"><a href="?page=ai-reports&amp;ai_tab=weekly&amp;account=${encodeURIComponent(vm.account)}">` +
+    `看周复盘（${e(week)}）→</a></p>`;
 }
 function articleListPanel(rows,vm,data) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">

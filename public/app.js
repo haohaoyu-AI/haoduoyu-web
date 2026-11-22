@@ -6966,7 +6966,7 @@ function readRoute() {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
   }
-  state.aiDailyTab = legacyWeekly ? "reports" : ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
+  state.aiDailyTab = legacyWeekly ? "weekly" : ["reports", "weekly"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
   state.aiDailyDate = state.page === "ai-reports" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
@@ -12795,6 +12795,9 @@ function dayDecisions(items = []) {
 function decisionCount(items = []) {
   return dayDecisions(items).reduce((sum, { decisions }) => sum + (decisions?.length || 0), 0);
 }
+function openDecisionCount(items = []) {
+  return dayDecisions(items).reduce((sum, { decisions }) => sum + (decisions || []).filter((item) => !decisionStatus(item).status).length, 0);
+}
 var STATUS = /\s*(?:[【（(\[]\s*(已采纳|已否决|待定)\s*[】）)\]]|[—\-→:：]\s*(已采纳|已否决|待定)\s*[。.]?\s*$)/;
 var STATUS_CLASS = { 已采纳: "is-yes", 已否决: "is-no", 待定: "is-wait" };
 function decisionStatus(text) {
@@ -12830,20 +12833,24 @@ init_daily_notes_state();
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
-      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">待拍板<span class="ai-tab-count"
-          id="ai-decision-count"></span></button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
+      <section class="ai-decision-top" aria-labelledby="ai-decision-title">
+        <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
+        <details class="ai-decision-more"><summary data-ai-decision-history>看前 7 天的待拍板</summary>
+        <div id="ai-decision-history"></div></details>
+      </section>
+      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="汇报类型">
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">日报</button>
+        <button class="btn" type="button" data-ai-daily-tab="weekly" aria-pressed="false">周报</button>
       </div>
+      <section data-ai-daily-panel="reports">
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
-        <div class="ai-decision-more"><button class="btn text" type="button" data-ai-decision-history>看前 7 天的待拍板</button>
-        <div id="ai-decision-history"></div></div></section>
-      <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
+      <p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
+      <section data-ai-daily-panel="weekly" hidden><p id="ai-weekly-status" role="status"></p>
+        <div id="ai-weekly-list" class="content-review"></div></section>
     </div>
   </section>`;
 }
@@ -12940,10 +12947,18 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   if (!root3) return;
   root3.querySelector("#ai-reminder-status").textContent = error2 || (loading ? "正在读取工作提醒…" : "");
   const items = visibleWorkReminders(data3?.items || []), count3 = items.length ? decisionCount(items) : 0;
-  const badge = root3.querySelector("#ai-decision-count");
-  if (badge) badge.textContent = count3 ? String(count3) : "";
   const date2 = data3?.date || dailyNotesToday(), day7 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
-  root3.querySelector("#ai-reminder-list").innerHTML = items.length ? `<h3 class="ai-decision-head">${e(day7)}<span> · ${count3 ? `${count3} 件待你拍板` : "没有要你拍板的事"}</span></h3><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>` + decisionCards(items) : loading || error2 ? "" : "<p>暂无工作提醒</p>";
+  const open = items.length ? openDecisionCount(items) : 0;
+  const box = root3.querySelector("#ai-reminder-list");
+  if (loading || error2) {
+    box.innerHTML = "";
+    return;
+  }
+  if (!open) {
+    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day7)} · ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
+    return;
+  }
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day7)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
 }
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
@@ -13868,231 +13883,6 @@ async function loadExperimentsPanel() {
   if (current2()) paint();
 }
 
-// web/ai-reports-controller.mjs
-init_api();
-init_state();
-init_daily_notes_state();
-var AI_DAILY_TABS = Object.freeze(["reminders", "reports"]);
-var sequence3 = 0, registered2 = false, selectedDate = "", visibleMonth = "", pageSession = null;
-var allReports = null, openReportDay = "";
-function selectDailyTab(name) {
-  if (!AI_DAILY_TABS.includes(name)) return;
-  state.aiDailyTab = name;
-  const root3 = document.querySelector("#ai-reports");
-  if (!root3) return;
-  root3.dataset.aiTab = name;
-  for (const button2 of root3.querySelectorAll("[data-ai-daily-tab]"))
-    button2.setAttribute("aria-pressed", String(button2.dataset.aiDailyTab === name));
-  for (const panel2 of root3.querySelectorAll("[data-ai-daily-panel]"))
-    panel2.hidden = panel2.dataset.aiDailyPanel !== name;
-}
-function aiReportsYesterday(today2 = dailyNotesToday()) {
-  const date2 = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
-  date2.setUTCDate(date2.getUTCDate() - 1);
-  return date2.toISOString().slice(0, 10);
-}
-function reportRank(author) {
-  const value = String(author ?? "");
-  if (/gpt/i.test(value)) return 0;
-  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
-  if (/gemini/i.test(value)) return 2;
-  return 3;
-}
-var compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
-function sortAiReports(items) {
-  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) || compareText(String(a.author ?? "").toLowerCase(), String(b.author ?? "").toLowerCase()) || compareText(String(a.created_at ?? ""), String(b.created_at ?? "")) || compareText(String(a.id ?? ""), String(b.id ?? "")));
-}
-function reportsForDailyDate(items, date2) {
-  return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date2)));
-}
-async function readAllAiReports(read2, current2 = () => true) {
-  const items = [], seen = /* @__PURE__ */ new Set();
-  for (let offset = 0; ; offset += 100) {
-    const data3 = await read2("/ai-reports?offset=" + offset);
-    if (!current2()) return null;
-    if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
-      throw new Error("汇报读取不完整，请稍后重试。");
-    for (const row of data3.items) if (!seen.has(row.id)) {
-      seen.add(row.id);
-      items.push(row);
-    }
-    if (!data3.has_more) return items;
-  }
-}
-async function loadAiReports({ resetDate = false } = {}) {
-  registerAiReportEvents();
-  const session = runtime.sessionEpoch;
-  if (pageSession !== session || resetDate) {
-    pageSession = session;
-    allReports = null;
-    openReportDay = "";
-    selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
-    visibleMonth = selectedDate.slice(0, 7);
-  }
-  if (!selectedDate) selectedDate = dailyNotesToday();
-  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
-  const ticket2 = ++sequence3, date2 = selectedDate;
-  const current2 = () => ticket2 === sequence3 && session === runtime.sessionEpoch && state.page === "ai-reports";
-  if (!allReports) paintAiReportTimeline([], visibleMonth, { loading: true });
-  paintAiDailyReminders(null, "", true);
-  selectDailyTab(state.aiDailyTab || "reports");
-  const report = readAllAiReports(api, current2).then((items) => {
-    if (current2() && items) {
-      allReports = items;
-      paintReports();
-    }
-  }).catch((error2) => {
-    if (current2()) paintAiReportTimeline([], visibleMonth, { error: error2.message || "读取失败，请稍后重试。" });
-  });
-  const reminders = api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => {
-    if (current2()) paintAiDailyReminders(data3);
-  }).catch((error2) => {
-    if (current2()) paintAiDailyReminders(null, error2.message || "提醒读取失败，请稍后重试");
-  });
-  void loadExperimentsPanel();
-  await Promise.all([report, reminders]);
-}
-async function loadDecisionHistory(button2) {
-  const base = selectedDate || dailyNotesToday(), session = runtime.sessionEpoch;
-  const dates = Array.from({ length: 7 }, (_, index) => new Date(Date.parse(base + "T00:00:00Z") - (index + 1) * 864e5).toISOString().slice(0, 10));
-  button2.style.display = "none";
-  paintDecisionHistory([], { loading: true });
-  try {
-    const days = await Promise.all(dates.map((date2) => api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => ({ date: date2, items: data3.items || [] }))));
-    if (session === runtime.sessionEpoch) paintDecisionHistory(days);
-  } catch (error2) {
-    if (session === runtime.sessionEpoch) {
-      button2.style.display = "";
-      paintDecisionHistory([], { error: error2.message || "读取失败，请稍后再试" });
-    }
-  }
-}
-function paintReports() {
-  if (!allReports) return;
-  const root3 = document.querySelector("#ai-reports");
-  root3?.classList.toggle("ai-report-day-open", Boolean(openReportDay));
-  if (!openReportDay) {
-    paintAiReportDayHead("");
-    paintAiReportTimeline(allReports, visibleMonth);
-    return;
-  }
-  paintAiReports(sortAiReports(allReports.filter((row) => reportShownDay(row) === openReportDay)), "", false, selectedDate, visibleMonth);
-  paintAiReportDayHead(openReportDay);
-}
-function moveMonth(offset) {
-  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
-  d.setUTCMonth(d.getUTCMonth() + offset);
-  if (!Number.isFinite(d.getTime())) return;
-  const next = d.toISOString().slice(0, 7);
-  if (validDailyNotesDate(next + "-01")) {
-    visibleMonth = next;
-    openReportDay = "";
-    paintAiCalendar(selectedDate, visibleMonth);
-    paintReports();
-  }
-}
-function registerAiReportEvents() {
-  if (registered2) return;
-  registered2 = true;
-  document.addEventListener("click", (event) => {
-    if (state.page !== "ai-reports") return;
-    const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
-    if (tab) {
-      selectDailyTab(tab);
-      updateRoute();
-    } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
-    else if (event.target.closest?.("[data-ai-decision-history]")) void loadDecisionHistory(event.target.closest("[data-ai-decision-history]"));
-    else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
-    else if (event.target.closest?.("[data-ai-report-open],[data-ai-report-back]")) {
-      openReportDay = event.target.closest("[data-ai-report-open]")?.dataset.aiReportOpen || "";
-      paintReports();
-      document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
-    } else {
-      const day7 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-      if (day7 && validDailyNotesDate(day7)) {
-        selectedDate = day7;
-        visibleMonth = day7.slice(0, 7);
-        state.aiDailyDate = day7;
-        updateRoute();
-        void loadAiReports();
-      }
-    }
-  });
-}
-
-// web/core/review-rule-scopes.mjs
-var aliases = /* @__PURE__ */ new Map([
-  ["整体", "global"],
-  ["global", "global"],
-  ["头条", "toutiao"],
-  ["toutiao", "toutiao"],
-  ["V字", "vzi"],
-  ["vzi", "vzi"],
-  ["鱼见", "yujian"],
-  ["yujian", "yujian"],
-  ["公众号", "wechat"],
-  ["wechat", "wechat"]
-]);
-var scopeOf = (value) => aliases.get(String(value || "")) || String(value || "");
-var labels2 = /* @__PURE__ */ new Map([
-  ["global", "整体规则"],
-  ["toutiao", "头条平台规则"],
-  ["vzi", "V字账号规则"],
-  ["yujian", "鱼见账号规则"],
-  ["wechat", "公众号平台规则"]
-]);
-var scopeLabel = (scope) => labels2.get(scope) || scope;
-function applicableScopes(account3) {
-  const scope = scopeOf(account3);
-  if (["vzi", "yujian"].includes(scope)) return ["global", "toutiao", scope];
-  if (scope === "wechat") return ["wechat"];
-  return scope === "global" ? ["global"] : ["global", scope];
-}
-function newest(a, b) {
-  return String(b.version ?? "").localeCompare(String(a.version ?? ""), void 0, { numeric: true }) || String(b.published_on || b.updated_at || "").localeCompare(String(a.published_on || a.updated_at || "")) || String(b.id).localeCompare(String(a.id));
-}
-function currentPlaybooks(books = [], account3) {
-  const latest2 = /* @__PURE__ */ new Map(), scopes = applicableScopes(account3);
-  for (const book of [...books].filter((book2) => book2.status === "active").sort(newest)) {
-    const scope = scopeOf(book.account);
-    if (!latest2.has(scope)) latest2.set(scope, book);
-  }
-  const current2 = [...latest2.values()].map((book) => ({
-    ...book,
-    rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
-  })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
-  return resolveRuleOverrides(current2, account3);
-}
-function resolveRuleOverrides(books, account3) {
-  const scopes = applicableScopes(account3), occurrences = /* @__PURE__ */ new Map();
-  for (const book of books) for (const rule of book.rules) {
-    const scope = scopeOf(rule.scope ?? book.account);
-    if (typeof rule.rule_id !== "string" || !rule.rule_id || !scopes.includes(scope)) continue;
-    if (!occurrences.has(rule.rule_id)) occurrences.set(rule.rule_id, /* @__PURE__ */ new Set());
-    occurrences.get(rule.rule_id).add(scope);
-  }
-  return books.map((book) => ({ ...book, rules: book.rules.map((rule) => {
-    const scope = scopeOf(rule.scope ?? book.account);
-    const seen = occurrences.get(rule.rule_id) || /* @__PURE__ */ new Set();
-    const winner = scopes.findLast((layer) => seen.has(layer));
-    const overriddenByScope = scopes.indexOf(winner) > scopes.indexOf(scope) ? winner : "";
-    const overridesScopes = overriddenByScope ? [] : scopes.filter((layer) => seen.has(layer) && scopes.indexOf(layer) < scopes.indexOf(scope));
-    return { ...rule, overriddenByScope, overridesScopes };
-  }) }));
-}
-function ruleCountLabel(rules2) {
-  const overridden = rules2.filter((rule) => rule.overriddenByScope).length;
-  return `${rules2.length} 条规则 · ${rules2.length - overridden} 条当前生效${overridden ? ` · ${overridden} 条被覆盖` : ""}`;
-}
-function currentPrompts(prompts = [], account3) {
-  const scopes = applicableScopes(account3), latest2 = /* @__PURE__ */ new Map();
-  for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
-    const key = `${prompt.scope}:${prompt.prompt_key}`;
-    if (!latest2.has(key)) latest2.set(key, prompt);
-  }
-  return [...latest2.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
-}
-
 // web/core/review-data.mjs
 var SNAPSHOT_NUMBERS = [
   "impressions",
@@ -14365,6 +14155,298 @@ function periodsFor(data3 = {}, type = "daily") {
     }
   }
   return [...periods2.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
+}
+
+// web/pages/review-weekly.mjs
+init_dom();
+var day6 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
+var range = (report) => `${day6(report.period_start)} 至 ${day6(report.period_end)}`;
+function currentWeekStart(now) {
+  const today2 = day5(now || (/* @__PURE__ */ new Date()).toISOString());
+  if (!today2) return "";
+  const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
+  const offset = weekday2 === 0 ? -6 : 1 - weekday2;
+  return shiftDay4(today2, offset);
+}
+function weeklyReviews(reports = [], account3) {
+  return reports.filter((report) => report && report.period_type === "weekly" && report.account === account3 && !report.deleted_at).sort((a, b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.created_at).localeCompare(String(a.created_at)));
+}
+function weeklyPreview(markdown) {
+  const line = String(markdown ?? "").split(/\r?\n/).map((text) => text.trim()).find((text) => text && !/^#{1,6}\s/.test(text)) || "";
+  const plain3 = line.replace(/[*_`>#]/g, "").replace(/^[-\d.、\s]+/, "").trim();
+  return plain3.length > 90 ? plain3.slice(0, 90) + "…" : plain3;
+}
+var body3 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>`;
+function renderWeeklyReview(data3, vm2) {
+  const [latest2, ...older] = weeklyReviews(data3.reports, vm2.account);
+  if (!latest2) return "";
+  const weekStart2 = currentWeekStart(vm2.now);
+  const isCurrentWeek = weekStart2 && String(latest2.period_end || "") >= weekStart2;
+  const heading = isCurrentWeek ? "本周复盘" : "上周复盘";
+  const pendingBadge = isCurrentWeek ? "" : '<span class="review-weekly-badge">本周周报待周日生成</span>';
+  const earlier = older.length ? `<details class="review-weekly-older"><summary>往期周复盘（${older.length} 份）</summary><div class="review-weekly-tl">${older.map((report) => `<details class="review-weekly-week"><summary><span class="review-weekly-date">${e(range(report))}</span><span class="review-weekly-preview">${e(weeklyPreview(report.summary_md))}</span></summary>${body3(report)}</details>`).join("")}</div></details>` : "";
+  return `<section class="review-weekly" aria-label="周复盘"><div class="review-weekly-latest"><div class="review-weekly-head"><h3 class="review-weekly-title">${e(heading)}</h3><span class="review-weekly-date">${e(range(latest2))}</span>${pendingBadge}</div>${body3(latest2)}${earlier}</div></section>`;
+}
+
+// web/ai-reports-controller.mjs
+init_api();
+init_state();
+init_daily_notes_state();
+var AI_DAILY_TABS = Object.freeze(["reports", "weekly"]);
+var sequence3 = 0, registered2 = false, selectedDate = "", visibleMonth = "", pageSession = null;
+var allReports = null, openReportDay = "";
+function selectDailyTab(name) {
+  if (name === "reminders") name = "reports";
+  if (!AI_DAILY_TABS.includes(name)) return;
+  state.aiDailyTab = name;
+  const root3 = document.querySelector("#ai-reports");
+  if (!root3) return;
+  root3.dataset.aiTab = name;
+  for (const button2 of root3.querySelectorAll("[data-ai-daily-tab]"))
+    button2.setAttribute("aria-pressed", String(button2.dataset.aiDailyTab === name));
+  for (const panel2 of root3.querySelectorAll("[data-ai-daily-panel]"))
+    panel2.hidden = panel2.dataset.aiDailyPanel !== name;
+  if (name === "weekly") void loadWeekly();
+}
+var weeklyRead = null;
+async function readAllReviewReports(current2) {
+  const items = [];
+  for (let offset = 0; ; offset += 100) {
+    const data3 = await api("/review/reports?offset=" + offset);
+    if (!current2()) return null;
+    if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean") throw new Error("周报读取不完整，请稍后重试。");
+    items.push(...data3.items);
+    if (!data3.has_more || !data3.items.length) return items;
+  }
+}
+async function loadWeekly() {
+  const root3 = document.querySelector("#ai-reports");
+  const box = root3?.querySelector("#ai-weekly-list"), status = root3?.querySelector("#ai-weekly-status");
+  if (!box || weeklyRead?.session === runtime.sessionEpoch && weeklyRead.loaded) return;
+  const session = runtime.sessionEpoch, current2 = () => session === runtime.sessionEpoch && state.page === "ai-reports";
+  weeklyRead = { session, loaded: false };
+  status.textContent = "正在读取周报…";
+  try {
+    const reports = await readAllReviewReports(current2);
+    if (!reports || !current2()) return;
+    const html = renderWeeklyReview({ reports }, { account: state.account || "V字", now: (/* @__PURE__ */ new Date()).toISOString() });
+    const live2 = document.querySelector("#ai-reports #ai-weekly-list");
+    if (!live2) return;
+    live2.innerHTML = html;
+    document.querySelector("#ai-reports #ai-weekly-status").textContent = html ? "" : "还没有周报，小小鱼每周日写。";
+    weeklyRead.loaded = true;
+  } catch (error2) {
+    weeklyRead = null;
+    if (current2()) document.querySelector("#ai-reports #ai-weekly-status").textContent = error2.message || "周报读取失败，请稍后重试。";
+  }
+}
+function aiReportsYesterday(today2 = dailyNotesToday()) {
+  const date2 = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
+  date2.setUTCDate(date2.getUTCDate() - 1);
+  return date2.toISOString().slice(0, 10);
+}
+function reportRank(author) {
+  const value = String(author ?? "");
+  if (/gpt/i.test(value)) return 0;
+  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
+  if (/gemini/i.test(value)) return 2;
+  return 3;
+}
+var compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+function sortAiReports(items) {
+  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) || compareText(String(a.author ?? "").toLowerCase(), String(b.author ?? "").toLowerCase()) || compareText(String(a.created_at ?? ""), String(b.created_at ?? "")) || compareText(String(a.id ?? ""), String(b.id ?? "")));
+}
+function reportsForDailyDate(items, date2) {
+  return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date2)));
+}
+async function readAllAiReports(read2, current2 = () => true) {
+  const items = [], seen = /* @__PURE__ */ new Set();
+  for (let offset = 0; ; offset += 100) {
+    const data3 = await read2("/ai-reports?offset=" + offset);
+    if (!current2()) return null;
+    if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
+      throw new Error("汇报读取不完整，请稍后重试。");
+    for (const row of data3.items) if (!seen.has(row.id)) {
+      seen.add(row.id);
+      items.push(row);
+    }
+    if (!data3.has_more) return items;
+  }
+}
+async function loadAiReports({ resetDate = false } = {}) {
+  registerAiReportEvents();
+  const session = runtime.sessionEpoch;
+  if (pageSession !== session || resetDate) {
+    pageSession = session;
+    allReports = null;
+    openReportDay = "";
+    weeklyRead = null;
+    selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
+    visibleMonth = selectedDate.slice(0, 7);
+  }
+  if (!selectedDate) selectedDate = dailyNotesToday();
+  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
+  const ticket2 = ++sequence3, date2 = selectedDate;
+  const current2 = () => ticket2 === sequence3 && session === runtime.sessionEpoch && state.page === "ai-reports";
+  if (!allReports) paintAiReportTimeline([], visibleMonth, { loading: true });
+  paintAiDailyReminders(null, "", true);
+  selectDailyTab(state.aiDailyTab || "reports");
+  const report = readAllAiReports(api, current2).then((items) => {
+    if (current2() && items) {
+      allReports = items;
+      paintReports();
+    }
+  }).catch((error2) => {
+    if (current2()) paintAiReportTimeline([], visibleMonth, { error: error2.message || "读取失败，请稍后重试。" });
+  });
+  const reminders = api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => {
+    if (current2()) paintAiDailyReminders(data3);
+  }).catch((error2) => {
+    if (current2()) paintAiDailyReminders(null, error2.message || "提醒读取失败，请稍后重试");
+  });
+  void loadExperimentsPanel();
+  await Promise.all([report, reminders]);
+}
+async function loadDecisionHistory(button2) {
+  const base = selectedDate || dailyNotesToday(), session = runtime.sessionEpoch;
+  const dates = Array.from({ length: 7 }, (_, index) => new Date(Date.parse(base + "T00:00:00Z") - (index + 1) * 864e5).toISOString().slice(0, 10));
+  if (button2.dataset.loaded === "1" || button2.closest("details")?.open) return;
+  button2.dataset.loaded = "1";
+  paintDecisionHistory([], { loading: true });
+  try {
+    const days = await Promise.all(dates.map((date2) => api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => ({ date: date2, items: data3.items || [] }))));
+    if (session === runtime.sessionEpoch) paintDecisionHistory(days);
+  } catch (error2) {
+    if (session === runtime.sessionEpoch) {
+      delete button2.dataset.loaded;
+      paintDecisionHistory([], { error: error2.message || "读取失败，请稍后再试" });
+    }
+  }
+}
+function paintReports() {
+  if (!allReports) return;
+  const root3 = document.querySelector("#ai-reports");
+  root3?.classList.toggle("ai-report-day-open", Boolean(openReportDay));
+  if (!openReportDay) {
+    paintAiReportDayHead("");
+    paintAiReportTimeline(allReports, visibleMonth);
+    return;
+  }
+  paintAiReports(sortAiReports(allReports.filter((row) => reportShownDay(row) === openReportDay)), "", false, selectedDate, visibleMonth);
+  paintAiReportDayHead(openReportDay);
+}
+function moveMonth(offset) {
+  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + offset);
+  if (!Number.isFinite(d.getTime())) return;
+  const next = d.toISOString().slice(0, 7);
+  if (validDailyNotesDate(next + "-01")) {
+    visibleMonth = next;
+    openReportDay = "";
+    paintAiCalendar(selectedDate, visibleMonth);
+    paintReports();
+  }
+}
+function registerAiReportEvents() {
+  if (registered2) return;
+  registered2 = true;
+  document.addEventListener("click", (event) => {
+    if (state.page !== "ai-reports") return;
+    const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
+    if (tab) {
+      selectDailyTab(tab);
+      updateRoute();
+    } else if (event.target.closest?.("[data-openai-diary-refresh]")) void loadAiReports();
+    else if (event.target.closest?.("[data-ai-decision-history]")) void loadDecisionHistory(event.target.closest("[data-ai-decision-history]"));
+    else if (event.target.closest?.("[data-ai-report-month]")) moveMonth(Number(event.target.closest("[data-ai-report-month]").dataset.aiReportMonth));
+    else if (event.target.closest?.("[data-ai-report-open],[data-ai-report-back]")) {
+      openReportDay = event.target.closest("[data-ai-report-open]")?.dataset.aiReportOpen || "";
+      paintReports();
+      document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
+    } else {
+      const day7 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+      if (day7 && validDailyNotesDate(day7)) {
+        selectedDate = day7;
+        visibleMonth = day7.slice(0, 7);
+        state.aiDailyDate = day7;
+        updateRoute();
+        void loadAiReports();
+      }
+    }
+  });
+}
+
+// web/core/review-rule-scopes.mjs
+var aliases = /* @__PURE__ */ new Map([
+  ["整体", "global"],
+  ["global", "global"],
+  ["头条", "toutiao"],
+  ["toutiao", "toutiao"],
+  ["V字", "vzi"],
+  ["vzi", "vzi"],
+  ["鱼见", "yujian"],
+  ["yujian", "yujian"],
+  ["公众号", "wechat"],
+  ["wechat", "wechat"]
+]);
+var scopeOf = (value) => aliases.get(String(value || "")) || String(value || "");
+var labels2 = /* @__PURE__ */ new Map([
+  ["global", "整体规则"],
+  ["toutiao", "头条平台规则"],
+  ["vzi", "V字账号规则"],
+  ["yujian", "鱼见账号规则"],
+  ["wechat", "公众号平台规则"]
+]);
+var scopeLabel = (scope) => labels2.get(scope) || scope;
+function applicableScopes(account3) {
+  const scope = scopeOf(account3);
+  if (["vzi", "yujian"].includes(scope)) return ["global", "toutiao", scope];
+  if (scope === "wechat") return ["wechat"];
+  return scope === "global" ? ["global"] : ["global", scope];
+}
+function newest(a, b) {
+  return String(b.version ?? "").localeCompare(String(a.version ?? ""), void 0, { numeric: true }) || String(b.published_on || b.updated_at || "").localeCompare(String(a.published_on || a.updated_at || "")) || String(b.id).localeCompare(String(a.id));
+}
+function currentPlaybooks(books = [], account3) {
+  const latest2 = /* @__PURE__ */ new Map(), scopes = applicableScopes(account3);
+  for (const book of [...books].filter((book2) => book2.status === "active").sort(newest)) {
+    const scope = scopeOf(book.account);
+    if (!latest2.has(scope)) latest2.set(scope, book);
+  }
+  const current2 = [...latest2.values()].map((book) => ({
+    ...book,
+    rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
+  })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
+  return resolveRuleOverrides(current2, account3);
+}
+function resolveRuleOverrides(books, account3) {
+  const scopes = applicableScopes(account3), occurrences = /* @__PURE__ */ new Map();
+  for (const book of books) for (const rule of book.rules) {
+    const scope = scopeOf(rule.scope ?? book.account);
+    if (typeof rule.rule_id !== "string" || !rule.rule_id || !scopes.includes(scope)) continue;
+    if (!occurrences.has(rule.rule_id)) occurrences.set(rule.rule_id, /* @__PURE__ */ new Set());
+    occurrences.get(rule.rule_id).add(scope);
+  }
+  return books.map((book) => ({ ...book, rules: book.rules.map((rule) => {
+    const scope = scopeOf(rule.scope ?? book.account);
+    const seen = occurrences.get(rule.rule_id) || /* @__PURE__ */ new Set();
+    const winner = scopes.findLast((layer) => seen.has(layer));
+    const overriddenByScope = scopes.indexOf(winner) > scopes.indexOf(scope) ? winner : "";
+    const overridesScopes = overriddenByScope ? [] : scopes.filter((layer) => seen.has(layer) && scopes.indexOf(layer) < scopes.indexOf(scope));
+    return { ...rule, overriddenByScope, overridesScopes };
+  }) }));
+}
+function ruleCountLabel(rules2) {
+  const overridden = rules2.filter((rule) => rule.overriddenByScope).length;
+  return `${rules2.length} 条规则 · ${rules2.length - overridden} 条当前生效${overridden ? ` · ${overridden} 条被覆盖` : ""}`;
+}
+function currentPrompts(prompts = [], account3) {
+  const scopes = applicableScopes(account3), latest2 = /* @__PURE__ */ new Map();
+  for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
+    const key = `${prompt.scope}:${prompt.prompt_key}`;
+    if (!latest2.has(key)) latest2.set(key, prompt);
+  }
+  return [...latest2.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
 }
 
 // web/pages/review-traffic-card.mjs
@@ -15441,37 +15523,6 @@ function renderArticleRemarks(row, notes) {
   return `<section class="review-remarks" aria-label="备注"><h3>备注</h3><ul>${items.map((note) => `<li><p class="review-remark-head"><span class="review-note">${e(shortDate(note.note_date))}</span><strong>${e(note.title)}</strong></p>${note.body_md ? `<div class="review-remark-body">${renderReviewMarkdown(note.body_md)}</div>` : ""}</li>`).join("")}</ul></section>`;
 }
 
-// web/pages/review-weekly.mjs
-init_dom();
-var day6 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
-var range = (report) => `${day6(report.period_start)} 至 ${day6(report.period_end)}`;
-function currentWeekStart(now) {
-  const today2 = day5(now || (/* @__PURE__ */ new Date()).toISOString());
-  if (!today2) return "";
-  const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  const offset = weekday2 === 0 ? -6 : 1 - weekday2;
-  return shiftDay4(today2, offset);
-}
-function weeklyReviews(reports = [], account3) {
-  return reports.filter((report) => report && report.period_type === "weekly" && report.account === account3 && !report.deleted_at).sort((a, b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.created_at).localeCompare(String(a.created_at)));
-}
-function weeklyPreview(markdown) {
-  const line = String(markdown ?? "").split(/\r?\n/).map((text) => text.trim()).find((text) => text && !/^#{1,6}\s/.test(text)) || "";
-  const plain3 = line.replace(/[*_`>#]/g, "").replace(/^[-\d.、\s]+/, "").trim();
-  return plain3.length > 90 ? plain3.slice(0, 90) + "…" : plain3;
-}
-var body3 = (report) => `<div class="review-markdown review-weekly-body">${renderReviewMarkdown(report.summary_md || "")}</div>`;
-function renderWeeklyReview(data3, vm2) {
-  const [latest2, ...older] = weeklyReviews(data3.reports, vm2.account);
-  if (!latest2) return "";
-  const weekStart2 = currentWeekStart(vm2.now);
-  const isCurrentWeek = weekStart2 && String(latest2.period_end || "") >= weekStart2;
-  const heading = isCurrentWeek ? "本周复盘" : "上周复盘";
-  const pendingBadge = isCurrentWeek ? "" : '<span class="review-weekly-badge">本周周报待周日生成</span>';
-  const earlier = older.length ? `<details class="review-weekly-older"><summary>往期周复盘（${older.length} 份）</summary><div class="review-weekly-tl">${older.map((report) => `<details class="review-weekly-week"><summary><span class="review-weekly-date">${e(range(report))}</span><span class="review-weekly-preview">${e(weeklyPreview(report.summary_md))}</span></summary>${body3(report)}</details>`).join("")}</div></details>` : "";
-  return `<section class="review-weekly" aria-label="周复盘"><div class="review-weekly-latest"><div class="review-weekly-head"><h3 class="review-weekly-title">${e(heading)}</h3><span class="review-weekly-date">${e(range(latest2))}</span>${pendingBadge}</div>${body3(latest2)}${earlier}</div></section>`;
-}
-
 // web/pages/review-benchmark-library.mjs
 init_dom();
 function safeUrl2(value) {
@@ -15765,7 +15816,13 @@ function overview(data3, vm2) {
     statCard("平均阅读时长", value(reviewDuration(current2.avgReadSeconds)), change3(current2.avgReadSeconds, earlier.avgReadSeconds)),
     statCard("平均阅读完成率", value(reviewNumber(current2.completion, "completion_rate")), change3(current2.completion, earlier.completion))
   ].join("");
-  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range2)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data3, vm2, current2.window)}</section>` + renderWeeklyReview(data3, vm2);
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range2)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data3, vm2, current2.window)}</section>` + weeklyLink(data3, vm2);
+}
+function weeklyLink(data3, vm2) {
+  const [latest2] = weeklyReviews(data3.reports, vm2.account);
+  if (!latest2) return "";
+  const week = `${String(latest2.period_start || "").slice(5).replace("-", "月")}日–${String(latest2.period_end || "").slice(5).replace("-", "月")}日`;
+  return `<p class="review-weekly-link"><a href="?page=ai-reports&amp;ai_tab=weekly&amp;account=${encodeURIComponent(vm2.account)}">看周复盘（${e(week)}）→</a></p>`;
 }
 function articleListPanel(rows, vm2, data3) {
   return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
@@ -17525,7 +17582,7 @@ var PAGE_HEADERS = {
   review: ["内容复盘", "数据表现与爆款方法沉淀"],
   todos: ["每日待办", "今日任务与日程安排"],
   notes: ["碎碎念", "随时记录想法与状态"],
-  "ai-reports": ["AI 日报", "待拍板事项与每日 AI 汇报"],
+  "ai-reports": ["AI 日报", "待拍板、日报和周报"],
   settings: ["设置", "待办偏好、AI 配置与账号安全"]
 };
 function renderPageHeader() {

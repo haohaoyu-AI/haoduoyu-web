@@ -3,16 +3,18 @@ import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
+import {renderWeeklyReview} from './pages/review-weekly.mjs';
 import {paintAiReports,paintAiDailyReminders,paintAiCalendar,reportDay,reportShownDay,paintAiReportTimeline,
   paintDecisionHistory,paintAiReportDayHead}
   from './pages/ai-reports.mjs';
 
-const AI_DAILY_TABS = Object.freeze(['reminders', 'reports']);
+const AI_DAILY_TABS = Object.freeze(['reports', 'weekly']);
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
 // Reports read for the timeline, and the work day opened from it ('' shows the list).
 let allReports = null, openReportDay = '';
 
 function selectDailyTab(name) {
+  if (name === 'reminders') name = 'reports'; // 待拍板 is no longer a tab; it sits on top of the page.
   if (!AI_DAILY_TABS.includes(name)) return;
   state.aiDailyTab = name;
   const root = document.querySelector('#ai-reports');
@@ -22,6 +24,41 @@ function selectDailyTab(name) {
     button.setAttribute('aria-pressed', String(button.dataset.aiDailyTab === name));
   for (const panel of root.querySelectorAll('[data-ai-daily-panel]'))
     panel.hidden = panel.dataset.aiDailyPanel !== name;
+  if (name === 'weekly') void loadWeekly();
+}
+
+// 周报: the weekly reviews Grok writes into 内容复盘, read the same way and shown newest first.
+let weeklyRead = null;
+async function readAllReviewReports(current) {
+  const items = [];
+  for (let offset = 0; ; offset += 100) {
+    const data = await api('/review/reports?offset=' + offset);
+    if (!current()) return null;
+    if (!Array.isArray(data?.items) || typeof data.has_more !== 'boolean') throw new Error('周报读取不完整，请稍后重试。');
+    items.push(...data.items);
+    if (!data.has_more || !data.items.length) return items;
+  }
+}
+async function loadWeekly() {
+  const root = document.querySelector('#ai-reports');
+  const box = root?.querySelector('#ai-weekly-list'), status = root?.querySelector('#ai-weekly-status');
+  if (!box || weeklyRead?.session === runtime.sessionEpoch && weeklyRead.loaded) return;
+  const session = runtime.sessionEpoch, current = () => session === runtime.sessionEpoch && state.page === 'ai-reports';
+  weeklyRead = {session, loaded:false};
+  status.textContent = '正在读取周报…';
+  try {
+    const reports = await readAllReviewReports(current);
+    if (!reports || !current()) return;
+    const html = renderWeeklyReview({reports}, {account: state.account || 'V字', now: new Date().toISOString()});
+    const live = document.querySelector('#ai-reports #ai-weekly-list');
+    if (!live) return;
+    live.innerHTML = html;
+    document.querySelector('#ai-reports #ai-weekly-status').textContent = html ? '' : '还没有周报，小小鱼每周日写。';
+    weeklyRead.loaded = true;
+  } catch (error) {
+    weeklyRead = null;
+    if (current()) document.querySelector('#ai-reports #ai-weekly-status').textContent = error.message || '周报读取失败，请稍后重试。';
+  }
 }
 
 export function aiReportsYesterday(today = dailyNotesToday()) {
@@ -67,7 +104,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
   if (pageSession !== session || resetDate) {
-    pageSession = session; allReports = null; openReportDay = '';
+    pageSession = session; allReports = null; openReportDay = ''; weeklyRead = null;
     selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
     visibleMonth = selectedDate.slice(0,7);
   }
@@ -96,13 +133,15 @@ export async function loadAiReports({resetDate = false} = {}) {
 async function loadDecisionHistory(button) {
   const base = selectedDate || dailyNotesToday(), session = runtime.sessionEpoch;
   const dates = Array.from({length: 7}, (_, index) => new Date(Date.parse(base + 'T00:00:00Z') - (index + 1) * 86400000).toISOString().slice(0, 10));
-  button.style.display = 'none'; paintDecisionHistory([], {loading: true});
+  // The 看前 7 天 line is a fold now: read once when it is opened, and keep the line so it can close again.
+  if (button.dataset.loaded === '1' || button.closest('details')?.open) return;
+  button.dataset.loaded = '1'; paintDecisionHistory([], {loading: true});
   try {
     const days = await Promise.all(dates.map(date => api('/work-reminders?date=' + encodeURIComponent(date))
       .then(data => ({date, items: data.items || []}))));
     if (session === runtime.sessionEpoch) paintDecisionHistory(days);
   } catch (error) {
-    if (session === runtime.sessionEpoch) { button.style.display = ''; paintDecisionHistory([], {error: error.message || '读取失败，请稍后再试'}); }
+    if (session === runtime.sessionEpoch) { delete button.dataset.loaded; paintDecisionHistory([], {error: error.message || '读取失败，请稍后再试'}); }
   }
 }
 /** The timeline for the visible month, or the opened work day's reports in reading view. */
