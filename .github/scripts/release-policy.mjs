@@ -617,7 +617,15 @@ export const aiDailyWeeklyRelease=Object.freeze({
   baseline:'c015edfa-985a-4ca0-bbf4-39d583f9fc43',
   bytes:3429465,sha256:'f015652ebb00c25f07f08fd86a7dd74a65f2750c6858d3c693cc050e8884278c',
   label:'production-ai-daily-weekly'});
-const acceptedRelease=commit=>commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
+// 待办直接改文字: PATCH /todos/:id/text and 修改文字 in the to-do menus. No migration.
+export const todoEditTextRelease=Object.freeze({
+  commit:'3639291b7d57f554e19474e5febaa59f201a7f01',
+  tree:'59ea4a9a43ddf0db89610c890b12b0b03e6d1ef0',
+  baseline:'e705cb0c-bf63-4197-8a94-e86ea5676fb7',
+  bytes:3439190,sha256:'5f0a7a47b19a61e7130dca74191ef2adff64475c150a78811ac0028d235dafb7',
+  label:'production-todo-edit-text'});
+const acceptedRelease=commit=>commit===todoEditTextRelease.commit?todoEditTextRelease:
+  commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
   commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
   commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
   commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
