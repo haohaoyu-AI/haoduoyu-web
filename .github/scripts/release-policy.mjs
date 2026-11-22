@@ -603,7 +603,15 @@ export const siteStructureRefactorRelease=Object.freeze({
   baseline:'4666fbdd-b275-4238-98ca-940476fa01be',
   bytes:3421189,sha256:'b55afd33f761605d46cc9a193c881f0d239a3c6a02d80bfd80213f6a22fd9d25',
   label:'production-site-structure-refactor'});
-const acceptedRelease=commit=>commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
+// 内容复盘整理第一批: 文章详情精简/完整, one row of tabs, AI 诊断 retired from the page, account pill with 档案, quieter rules page. No migration.
+export const siteTidyBatch1Release=Object.freeze({
+  commit:'9755916524731561fa93048f45f9aa99216f3735',
+  tree:'31a78d4d82a83e7ed51eed11e1419e80c9f5b543',
+  baseline:'b40e5045-a27a-4c25-8476-a384b2b0babd',
+  bytes:3424883,sha256:'5d9e8ab42115adf9ed5d81ab2ebd54a0ad6eb18f4e23c0bd738602c5e6187c0b',
+  label:'production-site-tidy-batch1'});
+const acceptedRelease=commit=>commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
+  commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
   commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
   commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
   commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
