@@ -5429,6 +5429,7 @@ async function acceptTodoNote(context, type, row, token) {
     const server = { ...old.server, version: row.version, updated_at: row.updated_at || old.server.updated_at };
     if (row.note) server.note = row.note;
     else delete server.note;
+    if (typeof row.text === "string" && row.text) server.text = row.text;
     await tx.put("entities", { ...old, server });
     return "saved";
   });
@@ -6324,7 +6325,7 @@ function futurePanel(item, v, off) {
     const value = key === "none" ? "" : choices[key], on = (mine || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-period" data-id="${id2}" data-period="${value}" aria-pressed="${on}" ${off}>${label}</button>`;
   }).join("");
-  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods2}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
+  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods2}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id2}" data-future="1" ${off}>修改文字</button><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
 }
 function quickScheduleUnscheduledTodo(id2, date2) {
   if (!validTodoDate(date2)) return;
@@ -7921,7 +7922,8 @@ function openTodoMenu({ target, id: id2, date: date2, anchor }) {
   const counting = count3 ? `<button data-action="todo-count-set" ${attributes}>修改次数（${limit}）</button>
 ${count3.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一次</button>` : ""}
 <button data-action="todo-count-clear" ${attributes}>取消计次</button>` : `<button data-action="todo-count-set" ${attributes}>设置次数</button>`;
-  popover(trigger, `${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  popover(trigger, `<button data-action="todo-edit-text" ${attributes}>修改文字</button>
+${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
 async function changeTodoCount(options3, action, target = 0) {
@@ -8274,6 +8276,105 @@ async function submitTodoNote({ form, data: data3 }) {
     await loadTodos();
   } catch (error2) {
     message2.textContent = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error2.message || "保存失败，请重试";
+  } finally {
+    button2.disabled = false;
+  }
+}
+function textTarget({ id: id2, date: date2, owner: owner2, future }) {
+  if (future === "1") {
+    const view2 = futureTodoView(), item = view2.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
+    return item && !view2.pending && !view2.uncertain[id2] ? { item, view: view2 } : null;
+  }
+  const context = todoActionContext({ id: id2, date: date2, owner: owner2 || todoOwner() });
+  return context && !context.item.deleted_at && !todoBusy(context.day, id2) ? context : null;
+}
+function openTodoText(options3) {
+  const target = textTarget(options3);
+  if (!target) return;
+  const { item } = target, future = options3.future === "1" ? "1" : "";
+  openModal("修改文字", `<form id="todo-text-form" data-id="${e(item.id)}" data-date="${e(options3.date || "")}" data-owner="${e(options3.owner || todoOwner())}"
+data-future="${future}" data-base="${e(item.text)}">
+<label for="todo-text-input">待办内容</label>
+<input class="input" id="todo-text-input" name="text" maxlength="500" required value="${e(item.text)}" autocomplete="off">
+<p class="muted">只改文字，勾选状态、备注和日期都不变。</p>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">保存</button></div></form>`);
+  const input = document.getElementById("todo-text-input");
+  input?.focus();
+  input?.select?.();
+}
+async function sendText({ id: id2, text, base, type, latest: latest2, active: active5 }) {
+  const settled = await settleQueuedTodo(type, id2);
+  if (!active5()) throw new DOMException("请求已取消", "AbortError");
+  if (!settled && type === "todo") throw new Error("这项待办上一步还在同步，请等几秒再保存。");
+  let lastError = null;
+  for (const delay of NOTE_RETRY_DELAYS) {
+    if (delay) await pause(delay);
+    const fresh = await latest2().catch(() => null);
+    if (!fresh || fresh.deleted_at || !Number.isSafeInteger(fresh.version)) throw lastError || Object.assign(new Error("这项待办暂不可用"), { status: 404 });
+    if (!active5()) throw new DOMException("请求已取消", "AbortError");
+    if (fresh.text === text) return fresh;
+    if (fresh.text !== base) return { changedElsewhere: true, fresh };
+    try {
+      return await api(`/todos/${encodeURIComponent(id2)}/text`, { method: "PATCH", body: { text, version: fresh.version } });
+    } catch (error2) {
+      if (!noteConflict(error2)) throw error2;
+      lastError = error2;
+    }
+  }
+  throw lastError;
+}
+async function submitTodoText({ form, data: data3 }) {
+  const options3 = { ...form.dataset }, target = textTarget(options3);
+  const message2 = form.querySelector(".form-message"), button2 = form.querySelector("button[type=submit]");
+  const text = String(data3.text ?? "").replace(/\r?\n/g, " ").trim();
+  if (!target) {
+    message2.textContent = "这项待办暂时不能修改，请稍后再试。";
+    return;
+  }
+  if (!text || text.length > 500) {
+    message2.textContent = "待办内容需要 1 至 500 个字";
+    return;
+  }
+  if (button2.disabled) return;
+  const { item } = target, future = options3.future === "1", base = form.dataset.base;
+  if (text === item.text) {
+    closeModal();
+    return;
+  }
+  const owner2 = target.owner, active5 = () => future || todoSessionActive(owner2);
+  button2.disabled = true;
+  message2.textContent = "";
+  try {
+    const saved = await sendText({
+      id: item.id,
+      text,
+      base,
+      type: future ? "unscheduled_todo" : "todo",
+      active: active5,
+      latest: future ? async () => (await api("/unscheduled-todos"))?.items?.find((row2) => row2.id === item.id) : async () => (await api(`/todos?date=${encodeURIComponent(target.day.date)}`, { requireNetwork: true }))?.items?.find((row2) => row2.id === item.id)
+    });
+    if (!active5()) return;
+    const row = saved.changedElsewhere ? saved.fresh : saved;
+    if (future) {
+      Object.assign(item, row);
+      if (!row.note) delete item.note;
+      paintUnscheduledTodos();
+    } else {
+      mergeTodo(target.day, row);
+      target.day.revision++;
+      paintTodos();
+    }
+    if (saved.changedElsewhere) {
+      form.dataset.base = row.text;
+      message2.textContent = `这项待办刚在别处改成了「${row.text}」。你写的还在框里，再点保存会用你的版本。`;
+      return;
+    }
+    await rememberSavedNote(future ? "unscheduled_todo" : "todo", row);
+    closeModal();
+  } catch (error2) {
+    if (isRequestAbort(error2)) return;
+    message2.textContent = error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；你写的内容已保留。" : noteConflict(error2) ? "这项待办正在别处更新，还没存上，内容已保留。稍后再点保存。" : error2.message || "保存失败，请重试";
   } finally {
     button2.disabled = false;
   }
@@ -18624,6 +18725,7 @@ var actions3 = {
   "todo-count-add": ({ target }) => void changeTodoCount(target.dataset, "add"),
   "todo-count-undo": ({ target }) => void changeTodoCount(target.dataset, "undo"),
   "todo-count-clear": ({ target }) => void changeTodoCount(target.dataset, "clear"),
+  "todo-edit-text": ({ target }) => openTodoText(target.dataset),
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
   "todo-make-template": ({ target }) => changeTodoTemplate(target.dataset),
@@ -18744,6 +18846,11 @@ var forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (form.id === "todo-text-form") {
+    event.preventDefault();
+    await submitTodoText({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
   if (form.id === "todo-count-form") {
     event.preventDefault();
     await submitTodoCount({ form, data: Object.fromEntries(new FormData(form)) });

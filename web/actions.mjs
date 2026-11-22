@@ -12,7 +12,7 @@ import { renderLogin } from "./pages/login.mjs";
 import { keyModal } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate, archiveTodoTemplate } from "./pages/todo-templates.mjs";
-import { changeTodoCount, changeTodoTemplate, deleteTodo, openTodoCount, openTodoMenu, openTodoNote, restoreTodo } from "./pages/todo-actions.mjs";
+import { changeTodoCount, changeTodoTemplate, deleteTodo, openTodoCount, openTodoMenu, openTodoNote, openTodoText, restoreTodo } from "./pages/todo-actions.mjs";
 import { formEnd } from "./ui/components.mjs";
 import { setMenu } from "./ui/menu.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
@@ -80,6 +80,7 @@ const actions = {
   "todo-count-add": ({ target }) => void changeTodoCount(target.dataset, "add"),
   "todo-count-undo": ({ target }) => void changeTodoCount(target.dataset, "undo"),
   "todo-count-clear": ({ target }) => void changeTodoCount(target.dataset, "clear"),
+  "todo-edit-text": ({ target }) => openTodoText(target.dataset),
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
   "todo-make-template": ({ target }) => changeTodoTemplate(target.dataset),

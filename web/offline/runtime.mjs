@@ -674,6 +674,7 @@ async function acceptTodoNote(context, type, row, token) {
     if (old.server.version > row.version) return 'refresh';
     const server = {...old.server, version: row.version, updated_at: row.updated_at || old.server.updated_at};
     if (row.note) server.note = row.note; else delete server.note;
+    if (typeof row.text === 'string' && row.text) server.text = row.text;
     await tx.put('entities', {...old, server});
     return 'saved';
   });

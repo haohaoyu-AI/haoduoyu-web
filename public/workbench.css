@@ -878,7 +878,7 @@ body.floating-workbench {
 .todo-future-day { opacity:.6; font-variant-numeric:tabular-nums; margin-left:2px; }
 .is-on .todo-future-day { opacity:.85; }
 .todo-future-panel .todo-future-schedule { width:100%; }
-.todo-future-panel-foot { display:flex; justify-content:flex-end; border-top:1px dashed var(--line); padding-top:6px; }
+.todo-future-panel-foot { display:flex; justify-content:flex-end; gap:4px; border-top:1px dashed var(--line); padding-top:6px; }
 .todo-future-panel-foot .btn.danger { color:#c2410c; }
 #todo-future > .daily-todo-items > .daily-todo-row > .todo-future-schedule { flex:1 0 100%; margin:0 0 var(--space-12) 32px; }
 @media (max-width:700px) {

@@ -127,7 +127,7 @@ const TOOLS=[
       due_date:{type:'string',description:'YYYY-MM-DD'}},required:['text']}},
   {name:'list_future_todos',description:'读全部未来待办（含大概时间、重复和截止日）。',inputSchema:{type:'object',properties:{}}},
   {name:'api_request',description:['以网站主人的身份调用允许连接器访问的 /api/v1 接口。path 写 /api/v1 之后的部分。',
-    '常用：/todos?date= · /unscheduled-todos · /note-entries?date=&category=（写入用 PUT /note-entries/{新uuid}，头 X-Note-Labels-Version: 3）·',
+    '常用：/todos?date= · /unscheduled-todos ·（改待办文字：PATCH /todos/{id}/text，body {text,version}，日期和未来待办都适用，id、勾选、备注不变）· /note-entries?date=&category=（写入用 PUT /note-entries/{新uuid}，头 X-Note-Labels-Version: 3）·',
     '/daily-scores/{date} · /ai-reports · /work-reminders?date= · /review/articles · /review/playbooks · /review/notes · /review/ai ·',
     '/articles · /accounts · /observations · /daily-metrics。不开放：登录、密码、API 凭证、备份恢复、初始化、私有档案。写之前先读一次，带上 version。'].join(''),
     inputSchema:{type:'object',properties:{method:{type:'string',enum:['GET','POST','PUT','PATCH','DELETE']},path:{type:'string'},

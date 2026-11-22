@@ -39,7 +39,8 @@ function openTodoMenu({ target, id, date, anchor }) {
   const counting = count ? `<button data-action="todo-count-set" ${attributes}>修改次数（${limit}）</button>
 ${count.done ? `<button data-action="todo-count-undo" ${attributes}>撤回一次</button>` : ""}
 <button data-action="todo-count-clear" ${attributes}>取消计次</button>` : `<button data-action="todo-count-set" ${attributes}>设置次数</button>`;
-  popover(trigger, `${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+  popover(trigger, `<button data-action="todo-edit-text" ${attributes}>修改文字</button>
+${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
 // Counting writes through the ordinary note endpoint, one versioned save per tap.
@@ -367,6 +368,83 @@ async function submitTodoNote({form,data}) {
   } catch(error) { message.textContent=error.status===404 ? '这项待办可能仍在同步，请稍后重试；备注内容已保留。' : error.message || '保存失败，请重试'; }
   finally { button.disabled=false; }
 }
+// 修改文字: the words change in place (PATCH /todos/:id/text), so the id, done state, note and date stay.
+// Like the note, it first waits for any queued tick of this to-do, then saves on the freshest version.
+function textTarget({ id, date, owner, future }) {
+  if (future === "1") {
+    const view = futureTodoView(), item = view.items.find(row => row.id === id && !row.deleted_at && !row.deleted);
+    return item && !view.pending && !view.uncertain[id] ? { item, view } : null;
+  }
+  const context = todoActionContext({ id, date, owner: owner || todoOwner() });
+  return context && !context.item.deleted_at && !todoBusy(context.day, id) ? context : null;
+}
+function openTodoText(options) {
+  const target = textTarget(options);
+  if (!target) return;
+  const { item } = target, future = options.future === "1" ? "1" : "";
+  openModal("修改文字", `<form id="todo-text-form" data-id="${e(item.id)}" data-date="${e(options.date || "")}" data-owner="${e(options.owner || todoOwner())}"
+data-future="${future}" data-base="${e(item.text)}">
+<label for="todo-text-input">待办内容</label>
+<input class="input" id="todo-text-input" name="text" maxlength="500" required value="${e(item.text)}" autocomplete="off">
+<p class="muted">只改文字，勾选状态、备注和日期都不变。</p>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">保存</button></div></form>`);
+  const input = document.getElementById("todo-text-input");
+  input?.focus(); input?.select?.();
+}
+async function sendText({ id, text, base, type, latest, active }) {
+  const settled = await settleQueuedTodo(type, id);
+  if (!active()) throw new DOMException("请求已取消", "AbortError");
+  if (!settled && type === "todo") throw new Error("这项待办上一步还在同步，请等几秒再保存。");
+  let lastError = null;
+  for (const delay of NOTE_RETRY_DELAYS) {
+    if (delay) await pause(delay);
+    const fresh = await latest().catch(() => null);
+    if (!fresh || fresh.deleted_at || !Number.isSafeInteger(fresh.version)) throw lastError || Object.assign(new Error("这项待办暂不可用"), { status: 404 });
+    if (!active()) throw new DOMException("请求已取消", "AbortError");
+    if (fresh.text === text) return fresh;
+    if (fresh.text !== base) return { changedElsewhere: true, fresh };
+    try {
+      return await api(`/todos/${encodeURIComponent(id)}/text`, { method: "PATCH", body: { text, version: fresh.version } });
+    } catch (error) {
+      if (!noteConflict(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+async function submitTodoText({ form, data }) {
+  const options = { ...form.dataset }, target = textTarget(options);
+  const message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");
+  const text = String(data.text ?? "").replace(/\r?\n/g, " ").trim();
+  if (!target) { message.textContent = "这项待办暂时不能修改，请稍后再试。"; return; }
+  if (!text || text.length > 500) { message.textContent = "待办内容需要 1 至 500 个字"; return; }
+  if (button.disabled) return;
+  const { item } = target, future = options.future === "1", base = form.dataset.base;
+  if (text === item.text) { closeModal(); return; }
+  const owner = target.owner, active = () => future || todoSessionActive(owner);
+  button.disabled = true; message.textContent = "";
+  try {
+    const saved = await sendText({ id: item.id, text, base, type: future ? "unscheduled_todo" : "todo", active,
+      latest: future ? async () => (await api("/unscheduled-todos"))?.items?.find(row => row.id === item.id)
+        : async () => (await api(`/todos?date=${encodeURIComponent(target.day.date)}`, { requireNetwork: true }))?.items?.find(row => row.id === item.id) });
+    if (!active()) return;
+    const row = saved.changedElsewhere ? saved.fresh : saved;
+    if (future) { Object.assign(item, row); if (!row.note) delete item.note; paintUnscheduledTodos(); }
+    else { mergeTodo(target.day, row); target.day.revision++; paintTodos(); }
+    if (saved.changedElsewhere) {
+      form.dataset.base = row.text;
+      message.textContent = `这项待办刚在别处改成了「${row.text}」。你写的还在框里，再点保存会用你的版本。`;
+      return;
+    }
+    await rememberSavedNote(future ? "unscheduled_todo" : "todo", row);
+    closeModal();
+  } catch (error) {
+    if (isRequestAbort(error)) return;
+    message.textContent = error.status === 404 ? "这项待办可能仍在同步，请稍后重试；你写的内容已保留。" :
+      noteConflict(error) ? "这项待办正在别处更新，还没存上，内容已保留。稍后再点保存。" : error.message || "保存失败，请重试";
+  } finally { button.disabled = false; }
+}
 function renderTodoUndo(day) {
   return [...day.removals.entries()].map(([id, ticket]) => {
     const label = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
@@ -502,5 +580,5 @@ async function changeTodoTemplate(options, remove = false) {
     }
   }
 }
-export { changeTodoCount, openTodoCount, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
+export { changeTodoCount, openTodoCount, openTodoText, submitTodoText, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
   renderTodoUndo, restoreTodo, saveDailyTodoNote, todoBusy };

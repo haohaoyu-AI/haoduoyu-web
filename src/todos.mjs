@@ -9,7 +9,7 @@ const fields='id,date,text,completed,version,created_at,updated_at,deleted_at,no
 const json=(data,status=200)=>Response.json({data},{status});
 const item=row=>{
   const value={...row,completed:row.completed===1||row.completed===true};
-  if(!value.note)delete value.note;
+  for(const name of ['note','period','recurrence','due_date'])if(!value[name])delete value[name];
   return value;
 };
 
@@ -162,6 +162,46 @@ async function updateFutureNote(store,actor,id,input) {
   return {actor,response:json(futureItem({...saved,note:input.note,version:current.version+1,updated_at:stamp}))};
 }
 
+// 改文字: the words change in place, so the id, done state, note, date and template link all stay.
+// A to-do that is not on a day is looked for among the unscheduled ones, as for the note.
+function textInput(input) {
+  exactFields(input,['text','version']);
+  if(typeof input.text!=='string'||!input.text.isWellFormed()||input.text.length>500||!input.text.trim()||input.text.includes('\0')||
+    !Number.isSafeInteger(input.version)||input.version<1||input.version>=Number.MAX_SAFE_INTEGER)
+    throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符，版本需要为正整数');
+  return {text:input.text.trim(),version:input.version};
+}
+
+async function updateText(store,actor,id,input,datedOnly) {
+  const current=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
+  if(!current) {
+    if(datedOnly)fail(404,'NOT_FOUND','日期待办不存在');
+    return updateFutureText(store,actor,id,input);
+  }
+  if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  if(current.version===input.version+1&&current.text===input.text)
+    return {replayed:true,response:json(await linkedItem(store,actor.id,current))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now();
+  store.queue('UPDATE matrix_todos SET text=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.text,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json(await linkedItem(store,actor.id,{...current,text:input.text,version:current.version+1,updated_at:stamp}))};
+}
+
+async function updateFutureText(store,actor,id,input) {
+  const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)'),has=name=>info.some(column=>column.name===name);
+  const futureFields='id,text,completed,version,created_at,updated_at,deleted_at'+['note','period','recurrence','due_date'].filter(has).map(name=>','+name).join('');
+  const current=await store.get('SELECT '+futureFields+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',actor.id,id);
+  if(!current||current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+  const saved={...current,completed:current.completed===1||current.completed===true};
+  if(current.version===input.version+1&&current.text===input.text)return {replayed:true,response:json(futureItem(saved))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now();
+  store.queue('UPDATE matrix_unscheduled_todos SET text=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.text,stamp,actor.id,id,input.version);
+  store.expectChange();
+  return {actor,response:json(futureItem({...saved,text:input.text,version:current.version+1,updated_at:stamp}))};
+}
+
 function futureItem(row) {
   const value={...row};
   if(!value.note)delete value.note;
@@ -216,21 +256,22 @@ export async function handleTodos(db,request,route,origin,initialRevision,checkD
   const method=request.method;
   if(method==='GET'&&route==='/todos') return readTodos(db,request,initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireAdmin(first);
-  const match=/^\/todos\/([^/]+)$/.exec(route),restore=/^\/todos\/([^/]+)\/restore$/.exec(route),template=/^\/todos\/([^/]+)\/template$/.exec(route),note=/^\/todos\/([^/]+)\/note$/.exec(route);
-  const operation=method==='POST'&&route==='/todos'?'create':method==='PATCH'&&match?'completed':method==='PATCH'&&note?'note':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&template?'template':null;
+  const match=/^\/todos\/([^/]+)$/.exec(route),restore=/^\/todos\/([^/]+)\/restore$/.exec(route),template=/^\/todos\/([^/]+)\/template$/.exec(route),note=/^\/todos\/([^/]+)\/note$/.exec(route),words=/^\/todos\/([^/]+)\/text$/.exec(route);
+  const operation=method==='POST'&&route==='/todos'?'create':method==='PATCH'&&match?'completed':method==='PATCH'&&note?'note':method==='PATCH'&&words?'text':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&template?'template':null;
   if(!operation) throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
   if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','待办写入不接受查询参数');
   const body=await bodyFor(request);
   if(checkDesktopScope&&operation==='create')exactFields(body,['id','date','text']);
-  const id=operation==='create'?null:validId((match||restore||template||note)[1]);
-  const input=operation==='create'?createInput(body):operation==='completed'?updateInput(body):operation==='note'?body:targetedInput(body,operation==='template');
+  const id=operation==='create'?null:validId((match||restore||template||note||words)[1]);
+  const input=operation==='create'?createInput(body):operation==='completed'?updateInput(body):operation==='note'?body:operation==='text'?textInput(body):targetedInput(body,operation==='template');
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
     if(checkDesktopScope)await checkDesktopScope(store,actor);
     if(operation==='create') return createTodo(store,actor,input);
     if(operation==='completed') return updateTodo(store,actor,id,input,Boolean(checkDesktopScope));
     if(operation==='note') return updateNote(store,actor,id,input,Boolean(checkDesktopScope));
+    if(operation==='text') return updateText(store,actor,id,input,Boolean(checkDesktopScope));
     if(operation==='template') return addTemplate(store,actor,id,input);
     return setDeleted(store,actor,id,input,operation==='delete');
   })).response;

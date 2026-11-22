@@ -94,7 +94,8 @@ function futurePanel(item,v,off) {
     `<button class="btn small" type="button" data-action="todo-future-due" data-id="${id}" ${off}>设为截止日</button>` +
     (item.due_date?`<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id}" ${off}>去掉</button>`:'') +
     `</div></div>` +
-    `<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete" ` +
+    `<div class="todo-future-panel-foot"><button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id}" data-future="1" ${off}>修改文字</button>` +
+    `<button class="btn small text danger" type="button" data-action="todo-future-delete" ` +
     `data-id="${id}" ${off}>删除</button></div></div>`;
 }
 /** One tap: the chosen day goes through the same checked move as the date field. */
