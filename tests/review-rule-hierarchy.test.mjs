@@ -71,7 +71,7 @@ test('current account is expanded and prompt metadata shows activation time and 
   assert.match(html,/data-rule-scope="vzi" open/);assert.doesNotMatch(html,/data-rule-scope="global" open/);
   assert.match(html,/V字账号规则[\s\S]*1 条规则/);
   const promptsHtml = render({playbooks:[book('整体','GLOBAL'),book('V字','LOCAL')],prompts:[{...prompt('vzi',2),updated_at:'2026-11-10T04:00:00Z'}]},'V字','prompts');
-  assert.match(promptsHtml,/生效时间：2026-11-10 12:00/);
+  assert.match(promptsHtml,/最后更新 2026-11-10 12:00/);assert.match(promptsHtml,/生效 /);
   assert.match(promptsHtml,/data-review-action="copy-prompt"/);
 });
 test('copy preserves complete raw Markdown, rejects foreign/history rows and reports clipboard failures', async () => {

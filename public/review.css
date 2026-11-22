@@ -1534,3 +1534,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 #content-review .review-v13-intro[open] > summary::before { content:"▾ "; }
 #content-review .review-v13-intro > .review-markdown { padding:0 14px 12px; }
 #content-review .review-v13-intro blockquote { margin:8px 0; padding:0; border-left:0; color:var(--color-text-secondary); }
+/* 最近更新 line above the content-review tabs (2026-11-22). */
+#content-review .review-updated-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:8px 2px 4px; font-size:13px; color:var(--muted, #6b7280); }
+#content-review .review-updated-line time { color:var(--ink, #1f2937); font-variant-numeric:tabular-nums; }
+#content-review .review-updated-line .review-section-updated { padding-left:14px; border-left:1px solid var(--line, rgba(0,0,0,.12)); }

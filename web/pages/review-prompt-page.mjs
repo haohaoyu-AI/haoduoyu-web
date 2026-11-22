@@ -45,7 +45,10 @@ function copyButton(action, id = '') {
 }
 function card(title, note, time, content, action, key = '') {
   const long = String(content).split('\n').length > 10 || String(content).length > 600;
-  const when = time ? `<p class="review-note">生效时间：${e(time)} · 上海时间</p>` : '';
+  // time is [生效, 最后更新]: a new version sets the first, every edit in place moves the second.
+  const [since, updated] = Array.isArray(time) ? time : [time, ''];
+  const when = since || updated ? `<p class="review-note">${since ? `生效 ${e(since)}` : ''}${since && updated ? ' · ' : ''}` +
+    `${updated ? `最后更新 ${e(updated)}` : ''} · 北京时间</p>` : '';
   const [badgeText, tone] = promptBadge(title, key);
   const chars = charCountLabel(content);
   return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading"><div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2>` +
@@ -60,14 +63,15 @@ export function renderPromptPage(data, vm) {
   const order = ['longform_write','image','weitoutiao_write','transfer_chat'];
   const prompts = (data.prompts || []).filter(row => row.prompt_key !== 'article_diagnosis').slice().sort((a,b) => {
     const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
-    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key),'zh');
+    return Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0) ||
+      (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key),'zh');
   });
   // AI 诊断 was retired (2026-11-21); its stored prompt stays in the database but is no longer shown.
   const shown = new Set(prompts.map(row => String(row.content_md || '').trim()));
   const extras = (data.playbooks || []).flatMap(book => playbookPromptBlocks(book.content_md)).filter(block => block.content && !shown.has(block.content));
   const cards = prompts.map(prompt => card(labels[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, 'v' + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '),
-    reviewDateTime(prompt.updated_at) || '未记录', prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
+    [reviewDateTime(prompt.created_at) || '未记录', reviewDateTime(prompt.updated_at)], prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
   for (const block of extras) cards.push(card(block.title, '规则手册中的提示词', '', block.content, copyButton('copy-prompt-block')));
   const parts = [
     prompts.length ? `独立版本 ${prompts.length} 份` : '',

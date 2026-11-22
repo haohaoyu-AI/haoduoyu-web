@@ -15110,7 +15110,8 @@ function copyButton(action, id2 = "") {
 }
 function card(title, note, time3, content2, action, key = "") {
   const long = String(content2).split("\n").length > 10 || String(content2).length > 600;
-  const when = time3 ? `<p class="review-note">生效时间：${e(time3)} · 上海时间</p>` : "";
+  const [since, updated] = Array.isArray(time3) ? time3 : [time3, ""];
+  const when = since || updated ? `<p class="review-note">${since ? `生效 ${e(since)}` : ""}${since && updated ? " · " : ""}${updated ? `最后更新 ${e(updated)}` : ""} · 北京时间</p>` : "";
   const [badgeText, tone] = promptBadge(title, key);
   const chars = charCountLabel(content2);
   return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading"><div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2><span class="review-note">${e(note)}</span>${chars ? `<span class="review-prompt-chars">${e(chars)}</span>` : ""}</div>${when}</div><div class="review-prompt-copy-actions">${action}<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div></div><pre class="review-prompt-source${long ? " is-folded" : ""}">${e(content2)}</pre>` + // Folding only limits what is shown; the element still holds the whole prompt for copying.
@@ -15120,14 +15121,14 @@ function renderPromptPage(data3, vm2) {
   const order = ["longform_write", "image", "weitoutiao_write", "transfer_chat"];
   const prompts = (data3.prompts || []).filter((row) => row.prompt_key !== "article_diagnosis").slice().sort((a, b) => {
     const ai2 = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
-    return (ai2 < 0 ? order.length : ai2) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key), "zh");
+    return Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0) || (ai2 < 0 ? order.length : ai2) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key), "zh");
   });
   const shown2 = new Set(prompts.map((row) => String(row.content_md || "").trim()));
   const extras = (data3.playbooks || []).flatMap((book) => playbookPromptBlocks(book.content_md)).filter((block) => block.content && !shown2.has(block.content));
   const cards = prompts.map((prompt) => card(
     labels3[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "),
-    reviewDateTime2(prompt.updated_at) || "未记录",
+    [reviewDateTime2(prompt.created_at) || "未记录", reviewDateTime2(prompt.updated_at)],
     prompt.content_md || "",
     copyButton("copy-prompt", prompt.id),
     prompt.prompt_key
@@ -15874,13 +15875,39 @@ function sectionBody(selected, data3, vm2, rows) {
   if (selected === "library") return renderBenchmarkLibrary(data3, vm2.account);
   return overview(data3, vm2);
 }
+var SECTION_ROWS = {
+  cockpit: (d) => d.articles,
+  articles: (d) => d.articles,
+  benchmarks: (d) => d.benchmarkAccounts,
+  library: (d) => d.benchmarkArticles,
+  rules: (d) => d.playbooks,
+  prompts: (d) => d.prompts
+};
+function lastUpdated(rows = []) {
+  let best = "";
+  for (const row of rows || []) {
+    const value = row?.updated_at || row?.created_at;
+    if (typeof value === "string" && Number.isFinite(Date.parse(value)) && (!best || Date.parse(value) > Date.parse(best))) best = value;
+  }
+  return best;
+}
+function sectionUpdated(data3, id2) {
+  return lastUpdated(SECTION_ROWS[id2]?.(data3) || []);
+}
+function updatedLine(data3, selected) {
+  const times = REVIEW_SECTIONS.map(([id2, label2]) => [label2, sectionUpdated(data3, id2)]).filter(([, time4]) => time4);
+  if (!times.length) return "";
+  const [label, time3] = times.reduce((a, b) => Date.parse(b[1]) > Date.parse(a[1]) ? b : a);
+  const own3 = sectionUpdated(data3, selected);
+  return `<p class="review-updated-line"><span>内容复盘最近更新 <time datetime="${e(time3)}">${e(reviewDateTime2(time3))}</time><span class="review-note">（${e(label)}）</span></span>` + (own3 ? `<span class="review-section-updated">本页最近更新 <time datetime="${e(own3)}">${e(reviewDateTime2(own3))}</time></span>` : "") + `<span class="review-note">北京时间</span></p>`;
+}
 function archives(data3, vm2, rows, override, archive = "") {
   const selected = activeSection(vm2);
   const body4 = override ?? sectionBody(selected, data3, vm2, rows);
   const labelById = new Map(REVIEW_SECTIONS);
   const tabHtml = (id2) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${e(labelById.get(id2) || id2)}</button>`;
   const groupsHtml = REVIEW_SECTION_GROUPS.flatMap(([, , ids]) => ids).map(tabHtml).join("");
-  return `<section class="review-secondary"><div class="review-secondary-bar"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body4}</div></section>`;
+  return `<section class="review-secondary"><div class="review-secondary-bar"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>${updatedLine(data3, selected)}<div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body4}</div></section>`;
 }
 function metricChange(label, current2, previous, prefix = "") {
   const delta2 = metricDelta(current2, previous);
@@ -16011,9 +16038,14 @@ function renderRuleBook(book, scope) {
   const chips = groupedCounts.length ? `<div class="review-rule-section-chips">${groupedCounts.map(([id2, label, count3]) => `<span class="review-rule-chip" data-rule-section="${e(id2)}">${e(label)} <b>${e(count3)}</b></span>`).join("")}</div>` : "";
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day5(book.published_on) || "—" : "—")}</span></div>
+    ${ownLayer ? ruleBookTimes(book) : '<span class="review-note review-rule-meta-pill">生效于 —</span>'}</div>
     ${chips}${intro}${groups2}${other}</section>`;
 }
+function ruleBookTimes(book) {
+  const since = reviewDateTime2(book.created_at) || day5(book.published_on) || "—", updated = reviewDateTime2(book.updated_at || book.created_at);
+  return `<span class="review-note review-rule-meta-pill">生效 ${e(since)}</span>` + (updated ? `<span class="review-note review-rule-meta-pill">最后更新 ${e(updated)}</span>` : "");
+}
+var byLastUpdate = (a, b) => Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0);
 function promptPage(data3, vm2) {
   return renderPromptPage(data3, vm2);
 }
@@ -16025,7 +16057,7 @@ function playbook(data3, vm2) {
     const layerRules = matches2.flatMap((book) => book.rules.filter((rule) => scopeOf(rule.scope ?? book.account) === scope));
     return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm2.account) ? " open" : ""}>
       <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
-      ${matches2.map((book) => renderRuleBook(book, scope)).join("")}</details>`;
+      ${matches2.slice().sort(byLastUpdate).map((book) => renderRuleBook(book, scope)).join("")}</details>`;
   }).join("");
   return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty2("暂无生效手册");
 }

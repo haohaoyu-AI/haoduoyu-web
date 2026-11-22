@@ -81,6 +81,22 @@ function validateQuery(query,kind,list) {
   if(!Number.isSafeInteger(offset))throw fail(400,'VALIDATION_ERROR','Invalid page');
   return {where,args,offset,expected:query.has('read_revision')?Number(query.get('read_revision')):null,verdict:query.get('verdict'),page:query.has('page')?Number(query.get('page')):null};
 }
+// 最后更新 for playbooks: the newest edit in place (the playbook itself or one of its rules) as the audit log
+// records it, else the creation time. Read-only: no column, no migration, and the content hash is unchanged.
+const PLAYBOOK_EDITS=['review.playbooks.update','review.rules.update'];
+async function withPlaybookTimes(store,rows) {
+  const times=new Map();
+  for(let i=0;i<rows.length;i+=80) {
+    const ids=rows.slice(i,i+80).map(row=>row.id);
+    if(!ids.length)continue;
+    const found=await store.all('SELECT entity_id,MAX(created_at) AS at FROM audit WHERE entity_id IN ('+ids.map(()=>'?').join(',')+') AND action IN (?,?) GROUP BY entity_id',...ids,...PLAYBOOK_EDITS);
+    for(const row of found)times.set(row.entity_id,row.at);
+  }
+  return rows.map(row=>{
+    const edited=times.get(row.id),created=row.created_at??null;
+    return {...row,updated_at:edited&&(!created||edited>created)?edited:created};
+  });
+}
 const writeView=(kind,row)=>kind==='playbooks'?{...row,status:row.status??(row.id==='8f553af0-302a-45fb-9fde-16d6d537c888'&&row.account==='V字'?'draft':'active')}:row;
 const publicView=(kind,row)=>kind==='playbooks'?{...writeView(kind,row),rules:row.rules.map(rule=>({...rule,status:rule.status??'candidate'}))}:row;
 async function accountData(store,owner,account=null) {
@@ -622,6 +638,7 @@ async function handle(db,request,route,env,origin,initialRevision) {
         return json({...enrichArticle(row,data.snapshots,data.playbooks,data.reports,data.articles),snapshots});
       }
       const row=await readRow(store,kind,owner,id);if(!row)throw fail(404,'NOT_FOUND','记录不存在');
+      if(kind==='playbooks')return json(publicView(kind,(await withPlaybookTimes(store,[row]))[0]));
       return json(publicView(kind,row));
     }
     if(kind==='articles') {
@@ -633,7 +650,8 @@ async function handle(db,request,route,env,origin,initialRevision) {
       return json({items,has_more:all.length>filters.offset+100,read_revision:before,...(filters.page!==null?{page:filters.page,page_size:100,total:all.length}:{})});
     }
     const rows=await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+filters.where.map(sql=>' AND '+sql).join('')+' ORDER BY '+reviewSpecs[kind].order+' LIMIT 101 OFFSET ?',owner,...filters.args,filters.offset);
-    const items=rows.slice(0,100).map(row=>publicView(kind,reviewView(kind,row)));
+    const views=rows.slice(0,100).map(row=>reviewView(kind,row));
+    const items=(kind==='playbooks'?await withPlaybookTimes(store,views):views).map(row=>publicView(kind,row));
     return json({items,has_more:rows.length>100,read_revision:before});
   },initialRevision);
   const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);

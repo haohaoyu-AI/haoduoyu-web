@@ -375,3 +375,21 @@ test('legacy playbook combined account and status PATCH respects the destination
     assert.equal(app.sql.prepare('SELECT status FROM matrix_review_playbooks WHERE id=?').get(id).status,status);
   }
 });
+
+test('playbooks show 最后更新 from edits in place without changing their content hash',async t=>{
+  const app=fixture(t),id=randomUUID(),created='2026-10-30T00:00:00.000Z';
+  app.sql.prepare('INSERT INTO matrix_review_playbooks(user_id,id,account,version,published_on,rules_json,created_at) VALUES(?,?,?,?,?,?,?)')
+    .run(app.owner,id,'V字',3,'2026-10-30',JSON.stringify([{rule_id:'r1',section:'title',text:'rule'}]),created);
+  const first=(await app.call('playbooks/'+id)).data;
+  assert.equal(first.updated_at,created);assert.equal(first.created_at,created);
+  const {content_hash,status,updated_at,...old}=first;
+  assert.equal(content_hash,digest(JSON.stringify(stable({...old,rules:old.rules.map(({status,...rule})=>rule)}))));
+  const rule=await app.call('rules/r1','PATCH',{account:'V字',playbook_id:id,expected_hash:content_hash,save_id:randomUUID(),evidence_note:'佐证'});
+  assert.equal(rule.status,200);
+  const edited=(await app.call('playbooks/'+id)).data;
+  assert.ok(edited.updated_at>created);assert.equal(edited.created_at,created);assert.equal(edited.content_hash,rule.data.content_hash);
+  const listed=(await app.call('playbooks?account=V%E5%AD%97')).data.items.find(row=>row.id===id);
+  assert.equal(listed.updated_at,edited.updated_at);assert.equal(listed.content_hash,edited.content_hash);
+  // The time is read-only: echoing it back is refused like any unknown field, and the write API is unchanged.
+  assert.equal((await app.call('playbooks/'+id,'PATCH',{expected_hash:edited.content_hash,updated_at:created})).status,400);
+});

@@ -163,6 +163,28 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
   return overview(data,vm);
 }
+// 最近更新: each tab's newest change (北京时间), and the newest of all of them in one line above the tabs.
+const SECTION_ROWS = {cockpit: d => d.articles, articles: d => d.articles, benchmarks: d => d.benchmarkAccounts,
+  library: d => d.benchmarkArticles, rules: d => d.playbooks, prompts: d => d.prompts};
+export function lastUpdated(rows = []) {
+  let best = '';
+  for (const row of rows || []) {
+    const value = row?.updated_at || row?.created_at;
+    if (typeof value === 'string' && Number.isFinite(Date.parse(value)) && (!best || Date.parse(value) > Date.parse(best))) best = value;
+  }
+  return best;
+}
+export function sectionUpdated(data,id) { return lastUpdated(SECTION_ROWS[id]?.(data) || []); }
+function updatedLine(data,selected) {
+  const times = REVIEW_SECTIONS.map(([id,label]) => [label,sectionUpdated(data,id)]).filter(([,time]) => time);
+  if (!times.length) return '';
+  const [label,time] = times.reduce((a,b) => Date.parse(b[1]) > Date.parse(a[1]) ? b : a);
+  const own = sectionUpdated(data,selected);
+  return `<p class="review-updated-line"><span>内容复盘最近更新 <time datetime="${e(time)}">${e(reviewDateTime(time))}</time>` +
+    `<span class="review-note">（${e(label)}）</span></span>` +
+    (own ? `<span class="review-section-updated">本页最近更新 <time datetime="${e(own)}">${e(reviewDateTime(own))}</time></span>` : '') +
+    `<span class="review-note">北京时间</span></p>`;
+}
 function archives(data,vm,rows,override,archive = '') {
   const selected = activeSection(vm);
   const body = override ?? sectionBody(selected,data,vm,rows);
@@ -172,7 +194,7 @@ function archives(data,vm,rows,override,archive = '') {
     `${e(labelById.get(id) || id)}</button>`;
   const groupsHtml = REVIEW_SECTION_GROUPS.flatMap(([, , ids]) => ids).map(tabHtml).join('');
   return `<section class="review-secondary"><div class="review-secondary-bar">` +
-    `<div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>` +
+    `<div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>${updatedLine(data,selected)}` +
     `<div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">` +
     `${body}</div></section>`;
 }
@@ -318,9 +340,16 @@ function renderRuleBook(book,scope) {
     `<span class="review-rule-chip" data-rule-section="${e(id)}">${e(label)} <b>${e(count)}</b></span>`).join('')}</div>` : '';
   return `<section class="review-v13-rules">
     <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
-    <span class="review-note review-rule-meta-pill">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span></div>
+    ${ownLayer ? ruleBookTimes(book) : '<span class="review-note review-rule-meta-pill">生效于 —</span>'}</div>
     ${chips}${intro}${groups}${other}</section>`;
 }
+// 生效 is when this version was made (a new version); 最后更新 moves with every edit in place.
+function ruleBookTimes(book) {
+  const since = reviewDateTime(book.created_at) || day(book.published_on) || '—', updated = reviewDateTime(book.updated_at || book.created_at);
+  return `<span class="review-note review-rule-meta-pill">生效 ${e(since)}</span>` +
+    (updated ? `<span class="review-note review-rule-meta-pill">最后更新 ${e(updated)}</span>` : '');
+}
+const byLastUpdate = (a,b) => Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0);
 function promptPage(data,vm) {
   return renderPromptPage(data,vm);
 }
@@ -332,7 +361,7 @@ function playbook(data,vm) {
     const layerRules = matches.flatMap(book => book.rules.filter(rule => scopeOf(rule.scope ?? book.account) === scope));
     return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm.account) ? ' open' : ''}>
       <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
-      ${matches.map(book => renderRuleBook(book,scope)).join('')}</details>`;
+      ${matches.slice().sort(byLastUpdate).map(book => renderRuleBook(book,scope)).join('')}</details>`;
   }).join('');
   return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty('暂无生效手册');
 }
