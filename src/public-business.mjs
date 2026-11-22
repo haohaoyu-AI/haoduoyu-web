@@ -43,8 +43,11 @@ async function boundedRequest(request) {
   return new Request(request,{body:Buffer.concat(chunks),duplex:'half'});
 }
 
-export async function publicBusinessAccess(db,request,route,env,origin) {
-  if(env.PUBLIC_BUSINESS_MODE!=='1'||!publicBusinessRoute(route,request.method)) return null;
+export async function publicBusinessAccess(db,request,route,env,origin,{desktopTodoText=false}={}) {
+  // Desktop text writes apply an atomic workspace precondition in their handler.
+  // The ordinary public routes keep their existing authorization.
+  const guardedText=desktopTodoText && request.method==='PATCH' && /^\/todos\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\/text$/.test(route);
+  if(env.PUBLIC_BUSINESS_MODE!=='1'||!guardedText&&!publicBusinessRoute(route,request.method)) return null;
   // Preserve valid pre-existing identities and token scopes. Never silently
   // rebind another logged-in user's write to the anonymous workspace owner.
   const authorization=request.headers.get('authorization');

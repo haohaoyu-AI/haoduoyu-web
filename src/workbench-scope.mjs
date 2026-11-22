@@ -1,6 +1,7 @@
 import {fail} from './security.mjs';
 
 export const desktopTodoGuard='desktop-todo-expected-scope-v1';
+export const desktopTodoTextGuard='desktop-todo-text-v1';
 
 // Callers supply the read revision of a snapshot or the guarded write transaction.
 export async function resolveWorkbenchScope(store,access,memosOwnerId,budget) {

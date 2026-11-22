@@ -2,7 +2,7 @@ import {fail} from './security.mjs';
 import {consistentRead} from './storage.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
 import {snapshotAccess} from './snapshot-access.mjs';
-import {desktopTodoGuard,resolveWorkbenchScope} from './workbench-scope.mjs';
+import {desktopTodoGuard,desktopTodoTextGuard,resolveWorkbenchScope} from './workbench-scope.mjs';
 import {snapshotBudget,snapshotDatabase} from './snapshot-budget.mjs';
 import {memosOwner} from './memos-validation.mjs';
 import {labelsFor} from './note-entries.mjs';
@@ -198,6 +198,7 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={},no
       const index=projectWorkbenchSnapshot(data,{scope_id,generated_at:new Date(now()).toISOString(),version:2},budget);
       if(scope.mode==='public') {
         index.write_scope_guard=desktopTodoGuard;
+        index.todo_text_write_guard=desktopTodoTextGuard;
         index.workbench_revision=revision;
       }
       return {text:budget.serialize({batch_format:'haoduoyu-workbench-window-v1',coverage,index,data}),dates:index.dates.length};
@@ -219,7 +220,7 @@ async function workbenchScope(db,request,env,limits) {
     const {scope_id,mode}=await resolveWorkbenchScope(store,access,memosOwnerId,budget);
     await access.recheck(store);
     return budget.serialize({projection:'current',scope_id,complete:true,scope_only:true,generated_at:new Date().toISOString(),
-      ...(mode==='public'?{write_scope_guard:desktopTodoGuard,workbench_revision:revision}:{})});
+      ...(mode==='public'?{write_scope_guard:desktopTodoGuard,todo_text_write_guard:desktopTodoTextGuard,workbench_revision:revision}:{})});
   });
   return new Response(text,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie, Authorization'}});
 }
