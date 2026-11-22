@@ -58,13 +58,12 @@ def check_layout(page, width, row):
     if width == 375:
         assert row.evaluate('row => getComputedStyle(row).display') == 'grid'
         boxes = [row.locator('.review-cell-' + key).bounding_box()
-                 for key in ('published', 'reads', 'ctr', 'completion_rate', 'avg_read_seconds', 'impressions', 'fan_reads', 'fan_impressions')]
-        assert boxes[0]['y'] < boxes[1]['y'] < boxes[5]['y']
-        assert max(box['y'] for box in boxes[1:5]) - min(box['y'] for box in boxes[1:5]) < 2
-        assert max(box['y'] for box in boxes[5:]) - min(box['y'] for box in boxes[5:]) < 2
+                 for key in ('published', 'reads', 'ctr', 'completion_rate', 'avg_read_seconds')]
+        assert boxes[0]['y'] < boxes[1]['y']
+        assert max(box['y'] for box in boxes[1:]) - min(box['y'] for box in boxes[1:]) < 2
     else:
         assert row.evaluate('row => getComputedStyle(row).display') == 'table-row'
-        assert len(row.locator('td:visible').all()) == 8
+        assert len(row.locator('td:visible').all()) == 5
 
 
 def review_modes(browser, width):

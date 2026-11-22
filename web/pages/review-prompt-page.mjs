@@ -1,7 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {scopeLabel} from '../core/review-rule-scopes.mjs';
 import {reviewDateTime} from '../core/review-data.mjs';
-import {diagnosisPromptText, selectDiagnosisPrompt} from '../../shared/article-diagnosis.mjs';
 
 export function rulesIntroMarkdown(markdown) {
   const lines = String(markdown || '').replace(/\r\n?/g,'\n').split('\n');
@@ -63,20 +62,16 @@ export function renderPromptPage(data, vm) {
     const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
     return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key),'zh');
   });
-  const diagnosis = diagnosisPromptText(data.prompts, vm.account);
-  const selected = selectDiagnosisPrompt(data.prompts, vm.account);
-  const shown = new Set([diagnosis.trim(), ...prompts.map(row => String(row.content_md || '').trim())]);
+  // AI 诊断 was retired (2026-11-21); its stored prompt stays in the database but is no longer shown.
+  const shown = new Set(prompts.map(row => String(row.content_md || '').trim()));
   const extras = (data.playbooks || []).flatMap(book => playbookPromptBlocks(book.content_md)).filter(block => block.content && !shown.has(block.content));
   const cards = prompts.map(prompt => card(labels[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, 'v' + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '),
     reviewDateTime(prompt.updated_at) || '未记录', prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
-  const diagnosisNote = selected ? [selected.title, 'v' + selected.version, scopeLabel(selected.scope)].filter(Boolean).join(' · ') : '默认提示词';
-  cards.push(card('AI诊断', diagnosisNote, selected ? reviewDateTime(selected.updated_at) || '未记录' : '', diagnosis, copyButton('copy-diagnosis-prompt'), 'article_diagnosis'));
   for (const block of extras) cards.push(card(block.title, '规则手册中的提示词', '', block.content, copyButton('copy-prompt-block')));
   const parts = [
     prompts.length ? `独立版本 ${prompts.length} 份` : '',
-    extras.length ? `规则手册内置 ${extras.length} 份` : '',
-    'AI 诊断 1 份'
+    extras.length ? `规则手册内置 ${extras.length} 份` : ''
   ].filter(Boolean).join(' · ');
   const summaryBar = `<div class="review-prompt-summary"><span>共 <strong>${cards.length}</strong> 份提示词</span><span class="review-note">${e(parts)}</span></div>`;
   return `<div class="review-prompt-page">${summaryBar}${cards.join('')}</div>`;

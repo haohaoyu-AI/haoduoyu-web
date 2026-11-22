@@ -1,9 +1,8 @@
 import {loadReviewAi, reviewAiClick, reviewAiInput, reviewAiView, watchReviewAi} from './review-ai-controller.mjs';
 import {currentPrompts} from './core/review-rule-scopes.mjs';
-import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS, REVIEW_SECTION_GROUPS} from './pages/content-review.mjs';
-import {reviewSortKeys} from './pages/review-article-list.mjs';
+import {articleDensity, reviewSortKeys} from './pages/review-article-list.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
 import {canAccessReviewArchive} from './core/review-archive-state.mjs';
 
@@ -11,7 +10,6 @@ const resources = ['articles','snapshots','reports','playbooks','benchmark-accou
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {
   account:'V字',view:'overview',secondary:'cockpit',week:'this',date:'',start:'',end:'',periods:[],filters:{},
-  diagnoses:{},
   article:'',version:'',compare:'',loading:true,error:'',
 };
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
@@ -173,7 +171,7 @@ export async function loadContentReview(context) {
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
   if (identity !== currentIdentity) {
     clearTimeout(searchTimer);
-    data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; vm.diagnoses = {}; identity = currentIdentity;
+    data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; identity = currentIdentity;
   }
   vm = {...vm,...requested,archiveAllowed:canAccessReviewArchive(state.me,requested.account),loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
@@ -186,7 +184,6 @@ export async function loadContentReview(context) {
     data = result; syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark);
     void loadReviewAi(requested.account, {force:true});
     void loadArticleTags(read, requested.account, current);
-    if (vm.article) void loadStoredDiagnosis(vm.article);
   } catch (error) {
     if (!current() || error.name === 'AbortError') return;
     vm.loading = false; vm.error = error.message || '读取失败，请稍后重试。'; paintContentReviewPage();
@@ -228,38 +225,6 @@ export async function copyReviewPrompt(prompts,account,id,clipboard = globalThis
 async function reviewWrite(path, options) {
   const {apiNetwork} = await import('./core/api.mjs');
   return apiNetwork(path, options || {});
-}
-async function loadStoredDiagnosis(articleId) {
-  const current = vm.diagnoses?.[articleId];
-  if (!articleId || current?.text || current?.checked || current?.status === 'saving') return;
-  vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'checking', checked:false}};
-  try {
-    const row = await reviewWrite('/review/articles/' + encodeURIComponent(articleId) + '/diagnosis');
-    const latest = vm.diagnoses?.[articleId];
-    if (latest?.text || latest?.status === 'saving') return;
-    const text = typeof row?.result_text === 'string' ? row.result_text : '';
-    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:text ? 'saved' : 'ready', text, checked:true}};
-  } catch {
-    const latest = vm.diagnoses?.[articleId];
-    if (latest?.text || latest?.status === 'saving') return;
-    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'ready', text:'', checked:true}};
-  }
-  if (vm.article === articleId) paintContentReviewPage();
-}
-async function runArticleDiagnosis(articleId) {
-  const current = vm.diagnoses?.[articleId];
-  if (!articleId || current?.text || current?.status === 'saving') return;
-  vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'saving', text:'', checked:true}};
-  paintContentReviewPage();
-  try {
-    const row = await reviewWrite('/review/articles/' + encodeURIComponent(articleId) + '/diagnosis', {method:'POST', body:{}});
-    const text = typeof row?.result_text === 'string' ? row.result_text : '';
-    if (!text) throw new Error('没有得到诊断结果。');
-    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'saved', text, checked:true}};
-  } catch (error) {
-    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'error', text:'', error:error.message || '诊断失败，请稍后重试。', checked:true}};
-  }
-  if (vm.article === articleId) paintContentReviewPage();
 }
 async function copyPromptText(button, text) {
   const status = button.closest('.review-prompt-card')?.querySelector('[data-prompt-copy-status]');
@@ -321,11 +286,9 @@ function onReviewClick(event) {
     target.textContent = folded ? '展开全文' : '收起'; target.setAttribute('aria-expanded', String(!folded)); return;
   }
   if (target.dataset.reviewAction === 'copy-prompt') { void copyPromptButton(target); return; }
-  if (target.dataset.reviewAction === 'copy-diagnosis-prompt') { void copyPromptText(target, diagnosisPromptText(data.prompts, vm.account)); return; }
   if (target.dataset.reviewAction === 'copy-prompt-block') {
     void copyPromptText(target, target.closest('.review-prompt-card')?.querySelector('pre')?.textContent || ''); return;
   }
-  if (target.dataset.reviewAction === 'diagnose-article') { void runArticleDiagnosis(target.dataset.articleId); return; }
   if (target.dataset.reviewSecondary) {
     vm.secondary = target.dataset.reviewSecondary; vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();
     root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
@@ -335,7 +298,7 @@ function onReviewClick(event) {
   if (target.dataset.reviewAction === 'close-article') { closeArticle(); return; }
   const article = target.dataset.reviewArticle || target.dataset.reviewRow;
   if (article) { returnFocusId = article; returnScroll = window.scrollY; vm.article = article; vm.benchmark = ''; writeRoute({article,benchmark:''});
-    paintContentReviewPage(); void loadStoredDiagnosis(article); }
+    paintContentReviewPage(); }
 }
 function onReviewKeydown(event) {
   const node = root(); if (!node?.contains(event.target)) return;
@@ -406,9 +369,16 @@ function registerEvents() {
 }
 
 const ARTICLE_VIEW_KEY = 'haoduoyu-review-article-view';
+const ARTICLE_DENSITY_KEY = 'haoduoyu-review-article-density';
 function savedArticleView() {
-  try { return {group:localStorage.getItem(ARTICLE_VIEW_KEY) || ''}; }
+  try { return {group:localStorage.getItem(ARTICLE_VIEW_KEY) || '',density:articleDensity(localStorage.getItem(ARTICLE_DENSITY_KEY))}; }
   catch { return {}; }
+}
+function chooseArticleDensity(value) {
+  vm.filters.density = articleDensity(value);
+  try { localStorage.setItem(ARTICLE_DENSITY_KEY,vm.filters.density); } catch { /* The VM still retains the choice. */ }
+  paintContentReviewPage();
+  root()?.querySelector(`[data-review-density="${CSS.escape(vm.filters.density)}"]`)?.focus({preventScroll:true});
 }
 function chooseArticleView(value) {
   vm.filters.group = value;
@@ -417,7 +387,8 @@ function chooseArticleView(value) {
   root()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({preventScroll:true});
 }
 function changeArticleList(target) {
-  const {reviewSort,reviewPattern,reviewDimension,reviewPatternClear} = target.dataset;
+  const {reviewSort,reviewPattern,reviewDimension,reviewPatternClear,reviewDensity} = target.dataset;
+  if (reviewDensity !== undefined) { chooseArticleDensity(reviewDensity); return true; }
   if (reviewSortKeys.includes(reviewSort)) {
     const current = vm.filters.sort;
     const ascending = current?.key === reviewSort && current.direction === 'descending';

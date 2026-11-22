@@ -36,7 +36,8 @@ test('private archive is only requested for the V account with an active owner c
 });
 
 test('normal review shows the owner entry and its navigation can exit the archive without changing other review sections',t=>{
-  assert.match(renderContentReviewContent({},{account:'V字',archiveAllowed:true,loading:true}),/review_section=archive/u);
+  // The owner entry moved into the page-header pill (账号 ｜ 档案 ›); the review body no longer carries its own button.
+  assert.doesNotMatch(renderContentReviewContent({},{account:'V字',archiveAllowed:true,loading:true}),/review_section=archive/u);
   assert.doesNotMatch(renderContentReviewContent({},{account:'V字',archiveAllowed:false,loading:true}),/review_section=archive/u);
   assert.doesNotMatch(renderContentReviewContent({},{account:'Z极客',archiveAllowed:true,loading:true}),/review_section=archive/u);
   const old={location:globalThis.location,history:globalThis.history,page:state.page,account:state.account};

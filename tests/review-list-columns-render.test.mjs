@@ -33,23 +33,26 @@ const cell = (html,id,label) => row(html,id).match(new RegExp(`<td data-label="$
 test('fixed table renders published rows with all seven metrics, keeping pending and unmatched records outside', () => {
   const html = render();
   const headers = [...html.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(headers,['published','reads','impressions','ctr','completion_rate','avg_read_seconds','fan_reads','fan_impressions']);
+  assert.deepEqual(headers,['published','reads','ctr','completion_rate','avg_read_seconds']);
+  const fullHtml = render({}, {filters:{group:'@table',range:'all',density:'full'}});
+  const fullHeaders = [...fullHtml.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(fullHeaders,['published','reads','ctr','completion_rate','avg_read_seconds','impressions','fan_reads','fan_impressions']);
   assert.match(html,/review-article-drafts" data-review-keep-open="drafts"><summary>草稿箱 1 篇/);
   assert.match(html,/<time>11-16 周一 14:00<\/time>.*data-review-article="draft"/);
   assert.match(html,/未能对上 1 篇/);
   for (const id of ['draft','unmatched','foreign']) assert.equal(row(html,id),'',id);
-  const sampleIdentity = cell(html,'sample','发布时间');
+  const sampleIdentity = cell(html,'sample','文章');
   assert.match(sampleIdentity,/title="&lt;合成&gt;数字标题 &amp; 剧情"/);
-  assert.match(sampleIdentity,/data-review-dimension="标题归类"[^>]*><span[^>]*>标<\/span>数字对照<\/button>/);
-  assert.match(sampleIdentity,/data-review-dimension="正文结构"[^>]*><span[^>]*>文<\/span>先抛问题<\/button>/);
-  assert.doesNotMatch(cell(html,'unclassified','发布时间'),/data-review-pattern=/);
+  assert.match(sampleIdentity,/data-review-dimension="标题归类"[^>]*>数字对照<\/button>/);
+  assert.match(sampleIdentity,/data-review-dimension="正文结构"[^>]*>先抛问题<\/button>/);
+  assert.doesNotMatch(cell(html,'unclassified','文章'),/data-review-pattern=/);
   assert.match(cell(html,'sample','24h 阅读'),/>0</);
-  assert.equal(cell(html,'sample','展现量'),'1.3 万');
+  assert.equal(cell(fullHtml,'sample','展现量'),'1.3 万');
   assert.equal(cell(html,'sample','点击率'),'0.0%');
   assert.equal(cell(html,'sample','完读率'),'60.0%');
   assert.equal(cell(html,'sample','阅读时长'),'—');
-  assert.equal(cell(html,'sample','粉丝阅读'),'—');
-  assert.equal(cell(html,'sample','粉丝展现'),'—');
+  assert.equal(cell(fullHtml,'sample','粉丝阅读'),'—');
+  assert.equal(cell(fullHtml,'sample','粉丝展现'),'—');
   assert.doesNotMatch(html,/负载|FOREIGN|旧分类|旧套路|9999/);
   assert.match(render({}, {article:'draft'}),/<h2 id="review-detail-title">草稿标题<\/h2>/);
 });
@@ -64,7 +67,8 @@ test('read-only dimensions are resolved from payload and grouped counts reflect 
   assert.match(html,/数字对照[\s\S]*样本少/);
   assert.match(html,/<dt>爆率<\/dt><dd>0\.0%<\/dd>/);
   assert.match(html,/<dt>阅读中位<\/dt><dd>0<\/dd>/);
-  assert.match(html,/<dt>展现中位<\/dt><dd>1\.3 万<\/dd>/);
+  assert.doesNotMatch(html,/<dt>展现中位<\/dt>/);
+  assert.match(render({group:headline,query:' 剧情 ',verdict:'扑',pattern:{dimension:writing,name:'先抛问题'},density:'full'}),/<dt>展现中位<\/dt><dd>1\.3 万<\/dd>/);
   assert.equal(row(html,'unclassified'),'');
   assert.doesNotMatch(html,/review-week-summary|未分类/);
   assert.match(render({group:writing}),/先抛问题[\s\S]*样本少/);
@@ -96,10 +100,11 @@ test('explicit sorting removes the week headings and sets only the active aria-s
   assert.match(html,/class="review-cell-ctr" aria-sort="ascending"/);
 });
 
-test('drawer orders traffic, verdict, patterns, reference, remarks, diagnosis and non-empty legacy fields', () => {
+test('drawer orders traffic, verdict, patterns, reference, remarks and non-empty legacy fields, with AI 诊断 retired', () => {
   const html = render({}, {article:'sample'}).split('class="review-drawer-overlay"')[1];
   const order = ['review-detail-title','review-traffic-card','review-verdict-basis','review-detail-patterns',
-    'review-imitation','review-remarks','class="review-diagnosis"','review-article-legacy'];
+    'review-imitation','review-remarks','review-article-legacy'];
+  assert.doesNotMatch(html,/review-diagnosis|AI诊断/);
   let previous = -1;
   for (const name of order) {
     const at = html.indexOf(name);
