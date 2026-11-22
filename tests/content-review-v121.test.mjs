@@ -84,7 +84,9 @@ test('article rows contain eight columns and isolate references and details', ()
     playbooks:[{id:'p',account,status:'active',version:1,rules:[{rule_id:'r1',section:'title',text:'RULE_ONLY_IN_MANUAL'}]}]
   };
   const html=render(input,{secondary:'articles'}), row=html.match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)?.[1];
-  assert.ok(row); assert.equal((row.match(/<td\b/g)||[]).length,8);
+  assert.ok(row); assert.equal((row.match(/<td\b/g)||[]).length,5);
+  const fullRow=render(input,{secondary:'articles',filters:{group:'@table',range:'all',density:'full'}}).match(/<tr data-review-row="a">([\s\S]*?)<\/tr>/)?.[1];
+  assert.equal((fullRow.match(/<td\b/g)||[]).length,8);
   assert.doesNotMatch(row,/REFERENCE_TITLE/);
   assert.doesNotMatch(row,/OTHER_REASON|RULE_ONLY_IN_MANUAL/);
   const otherRow=html.match(/<tr data-review-row="b">([\s\S]*?)<\/tr>/)?.[1];

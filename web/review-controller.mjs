@@ -3,7 +3,7 @@ import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS, REVIEW_SECTION_GROUPS} from './pages/content-review.mjs';
-import {reviewSortKeys} from './pages/review-article-list.mjs';
+import {articleDensity, reviewSortKeys} from './pages/review-article-list.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
 import {canAccessReviewArchive} from './core/review-archive-state.mjs';
 
@@ -406,9 +406,16 @@ function registerEvents() {
 }
 
 const ARTICLE_VIEW_KEY = 'haoduoyu-review-article-view';
+const ARTICLE_DENSITY_KEY = 'haoduoyu-review-article-density';
 function savedArticleView() {
-  try { return {group:localStorage.getItem(ARTICLE_VIEW_KEY) || ''}; }
+  try { return {group:localStorage.getItem(ARTICLE_VIEW_KEY) || '',density:articleDensity(localStorage.getItem(ARTICLE_DENSITY_KEY))}; }
   catch { return {}; }
+}
+function chooseArticleDensity(value) {
+  vm.filters.density = articleDensity(value);
+  try { localStorage.setItem(ARTICLE_DENSITY_KEY,vm.filters.density); } catch { /* The VM still retains the choice. */ }
+  paintContentReviewPage();
+  root()?.querySelector(`[data-review-density="${CSS.escape(vm.filters.density)}"]`)?.focus({preventScroll:true});
 }
 function chooseArticleView(value) {
   vm.filters.group = value;
@@ -417,7 +424,8 @@ function chooseArticleView(value) {
   root()?.querySelector(`[data-review-view="${CSS.escape(value)}"]`)?.focus({preventScroll:true});
 }
 function changeArticleList(target) {
-  const {reviewSort,reviewPattern,reviewDimension,reviewPatternClear} = target.dataset;
+  const {reviewSort,reviewPattern,reviewDimension,reviewPatternClear,reviewDensity} = target.dataset;
+  if (reviewDensity !== undefined) { chooseArticleDensity(reviewDensity); return true; }
   if (reviewSortKeys.includes(reviewSort)) {
     const current = vm.filters.sort;
     const ascending = current?.key === reviewSort && current.direction === 'descending';
