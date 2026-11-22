@@ -2,23 +2,45 @@ import {e} from '../core/dom.mjs';
 import {scopeLabel} from '../core/review-rule-scopes.mjs';
 import {reviewDateTime} from '../core/review-data.mjs';
 
+function nextFence(fence, line) {
+  if (!fence) {
+    const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    if (!match) return null;
+    const marker = match[1];
+    if (marker[0] === '`' && match[2].includes('`')) return null;
+    return {char:marker[0], length:marker.length};
+  }
+  const close = line.trim().match(/^(`{3,}|~{3,})$/);
+  return close && close[1][0] === fence.char && close[1].length >= fence.length ? null : fence;
+}
 export function rulesIntroMarkdown(markdown) {
   const lines = String(markdown || '').replace(/\r\n?/g,'\n').split('\n');
-  const first = lines.findIndex(line => /^##\s/.test(line));
-  const head = first < 0 ? lines : lines.slice(0, first);
-  const cut = head.findIndex(line => /^#{1,6}\s+.*提示词/.test(line));
-  return (cut < 0 ? head : head.slice(0, cut)).filter(line => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join('\n').trim();
+  const intro = [];
+  let fence = null;
+  for (const line of lines) {
+    const wasInFence = fence !== null;
+    fence = nextFence(fence, line);
+    if (!wasInFence && !fence) {
+      if (/^##\s/.test(line) || /^#{1,6}\s+.*提示词/.test(line)) break;
+      if (/^#\s/.test(line) || /^\s*[-*_]{3,}\s*$/.test(line)) continue;
+    }
+    intro.push(line);
+  }
+  return intro.join('\n').trim();
 }
 export function playbookPromptBlocks(markdown) {
   const lines = String(markdown || '').replace(/\r\n?/g,'\n').split('\n');
   const blocks = [];
-  let current = null;
+  let current = null, fence = null;
   const flush = () => {
     const content = current?.lines.join('\n').trim();
     if (content) blocks.push({title:current.title, content});
     current = null;
   };
   for (const line of lines) {
+    const wasInFence = fence !== null;
+    fence = nextFence(fence, line);
+    if (wasInFence || fence) { if (current) current.lines.push(line); continue; }
     const heading = line.match(/^#{1,6}\s+(.+?)\s*$/);
     if (heading) { flush(); if (heading[1].includes('提示词')) current = {title:heading[1], lines:[]}; continue; }
     if (current) current.lines.push(line);

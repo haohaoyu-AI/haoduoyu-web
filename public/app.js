@@ -15063,23 +15063,48 @@ function renderReviewTrends(data3, vm2) {
 
 // web/pages/review-prompt-page.mjs
 init_dom();
+function nextFence(fence, line) {
+  if (!fence) {
+    const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    if (!match) return null;
+    const marker = match[1];
+    if (marker[0] === "`" && match[2].includes("`")) return null;
+    return { char: marker[0], length: marker.length };
+  }
+  const close = line.trim().match(/^(`{3,}|~{3,})$/);
+  return close && close[1][0] === fence.char && close[1].length >= fence.length ? null : fence;
+}
 function rulesIntroMarkdown(markdown) {
   const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
-  const first = lines.findIndex((line) => /^##\s/.test(line));
-  const head = first < 0 ? lines : lines.slice(0, first);
-  const cut = head.findIndex((line) => /^#{1,6}\s+.*提示词/.test(line));
-  return (cut < 0 ? head : head.slice(0, cut)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
+  const intro = [];
+  let fence = null;
+  for (const line of lines) {
+    const wasInFence = fence !== null;
+    fence = nextFence(fence, line);
+    if (!wasInFence && !fence) {
+      if (/^##\s/.test(line) || /^#{1,6}\s+.*提示词/.test(line)) break;
+      if (/^#\s/.test(line) || /^\s*[-*_]{3,}\s*$/.test(line)) continue;
+    }
+    intro.push(line);
+  }
+  return intro.join("\n").trim();
 }
 function playbookPromptBlocks(markdown) {
   const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
   const blocks = [];
-  let current2 = null;
+  let current2 = null, fence = null;
   const flush = () => {
     const content2 = current2?.lines.join("\n").trim();
     if (content2) blocks.push({ title: current2.title, content: content2 });
     current2 = null;
   };
   for (const line of lines) {
+    const wasInFence = fence !== null;
+    fence = nextFence(fence, line);
+    if (wasInFence || fence) {
+      if (current2) current2.lines.push(line);
+      continue;
+    }
     const heading = line.match(/^#{1,6}\s+(.+?)\s*$/);
     if (heading) {
       flush();
