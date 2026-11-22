@@ -7,6 +7,7 @@ import {fixture} from './harness.mjs';
 
 const prefix='/desktop-sync/v1/todos',scopeRoute='/workbench-snapshot/scope';
 const capability='desktop-todo-expected-scope-v1',date='2026-11-18';
+const textCapability='desktop-todo-text-v1';
 const expectedHeader='X-Expected-Workspace-Scope';
 
 async function desktopFixture(t) {
@@ -71,6 +72,42 @@ test('new, replayed, conflicting, noted, deleted and restored dated todos round-
   assert.equal(stored.length,1);
   assert.equal(stored[0].completed,false);
   assert.equal(stored[0].note,note.note);
+});
+
+test('scoped desktop text changes keep other fields and replay without another revision',async t=>{
+  const {send,write,headers}=await desktopFixture(t);
+  const id=randomUUID(),path=prefix+'/'+id,edit=path+'/text';
+  for (const route of [scopeRoute,'/workbench-snapshot?window=recent&version=2',
+      '/workbench-snapshot?window=date&version=2&date='+date]) {
+    const {data}=await send(route);
+    const proof=data.index??data;
+    assert.equal(proof.todo_text_write_guard,textCapability);
+    assert.equal(proof.write_scope_guard,capability);
+    assert.equal(proof.scope_id,headers[expectedHeader]);
+  }
+  await write(prefix,'POST',{id,date,text:'Synthetic task original'});
+  await write(path,'PATCH',{version:1,completed:true});
+  await write(path+'/note','PATCH',{version:2,note:'Synthetic note retained'});
+  const body={version:3,text:' Synthetic replacement '};
+  // The ordinary route keeps the authenticated website's existing permission.
+  assert.equal((await send('/todos/'+id+'/text','PATCH',body)).status,401);
+  assert.equal((await send(edit,'PATCH',body)).code,'DESKTOP_SCOPE_GUARD_REQUIRED');
+  assert.equal((await send(edit,'PATCH',body,{[expectedHeader]:'0'.repeat(64)})).code,'WORKSPACE_SCOPE_MISMATCH');
+  assert.equal((await send(edit,'PATCH',body,{...headers,Origin:'https://other.invalid'})).status,403);
+  assert.equal((await write(edit,'PATCH',{...body,completed:false})).status,400);
+  const saved=await write(edit,'PATCH',body);
+  assert.equal(saved.status,200);
+  assert.deepEqual([saved.data.id,saved.data.text,saved.data.date,saved.data.version,saved.data.completed,saved.data.note],
+    [id,'Synthetic replacement',date,4,true,'Synthetic note retained']);
+  assert.equal((await write(edit,'PATCH',{version:3,text:'Synthetic replacement'})).data.version,4);
+  assert.equal((await write(edit,'PATCH',{version:3,text:'Conflicting synthetic change'})).code,'VERSION_CONFLICT');
+  assert.equal((await send('/todos?date='+date)).data.items[0].text,'Synthetic replacement');
+  await write(path,'DELETE',{date,version:4});
+  assert.equal((await write(edit,'PATCH',{version:5,text:'Deleted'})).status,404);
+  const future=randomUUID();
+  await send('/unscheduled-todos','POST',{id:future,text:'Synthetic future task'});
+  assert.equal((await write(prefix+'/'+future+'/text','PATCH',{version:1,text:'Outside the dated scope'})).status,404);
+  assert.equal((await send('/unscheduled-todos')).data.items[0].text,'Synthetic future task');
 });
 
 test('guard rejects missing and wrong scope, foreign origins, credentials, template creation and future-note fallback',async t=>{
