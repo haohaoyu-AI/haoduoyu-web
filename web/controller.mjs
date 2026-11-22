@@ -37,7 +37,7 @@ const PAGE_HEADERS = {
   review: ["内容复盘", "数据表现与爆款方法沉淀"],
   todos: ["每日待办", "今日任务与日程安排"],
   notes: ["碎碎念", "随时记录想法与状态"],
-  "ai-reports": ["AI 日报", "待拍板事项与每日 AI 汇报"],
+  "ai-reports": ["AI 日报", "待拍板、日报和周报"],
   settings: ["设置", "待办偏好、AI 配置与账号安全"]
 };
 function renderPageHeader() {

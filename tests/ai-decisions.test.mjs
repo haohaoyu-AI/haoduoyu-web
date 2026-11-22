@@ -35,3 +35,12 @@ test('statuses Grok writes after a chat reply are shown as a mark, and history i
   assert.match(history,/<li class="ai-report-markdown is-yes"><span class="ai-decision-status">已采纳<\/span>/);
   assert.match(history,/is-wait/);assert.match(history,/11月13日 · 2 件/);assert.match(history,/11月12日 · 无待拍板/);
 });
+
+test('open decisions leave out the ones Grok has already marked, so a fully answered day folds to one line', async () => {
+  const {openDecisionCount, decisionCount} = await import('../web/pages/ai-decisions.mjs');
+  const row = summary => [{id:'r', date:'2026-11-22', summary, deleted_at:null}];
+  const answered = row('## 待你拍板\n1. 要不要换标题（已采纳）\n2. 周日改规则 — 待定');
+  assert.equal(decisionCount(answered), 2);
+  assert.equal(openDecisionCount(answered), 0);
+  assert.equal(openDecisionCount(row('## 待你拍板\n1. 要不要换标题\n2. 周日改规则（已否决）')), 1);
+});

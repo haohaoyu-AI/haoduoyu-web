@@ -76,7 +76,7 @@ function readRoute() {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
   }
-  state.aiDailyTab = legacyWeekly ? "reports" : ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
+  state.aiDailyTab = legacyWeekly ? "weekly" : ["reports", "weekly"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reports";
   state.aiDailyDate = state.page === "ai-reports" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";

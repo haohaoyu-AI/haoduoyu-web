@@ -2,25 +2,30 @@ import {e} from '../core/dom.mjs';
 import {dailyNotesToday} from '../core/daily-notes-state.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
 import {visibleWorkReminders} from '../core/work-reminders-state.mjs';
-import {decisionCards,decisionCount,decisionHistory} from './ai-decisions.mjs';
+import {decisionCards,decisionCount,decisionHistory,openDecisionCount} from './ai-decisions.mjs';
 
 export function renderAiReports() {
+  // 待拍板 sits on top of the page (no tab of its own); below it, 日报 and 周报 switch.
   return `<section id="ai-reports" aria-label="AI 日报">
     <div>
-      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="false">待拍板<span class="ai-tab-count"
-          id="ai-decision-count"></span></button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">AI汇报</button>
+      <section class="ai-decision-top" aria-labelledby="ai-decision-title">
+        <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
+        <details class="ai-decision-more"><summary data-ai-decision-history>看前 7 天的待拍板</summary>
+        <div id="ai-decision-history"></div></details>
+      </section>
+      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="汇报类型">
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">日报</button>
+        <button class="btn" type="button" data-ai-daily-tab="weekly" aria-pressed="false">周报</button>
       </div>
+      <section data-ai-daily-panel="reports">
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
         <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders" hidden><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
-        <div class="ai-decision-more"><button class="btn text" type="button" data-ai-decision-history>看前 7 天的待拍板</button>
-        <div id="ai-decision-history"></div></div></section>
-      <section data-ai-daily-panel="reports"><p id="ai-report-list-status" role="status"></p>
+      <p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-dayhead"></div><div id="ai-report-list" aria-live="polite"></div><div id="ai-experiments" class="content-review ai-experiments"></div>
       </section>
+      <section data-ai-daily-panel="weekly" hidden><p id="ai-weekly-status" role="status"></p>
+        <div id="ai-weekly-list" class="content-review"></div></section>
     </div>
   </section>`;
 }
@@ -122,13 +127,18 @@ export function paintAiDailyReminders(data, error = '', loading = false) {
   if (!root) return;
   root.querySelector('#ai-reminder-status').textContent = error || (loading ? '正在读取工作提醒…' : '');
   const items = visibleWorkReminders(data?.items || []), count = items.length ? decisionCount(items) : 0;
-  const badge = root.querySelector('#ai-decision-count');
-  if (badge) badge.textContent = count ? String(count) : '';
   const date = data?.date || dailyNotesToday(), day = date === dailyNotesToday() ? `今天 · ${reportDayTitle(date)}` : reportDayTitle(date);
-  root.querySelector('#ai-reminder-list').innerHTML = items.length ?
-    `<h3 class="ai-decision-head">${e(day)}<span> · ${count ? `${count} 件待你拍板` : '没有要你拍板的事'}</span></h3>` +
-    '<p class="ai-decision-how">看完去和 Grok 说就行；完整内容在「AI汇报」。</p>' + decisionCards(items) :
-    loading || error ? '' : '<p>暂无工作提醒</p>';
+  const open = items.length ? openDecisionCount(items) : 0;
+  const box = root.querySelector('#ai-reminder-list');
+  if (loading || error) { box.innerHTML = ''; return; }
+  // Nothing waiting (none today, or Grok has marked every one 已采纳 / 已否决 / 待定): one quiet line.
+  if (!open) {
+    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day)} · ` +
+      `${count ? '今天的都拍完了' : '今天没有要你拍板的事'}</p>`;
+    return;
+  }
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day)}</span></h2>` +
+    '<p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>' + decisionCards(items);
 }
 /** Earlier days of 待拍板, loaded only when asked for. */
 export function paintDecisionHistory(days, {loading = false, error = ''} = {}) {
