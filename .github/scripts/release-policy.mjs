@@ -631,7 +631,15 @@ export const reviewUpdatedTimesRelease=Object.freeze({
   baseline:'0c4cc004-5641-479f-9375-ab886be8b2a8',
   bytes:3443014,sha256:'8d1cd473babc7d6f111045ddbf5012574233bd16b638781d9fe43853b449fc54',
   label:'production-review-updated-times'});
-const acceptedRelease=commit=>commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
+// 提示词代码块不截断修复: ignore markdown headings inside fenced code blocks in playbookPromptBlocks / rulesIntroMarkdown. No migration.
+export const promptCodefenceSplitRelease=Object.freeze({
+  commit:'c97b7b1523e869a42b30388567df77fd48853016',
+  tree:'af16ce66e5ba0aa1e686efdbd1f08d70c994baf3',
+  baseline:'42be5f1f-2a28-4135-91e0-413a3c96c226',
+  bytes:3443727,sha256:'ced99cb603efd9d0a204ea9618b1a3934428df0e1f370c334b8cab970370a7db',
+  label:'production-prompt-codefence-split'});
+const acceptedRelease=commit=>commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
+  commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
   commit===todoEditTextRelease.commit?todoEditTextRelease:
   commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
   commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
