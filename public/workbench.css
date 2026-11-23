@@ -1260,7 +1260,7 @@ body.floating-workbench {
 #ai-reports .ai-board { display:grid; gap:20px; max-width:880px; }
 #ai-reports .ai-panel { margin:0; padding:20px 24px; background:var(--site-card-bg); border:1px solid var(--color-divider);
   border-radius:20px; box-shadow:var(--shadow-metric); }
-#ai-reports .ai-decision-top { border-left:3px solid var(--site-accent); }
+#ai-reports .ai-decision-top { border:1px solid var(--color-divider); }
 #ai-reports .ai-panel-head, #ai-reports .ai-decision-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
   gap:8px 16px; margin:0 0 4px; font-size:18px; font-weight:700; color:var(--ink); }
 #ai-reports .ai-panel-head h2 { margin:0; font-size:18px; }
