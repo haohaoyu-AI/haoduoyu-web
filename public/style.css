@@ -151,8 +151,8 @@ textarea.input { min-height:96px; resize:vertical; padding:var(--s2); }
 .drawer-backdrop { justify-content:flex-end; padding:0; }
 .drawer { width:560px; height:100dvh; max-height:100dvh; border-radius:var(--r-md) 0 0 var(--r-md); }
 #toasts { position:fixed; bottom:var(--s5); right:var(--s5); z-index:80; display:flex; flex-direction:column; gap:var(--s2); max-width:min(420px,calc(100vw - 32px)); }
-.toast { padding:var(--s3) var(--s4); border:1px solid var(--line); border-left:3px solid var(--up); border-radius:var(--r-sm); background:var(--surface); color:var(--ink); font-size:var(--fs-sm); }
-.toast.error { border-left-color:var(--danger); }
+.toast { padding:var(--s3) var(--s4); border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface); color:var(--ink); font-size:var(--fs-sm); }
+.toast.error { color:var(--danger); }
 .spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--line); border-top-color:var(--ink-2); border-radius:var(--radius-circle); }
 .initial-loading { display:flex; align-items:center; justify-content:center; gap:var(--s3); min-height:160px; color:var(--ink-2); font-size:var(--fs-sm); }
 
@@ -534,7 +534,7 @@ progress::-moz-progress-bar { background:var(--ink-2); }
 .article-ledger-detail .detail-section h3 .badge { margin-left:var(--s1); white-space:normal; vertical-align:middle; }
 .article-ledger-detail .detail-section p+p { margin-top:var(--s2); }
 .article-ledger-detail .detail-section code { white-space:pre-wrap; overflow-wrap:anywhere; }
-.article-ledger-detail .info-line.warn { border-left:3px solid var(--warn); }
+.article-ledger-detail .info-line.warn { color:var(--warn); }
 .article-ledger-detail pre { max-width:100%; max-height:320px; margin:var(--s2) 0 0; padding:var(--s3); overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); font-size:var(--fs-xs); line-height:var(--line-height-body); }
 .article-ledger-detail .article-verify-status { margin-top:var(--s3); color:var(--ink-2); font-size:var(--fs-xs); }
 .article-ledger-detail .article-verification>.head-actions:not(:empty) { margin-top:var(--s2); }

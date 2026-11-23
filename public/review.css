@@ -108,7 +108,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .content-review .review-markdown :is(code,pre) { background:var(--color-surface-muted); border-radius:var(--radius-6); }
 .content-review .review-markdown code { padding:var(--space-2) var(--space-4); font-family:var(--font-family-mono); font-size:var(--font-size-12); }
 .content-review .review-markdown pre { padding:var(--space-16); white-space:pre-wrap; overflow-wrap:anywhere; }
-.content-review .review-markdown blockquote { margin-left:0; padding-left:var(--space-16); border-left:var(--review-chart-width) solid var(--color-primary); }
+.content-review .review-markdown blockquote { margin-left:0; padding-left:var(--space-16); border-left:var(--review-chart-width) solid var(--color-divider); }
 .content-review .review-empty { padding:var(--space-40) var(--space-20); text-align:center; color:var(--color-text-secondary); border:var(--review-line-width) dashed var(--color-divider-strong); border-radius:var(--radius-14); }
 .content-review .review-empty > strong { display:block; color:var(--color-text); font-size:var(--font-size-15); font-weight:var(--font-weight-semibold); }
 .content-review .review-empty p { max-width:48ch; margin:var(--space-8) auto 0; font-size:var(--font-size-13); }
@@ -507,7 +507,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-exp-group h3 small { font-weight:400; color:var(--color-text-muted); font-size:13px; }
 .review-exp-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); gap:12px; margin-top:10px; }
 .review-exp-card { display:grid; gap:8px; align-content:start; padding:14px 16px; border-radius:14px; background:var(--color-white-a-74); box-shadow:var(--shadow-metric); min-width:0; }
-.review-exp-card.is-trial { border-left:3px solid #c8562a; }
+.review-exp-card.is-trial { box-shadow:var(--shadow-metric), inset 0 0 0 1px rgba(200,86,42,.25); }
 .review-exp-text { margin:0; font-size:15px; line-height:1.6; overflow-wrap:anywhere; }
 .review-exp-progress { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px; font-variant-numeric:tabular-nums; }
 .review-exp-bar { flex:1 1 80px; max-width:160px; height:6px; border-radius:3px; background:var(--color-segmented); overflow:hidden; }
@@ -691,7 +691,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-trend-chart .review-quad-label.is-hot { fill:var(--trend-hit); opacity:.78; }
 .review-trend-chart .review-quad-label.is-cold { fill:var(--trend-flop); opacity:.85; }
 .review-cockpit-trends .review-trend-readout {
-  margin-top:var(--space-10); padding:8px 12px; border-left:3px solid var(--trend-hit);
+  margin-top:var(--space-10); padding:8px 12px;
   border-radius:var(--radius-8); background:var(--trend-surface);
 }
 
@@ -806,7 +806,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 
 .review-weekly { margin-top:var(--space-20); }
 .review-weekly-latest {
-  border-radius:var(--radius-14); border:1px solid var(--color-divider); border-left:3px solid var(--accent);
+  border-radius:var(--radius-14); border:1px solid var(--color-divider);
   background:var(--color-white-a-74); box-shadow:var(--shadow-metric);
 }
 .review-weekly-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin-bottom:var(--space-10); }
@@ -1192,7 +1192,6 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   padding:0; border:1px solid var(--color-divider); border-radius:var(--radius-14);
   background:var(--color-white-a-74); box-shadow:var(--shadow-metric); overflow:hidden;
 }
-#content-review .review-rule-layer[open] { border-left:3px solid var(--trend-hit); }
 #content-review .review-rule-layer-title {
   display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
   margin:0; padding:14px 18px; font-size:16px; font-weight:var(--font-weight-semibold);
@@ -1236,7 +1235,7 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 #content-review .review-rule-chip[data-rule-section="drop_topic"] b { color:var(--trend-flop); }
 #content-review .review-v13-intro {
   margin-top:12px; padding:12px 14px; border-radius:var(--radius-12);
-  background:var(--trend-surface); border-left:3px solid var(--trend-hit);
+  background:var(--trend-surface);
   font-size:14px; line-height:1.65;
 }
 #content-review .review-v13-intro > :first-child { margin-top:0; }

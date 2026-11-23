@@ -783,7 +783,7 @@ body.floating-workbench {
 
 /* Article drawer: 备注 for special cases (a takedown, a report), written by Grok as linked review notes. */
 .review-remarks { margin:12px 0; padding:12px 14px; border-radius:12px; background:color-mix(in srgb, var(--accent) 7%, transparent);
-  border-left:3px solid var(--accent); }
+  }
 .review-remarks h3 { margin:0 0 6px; font-size:15px; }
 .review-remarks ul { margin:0; padding:0; list-style:none; display:grid; gap:8px; }
 .review-remark-head { margin:0; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
@@ -792,7 +792,7 @@ body.floating-workbench {
 
 /* 复盘驾驶舱: 周复盘. The newest week is open at the top; earlier weeks are a timeline of foldable rows. */
 .review-weekly { margin:0 0 18px; }
-.review-weekly-latest { padding:14px 16px; border-radius:16px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); }
+.review-weekly-latest { padding:14px 16px; border-radius:16px; background:var(--surface); border:1px solid var(--line); }
 .review-weekly summary { cursor:pointer; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
 .review-weekly-title { font-size:17px; font-weight:700; }
 .review-weekly-date { font-size:13px; color:var(--accent); font-weight:600; white-space:nowrap; }
@@ -1057,8 +1057,8 @@ body.floating-workbench {
   border-radius:999px; background:var(--site-surface-warm); border:1px solid var(--color-divider);
   color:var(--site-accent); font-weight:600;
 }
-#daily-todos .todo-due-row { border-left:3px solid #d97706; border-radius:12px; background:rgba(217,119,6,.07); }
-#daily-todos .todo-due-row.is-over { border-left-color:var(--site-accent); background:rgba(200,86,42,.08); }
+#daily-todos .todo-due-row { border-radius:12px; background:rgba(217,119,6,.07); }
+#daily-todos .todo-due-row.is-over { background:rgba(200,86,42,.08); }
 #todo-future .todo-future-group { padding-inline:4px; color:var(--color-text-secondary); }
 #todo-future .todo-future-count {
   padding:1px 8px; border-radius:999px; background:var(--site-surface-warm); border:1px solid var(--color-divider);
@@ -1106,7 +1106,6 @@ body.floating-workbench {
   background:var(--site-card-bg); border:1px solid var(--color-divider); border-radius:16px;
   box-shadow:var(--shadow-metric);
 }
-#daily-notes .notes-composer { border-left:3px solid var(--site-accent); }
 #daily-notes .note-entry-time {
   padding:2px 9px; border-radius:999px; background:var(--site-surface-warm); border:1px solid var(--color-divider);
 }
@@ -1137,7 +1136,7 @@ body.floating-workbench {
   background:var(--site-card-bg); box-shadow:var(--shadow-metric);
 }
 #ai-reports .ai-today {
-  padding:20px 22px; border:1px solid var(--color-divider); border-left:3px solid var(--site-accent);
+  padding:20px 22px; border:1px solid var(--color-divider);
   border-radius:16px; background:var(--site-card-bg); box-shadow:var(--shadow-metric);
 }
 #ai-reports .ai-report-markdown :is(h1,h2,h3,h4) { margin:14px 0 6px; color:var(--color-text); line-height:1.4; }
@@ -1147,11 +1146,11 @@ body.floating-workbench {
   background:var(--site-surface-warm); font-size:.9em;
 }
 #ai-reports .ai-report-markdown blockquote {
-  margin:10px 0; padding:8px 12px; border-left:3px solid rgba(200,86,42,.35);
+  margin:10px 0; padding:8px 12px; border-left:3px solid var(--color-divider);
   border-radius:0 10px 10px 0; background:var(--site-surface-warm);
 }
 #ai-reports .ai-decision-card {
-  border:1px solid var(--color-divider); border-left:3px solid var(--site-accent);
+  border:1px solid var(--color-divider);
   border-radius:16px; background:var(--site-card-bg); box-shadow:var(--shadow-metric);
 }
 #ai-reports :is(.ai-today-report, .ai-report-card) { overflow-wrap:anywhere; word-break:break-word; }
@@ -1170,7 +1169,7 @@ body.floating-workbench {
   padding:12px 14px; margin-bottom:10px; border:1px solid var(--color-divider); border-radius:12px;
   background:var(--site-surface-warm);
 }
-.audit-item[open] { border-left:3px solid var(--site-accent); background:var(--site-card-bg); }
+.audit-item[open] { background:var(--site-card-bg); }
 .audit-item > summary { cursor:pointer; }
 .login-card {
   background:var(--site-card-bg); border:1px solid var(--glass-edge); border-radius:22px;
