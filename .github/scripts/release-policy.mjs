@@ -645,7 +645,15 @@ export const ideaPoolRelease=Object.freeze({
   baseline:'52a15b8d-b54a-4b8f-bbc8-7f65e2194e73',
   bytes:3467679,sha256:'2984f88505e1a8e640d22fb6c0d6276914022eb6e37c98cfa0cbd165c30c8832',
   label:'production-idea-pool'});
-const acceptedRelease=commit=>commit===ideaPoolRelease.commit?ideaPoolRelease:
+// 11/23 改进清单: 碎碎念编辑框, 侧边栏, V字档案删除, 想法池导航与精简, 已落地标记 (includes #175). No migration.
+export const batch1123Release=Object.freeze({
+  commit:'a6ffdd499305679f87a60e0a2361a373ce9fe6c4',
+  tree:'0249acf9da328c88af7d5a246469805533012cb7',
+  baseline:'15bb1795-ee68-499c-ab7b-f186a530fdd8',
+  bytes:3296375,sha256:'4acfd60481ace444080cf4e14d548f5c64f176230a5a65545fa89bdf46759cd2',
+  label:'production-batch-1123'});
+const acceptedRelease=commit=>commit===batch1123Release.commit?batch1123Release:
+  commit===ideaPoolRelease.commit?ideaPoolRelease:
   commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
   commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
   commit===todoEditTextRelease.commit?todoEditTextRelease:
