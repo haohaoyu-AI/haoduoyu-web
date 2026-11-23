@@ -34,9 +34,8 @@ test('anonymous public UI opens business directly and never offers credential/se
   assert.equal(options.headers['X-Public-Business'],'1');assert.equal(options.headers['X-CSRF-Token'],undefined);
   c.run("state.me={id:'synthetic-private',username:'Private',csrfToken:'synthetic-private-csrf'}");
   c.run('renderShell()');
-  assert.match(c.nodes.get('#app').innerHTML,/class="user-row"|class="avatar"/);
-  assert.match(c.nodes.get('#app').innerHTML,/Private/);
-  assert.match(c.nodes.get('#app').innerHTML,/data-action="logout"/);
+  // 2026-11-23: the sidebar no longer shows the signed-in name or a logout button; 退出登录 stays in 设置 → 安全.
+  assert.doesNotMatch(c.nodes.get('#app').innerHTML,/class="user-row"|class="avatar"|data-action="logout"/);
   const privateOptions=JSON.parse(c.run("JSON.stringify(apiOptions({method:'POST',body:{}}))"));
   assert.equal(privateOptions.headers['X-Public-Business'],undefined);
   assert.equal(privateOptions.headers['X-CSRF-Token'],'synthetic-private-csrf');

@@ -34,8 +34,7 @@ export function renderDailyNotes() {
     '<div class="segmented" role="group" aria-label="碎碎念视图">' +
     '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
     '<button type="button" data-notes-view="history" aria-pressed="false">时间轴</button>' +
-    '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button>' +
-    '<a class="notes-ideas-link" href="/?page=ideas">💡 想法池</a></div>' +
+    '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div>' +
     '<section id="notes-history" hidden aria-label="碎碎念时间轴">' +
     '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
     '<div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button>' +
@@ -200,6 +199,7 @@ function paintSavedEntry(node, item) {
   const ready = item.canEdit && !item.deleted && !draft && item.labelKnown && item.labelComplete && item.version > 0;
   idea.hidden = !(inPool ? !item.deleted : ready);
   idea.dataset.noteIdea = inPool ? 'open' : 'add';
+  if (inPool) idea.dataset.nav = 'ideas'; else delete idea.dataset.nav;
   idea.disabled = !inPool && (Boolean(item.pending) || item.dirty);
   idea.textContent = inPool ? '💡 在想法池 →' : '放进想法池';
   paintNoteSuggestion(node, item);

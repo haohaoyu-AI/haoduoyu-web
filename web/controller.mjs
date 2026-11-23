@@ -27,12 +27,9 @@ import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 import {loadIdeas, renderIdeas} from "./pages/ideas.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
-import {renderReviewArchiveShell} from "./pages/review-archive.mjs";
-import {archiveHref, canAccessReviewArchive} from "./core/review-archive-state.mjs";
 const reviewHomeHref = "?page=review&account=V%E5%AD%97";
 import {aiSettingsPage, loadAiSettings} from "./ai-settings-controller.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
-import {loadReviewArchive, reviewArchiveActive} from "./review-archive-controller.mjs";
 
 const PAGE_HEADERS = {
   review: ["内容复盘", "数据表现与爆款方法沉淀"],
@@ -44,16 +41,11 @@ const PAGE_HEADERS = {
 };
 function renderPageHeader() {
   const [defaultTitle, defaultSub] = PAGE_HEADERS[state.page] || PAGE_HEADERS.review;
-  const archive = state.page === "review" && reviewArchiveActive();
-  const title = archive ? "V字档案" : defaultTitle;
-  const subtitle = archive ? "历史归档、导入与对比（仅 V字）" : defaultSub;
+  const title = defaultTitle, subtitle = defaultSub;
   // One pill for the account and, on 内容复盘 for the owner, the 档案 entry (or the way back from it).
   const name = state.account || "V字";
-  const archiveLink = state.page === "review" && name === "V字" && canAccessReviewArchive(state.me, name)
-    ? (archive ? `<a class="page-account-link" href="${e(reviewHomeHref)}">‹ 返回复盘</a>`
-      : `<a class="page-account-link" href="${e(archiveHref)}">档案 ›</a>`) : "";
   const account = ["review", "ai-reports"].includes(state.page)
-    ? `<span class="page-account-pill${archiveLink ? " has-link" : ""}"><span aria-label="当前账号">${e(name)}</span>${archiveLink}</span>` : "";
+    ? `<span class="page-account-pill"><span aria-label="当前账号">${e(name)}</span></span>` : "";
   const login = state.page === "settings" && state.me?.publicBusiness
     ? '<a class="btn small" href="?page=login">管理员登录</a>' : "";
   const actions = account || login ? `<div class="head-actions">${account}${login}</div>` : "";
@@ -95,10 +87,7 @@ href="?page=review&amp;account=${e(encodeURIComponent(state.account || "V字"))}
 <span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
   "close")}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div \
-class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div \
-class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
-  me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
-aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div>\
+class="sidebar-bottom">${settingsNavigation()}</div>\
 </aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span>\
 <a class="icon-button mobile-settings-trigger" href="?page=settings&amp;tab=todo" data-nav="settings" \
 aria-label="设置">${icon("settings", 20)}</a></header>\
@@ -124,7 +113,7 @@ function handleResponsiveLayout() {
 }
 function navigateLink(page) {
   const target = mobilePage(page);
-  const same = target === state.page && (target !== "review" || !reviewArchiveActive()) &&
+  const same = target === state.page && 
     (page !== "settings" || state.settingsTab === "todo") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
@@ -149,7 +138,6 @@ function navigate(page, tab) {
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
-  if (page === "review" && reviewArchiveActive()) return renderReviewArchiveShell(canAccessReviewArchive(state.me,state.account));
   if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
@@ -160,7 +148,7 @@ function pageLoading(page) {
 function setPageBody(html, page) {
   if (page === "review") {
     if (html) replacePageContent(html, true);
-    else if (!reviewArchiveActive()) paintContentReviewPage();
+    else paintContentReviewPage();
   }
   else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
@@ -195,8 +183,7 @@ async function renderPage() {
         html = await loadIdeas(context);
         break;
       case "review":
-        if (reviewArchiveActive()) await loadReviewArchive(context);
-        else await loadContentReview(context);
+        await loadContentReview(context);
         break;
       case "settings":
         if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }

@@ -1029,7 +1029,7 @@ function registerDailyNotesEvents() {
 }
 // 放进想法池: adds the 想法池 label through the same offline-safe save as 编辑 and AI 贴上.
 async function putInIdeaPool(target) {
-  if (target.dataset.noteIdea === 'open') { location.href = '/?page=ideas'; return; }
+  if (target.dataset.noteIdea === 'open') return; // data-nav="ideas" switches pages in place
   const id = target.closest('[data-note-entry]')?.dataset.noteEntry;
   const [store, item] = [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
   if (!store || !item || target.disabled) return;

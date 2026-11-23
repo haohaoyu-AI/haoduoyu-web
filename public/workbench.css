@@ -61,7 +61,7 @@
   .sidebar .nav-label { display:inline; }
   .sidebar .media-nav>summary { width:auto; justify-content:flex-start; }
   .sidebar .nav-list { margin-top:var(--space-24); }
-  .mobile-nav.workbench-navigation { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .mobile-nav.workbench-navigation { grid-template-columns:repeat(5,minmax(0,1fr)); }
   .mobile-nav-item { font-size:var(--font-size-11); }
   .mobile-media-nav>summary { white-space:nowrap; }
   .todo-view-links .btn { padding-inline:var(--space-10); }
@@ -209,7 +209,7 @@
 .daily-notes .notes-legacy-card .notes-sheet { padding:0; border:0; min-height:96px; background:transparent; }
 .notes-legacy-card .notes-editor { min-height:96px; }
 @media (max-width:767px) {
-  .mobile-nav.workbench-navigation { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .mobile-nav.workbench-navigation { grid-template-columns:repeat(5,minmax(0,1fr)); }
   .mobile-nav-item { font-size:var(--font-size-12); }
   .mobile-nav .nav-label { overflow-wrap:anywhere; white-space:normal; text-align:center; }
   .note-entry { padding:var(--space-16); }
@@ -1216,8 +1216,6 @@ body.floating-workbench {
 .content-review .review-weekly-link { margin:14px 2px 0; font-size:13.5px; }
 .content-review .review-weekly-link a { color:var(--color-primary); text-decoration:none; font-weight:600; }
 /* 想法池 (2026-11-23) */
-.notes-ideas-link{display:inline-flex;align-items:center;margin-left:6px;padding:0 12px;border-radius:999px;color:var(--color-base-primary,#a44e38);font-size:14px;text-decoration:none;white-space:nowrap}
-.notes-ideas-link:hover{background:var(--color-base-primary-muted,rgba(164,78,56,.1))}
 .note-entry-idea{color:var(--color-base-primary,#a44e38)}
 .ideas-page{display:grid;gap:14px;max-width:880px}
 .ideas-intro{margin:0;color:var(--color-base-text-secondary,#6b6460);font-size:14px}
@@ -1251,3 +1249,10 @@ body.floating-workbench {
 .idea-todo-when legend{margin-bottom:4px;font-size:14px}
 .idea-todo-when label{display:flex;align-items:center;gap:8px;font-size:14px}
 .idea-todo-when input[type=date]{max-width:170px;min-height:32px}
+/* 碎碎念「写一条」(2026-11-23): the editor inside the composer card is not a second card. */
+#daily-notes .notes-composer .note-entry-editing { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+#daily-notes .notes-composer .note-entry-editing .note-entry-head { margin-bottom:4px; }
+#daily-notes .note-entry-editor { min-height:120px; }
+#daily-notes .note-entry-labels { padding-top:12px; }
+#daily-notes .note-entry-label-options { padding-top:6px; }
+#daily-notes .note-entry-editing .note-entry-actions { margin-top:8px; }

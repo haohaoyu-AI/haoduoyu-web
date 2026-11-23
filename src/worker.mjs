@@ -38,8 +38,6 @@ import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
 import {handleAiReports} from './ai-reports.mjs';
 import {handleContentReview} from './content-review.mjs';
-import {handleReviewArchive,isReviewArchiveRoute} from './review-archive.mjs';
-import {archiveReady} from './review-archive-store.mjs';
 import {handleOpenaiReview} from './openai-review.mjs';
 
 const prefix='/api/v1';
@@ -112,8 +110,6 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
     if(route==='/auth/me') {
       requireAdmin(actor);
       const identity={id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)};
-      if(typeof env.DAILY_NOTES_OWNER_ID==='string'&&actor.id===env.DAILY_NOTES_OWNER_ID.toLowerCase()&&await archiveReady(store))
-        identity.reviewArchive=true;
       return json(identity);
     }
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
@@ -302,8 +298,6 @@ async function handle(request,env,trace) {
       return handleAiReports(db,request,route,env,origin,state.revision);
     if(route==='/openai-review'||route.startsWith('/openai-review/'))
       return handleOpenaiReview(db,request,route,env,origin,state.revision);
-    if(isReviewArchiveRoute(route))
-      return handleReviewArchive(db,request,route,env,origin,state.revision);
     if(route==='/review'||route.startsWith('/review/'))
       return handleContentReview(db,request,route,env,origin,state.revision,trace);
     if(route==='/work-reminders'||route.startsWith('/work-reminders/'))

@@ -97,3 +97,23 @@ test('the page names an idea by its first real line, skipping a ✅ stamp', asyn
   assert.equal(ideaTitle('✅ 只有这一行'),'✅ 只有这一行');
   assert.equal(todoTextFor('想法 ⑧：App 语音大按钮'),'App 语音大按钮');
 });
+
+test('转成待办 asks for a one-line version only with a valid idea, from the owner', async t => {
+  const {call}=await site(t);
+  assert.equal((await call('/ideas/todo-text','POST',{})).status,400);
+  assert.equal((await call('/ideas/todo-text','POST',{text:'  '})).status,400);
+  assert.equal((await call('/ideas/todo-text','POST',{text:'想法',extra:1})).status,400);
+  assert.equal((await call('/ideas/todo-text','POST',{text:'想法'},{cookie:false})).status,401);
+  // With no AI reachable the page keeps the first line; the call itself must not pretend success.
+  const reply=await call('/ideas/todo-text','POST',{text:'想法 ⑨：桌面挂件，一个置顶的小窗口'});
+  assert.ok(reply.status!==200||reply.data.needs_model===false||typeof reply.data.todo==='string',reply.text);
+});
+
+test('the page marks landed ideas with ✅ and lists them after the open ones', async () => {
+  const {renderIdeas}=await import('../web/pages/ideas.mjs');
+  const item=(id,status)=>({id,status,label:status==='landed'?'已落地':'想法',text:id,date:'2026-11-20',created_at:'2026-11-20T00:00:00Z',todos:[],category:'life'});
+  const html=renderIdeas({items:[item('甲','landed'),item('乙','idea'),item('丙','todo')],total:3,truncated:false,filter:'all',open:new Set(),loaded:true,error:''});
+  const order=[...html.matchAll(/data-idea="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(order,['乙','丙','甲']);
+  assert.match(html,/✅<\/span> 甲/);assert.doesNotMatch(html,/✅<\/span> 乙/);
+});

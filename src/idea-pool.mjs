@@ -8,6 +8,7 @@ import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,
 import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {dailyNotesOwner} from './daily-notes.mjs';
 import {labelsFor,labelsForView} from './note-entries.mjs';
+import {handleIdeaTodoText} from './todo-assist.mjs';
 
 export const IDEA_LABEL='想法池';
 const LINK='idea.todo';
@@ -112,6 +113,7 @@ async function linkTodo(db,request,owner,actor,ideaId) {
 
 export async function handleIdeas(db,request,route,env,origin) {
   const method=request.method,owner=dailyNotesOwner(env);
+  if(route==='/ideas/todo-text')return handleIdeaTodoText(db,request,env,origin);
   const link=/^\/ideas\/([^/]+)\/todos$/.exec(route);
   if(route==='/ideas'&&method==='GET') {
     if(new URL(request.url).search)invalid('不接受查询参数');

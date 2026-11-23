@@ -4,7 +4,6 @@ import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS, REVIEW_SECTION_GROUPS} from './pages/content-review.mjs';
 import {articleDensity, reviewSortKeys} from './pages/review-article-list.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
-import {canAccessReviewArchive} from './core/review-archive-state.mjs';
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health','prompts/current'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
@@ -173,7 +172,7 @@ export async function loadContentReview(context) {
     clearTimeout(searchTimer);
     data = normalizeReviewData(); vm.filters = savedArticleView(); vm.tags = null; identity = currentIdentity;
   }
-  vm = {...vm,...requested,archiveAllowed:canAccessReviewArchive(state.me,requested.account),loading:true,error:''}; paintContentReviewPage();
+  vm = {...vm,...requested,archiveAllowed:false,loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
   const current = () => ticket === sequence && epoch === runtime.sessionEpoch && state.page === 'review' && route().account === requested.account && 
     Boolean(root());

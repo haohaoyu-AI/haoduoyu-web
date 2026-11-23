@@ -45,11 +45,12 @@ function card(item) {
   return `<article class="idea-card" data-status="${e(item.status)}" data-idea="${e(item.id)}">
 <header class="idea-card-head"><span class="idea-status idea-status-${e(item.status)}">${e(item.label)}</span>${stars}
 <time datetime="${e(item.created_at)}">${e(day(item.date))}</time>${landed}</header>
-<h3 class="idea-title">${e(ideaTitle(item.text))}</h3>
+<h3 class="idea-title">${item.status === "landed" ? '<span class="idea-done-mark" aria-label="已落地">✅</span> ' : ""}${e(ideaTitle(item.text))}</h3>
 ${body ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${
   e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
 ${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
-<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}">在碎碎念里看</a>
+<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${
+  e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
 ${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
 </article>`;
 }
@@ -58,7 +59,9 @@ export function renderIdeas(state = view) {
   if (state.error) return `<section class="ideas-page"><p class="form-message" role="alert">${e(state.error)}</p>
 <button class="btn" type="button" data-action="ideas-reload">重新读取</button></section>`;
   const counts = Object.fromEntries(FILTERS.map(([id]) => [id, id === "all" ? state.items.length : state.items.filter(item => item.status === id).length]));
-  const shown = state.items.filter(item => state.filter === "all" || item.status === state.filter);
+  // In 全部, ideas still to do come first and the landed ones sink to the end (newest first within each).
+  const shown = state.items.filter(item => state.filter === "all" || item.status === state.filter)
+    .map((item, index) => [item, index]).sort(([a, i], [b, j]) => (a.status === "landed") - (b.status === "landed") || i - j).map(([item]) => item);
   const tabs = FILTERS.map(([id, label]) => `<button type="button" role="tab" aria-selected="${state.filter === id}" data-action="ideas-filter" data-filter="${
     id}">${label}<span>${counts[id]}</span></button>`).join("");
   const empty = state.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` :
@@ -99,6 +102,7 @@ export function openIdeaTodo(id) {
 <p class="muted idea-todo-source">来自想法：${e(ideaTitle(item.text))}</p>
 <label for="idea-todo-text">待办内容</label>
 <input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(item.text))}" autocomplete="off">
+<p class="muted idea-todo-ai" role="status">AI 正在帮你精简成一句话…</p>
 <fieldset class="idea-todo-when"><legend>什么时候做</legend>
 <label><input type="radio" name="when" value="future" checked> 未来待办（先不定日子）</label>
 <label><input type="radio" name="when" value="${today}"> 今天</label>
@@ -108,6 +112,23 @@ export function openIdeaTodo(id) {
 <p class="muted">待办做完后，这条想法会自动显示「已落地」。原来的碎碎念不会被改动。</p>
 <p class="form-message" role="alert"></p>
 <div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
+  void condense(id, item.text);
+}
+// 转成待办 starts from the idea's first line, then from AI's one-line version unless the person has started typing.
+async function condense(id, text) {
+  const form = () => document.querySelector(`#idea-todo-form[data-id="${CSS.escape(id)}"]`);
+  const start = form()?.querySelector("#idea-todo-text")?.value;
+  let note = "";
+  try {
+    const data = await api("/ideas/todo-text", { method: "POST", body: { text } });
+    if (data?.needs_model && data.todo) {
+      const input = form()?.querySelector("#idea-todo-text");
+      if (input && input.value === start) { input.value = data.todo; note = "AI 精简过了，可以直接改。"; }
+      else note = "";
+    }
+  } catch { note = ""; }
+  const status = form()?.querySelector(".idea-todo-ai");
+  if (status) { status.textContent = note; status.hidden = !note; }
 }
 export async function submitIdeaTodo({ form, data }) {
   const id = form.dataset.id, message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");

@@ -15,7 +15,7 @@ import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
 import { actions } from "./actions.mjs";
 import { handleFormSubmit } from "./forms.mjs";
-import {setDailyNotesRouteCategory} from "./core/daily-notes-state.mjs";
+import {setDailyNotesRouteCategory, setDailyNotesRouteDate} from "./core/daily-notes-state.mjs";
 import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
   closeMobileMenuOutside(event.target);
@@ -35,7 +35,11 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    if (target.dataset.notesCategory) { setDailyNotesRouteCategory(target.dataset.notesCategory); navigate("notes"); }
+    if (target.dataset.notesCategory || target.dataset.notesDate) {
+      if (target.dataset.notesCategory) setDailyNotesRouteCategory(target.dataset.notesCategory);
+      if (target.dataset.notesDate) setDailyNotesRouteDate(target.dataset.notesDate);
+      navigate("notes");
+    }
     else navigateLink(target.dataset.nav);
     return;
   }
