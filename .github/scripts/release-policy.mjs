@@ -650,6 +650,8 @@ export const batch1123Release=Object.freeze({
   commit:'a6ffdd499305679f87a60e0a2361a373ce9fe6c4',
   tree:'0249acf9da328c88af7d5a246469805533012cb7',
   baseline:'15bb1795-ee68-499c-ab7b-f186a530fdd8',
+  // Run 45132257072 uploaded this exact artifact, then reading it back hit a transient 404 before deploying: resume, do not upload again.
+  uploadedVersion:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
   bytes:3296375,sha256:'4acfd60481ace444080cf4e14d548f5c64f176230a5a65545fa89bdf46759cd2',
   label:'production-batch-1123'});
 const acceptedRelease=commit=>commit===batch1123Release.commit?batch1123Release:
