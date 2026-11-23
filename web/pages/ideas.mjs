@@ -130,6 +130,24 @@ async function condense(id, text) {
   const status = form()?.querySelector(".idea-todo-ai");
   if (status) { status.textContent = note; status.hidden = !note; }
 }
+// 转成待办 for a plain 碎碎念 (from its ⋯): the same form, with nothing to link afterwards.
+export function openNoteTodo(text) {
+  const today = bjtDate(), tomorrow = bjtDate(Date.now() + 864e5);
+  openModal("转成待办", `<form id="idea-todo-form" data-id="" data-mode="note">
+<p class="muted idea-todo-source">来自碎碎念：${e(ideaTitle(text).slice(0, 60))}</p>
+<label for="idea-todo-text">待办内容</label>
+<input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(text))}" autocomplete="off">
+<p class="muted idea-todo-ai" role="status">AI 正在帮你精简成一句话…</p>
+<fieldset class="idea-todo-when"><legend>什么时候做</legend>
+<label><input type="radio" name="when" value="${today}" checked> 今天</label>
+<label><input type="radio" name="when" value="${tomorrow}"> 明天</label>
+<label><input type="radio" name="when" value="future"> 未来待办（先不定日子）</label>
+<label><input type="radio" name="when" value="pick"> 选日子 <input class="input" type="date" name="date" min="${today}" aria-label="选日子"></label>
+</fieldset>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
+  void condense("", text);
+}
 export async function submitIdeaTodo({ form, data }) {
   const id = form.dataset.id, message = form.querySelector(".form-message"), button = form.querySelector("button[type=submit]");
   const text = String(data.text ?? "").replace(/\r?\n/g, " ").trim();
@@ -143,6 +161,11 @@ export async function submitIdeaTodo({ form, data }) {
     todo = date === "future"
       ? await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text } })
       : await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date, text } });
+    if (form.dataset.mode === "note") {
+      closeModal();
+      toast(date === "future" ? "已转成未来待办" : `已加到${smartDayLabel(date, bjtDate())}的待办`);
+      return;
+    }
     // A new 待办 may first wait in the offline queue; link it once the server has it.
     await settleQueuedTodo(date === "future" ? "unscheduled_todo" : "todo", todo.id);
     let linked = null;

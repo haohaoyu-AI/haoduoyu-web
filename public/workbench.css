@@ -1296,3 +1296,4 @@ body.floating-workbench {
 #ai-reports .ai-decision-head span:first-of-type:last-child { margin-left:auto; }
 #ai-reports .ai-report-panel .ai-daily-tabs { width:auto; flex:none; }
 @media (max-width:767px) { #ai-reports .ai-report-panel .ai-calendar-layout { justify-content:flex-start; } }
+.note-entry-more{min-width:36px;padding:0 10px;font-size:18px;line-height:1;letter-spacing:1px;color:var(--ink-3)}

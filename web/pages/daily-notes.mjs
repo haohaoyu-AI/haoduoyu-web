@@ -172,7 +172,8 @@ function createEntryElement(item, editing) {
       'class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
-    '<button class="btn text note-entry-idea" type="button" data-note-idea="add" hidden>放进想法池</button>' +
+    '<button class="btn text note-entry-idea" type="button" data-note-idea="open" data-nav="ideas" hidden>💡 在想法池 →</button>' +
+    '<button class="btn text note-entry-more" type="button" data-note-more aria-label="更多：放进想法池、转成待办" aria-haspopup="menu" hidden>⋯</button>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
@@ -194,14 +195,14 @@ function paintSavedEntry(node, item) {
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
-  // 想法池: one tap labels a saved 碎碎念 as an idea; once it is one, the same spot opens the 想法池 page.
-  const idea = node.querySelector('[data-note-idea]'), inPool = (item.labels || []).includes(IDEA_LABEL);
+  // 想法池 and 转成待办 sit behind one small ⋯; a note already in the pool also shows 💡 在想法池 →.
+  const idea = node.querySelector('[data-note-idea]'), more = node.querySelector('[data-note-more]');
+  const inPool = (item.labels || []).includes(IDEA_LABEL);
   const ready = item.canEdit && !item.deleted && !draft && item.labelKnown && item.labelComplete && item.version > 0;
-  idea.hidden = !(inPool ? !item.deleted : ready);
-  idea.dataset.noteIdea = inPool ? 'open' : 'add';
-  if (inPool) idea.dataset.nav = 'ideas'; else delete idea.dataset.nav;
-  idea.disabled = !inPool && (Boolean(item.pending) || item.dirty);
-  idea.textContent = inPool ? '💡 在想法池 →' : '放进想法池';
+  idea.hidden = !inPool || item.deleted;
+  more.hidden = !ready;
+  more.disabled = Boolean(item.pending) || item.dirty;
+  more.dataset.inPool = inPool ? '1' : '';
   paintNoteSuggestion(node, item);
 }
 function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {

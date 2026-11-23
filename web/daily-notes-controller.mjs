@@ -8,6 +8,8 @@ import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-
 import {checkedNoteMonth, coalesceNoteMonthFlight, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
 import {createNotesEditorView, noteDraftNeedsAttention} from './core/notes-editor-view.mjs';
 import {paintNoteEntries, IDEA_LABEL} from './pages/daily-notes.mjs';
+import {openNoteTodo} from './pages/ideas.mjs';
+import {closePopover, popover} from './ui/popover.mjs';
 import {paintBodySummary} from './body-summary-controller.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
@@ -1000,9 +1002,14 @@ function registerDailyNotesEvents() {
   document.addEventListener('click', event => { void handleNotesClick(event); });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
   document.addEventListener('click', event => {
-    const target = event.target.closest('[data-note-idea]');
-    if (!target || !target.closest('#daily-notes')) return;
+    const more = event.target.closest('[data-note-more]');
+    if (more && more.closest('#daily-notes')) { event.preventDefault(); openNoteMenu(more); return; }
+    const todo = event.target.closest('[data-note-todo]');
+    if (todo) { event.preventDefault(); closePopover({restoreFocus:false}); noteToTodo(todo.dataset.noteId); return; }
+    const target = event.target.closest('[data-note-idea="add"]');
+    if (!target || !(target.dataset.noteId || target.closest('#daily-notes'))) return;
     event.preventDefault();
+    closePopover({restoreFocus:false});
     void putInIdeaPool(target);
   });
   document.addEventListener('click', event => {
@@ -1027,10 +1034,22 @@ function registerDailyNotesEvents() {
     }
   });
 }
+const findNote = id => [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
+// ⋯ under a saved 碎碎念: 放进想法池 (unless it is in already) and 转成待办.
+function openNoteMenu(trigger) {
+  const id = trigger.closest('[data-note-entry]')?.dataset.noteEntry;
+  if (!id || trigger.disabled) return;
+  const attr = 'data-note-id="' + id.replace(/[^0-9a-f-]/gi, '') + '"';
+  popover(trigger, (trigger.dataset.inPool ? '' : `<button type="button" role="menuitem" data-note-idea="add" ${attr}>💡 放进想法池</button>`) +
+    `<button type="button" role="menuitem" data-note-todo ${attr}>✓ 转成待办</button>`, {menu: true, label: '这条碎碎念'});
+}
+function noteToTodo(id) {
+  const [, item] = findNote(id);
+  if (item) openNoteTodo(String(item.serverText ?? item.draft ?? ''));
+}
 // 放进想法池: adds the 想法池 label through the same offline-safe save as 编辑 and AI 贴上.
 async function putInIdeaPool(target) {
-  if (target.dataset.noteIdea === 'open') return; // data-nav="ideas" switches pages in place
-  const id = target.closest('[data-note-entry]')?.dataset.noteEntry;
+  const id = target.dataset.noteId || target.closest('[data-note-entry]')?.dataset.noteEntry;
   const [store, item] = [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
   if (!store || !item || target.disabled) return;
   const labels = [...new Set([...(item.labels || []), IDEA_LABEL])];

@@ -10712,7 +10712,7 @@ function createEntryElement(item, editing) {
   node3.className = "note-entry " + (editing ? "note-entry-editing" : "note-entry-saved");
   node3.dataset.noteEntry = item.id;
   node3.dataset.category = item.category;
-  node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-idea" type="button" data-note-idea="add" hidden>放进想法池</button><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-idea" type="button" data-note-idea="open" data-nav="ideas" hidden>💡 在想法池 →</button><button class="btn text note-entry-more" type="button" data-note-more aria-label="更多：放进想法池、转成待办" aria-haspopup="menu" hidden>⋯</button><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node3;
 }
 function paintEntrySummary(node3, item) {
@@ -10736,14 +10736,13 @@ function paintSavedEntry(node3, item) {
   const edit = node3.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
-  const idea = node3.querySelector("[data-note-idea]"), inPool = (item.labels || []).includes(IDEA_LABEL);
+  const idea = node3.querySelector("[data-note-idea]"), more = node3.querySelector("[data-note-more]");
+  const inPool = (item.labels || []).includes(IDEA_LABEL);
   const ready = item.canEdit && !item.deleted && !draft && item.labelKnown && item.labelComplete && item.version > 0;
-  idea.hidden = !(inPool ? !item.deleted : ready);
-  idea.dataset.noteIdea = inPool ? "open" : "add";
-  if (inPool) idea.dataset.nav = "ideas";
-  else delete idea.dataset.nav;
-  idea.disabled = !inPool && (Boolean(item.pending) || item.dirty);
-  idea.textContent = inPool ? "💡 在想法池 →" : "放进想法池";
+  idea.hidden = !inPool || item.deleted;
+  more.hidden = !ready;
+  more.disabled = Boolean(item.pending) || item.dirty;
+  more.dataset.inPool = inPool ? "1" : "";
   paintNoteSuggestion(node3, item);
 }
 function paintEntryEditor(node3, item, confirmId, labels4, labelsVerified) {
@@ -10921,12 +10920,205 @@ function paintNoteEntries(root3, store, current2, legacy2, {
   paintRetainedDrafts(root3, current2, drafts);
 }
 
+// web/pages/ideas.mjs
+init_api();
+init_dom();
+init_format();
+init_entry();
+init_modal();
+var FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
+var view = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, error: "" };
+var day4 = (value) => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
+var stamp2 = (line) => /^\s*✅/.test(line);
+function titleIndex(lines) {
+  const index = lines.findIndex((line) => line.trim() && !stamp2(line));
+  return index >= 0 ? index : lines.findIndex((line) => line.trim());
+}
+function ideaTitle(text) {
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return index >= 0 ? lines[index].trim() : "（空）";
+}
+function ideaBody(text) {
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return lines.slice(index + 1).filter((line) => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
+}
+function todoTextFor(text) {
+  return ideaTitle(text).replace(/^想法\s*[^：:]{0,4}[：:]\s*/, "").slice(0, 500) || ideaTitle(text).slice(0, 500);
+}
+function todoLine(todo) {
+  const when = todo.kind === "future" ? "未来待办" : smartDayLabel(todo.date, bjtDate());
+  return `<li class="idea-todo${todo.completed ? " done" : ""}${todo.deleted ? " gone" : ""}"><span class="idea-todo-mark" aria-hidden="true">${todo.deleted ? "×" : todo.completed ? "✓" : "○"}</span><span class="idea-todo-text">${e(todo.text)}</span><em>${todo.deleted ? "已删除" : e(when)}</em></li>`;
+}
+function card(item) {
+  const body4 = ideaBody(item.text), open = view.open.has(item.id), long = body4.length > 120 || body4.split("\n").length > 3;
+  const stars = item.priority ? `<span class="idea-stars" aria-label="优先级 ${item.priority} 星">${"⭐".repeat(Math.min(item.priority, 5))}</span>` : "";
+  const landed = item.status === "landed" ? `<span class="idea-landed-at">${e(day4(bjtDate(item.landed_at || Date.now())))}落地</span>` : "";
+  return `<article class="idea-card" data-status="${e(item.status)}" data-idea="${e(item.id)}">
+<header class="idea-card-head"><span class="idea-status idea-status-${e(item.status)}">${e(item.label)}</span>${stars}
+<time datetime="${e(item.created_at)}">${e(day4(item.date))}</time>${landed}</header>
+<h3 class="idea-title">${item.status === "landed" ? '<span class="idea-done-mark" aria-label="已落地">✅</span> ' : ""}${e(ideaTitle(item.text))}</h3>
+${body4 ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body4)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
+${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
+<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
+${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
+</article>`;
+}
+function renderIdeas(state2 = view) {
+  if (!state2.loaded && !state2.error) return '<section class="ideas-page" aria-busy="true"><p class="muted">正在读取想法池…</p></section>';
+  if (state2.error) return `<section class="ideas-page"><p class="form-message" role="alert">${e(state2.error)}</p>
+<button class="btn" type="button" data-action="ideas-reload">重新读取</button></section>`;
+  const counts = Object.fromEntries(FILTERS.map(([id2]) => [id2, id2 === "all" ? state2.items.length : state2.items.filter((item) => item.status === id2).length]));
+  const shown2 = state2.items.filter((item) => state2.filter === "all" || item.status === state2.filter).map((item, index) => [item, index]).sort(([a, i], [b, j]) => (a.status === "landed") - (b.status === "landed") || i - j).map(([item]) => item);
+  const tabs = FILTERS.map(([id2, label]) => `<button type="button" role="tab" aria-selected="${state2.filter === id2}" data-action="ideas-filter" data-filter="${id2}">${label}<span>${counts[id2]}</span></button>`).join("");
+  const empty3 = state2.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` : `<div class="ideas-empty"><p>想法池还是空的。</p><p class="muted">在碎碎念里点一条下面的「放进想法池」，它就会出现在这里。</p></div>`;
+  return `<section class="ideas-page">
+<p class="ideas-intro">碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。</p>
+<div class="ideas-filters" role="tablist" aria-label="按状态看">${tabs}</div>
+${state2.truncated ? `<p class="muted">只显示最新的 ${state2.items.length} 条（共 ${state2.total} 条）。</p>` : ""}
+<div class="ideas-list">${shown2.length ? shown2.map(card).join("") : empty3}</div>
+</section>`;
+}
+function paint() {
+  replacePageContent(renderIdeas());
+}
+async function loadIdeas(context) {
+  view.error = "";
+  try {
+    const data3 = await api("/ideas", { context });
+    Object.assign(view, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), loaded: true });
+  } catch (error2) {
+    if (error2?.name === "AbortError") throw error2;
+    view.error = error2?.message || "想法池没读出来，请稍后再试。";
+  }
+  return renderIdeas();
+}
+function setIdeasFilter(filter) {
+  if (FILTERS.some(([id2]) => id2 === filter)) {
+    view.filter = filter;
+    paint();
+  }
+}
+function toggleIdea(id2) {
+  if (view.open.has(id2)) view.open.delete(id2);
+  else view.open.add(id2);
+  paint();
+}
+async function reloadIdeas() {
+  view.loaded = false;
+  paint();
+  await loadIdeas();
+  paint();
+}
+function openIdeaTodo(id2) {
+  const item = view.items.find((row) => row.id === id2);
+  if (!item) return;
+  const today2 = bjtDate(), tomorrow = bjtDate(Date.now() + 864e5);
+  openModal("转成待办", `<form id="idea-todo-form" data-id="${e(id2)}">
+<p class="muted idea-todo-source">来自想法：${e(ideaTitle(item.text))}</p>
+<label for="idea-todo-text">待办内容</label>
+<input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(item.text))}" autocomplete="off">
+<p class="muted idea-todo-ai" role="status">AI 正在帮你精简成一句话…</p>
+<fieldset class="idea-todo-when"><legend>什么时候做</legend>
+<label><input type="radio" name="when" value="future" checked> 未来待办（先不定日子）</label>
+<label><input type="radio" name="when" value="${today2}"> 今天</label>
+<label><input type="radio" name="when" value="${tomorrow}"> 明天</label>
+<label><input type="radio" name="when" value="pick"> 选日子 <input class="input" type="date" name="date" min="${today2}" aria-label="选日子"></label>
+</fieldset>
+<p class="muted">待办做完后，这条想法会自动显示「已落地」。原来的碎碎念不会被改动。</p>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
+  void condense(id2, item.text);
+}
+async function condense(id2, text) {
+  const form = () => document.querySelector(`#idea-todo-form[data-id="${CSS.escape(id2)}"]`);
+  const start = form()?.querySelector("#idea-todo-text")?.value;
+  let note = "";
+  try {
+    const data3 = await api("/ideas/todo-text", { method: "POST", body: { text } });
+    if (data3?.needs_model && data3.todo) {
+      const input = form()?.querySelector("#idea-todo-text");
+      if (input && input.value === start) {
+        input.value = data3.todo;
+        note = "AI 精简过了，可以直接改。";
+      } else note = "";
+    }
+  } catch {
+    note = "";
+  }
+  const status = form()?.querySelector(".idea-todo-ai");
+  if (status) {
+    status.textContent = note;
+    status.hidden = !note;
+  }
+}
+function openNoteTodo(text) {
+  const today2 = bjtDate(), tomorrow = bjtDate(Date.now() + 864e5);
+  openModal("转成待办", `<form id="idea-todo-form" data-id="" data-mode="note">
+<p class="muted idea-todo-source">来自碎碎念：${e(ideaTitle(text).slice(0, 60))}</p>
+<label for="idea-todo-text">待办内容</label>
+<input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(text))}" autocomplete="off">
+<p class="muted idea-todo-ai" role="status">AI 正在帮你精简成一句话…</p>
+<fieldset class="idea-todo-when"><legend>什么时候做</legend>
+<label><input type="radio" name="when" value="${today2}" checked> 今天</label>
+<label><input type="radio" name="when" value="${tomorrow}"> 明天</label>
+<label><input type="radio" name="when" value="future"> 未来待办（先不定日子）</label>
+<label><input type="radio" name="when" value="pick"> 选日子 <input class="input" type="date" name="date" min="${today2}" aria-label="选日子"></label>
+</fieldset>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
+  void condense("", text);
+}
+async function submitIdeaTodo({ form, data: data3 }) {
+  const id2 = form.dataset.id, message = form.querySelector(".form-message"), button2 = form.querySelector("button[type=submit]");
+  const text = String(data3.text ?? "").replace(/\r?\n/g, " ").trim();
+  const date2 = data3.when === "pick" ? data3.date : data3.when;
+  if (!text || text.length > 500) {
+    message.textContent = "待办内容需要 1 至 500 个字";
+    return;
+  }
+  if (date2 !== "future" && !/^\d{4}-\d{2}-\d{2}$/.test(date2 || "")) {
+    message.textContent = "请选一个日子";
+    return;
+  }
+  if (button2.disabled) return;
+  button2.disabled = true;
+  message.textContent = "";
+  let todo = null;
+  try {
+    todo = date2 === "future" ? await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text } }) : await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: date2, text } });
+    if (form.dataset.mode === "note") {
+      closeModal();
+      toast(date2 === "future" ? "已转成未来待办" : `已加到${smartDayLabel(date2, bjtDate())}的待办`);
+      return;
+    }
+    await settleQueuedTodo(date2 === "future" ? "unscheduled_todo" : "todo", todo.id);
+    let linked2 = null;
+    for (let attempt = 0; !linked2; attempt++) {
+      try {
+        linked2 = await api(`/ideas/${encodeURIComponent(id2)}/todos`, { method: "POST", body: { todo_id: todo.id } });
+      } catch (error2) {
+        if (error2?.status !== 404 || attempt >= 5) throw error2;
+        await new Promise((done3) => setTimeout(done3, 800));
+      }
+    }
+    const index = view.items.findIndex((row) => row.id === id2);
+    if (index >= 0) view.items[index] = linked2;
+    closeModal();
+    paint();
+    toast(date2 === "future" ? "已转成未来待办" : `已加到${smartDayLabel(date2, bjtDate())}的待办`);
+  } catch (error2) {
+    message.textContent = todo ? "待办已经建好了，但没能和这条想法连上。请稍后在想法池里刷新看看。" : error2?.message || "没转成，请稍后再试。";
+  } finally {
+    button2.disabled = false;
+  }
+}
+
 // web/body-summary-controller.mjs
 init_api();
 var BODY_SUMMARY_LABEL = "大小便记录";
 var STATS = [["bowel", "排便"], ["normal", "正常"], ["loose", "偏稀"], ["hard", "偏硬"], ["accidents", "漏出"], ["discomfort", "不舒服"]];
 var REFRESH_MS = 5 * 6e4;
-var view = { data: null, loadedAt: 0, loading: null, busy: "", error: "", contextOpen: false };
+var view2 = { data: null, loadedAt: 0, loading: null, busy: "", error: "", contextOpen: false };
 var el2 = (tag2, className, text) => {
   const node3 = document.createElement(tag2);
   if (className) node3.className = className;
@@ -10944,51 +11136,51 @@ function paintBodySummary(root3, label) {
   const wasHidden = section.hidden;
   section.hidden = label !== BODY_SUMMARY_LABEL;
   if (section.hidden) return;
-  if (!view.loading && (!view.data || Date.now() - view.loadedAt > REFRESH_MS)) return void load(section);
+  if (!view2.loading && (!view2.data || Date.now() - view2.loadedAt > REFRESH_MS)) return void load(section);
   if (wasHidden || !section.childElementCount) draw(section);
 }
 async function load(section) {
-  view.error = "";
-  view.loading = (async () => {
+  view2.error = "";
+  view2.loading = (async () => {
     try {
-      view.data = await api("/body-summary");
-      view.loadedAt = Date.now();
-      if (view.data.configured && !view.data.last) await generate(section, "last", false);
+      view2.data = await api("/body-summary");
+      view2.loadedAt = Date.now();
+      if (view2.data.configured && !view2.data.last) await generate(section, "last", false);
     } catch (error2) {
-      view.error = error2.message || "小结读取失败";
+      view2.error = error2.message || "小结读取失败";
     } finally {
-      view.loading = null;
+      view2.loading = null;
       draw(section);
     }
   })();
   draw(section);
 }
 async function generate(section, week, redo) {
-  view.busy = week;
-  view.error = "";
+  view2.busy = week;
+  view2.error = "";
   draw(section);
   try {
     const saved = await api("/body-summary", { method: "POST", body: { week, redo } });
-    view.data = { ...view.data, [week]: saved };
+    view2.data = { ...view2.data, [week]: saved };
   } catch (error2) {
-    view.error = error2.message || "生成失败，请稍后再试";
+    view2.error = error2.message || "生成失败，请稍后再试";
   } finally {
-    view.busy = "";
+    view2.busy = "";
     draw(section);
   }
 }
 async function saveContext(section, text) {
-  view.busy = "context";
-  view.error = "";
+  view2.busy = "context";
+  view2.error = "";
   draw(section);
   try {
     const saved = await api("/body-summary/context", { method: "PUT", body: { text } });
-    view.data = { ...view.data, context: saved.text };
-    view.contextOpen = false;
+    view2.data = { ...view2.data, context: saved.text };
+    view2.contextOpen = false;
   } catch (error2) {
-    view.error = error2.message || "保存失败";
+    view2.error = error2.message || "保存失败";
   } finally {
-    view.busy = "";
+    view2.busy = "";
     draw(section);
   }
 }
@@ -11029,40 +11221,40 @@ function body2(summary3) {
 }
 function contextEditor(section) {
   const details = el2("details", "body-summary-context");
-  details.open = view.contextOpen;
+  details.open = view2.contextOpen;
   details.addEventListener("toggle", () => {
-    view.contextOpen = details.open;
+    view2.contextOpen = details.open;
   });
   const area = el2("textarea", "input");
   area.maxLength = 600;
   area.rows = 3;
-  area.value = view.data?.context || "";
+  area.value = view2.data?.context || "";
   area.placeholder = "写给 AI 的背景：长期情况、你的习惯说法等。只用于生成小结。";
-  const save = el2("button", "btn text", view.busy === "context" ? "保存中…" : "保存说明");
+  const save = el2("button", "btn text", view2.busy === "context" ? "保存中…" : "保存说明");
   save.type = "button";
-  save.disabled = Boolean(view.busy);
+  save.disabled = Boolean(view2.busy);
   save.addEventListener("click", () => saveContext(section, area.value));
   details.append(el2("summary", "", "背景说明"), area, save);
   return details;
 }
 function draw(section) {
-  const data3 = view.data, summary3 = shown(data3);
+  const data3 = view2.data, summary3 = shown(data3);
   const head = el2("div", "body-summary-head"), title = el2("h3", "", "大小便周小结");
   const meta = el2("span", "body-summary-meta", summary3 ? `${short(summary3.week_start)}–${short(summary3.week_end)}${summary3.complete ? "" : " · 本周未完"}` : "");
   head.append(title, meta);
   const parts2 = [head];
   if (data3?.configured) parts2.push(el2("p", "body-summary-how", "AI 每周自动整理一次，打开就有，不用点；点「更新到今天」会重新生成本周的。"));
-  if (view.loading && !data3) parts2.push(el2("p", "body-summary-note", "正在读取…"));
+  if (view2.loading && !data3) parts2.push(el2("p", "body-summary-note", "正在读取…"));
   else if (data3 && !data3.configured) parts2.push(el2("p", "body-summary-note", "服务器还没有配置 AI，暂时不能生成小结。"));
-  else if (view.busy === "last" || view.busy === "current") parts2.push(el2("p", "body-summary-note", "正在整理记录，大约需要半分钟…"));
+  else if (view2.busy === "last" || view2.busy === "current") parts2.push(el2("p", "body-summary-note", "正在整理记录，大约需要半分钟…"));
   else if (summary3?.empty) parts2.push(el2("p", "body-summary-note", "这一周没有相关记录。"));
   else if (summary3) parts2.push(...body2(summary3));
-  if (view.error) parts2.push(el2("p", "body-summary-error", view.error));
+  if (view2.error) parts2.push(el2("p", "body-summary-error", view2.error));
   if (data3?.configured) {
     const actions2 = el2("div", "body-summary-actions");
     const refresh = el2("button", "btn text", "更新到今天");
     refresh.type = "button";
-    refresh.disabled = Boolean(view.busy || view.loading);
+    refresh.disabled = Boolean(view2.busy || view2.loading);
     refresh.addEventListener("click", () => generate(section, "current", true));
     const stamp4 = summary3?.generated_at ? el2("span", "body-summary-meta", `生成于 ${time2(summary3.generated_at)}`) : null;
     actions2.append(...[stamp4, refresh].filter(Boolean));
@@ -11076,6 +11268,7 @@ function draw(section) {
 init_api();
 init_state();
 init_daily_notes_state();
+init_popover();
 init_login();
 init_runtime();
 init_document();
@@ -12333,9 +12526,23 @@ function registerDailyNotesEvents() {
   });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
   document.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-note-idea]");
-    if (!target || !target.closest("#daily-notes")) return;
+    const more = event.target.closest("[data-note-more]");
+    if (more && more.closest("#daily-notes")) {
+      event.preventDefault();
+      openNoteMenu(more);
+      return;
+    }
+    const todo = event.target.closest("[data-note-todo]");
+    if (todo) {
+      event.preventDefault();
+      closePopover({ restoreFocus: false });
+      noteToTodo(todo.dataset.noteId);
+      return;
+    }
+    const target = event.target.closest('[data-note-idea="add"]');
+    if (!target || !(target.dataset.noteId || target.closest("#daily-notes"))) return;
     event.preventDefault();
+    closePopover({ restoreFocus: false });
     void putInIdeaPool(target);
   });
   document.addEventListener("click", (event) => {
@@ -12362,9 +12569,19 @@ function registerDailyNotesEvents() {
     }
   });
 }
+var findNote = (id2) => [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
+function openNoteMenu(trigger) {
+  const id2 = trigger.closest("[data-note-entry]")?.dataset.noteEntry;
+  if (!id2 || trigger.disabled) return;
+  const attr = 'data-note-id="' + id2.replace(/[^0-9a-f-]/gi, "") + '"';
+  popover(trigger, (trigger.dataset.inPool ? "" : `<button type="button" role="menuitem" data-note-idea="add" ${attr}>💡 放进想法池</button>`) + `<button type="button" role="menuitem" data-note-todo ${attr}>✓ 转成待办</button>`, { menu: true, label: "这条碎碎念" });
+}
+function noteToTodo(id2) {
+  const [, item] = findNote(id2);
+  if (item) openNoteTodo(String(item.serverText ?? item.draft ?? ""));
+}
 async function putInIdeaPool(target) {
-  if (target.dataset.noteIdea === "open") return;
-  const id2 = target.closest("[data-note-entry]")?.dataset.noteEntry;
+  const id2 = target.dataset.noteId || target.closest("[data-note-entry]")?.dataset.noteEntry;
   const [store, item] = [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
   if (!store || !item || target.disabled) return;
   const labels4 = [.../* @__PURE__ */ new Set([...item.labels || [], IDEA_LABEL])];
@@ -13188,7 +13405,7 @@ function parts(value) {
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? Object.fromEntries(clock.formatToParts(stamp4).map((part) => [part.type, part.value])) : null;
 }
-function day4(value) {
+function day5(value) {
   if (calendarDate(value)) return value;
   const p = parts(value);
   return p ? calendarDate(`${p.year.padStart(4, "0")}-${p.month}-${p.day}`) : "";
@@ -13196,10 +13413,10 @@ function day4(value) {
 function reviewDateTime(value) {
   if (calendarDate(value)) return value;
   const p = parts(value);
-  return p ? `${day4(value)} ${p.hour}:${p.minute}` : "";
+  return p ? `${day5(value)} ${p.hour}:${p.minute}` : "";
 }
 function shiftDay3(value, amount) {
-  const date2 = day4(value);
+  const date2 = day5(value);
   return date2 && Number.isInteger(amount) ? new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10) : "";
 }
 function median(values = []) {
@@ -13243,7 +13460,7 @@ function appliedRules(article, playbooks = []) {
 }
 function newestFirst(a, b, when) {
   const x = when(a), y = when(b);
-  const dateOrder = compare(day4(y), day4(x));
+  const dateOrder = compare(day5(y), day5(x));
   if (dateOrder) return dateOrder;
   const aTimed = Boolean(parts(x)), bTimed = Boolean(parts(y));
   return (aTimed && bTimed ? Date.parse(y) - Date.parse(x) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
@@ -13303,7 +13520,7 @@ function enrichArticle(article, snapshots = [], playbooks = [], reports = [], ar
   return enrichArticles({ articles: cohort, snapshots, playbooks, reports }).find((item) => id(item.id) === id(article.id));
 }
 function weekBounds(now = (/* @__PURE__ */ new Date()).toISOString(), week = "this") {
-  const today2 = day4(now instanceof Date ? now.toISOString() : now);
+  const today2 = day5(now instanceof Date ? now.toISOString() : now);
   if (!today2) throw new TypeError("now must be a valid date or explicit ISO timestamp");
   if (!["this", "last"].includes(week)) throw new TypeError("week must be this or last");
   const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
@@ -13343,7 +13560,7 @@ function firstSentence(markdown) {
   return ending ? text.slice(0, ending.index + ending[0].length) : text;
 }
 function weeklyConclusion(reports, account3, bounds, week) {
-  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day4(item.period_start) === bounds.start && day4(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
+  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day5(item.period_start) === bounds.start && day5(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
   return firstSentence(report?.summary_md) || `${week === "last" ? "上周" : "本周"}尚未生成周报`;
 }
 function buildOverview(data3 = {}, options3 = {}) {
@@ -13353,7 +13570,7 @@ function buildOverview(data3 = {}, options3 = {}) {
   const counted = (row) => reviewPublishState(row) === "published";
   const cohort = (start, end) => allRows.filter((row) => {
     if (!counted(row)) return false;
-    const published = day4(row.published_at);
+    const published = day5(row.published_at);
     return published && published >= start && published <= end;
   });
   const rows = cohort(bounds.start, bounds.end), previousRows = cohort(bounds.previousStart, bounds.previousEnd);
@@ -13385,7 +13602,7 @@ function buildOverview(data3 = {}, options3 = {}) {
     message: `${current2.missing_24h_count} 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。`
   });
   const articleIds = new Set(allRows.filter(counted).map((row) => id(row.id)));
-  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day4(snapshot.snapshot_date)).filter(Boolean).sort();
+  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day5(snapshot.snapshot_date)).filter(Boolean).sort();
   const latest2 = dates.at(-1) ?? null;
   const elapsed = latest2 ? Math.round((Date.parse(`${bounds.today}T00:00:00Z`) - Date.parse(`${latest2}T00:00:00Z`)) / 864e5) : null;
   const publishedRows = allRows.filter(counted);
@@ -13411,9 +13628,9 @@ var mid = (values) => {
 };
 function experimentEvidence(ruleId, rows = []) {
   const using = rows.filter((row) => (row.applied_rule_ids || []).includes(ruleId));
-  const first = using.map((row) => day4(row.published_at)).filter(Boolean).sort()[0] || null;
+  const first = using.map((row) => day5(row.published_at)).filter(Boolean).sort()[0] || null;
   const withRows = using.filter(measured);
-  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day4(row.published_at) >= first) : [];
+  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day5(row.published_at) >= first) : [];
   return {
     rule_id: ruleId,
     first_day: first,
@@ -13981,7 +14198,7 @@ init_state();
 var data = null, sequence2 = 0, registered = false, panelError = false;
 var account2 = () => state.account || "V字";
 var root = () => document.querySelector("#ai-experiments");
-function paint() {
+function paint2() {
   const node3 = root();
   if (!node3 || state.page !== "ai-reports") return;
   node3.innerHTML = data ? renderReportReview(data, { account: account2(), ai: reviewAiView() }) : panelError ? '<p role="alert">复盘资料读取失败。 <button type="button" class="btn small" data-retry-review>重试</button></p>' : '<p role="status">正在读取复盘资料…</p>';
@@ -13989,7 +14206,7 @@ function paint() {
 function register() {
   if (registered) return;
   registered = true;
-  watchReviewAi(paint);
+  watchReviewAi(paint2);
   document.addEventListener("change", (event) => {
     if (state.page === "ai-reports" && event.target.closest?.("#ai-experiments")) reviewAiInput(event.target);
   });
@@ -14015,11 +14232,11 @@ async function loadExperimentsPanel() {
   const ticket2 = ++sequence2, session = runtime.sessionEpoch;
   data = null;
   panelError = false;
-  paint();
+  paint2();
   void loadReviewAi(account2());
   const current2 = () => ticket2 === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
   data = {};
-  if (current2()) paint();
+  if (current2()) paint2();
 }
 
 // web/core/review-data.mjs
@@ -14070,7 +14287,7 @@ function shanghaiParts(value) {
   if (!Number.isFinite(stamp4)) return null;
   return Object.fromEntries(shanghaiClock.formatToParts(stamp4).map((part) => [part.type, part.value]));
 }
-function day5(value) {
+function day6(value) {
   if (typeof value !== "string") return "";
   if (calendarDate2(value)) return value;
   const parts2 = shanghaiParts(value);
@@ -14079,11 +14296,11 @@ function day5(value) {
 function reviewDateTime2(value) {
   if (typeof value !== "string") return "";
   if (calendarDate2(value)) return value;
-  const parts2 = shanghaiParts(value), date2 = day5(value);
+  const parts2 = shanghaiParts(value), date2 = day6(value);
   return parts2 && date2 ? `${date2} ${parts2.hour}:${parts2.minute}` : "";
 }
 function shiftDay4(value, amount) {
-  const date2 = day5(value);
+  const date2 = day6(value);
   if (!date2 || !Number.isFinite(amount)) return "";
   return new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
 }
@@ -14122,17 +14339,17 @@ function normalizeReviewData(input = {}) {
 function latestSnapshots(snapshots = [], cutoff = "9999-12-31") {
   const result = /* @__PURE__ */ new Map();
   for (const snapshot of list2(snapshots)) {
-    const date2 = day5(snapshot.snapshot_date);
+    const date2 = day6(snapshot.snapshot_date);
     if (!date2 || date2 > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
     const key = String(snapshot.article_id);
     const previous = result.get(key);
-    if (!previous || date2 > day5(previous.snapshot_date) || date2 === day5(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
+    if (!previous || date2 > day6(previous.snapshot_date) || date2 === day6(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
   }
   return result;
 }
 function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
   const result = /* @__PURE__ */ new Map();
-  const ordered2 = list2(reports).filter((report) => (!periodType || report.period_type === periodType) && day5(report.period_end) && day5(report.period_end) <= end).sort((a, b) => day5(a.period_end).localeCompare(day5(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
+  const ordered2 = list2(reports).filter((report) => (!periodType || report.period_type === periodType) && day6(report.period_end) && day6(report.period_end) <= end).sort((a, b) => day6(a.period_end).localeCompare(day6(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
   for (const report of ordered2) {
     for (const [id2, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
       const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
@@ -14146,7 +14363,7 @@ function articleRows(data3 = {}, { start = "", end = "9999-12-31", periodType } 
   const snapshots = latestSnapshots(data3.snapshots, end);
   const verdicts2 = verdictMap(data3.reports, { end, periodType });
   return list2(data3.articles).filter((article) => {
-    const published = day5(article.published_at);
+    const published = day6(article.published_at);
     return published && (!start || published >= start) && published <= end;
   }).map((article) => ({
     ...article,
@@ -14191,7 +14408,7 @@ function compareMetrics(current2 = {}, previous = {}) {
   return result;
 }
 function periodSummary(data3, { start, end, periodType } = {}) {
-  const duration3 = day5(start) && day5(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
+  const duration3 = day6(start) && day6(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
   const previousEnd = duration3 > 0 ? shiftDay4(start, -1) : "";
   const previousStart = duration3 > 0 ? shiftDay4(start, -duration3) : "";
   const rows = articleRows(data3, { start, end, periodType });
@@ -14222,10 +14439,10 @@ function groupPerformance(rows = [], field2 = "topic_category") {
   }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
-  const dates = [...new Set(list2(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
+  const dates = [...new Set(list2(data3.snapshots).map((snapshot) => day6(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
   const articles = new Map(list2(data3.articles).map((article) => [String(article.id), article]));
   return dates.map((date2) => {
-    const sameDay = list2(data3.snapshots).filter((snapshot) => day5(snapshot.snapshot_date) === date2);
+    const sameDay = list2(data3.snapshots).filter((snapshot) => day6(snapshot.snapshot_date) === date2);
     const snapshots = latestSnapshots(sameDay, date2);
     const rows = [...snapshots.entries()].filter(([id2]) => articles.has(id2)).map(([id2, snapshot]) => ({ ...articles.get(id2), snapshot }));
     return { date: date2, ...aggregate(rows) };
@@ -14281,12 +14498,12 @@ function periodsFor(data3 = {}, type = "daily") {
   const periods = /* @__PURE__ */ new Map();
   for (const report of list2(data3.reports)) {
     if (report.period_type !== type) continue;
-    const start = day5(report.period_start), end = day5(report.period_end);
+    const start = day6(report.period_start), end = day6(report.period_end);
     if (!start || !end || start > end) continue;
     periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
   }
   if (!periods.size) {
-    const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day5(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day5(article.published_at))].filter(Boolean))].sort().reverse();
+    const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day6(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day6(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
       const start = shiftDay4(end, -(duration3 - 1));
@@ -14298,10 +14515,10 @@ function periodsFor(data3 = {}, type = "daily") {
 
 // web/pages/review-weekly.mjs
 init_dom();
-var day6 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
-var range = (report) => `${day6(report.period_start)} 至 ${day6(report.period_end)}`;
+var day7 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
+var range = (report) => `${day7(report.period_start)} 至 ${day7(report.period_end)}`;
 function currentWeekStart(now) {
-  const today2 = day5(now || (/* @__PURE__ */ new Date()).toISOString());
+  const today2 = day6(now || (/* @__PURE__ */ new Date()).toISOString());
   if (!today2) return "";
   const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
   const offset = weekday2 === 0 ? -6 : 1 - weekday2;
@@ -14515,177 +14732,6 @@ function registerAiReportEvents() {
   });
 }
 
-// web/pages/ideas.mjs
-init_api();
-init_dom();
-init_format();
-init_entry();
-init_modal();
-var FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
-var view2 = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, error: "" };
-var day7 = (value) => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
-var stamp2 = (line) => /^\s*✅/.test(line);
-function titleIndex(lines) {
-  const index = lines.findIndex((line) => line.trim() && !stamp2(line));
-  return index >= 0 ? index : lines.findIndex((line) => line.trim());
-}
-function ideaTitle(text) {
-  const lines = String(text || "").split("\n"), index = titleIndex(lines);
-  return index >= 0 ? lines[index].trim() : "（空）";
-}
-function ideaBody(text) {
-  const lines = String(text || "").split("\n"), index = titleIndex(lines);
-  return lines.slice(index + 1).filter((line) => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
-}
-function todoTextFor(text) {
-  return ideaTitle(text).replace(/^想法\s*[^：:]{0,4}[：:]\s*/, "").slice(0, 500) || ideaTitle(text).slice(0, 500);
-}
-function todoLine(todo) {
-  const when = todo.kind === "future" ? "未来待办" : smartDayLabel(todo.date, bjtDate());
-  return `<li class="idea-todo${todo.completed ? " done" : ""}${todo.deleted ? " gone" : ""}"><span class="idea-todo-mark" aria-hidden="true">${todo.deleted ? "×" : todo.completed ? "✓" : "○"}</span><span class="idea-todo-text">${e(todo.text)}</span><em>${todo.deleted ? "已删除" : e(when)}</em></li>`;
-}
-function card(item) {
-  const body4 = ideaBody(item.text), open = view2.open.has(item.id), long = body4.length > 120 || body4.split("\n").length > 3;
-  const stars = item.priority ? `<span class="idea-stars" aria-label="优先级 ${item.priority} 星">${"⭐".repeat(Math.min(item.priority, 5))}</span>` : "";
-  const landed = item.status === "landed" ? `<span class="idea-landed-at">${e(day7(bjtDate(item.landed_at || Date.now())))}落地</span>` : "";
-  return `<article class="idea-card" data-status="${e(item.status)}" data-idea="${e(item.id)}">
-<header class="idea-card-head"><span class="idea-status idea-status-${e(item.status)}">${e(item.label)}</span>${stars}
-<time datetime="${e(item.created_at)}">${e(day7(item.date))}</time>${landed}</header>
-<h3 class="idea-title">${item.status === "landed" ? '<span class="idea-done-mark" aria-label="已落地">✅</span> ' : ""}${e(ideaTitle(item.text))}</h3>
-${body4 ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body4)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
-${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
-<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
-${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
-</article>`;
-}
-function renderIdeas(state2 = view2) {
-  if (!state2.loaded && !state2.error) return '<section class="ideas-page" aria-busy="true"><p class="muted">正在读取想法池…</p></section>';
-  if (state2.error) return `<section class="ideas-page"><p class="form-message" role="alert">${e(state2.error)}</p>
-<button class="btn" type="button" data-action="ideas-reload">重新读取</button></section>`;
-  const counts = Object.fromEntries(FILTERS.map(([id2]) => [id2, id2 === "all" ? state2.items.length : state2.items.filter((item) => item.status === id2).length]));
-  const shown2 = state2.items.filter((item) => state2.filter === "all" || item.status === state2.filter).map((item, index) => [item, index]).sort(([a, i], [b, j]) => (a.status === "landed") - (b.status === "landed") || i - j).map(([item]) => item);
-  const tabs = FILTERS.map(([id2, label]) => `<button type="button" role="tab" aria-selected="${state2.filter === id2}" data-action="ideas-filter" data-filter="${id2}">${label}<span>${counts[id2]}</span></button>`).join("");
-  const empty3 = state2.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` : `<div class="ideas-empty"><p>想法池还是空的。</p><p class="muted">在碎碎念里点一条下面的「放进想法池」，它就会出现在这里。</p></div>`;
-  return `<section class="ideas-page">
-<p class="ideas-intro">碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。</p>
-<div class="ideas-filters" role="tablist" aria-label="按状态看">${tabs}</div>
-${state2.truncated ? `<p class="muted">只显示最新的 ${state2.items.length} 条（共 ${state2.total} 条）。</p>` : ""}
-<div class="ideas-list">${shown2.length ? shown2.map(card).join("") : empty3}</div>
-</section>`;
-}
-function paint2() {
-  replacePageContent(renderIdeas());
-}
-async function loadIdeas(context) {
-  view2.error = "";
-  try {
-    const data3 = await api("/ideas", { context });
-    Object.assign(view2, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), loaded: true });
-  } catch (error2) {
-    if (error2?.name === "AbortError") throw error2;
-    view2.error = error2?.message || "想法池没读出来，请稍后再试。";
-  }
-  return renderIdeas();
-}
-function setIdeasFilter(filter) {
-  if (FILTERS.some(([id2]) => id2 === filter)) {
-    view2.filter = filter;
-    paint2();
-  }
-}
-function toggleIdea(id2) {
-  if (view2.open.has(id2)) view2.open.delete(id2);
-  else view2.open.add(id2);
-  paint2();
-}
-async function reloadIdeas() {
-  view2.loaded = false;
-  paint2();
-  await loadIdeas();
-  paint2();
-}
-function openIdeaTodo(id2) {
-  const item = view2.items.find((row) => row.id === id2);
-  if (!item) return;
-  const today2 = bjtDate(), tomorrow = bjtDate(Date.now() + 864e5);
-  openModal("转成待办", `<form id="idea-todo-form" data-id="${e(id2)}">
-<p class="muted idea-todo-source">来自想法：${e(ideaTitle(item.text))}</p>
-<label for="idea-todo-text">待办内容</label>
-<input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(item.text))}" autocomplete="off">
-<p class="muted idea-todo-ai" role="status">AI 正在帮你精简成一句话…</p>
-<fieldset class="idea-todo-when"><legend>什么时候做</legend>
-<label><input type="radio" name="when" value="future" checked> 未来待办（先不定日子）</label>
-<label><input type="radio" name="when" value="${today2}"> 今天</label>
-<label><input type="radio" name="when" value="${tomorrow}"> 明天</label>
-<label><input type="radio" name="when" value="pick"> 选日子 <input class="input" type="date" name="date" min="${today2}" aria-label="选日子"></label>
-</fieldset>
-<p class="muted">待办做完后，这条想法会自动显示「已落地」。原来的碎碎念不会被改动。</p>
-<p class="form-message" role="alert"></p>
-<div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
-  void condense(id2, item.text);
-}
-async function condense(id2, text) {
-  const form = () => document.querySelector(`#idea-todo-form[data-id="${CSS.escape(id2)}"]`);
-  const start = form()?.querySelector("#idea-todo-text")?.value;
-  let note = "";
-  try {
-    const data3 = await api("/ideas/todo-text", { method: "POST", body: { text } });
-    if (data3?.needs_model && data3.todo) {
-      const input = form()?.querySelector("#idea-todo-text");
-      if (input && input.value === start) {
-        input.value = data3.todo;
-        note = "AI 精简过了，可以直接改。";
-      } else note = "";
-    }
-  } catch {
-    note = "";
-  }
-  const status = form()?.querySelector(".idea-todo-ai");
-  if (status) {
-    status.textContent = note;
-    status.hidden = !note;
-  }
-}
-async function submitIdeaTodo({ form, data: data3 }) {
-  const id2 = form.dataset.id, message = form.querySelector(".form-message"), button2 = form.querySelector("button[type=submit]");
-  const text = String(data3.text ?? "").replace(/\r?\n/g, " ").trim();
-  const date2 = data3.when === "pick" ? data3.date : data3.when;
-  if (!text || text.length > 500) {
-    message.textContent = "待办内容需要 1 至 500 个字";
-    return;
-  }
-  if (date2 !== "future" && !/^\d{4}-\d{2}-\d{2}$/.test(date2 || "")) {
-    message.textContent = "请选一个日子";
-    return;
-  }
-  if (button2.disabled) return;
-  button2.disabled = true;
-  message.textContent = "";
-  let todo = null;
-  try {
-    todo = date2 === "future" ? await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text } }) : await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: date2, text } });
-    await settleQueuedTodo(date2 === "future" ? "unscheduled_todo" : "todo", todo.id);
-    let linked2 = null;
-    for (let attempt = 0; !linked2; attempt++) {
-      try {
-        linked2 = await api(`/ideas/${encodeURIComponent(id2)}/todos`, { method: "POST", body: { todo_id: todo.id } });
-      } catch (error2) {
-        if (error2?.status !== 404 || attempt >= 5) throw error2;
-        await new Promise((done3) => setTimeout(done3, 800));
-      }
-    }
-    const index = view2.items.findIndex((row) => row.id === id2);
-    if (index >= 0) view2.items[index] = linked2;
-    closeModal();
-    paint2();
-    toast(date2 === "future" ? "已转成未来待办" : `已加到${smartDayLabel(date2, bjtDate())}的待办`);
-  } catch (error2) {
-    message.textContent = todo ? "待办已经建好了，但没能和这条想法连上。请稍后在想法池里刷新看看。" : error2?.message || "没转成，请稍后再试。";
-  } finally {
-    button2.disabled = false;
-  }
-}
-
 // web/core/review-rule-scopes.mjs
 var aliases = /* @__PURE__ */ new Map([
   ["整体", "global"],
@@ -14798,7 +14844,7 @@ function renderTrafficCard(snapshots, articleId) {
 var ROLLING_DAYS = 7;
 var ROLLING_MIN_SAMPLES = 3;
 var DAY_MS = 864e5, BEIJING_OFFSET_MS = 8 * 36e5;
-var instant = (value) => typeof value === "string" && value.includes("T") && day5(value) ? Date.parse(value) : null;
+var instant = (value) => typeof value === "string" && value.includes("T") && day6(value) ? Date.parse(value) : null;
 var stamp3 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
 var number = (value, max = Infinity) => {
   const n = finiteNumber2(value);
@@ -14809,12 +14855,12 @@ var unpublishedStatuses = ["draft", "drafting", "illustrated", "draft_saved", "s
 var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
 function trendBounds({ range: range2 = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
-  const today2 = day5(now);
+  const today2 = day6(now);
   if (!today2 || stamp3(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range2)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
   const start = range2 === "custom" ? from : shiftDay4(today2, range2 === "30d" ? -29 : -6);
   const end = range2 === "custom" ? to : today2;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day5(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day5(end) !== end)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day6(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day6(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
   const days = (Date.parse(end) - Date.parse(start)) / DAY_MS + 1;
   if (days < 1) throw new TypeError("结束日期不能早于开始日期。");
@@ -14829,7 +14875,7 @@ function summarize(rows) {
   const judged = rows.filter((row) => row.verdict), verdicts2 = (name) => judged.filter((row) => row.verdict === name).length;
   const hits = verdicts2("爆");
   const unknown = rows.filter((row) => !confirmed(row)).length;
-  const dates = rows.map((row) => day5(row.sample24h?.snapshot_date)).filter(Boolean).sort();
+  const dates = rows.map((row) => day6(row.sample24h?.snapshot_date)).filter(Boolean).sort();
   const ages = rows.map((row) => number(row.sample24h?.age_hours)).filter((value) => value !== null);
   return {
     record_count: rows.length,
@@ -14890,12 +14936,12 @@ function reviewTrends(data3 = {}, options3 = {}) {
   const { account: account3 = "V字", verdict = "", now = (/* @__PURE__ */ new Date()).toISOString() } = options3;
   const bounds = trendBounds({ ...options3, now }), nowMs = stamp3(now);
   const source = (data3.articles || []).filter((row) => row.account === account3);
-  const past = (row) => day5(row.published_at) && day5(row.published_at) <= bounds.today && (stamp3(row.published_at) === null || stamp3(row.published_at) <= nowMs);
+  const past = (row) => day6(row.published_at) && day6(row.published_at) <= bounds.today && (stamp3(row.published_at) === null || stamp3(row.published_at) <= nowMs);
   const articles = source.filter((row) => !unpublished(row) && past(row));
   const byId = new Map(articles.map((row) => [String(row.id), row]));
   const snapshots = (data3.snapshots || []).filter((snapshot) => {
-    const row = byId.get(String(snapshot.article_id)), date2 = day5(snapshot.snapshot_date);
-    if (!row || !date2 || date2 > bounds.today || date2 < day5(row.published_at)) return false;
+    const row = byId.get(String(snapshot.article_id)), date2 = day6(snapshot.snapshot_date);
+    if (!row || !date2 || date2 > bounds.today || date2 < day6(row.published_at)) return false;
     const published = stamp3(row.published_at), hours = number(snapshot.age_hours);
     return published === null || hours === null || hours <= (nowMs - published) / 36e5 + 1;
   });
@@ -14905,18 +14951,18 @@ function reviewTrends(data3 = {}, options3 = {}) {
     return {
       ...row,
       trend_provisional: elapsed !== null && elapsed < 24 || age !== null && age < 24,
-      trend_unknown_age: published === null && age === null && day5(row.published_at) >= shiftDay4(bounds.today, -1)
+      trend_unknown_age: published === null && age === null && day6(row.published_at) >= shiftDay4(bounds.today, -1)
     };
   });
   const pool = rows.filter((row) => !verdict || row.verdict === verdict);
-  const between = (start, end) => pool.filter((row) => day5(row.published_at) >= start && day5(row.published_at) <= end);
+  const between = (start, end) => pool.filter((row) => day6(row.published_at) >= start && day6(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
   const previous = { start: shiftDay4(bounds.start, -bounds.days), end: shiftDay4(bounds.start, -1) };
   const rolling = (date2, key) => {
     const values = between(shiftDay4(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
-  const first = selected.map((row) => day5(row.published_at)).sort()[0];
+  const first = selected.map((row) => day6(row.published_at)).sort()[0];
   const plot = { start: first || bounds.start, end: bounds.end };
   const startMs = Date.parse(`${plot.start}T00:00:00Z`);
   plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
@@ -14931,7 +14977,7 @@ function reviewTrends(data3 = {}, options3 = {}) {
     };
   });
   const points = selected.map((row) => {
-    const date2 = day5(row.published_at), published = stamp3(row.published_at);
+    const date2 = day6(row.published_at), published = stamp3(row.published_at);
     const position = published === null ? ((Date.parse(`${date2}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days : (published + BEIJING_OFFSET_MS - startMs) / (plot.days * DAY_MS);
     return {
       id: row.id,
@@ -14966,8 +15012,8 @@ function reviewTrends(data3 = {}, options3 = {}) {
       unpublished: source.filter(unpublished).length,
       pending: source.filter((row) => statusOf(row) === "pending").length,
       unmatched: source.filter((row) => statusOf(row) === "unmatched").length,
-      undated: source.filter((row) => !unpublished(row) && !day5(row.published_at)).length,
-      future: source.filter((row) => !unpublished(row) && day5(row.published_at) && !past(row)).length
+      undated: source.filter((row) => !unpublished(row) && !day6(row.published_at)).length,
+      future: source.filter((row) => !unpublished(row) && day6(row.published_at) && !past(row)).length
     },
     loaded_at: data3.loadedAt || null,
     generated_at: now
@@ -15195,7 +15241,7 @@ function renderCockpitTrends(data3, vm2, window2) {
   const pending = result.points.filter((point) => point.provisional && (known2(point.reads) || known2(point.ctr))).length;
   const held = (result.excluded?.pending || 0) + (result.excluded?.unmatched || 0);
   const shortWindow = result.days <= 14;
-  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ""}${result.end === day5(now) ? "今天尚未结束。" : ""}${shortWindow ? "缺失不补零；切换到「近30天」可看中位数走势线。" : `缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`}`;
+  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ""}${result.end === day6(now) ? "今天尚未结束。" : ""}${shortWindow ? "缺失不补零；切换到「近30天」可看中位数走势线。" : `缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`}`;
   if (shortWindow) {
     return `<section class="review-trends review-cockpit-trends" aria-label="本期文章表现分析">${legend(result, { showLine: false })}
       ${quadrantFigure(result)}
@@ -15229,7 +15275,7 @@ function renderCockpitTrends(data3, vm2, window2) {
     <p class="review-note review-trend-note">${e(note)}</p></section>`;
 }
 function renderReviewTrends(data3, vm2) {
-  const now = vm2.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day5(now), t = vm2.trends || {};
+  const now = vm2.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day6(now), t = vm2.trends || {};
   const range2 = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
   const from = range2 === "custom" ? t.from || "" : shiftDay4(today2, range2 === "30d" ? -29 : -6);
   const to = range2 === "custom" ? t.to || "" : today2;
@@ -15378,7 +15424,7 @@ function renderPromptPage(data3, vm2) {
 
 // web/core/review-overview-metrics.mjs
 function instant2(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day6(value)) return null;
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? stamp4 : null;
 }
@@ -15417,7 +15463,7 @@ function metricWindow(range2, today2) {
   return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay4(monday, -7), end: shiftDay4(monday, -1), closed: true } };
 }
 function publishedIn(row, bounds, nowMs) {
-  const publishedDay = day5(row.published_at);
+  const publishedDay = day6(row.published_at);
   const publishedMs = instant2(row.published_at);
   if (bounds.rolling) return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
   return Boolean(publishedDay && publishedDay >= bounds.start && publishedDay <= bounds.end && (bounds.closed || publishedMs === null || publishedMs <= nowMs));
@@ -15464,7 +15510,7 @@ function dailySeries2(rows, bounds, nowMs) {
 function reviewOverviewMetrics(data3, { account: account3, range: range2 = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const nowMs = instant2(now);
   if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
-  const bounds = metricWindow(range2, day5(now));
+  const bounds = metricWindow(range2, day6(now));
   const rows = enrichArticles(data3, { account: account3 });
   const published = rows.filter((row) => reviewPublishState(row) === "published");
   const pendingCount = rows.filter((row) => reviewPublishState(row) === "pending" && publishedIn({ published_at: row.draft_saved_at || row.created_at }, bounds, nowMs)).length;
@@ -15511,7 +15557,7 @@ function formatReviewListMetric(observation, key) {
 
 // web/core/review-list-observation.mjs
 function instant3(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day6(value)) return null;
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? stamp4 : null;
 }
@@ -15638,17 +15684,17 @@ function articlePatternGroups(rows, tags, dimension, observations) {
 }
 function articleWeekGroups(rows, observations) {
   return [...groupBy(rows, (row) => {
-    const date2 = day5(row.published_at);
+    const date2 = day6(row.published_at);
     return date2 ? shiftDay4(date2, -((weekday(date2) + 6) % 7)) : "";
   })].map(([start, rows2]) => ({ start, end: shiftDay4(start, 6), rows: rows2, ...summary2(rows2, observations) }));
 }
 function filterDate(value, from, today2) {
-  const date2 = day5(value);
+  const date2 = day6(value);
   return !from || Boolean(date2 && date2 >= from && date2 <= today2);
 }
 function filterArticles(rows, filters, tags, now) {
   const range2 = ["7d", "30d", "all"].includes(filters.range) ? filters.range : "30d";
-  const today2 = day5(now), from = range2 === "all" ? "" : shiftDay4(today2, range2 === "7d" ? -6 : -29);
+  const today2 = day6(now), from = range2 === "all" ? "" : shiftDay4(today2, range2 === "7d" ? -6 : -29);
   const query = (filters.query || "").trim().toLocaleLowerCase();
   const matchesTitle = (row) => !query || (row.title || "").toLocaleLowerCase().includes(query);
   return {
@@ -15667,7 +15713,7 @@ function sortReviewArticles(rows, observations, sort) {
   const direction = sort?.direction === "ascending" ? 1 : -1;
   const key = sort?.key || "published";
   if (key === "published") {
-    return [...rows].sort((a, b) => Number(!day5(a.published_at)) - Number(!day5(b.published_at)) || -direction * recentArticles(a, b));
+    return [...rows].sort((a, b) => Number(!day6(a.published_at)) - Number(!day6(b.published_at)) || -direction * recentArticles(a, b));
   }
   return [...rows].sort((a, b) => compareNullable(metricValue(observations.get(a.id), key), metricValue(observations.get(b.id), key), direction) || recentArticles(a, b));
 }
@@ -16276,7 +16322,7 @@ function renderRuleBook(book, scope) {
     ${chips}${intro}${groups}${other}</section>`;
 }
 function ruleBookTimes(book) {
-  const since = reviewDateTime2(book.created_at) || day5(book.published_on) || "—", updated = reviewDateTime2(book.updated_at || book.created_at);
+  const since = reviewDateTime2(book.created_at) || day6(book.published_on) || "—", updated = reviewDateTime2(book.updated_at || book.created_at);
   return `<span class="review-note review-rule-meta-pill">生效 ${e(since)}</span>` + (updated ? `<span class="review-note review-rule-meta-pill">最后更新 ${e(updated)}</span>` : "");
 }
 var byLastUpdate = (a, b) => Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0);
@@ -16626,7 +16672,7 @@ function closeArticle() {
 function changeTrend(target) {
   const key = target.dataset.reviewTrend;
   if (!["range", "from", "to"].includes(key)) return;
-  const today2 = day5((/* @__PURE__ */ new Date()).toISOString());
+  const today2 = day6((/* @__PURE__ */ new Date()).toISOString());
   vm.trends = { ...vm.trends, [key]: target.value };
   if (key === "range" && vm.trends.range === "custom") {
     vm.trends.from ||= shiftDay4(today2, -6);
