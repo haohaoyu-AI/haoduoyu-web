@@ -638,7 +638,15 @@ export const promptCodefenceSplitRelease=Object.freeze({
   baseline:'42be5f1f-2a28-4135-91e0-413a3c96c226',
   bytes:3443727,sha256:'ced99cb603efd9d0a204ea9618b1a3934428df0e1f370c334b8cab970370a7db',
   label:'production-prompt-codefence-split'});
-const acceptedRelease=commit=>commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
+// 想法池: 放进想法池, the 想法池 page, 转成待办 and 已落地. Links live in the audit log. No migration.
+export const ideaPoolRelease=Object.freeze({
+  commit:'d754ea56e397f8d2db5508d6a7e4901643be3bec',
+  tree:'b618cab1895dd3ca691e4aa1b594d5d258088fc5',
+  baseline:'52a15b8d-b54a-4b8f-bbc8-7f65e2194e73',
+  bytes:3467679,sha256:'2984f88505e1a8e640d22fb6c0d6276914022eb6e37c98cfa0cbd165c30c8832',
+  label:'production-idea-pool'});
+const acceptedRelease=commit=>commit===ideaPoolRelease.commit?ideaPoolRelease:
+  commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
   commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
   commit===todoEditTextRelease.commit?todoEditTextRelease:
   commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
