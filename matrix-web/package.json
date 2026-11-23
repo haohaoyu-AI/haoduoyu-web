@@ -1,0 +1,17 @@
+{
+  "name": "haoduoyu-matrix",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24.0.0"},
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs",
+    "admin": "node scripts/admin.mjs",
+    "backup": "node scripts/backup.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:docker": "node --test tests/docker-lifecycle.mjs",
+    "test:browser": "python3 tests/browser_qa.py",
+    "check": "node scripts/check.mjs"
+  }
+}
