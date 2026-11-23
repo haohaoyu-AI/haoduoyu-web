@@ -654,7 +654,15 @@ export const batch1123Release=Object.freeze({
   uploadedVersion:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
   bytes:3296375,sha256:'4acfd60481ace444080cf4e14d548f5c64f176230a5a65545fa89bdf46759cd2',
   label:'production-batch-1123'});
-const acceptedRelease=commit=>commit===batch1123Release.commit?batch1123Release:
+// AI 日报 两张卡片 + 「没有要你拍板」 不算拍板 + 碎碎念 ⋯ 菜单 (#180). No migration.
+export const aiReportsMenuRelease=Object.freeze({
+  commit:'04fe4fbf278f1dfc5b92ca27d6eb542df244a11d',
+  tree:'666321261c049407b83202e3d9d034826f0cf08c',
+  baseline:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
+  bytes:3303730,sha256:'46888f2a47d469b6fcdbb02c15c97c62fd781c508ec37c3a57d44dd682139606',
+  label:'production-ai-reports-menu'});
+const acceptedRelease=commit=>commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
+  commit===batch1123Release.commit?batch1123Release:
   commit===ideaPoolRelease.commit?ideaPoolRelease:
   commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
   commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
