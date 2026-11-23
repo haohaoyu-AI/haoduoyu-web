@@ -645,7 +645,15 @@ export const ideaPoolRelease=Object.freeze({
   baseline:'52a15b8d-b54a-4b8f-bbc8-7f65e2194e73',
   bytes:3467679,sha256:'2984f88505e1a8e640d22fb6c0d6276914022eb6e37c98cfa0cbd165c30c8832',
   label:'production-idea-pool'});
-const acceptedRelease=commit=>commit===ideaPoolRelease.commit?ideaPoolRelease:
+// 想法池 fix: an idea whose 状态 line says ✅ / 已落地 counts as 已落地. No migration.
+export const ideaPoolLandedRelease=Object.freeze({
+  commit:'5492f4955263ca3c5f44d398b7576fcf3e7c9993',
+  tree:'ed0d8d402c303aa5e57286840f8c81d41a3926f1',
+  baseline:'15bb1795-ee68-499c-ab7b-f186a530fdd8',
+  bytes:3468070,sha256:'76e234d7106c543fb471b6cc8154e3e02f1e2c57cfa8b0946e77d0420ff3e698',
+  label:'production-idea-pool-landed'});
+const acceptedRelease=commit=>commit===ideaPoolLandedRelease.commit?ideaPoolLandedRelease:
+  commit===ideaPoolRelease.commit?ideaPoolRelease:
   commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
   commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
   commit===todoEditTextRelease.commit?todoEditTextRelease:
