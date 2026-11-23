@@ -1256,3 +1256,43 @@ body.floating-workbench {
 #daily-notes .note-entry-labels { padding-top:12px; }
 #daily-notes .note-entry-label-options { padding-top:6px; }
 #daily-notes .note-entry-editing .note-entry-actions { margin-top:8px; }
+/* AI 日报 (2026-11-23): two cards of the same width — 待拍板, then 汇报 (日报 / 周报). Nothing inside them is another card. */
+#ai-reports .ai-board { display:grid; gap:20px; max-width:880px; }
+#ai-reports .ai-panel { margin:0; padding:20px 24px; background:var(--site-card-bg); border:1px solid var(--color-divider);
+  border-radius:20px; box-shadow:var(--shadow-metric); }
+#ai-reports .ai-decision-top { border-left:3px solid var(--site-accent); }
+#ai-reports .ai-panel-head, #ai-reports .ai-decision-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  gap:8px 16px; margin:0 0 4px; font-size:18px; font-weight:700; color:var(--ink); }
+#ai-reports .ai-panel-head h2 { margin:0; font-size:18px; }
+#ai-reports .ai-decision-head b { margin-left:-10px; margin-right:auto; padding:0 9px; border-radius:999px; background:var(--site-accent);
+  color:#fff; font-size:13px; line-height:22px; }
+#ai-reports .ai-decision-head span { font-size:13px; font-weight:400; color:var(--ink-3); }
+#ai-reports .ai-decision-how { margin:0 0 12px; font-size:13px; color:var(--ink-3); }
+#ai-reports .ai-decision-card { margin:0; padding:0; border:0; border-radius:0; background:none; box-shadow:none; }
+#ai-reports .ai-decision-list { margin:0; padding:0 0 0 1.4em; display:grid; gap:0; }
+#ai-reports .ai-decision-list li { padding:10px 0; border-bottom:1px solid var(--color-divider); line-height:1.75; }
+#ai-reports .ai-decision-list li:last-child { border-bottom:0; }
+#ai-reports .ai-decision-done { margin:0; padding:0; border:0; background:none; font-size:15px; color:var(--ink-2); }
+#ai-reports .ai-decision-top .ai-decision-more { margin:12px 0 0; padding-top:12px; border-top:1px solid var(--color-divider); font-size:13px; color:var(--ink-3); }
+#ai-reports .ai-decision-more summary { cursor:pointer; }
+/* 汇报 card */
+#ai-reports .ai-report-panel .ai-panel-head { margin-bottom:12px; }
+#ai-reports .ai-report-panel .ai-daily-tabs { margin:0; }
+#ai-reports .ai-report-panel .ai-calendar-layout { justify-content:flex-start; gap:6px; margin:0 0 12px; padding:0; background:none; border:0; box-shadow:none; }
+#ai-reports .ai-report-panel .ai-calendar-step { min-width:32px; min-height:32px; padding:0; border-radius:999px; }
+#ai-reports .ai-report-panel #ai-report-date-title { margin:0 4px; font-size:15px; font-weight:600; }
+#ai-reports .ai-report-panel :is(#ai-report-list, #ai-report-dayhead, .notes-tl) { max-width:none; margin-left:0; margin-right:0; }
+#ai-reports .ai-report-panel .ai-today { margin:0 0 8px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; }
+#ai-reports .ai-report-panel .ai-today-title { margin:0 0 2px; font-size:16px; }
+#ai-reports .ai-report-panel .ai-today-report { padding:14px 0; border-bottom:1px solid var(--color-divider); }
+#ai-reports .ai-report-panel .ai-today-report:last-child { border-bottom:0; }
+#ai-reports .ai-report-panel .ai-today-more { margin:12px 0 8px; padding-top:14px; border-top:1px solid var(--color-divider);
+  font-size:14px; font-weight:600; color:var(--ink-3); }
+#ai-reports .ai-report-panel .notes-tl-card { box-shadow:none; }
+@media (max-width:767px) {
+  #ai-reports .ai-board { gap:14px; }
+  #ai-reports .ai-panel { padding:16px; border-radius:16px; }
+}
+#ai-reports .ai-decision-head span:first-of-type:last-child { margin-left:auto; }
+#ai-reports .ai-report-panel .ai-daily-tabs { width:auto; flex:none; }
+@media (max-width:767px) { #ai-reports .ai-report-panel .ai-calendar-layout { justify-content:flex-start; } }

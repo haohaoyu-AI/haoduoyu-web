@@ -6,17 +6,20 @@ import {decisionCards,decisionCount,decisionHistory,openDecisionCount} from './a
 
 export function renderAiReports() {
   // 待拍板 sits on top of the page (no tab of its own); below it, 日报 and 周报 switch.
+  // Two cards of the same width: 待拍板, then 汇报 with its 日报 / 周报 switch in the card's own header.
   return `<section id="ai-reports" aria-label="AI 日报">
-    <div>
-      <section class="ai-decision-top" aria-labelledby="ai-decision-title">
+    <div class="ai-board">
+      <section class="ai-panel ai-decision-top" aria-labelledby="ai-decision-title">
         <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
         <details class="ai-decision-more"><summary data-ai-decision-history>看前 7 天的待拍板</summary>
         <div id="ai-decision-history"></div></details>
       </section>
+      <section class="ai-panel ai-report-panel" aria-labelledby="ai-report-panel-title">
+      <header class="ai-panel-head"><h2 id="ai-report-panel-title">汇报</h2>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="汇报类型">
         <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">日报</button>
         <button class="btn" type="button" data-ai-daily-tab="weekly" aria-pressed="false">周报</button>
-      </div>
+      </div></header>
       <section data-ai-daily-panel="reports">
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
@@ -26,6 +29,7 @@ export function renderAiReports() {
       </section>
       <section data-ai-daily-panel="weekly" hidden><p id="ai-weekly-status" role="status"></p>
         <div id="ai-weekly-list" class="content-review"></div></section>
+      </section>
     </div>
   </section>`;
 }
@@ -133,11 +137,11 @@ export function paintAiDailyReminders(data, error = '', loading = false) {
   if (loading || error) { box.innerHTML = ''; return; }
   // Nothing waiting (none today, or Grok has marked every one 已采纳 / 已否决 / 待定): one quiet line.
   if (!open) {
-    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day)} · ` +
-      `${count ? '今天的都拍完了' : '今天没有要你拍板的事'}</p>`;
+    box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板<span>${e(day)}</span></h2>` +
+      `<p class="ai-decision-done"><span aria-hidden="true">✓</span> ${count ? '今天的都拍完了' : '今天没有要你拍板的事'}</p>`;
     return;
   }
-  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day)}</span></h2>` +
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span>${e(day)}</span></h2>` +
     '<p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>' + decisionCards(items);
 }
 /** Earlier days of 待拍板, loaded only when asked for. */

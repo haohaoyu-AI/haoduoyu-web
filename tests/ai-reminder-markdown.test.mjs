@@ -22,7 +22,7 @@ const ask = (...items) => '**昨天做了什么**\n- 合成：其他段落不显
   '\n已按你的决定执行：合成：不显示';
 test('the 待拍板 panel renders only the decision items, with bold and lists', t => {
   const dom = withReminderDom(t);
-  assert.match(renderAiReports(), /class="ai-decision-top"/);
+  assert.match(renderAiReports(), /class="[^"]*\bai-decision-top\b/);
   paintAiDailyReminders({items: [{summary: ask('**日期字段**：2030-01-01', '核对原文')}]});
   const html = dom.html();
   assert.match(html, /<li class="ai-report-markdown"><p><strong>日期字段<\/strong>：2030-01-01<\/p><\/li>/);
@@ -84,4 +84,14 @@ test('leaving the page before a reminder render is harmless', t => {
   globalThis.document = {querySelector: () => null};
   t.after(() => { globalThis.document = previous; });
   assert.doesNotThrow(() => paintAiDailyReminders({items: [{summary: '# 不应插入其他页面'}]}));
+});
+
+test('a 待你拍板 line that only says there is nothing to decide is not counted as a decision', t => {
+  const dom = withReminderDom(t);
+  paintAiDailyReminders({items: [{summary: '**昨天做了什么**\n- 发文\n**待你拍板**\n1. 今天没有要你拍板的事'}]});
+  assert.doesNotMatch(dom.html(), /<b>1<\/b>/);
+  assert.match(dom.html(), /class="ai-decision-done"[\s\S]*今天没有要你拍板的事/);
+  paintAiDailyReminders({items: [{summary: '**待你拍板**\n1. 今天没有要你拍板的事\n2. 要不要补一张图？'}]});
+  assert.match(dom.html(), /待拍板 <b>1<\/b>/);
+  assert.match(dom.html(), /要不要补一张图/);
 });

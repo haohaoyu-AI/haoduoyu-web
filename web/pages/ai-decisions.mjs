@@ -9,6 +9,7 @@ const plain = line => line.replace(/^[\s#>*_]+|[\s*_:：]+$/g, '').trim();
 // A heading is a Markdown heading, a line that is only bold text, or a short line ending in a colon.
 const isHeading = line => /^#{1,6}\s/.test(line) || /^\s*\*\*[^*]+\*\*\s*[:：]?\s*$/.test(line) || /^\s*[^\s\d-].{0,12}[:：]\s*$/.test(line);
 const ENDS_SECTION = /^\s*(已按你的决定执行|已执行)/;
+const NOTHING = /^(?:今天|今日|目前|暂时|这次)?[，,\s]*(?:没有|无|暂无)(?:需要|要)?(?:你)?(?:拍板|决定)(?:的事|的事情|事项)?[。.！!]*$/;
 
 /** The "待你拍板" items of one reminder: null when the reminder has no such heading, [] when the heading is empty. */
 export function decisionsFrom(summary) {
@@ -19,6 +20,8 @@ export function decisionsFrom(summary) {
   for (const line of lines.slice(start + 1)) {
     if (isHeading(line) || ENDS_SECTION.test(line)) break;
     const item = /^\s*(?:\d{1,2}[.、)]|[-*•])\s+(.*)$/.exec(line);
+    // 「今天没有要你拍板的事」 is Grok saying there is nothing, not a question to answer.
+    if (NOTHING.test(plain(item ? item[1] : line))) continue;
     if (item) items.push(item[1]);
     else if (line.trim() && items.length) items[items.length - 1] += line.trim(); // a wrapped line continues its item
     else if (line.trim()) items.push(line.trim());

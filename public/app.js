@@ -12909,6 +12909,7 @@ var DECISION_HEADING = /待你拍板/;
 var plain2 = (line) => line.replace(/^[\s#>*_]+|[\s*_:：]+$/g, "").trim();
 var isHeading = (line) => /^#{1,6}\s/.test(line) || /^\s*\*\*[^*]+\*\*\s*[:：]?\s*$/.test(line) || /^\s*[^\s\d-].{0,12}[:：]\s*$/.test(line);
 var ENDS_SECTION = /^\s*(已按你的决定执行|已执行)/;
+var NOTHING = /^(?:今天|今日|目前|暂时|这次)?[，,\s]*(?:没有|无|暂无)(?:需要|要)?(?:你)?(?:拍板|决定)(?:的事|的事情|事项)?[。.！!]*$/;
 function decisionsFrom(summary3) {
   const lines = String(summary3 ?? "").split(/\r?\n/);
   const start = lines.findIndex((line) => DECISION_HEADING.test(line) && (isHeading(line) || plain2(line).length <= 12));
@@ -12917,6 +12918,7 @@ function decisionsFrom(summary3) {
   for (const line of lines.slice(start + 1)) {
     if (isHeading(line) || ENDS_SECTION.test(line)) break;
     const item = /^\s*(?:\d{1,2}[.、)]|[-*•])\s+(.*)$/.exec(line);
+    if (NOTHING.test(plain2(item ? item[1] : line))) continue;
     if (item) items.push(item[1]);
     else if (line.trim() && items.length) items[items.length - 1] += line.trim();
     else if (line.trim()) items.push(line.trim());
@@ -12966,16 +12968,18 @@ init_dom();
 init_daily_notes_state();
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
-    <div>
-      <section class="ai-decision-top" aria-labelledby="ai-decision-title">
+    <div class="ai-board">
+      <section class="ai-panel ai-decision-top" aria-labelledby="ai-decision-title">
         <p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div>
         <details class="ai-decision-more"><summary data-ai-decision-history>看前 7 天的待拍板</summary>
         <div id="ai-decision-history"></div></details>
       </section>
+      <section class="ai-panel ai-report-panel" aria-labelledby="ai-report-panel-title">
+      <header class="ai-panel-head"><h2 id="ai-report-panel-title">汇报</h2>
       <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="汇报类型">
         <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="true">日报</button>
         <button class="btn" type="button" data-ai-daily-tab="weekly" aria-pressed="false">周报</button>
-      </div>
+      </div></header>
       <section data-ai-daily-panel="reports">
       <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
         <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
@@ -12985,6 +12989,7 @@ function renderAiReports() {
       </section>
       <section data-ai-daily-panel="weekly" hidden><p id="ai-weekly-status" role="status"></p>
         <div id="ai-weekly-list" class="content-review"></div></section>
+      </section>
     </div>
   </section>`;
 }
@@ -13089,10 +13094,10 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
     return;
   }
   if (!open) {
-    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day8)} · ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
+    box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板<span>${e(day8)}</span></h2><p class="ai-decision-done"><span aria-hidden="true">✓</span> ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
     return;
   }
-  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day8)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span>${e(day8)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
 }
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
