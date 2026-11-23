@@ -661,7 +661,15 @@ export const aiReportsMenuRelease=Object.freeze({
   baseline:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
   bytes:3303730,sha256:'46888f2a47d469b6fcdbb02c15c97c62fd781c508ec37c3a57d44dd682139606',
   label:'production-ai-reports-menu'});
-const acceptedRelease=commit=>commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
+// 全站去掉左边彩色粗线 (碎碎念输入框, AI 日报, 待办到期, 复盘卡片, 提示条). CSS only, no migration.
+export const noLeftAccentRelease=Object.freeze({
+  commit:'6d4fb864b54434d13bb77abab008f257cafe190a',
+  tree:'e97be4f9a1b2b367df4d7eb55887f96141356732',
+  baseline:'b816df6e-2022-4ce2-8c0a-48b3ca9731b8',
+  bytes:3303163,sha256:'d64dcba2efb3513a3613f49c85678ad2993a6dedb67a2d5c2e5a1d16f50ff006',
+  label:'production-no-left-accent'});
+const acceptedRelease=commit=>commit===noLeftAccentRelease.commit?noLeftAccentRelease:
+  commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
   commit===batch1123Release.commit?batch1123Release:
   commit===ideaPoolRelease.commit?ideaPoolRelease:
   commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
