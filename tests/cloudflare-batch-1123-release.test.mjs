@@ -5,7 +5,7 @@ import {
   repository, batch1123Release as release, validateRequest, verifyEligibility, verifyWorker,
 } from '../.github/scripts/release-policy.mjs';
 
-test('batch-1123 is registered as an exact first upload on the deployed baseline', async () => {
+test('batch-1123 resumes the exact upload of run 45132257072 on the deployed baseline', async () => {
   const env = {
     GITHUB_REPOSITORY: repository,
     GITHUB_REF: 'refs/heads/main',
@@ -13,12 +13,14 @@ test('batch-1123 is registered as an exact first upload on the deployed baseline
     TARGET_COMMIT: 'a6ffdd499305679f87a60e0a2361a373ce9fe6c4',
     EXPECTED_CURRENT_VERSION: '15bb1795-ee68-499c-ab7b-f186a530fdd8',
     LOCAL_UPLOAD_STOPPED: 'true',
+    UPLOADED_VERSION: '41bbea72-bfcf-4622-99a7-47bec99ab3ec',
   };
   assert.equal(validateRequest(env), release);
   assert.equal(release.tree, '0249acf9da328c88af7d5a246469805533012cb7');
   assert.equal(release.bytes, 3296375);
   assert.equal(release.sha256, '4acfd60481ace444080cf4e14d548f5c64f176230a5a65545fa89bdf46759cd2');
-  assert.throws(() => validateRequest({...env, UPLOADED_VERSION: env.EXPECTED_CURRENT_VERSION}), /already-uploaded/);
+  assert.throws(() => validateRequest({...env, UPLOADED_VERSION: env.EXPECTED_CURRENT_VERSION}));
+  assert.throws(() => validateRequest({...env, UPLOADED_VERSION: ''}));
   assert.throws(() => validateRequest({...env, EXPECTED_CURRENT_VERSION: '00000000-0000-4000-8000-000000000001'}), /baseline/);
 
   const request = async url => {
