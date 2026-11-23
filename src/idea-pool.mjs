@@ -59,12 +59,15 @@ async function todosFor(store,user,ids) {
 
 // 状态 shown on the page: 已落地 once every linked to-do that still exists is done; 已转待办 while
 // one is open; otherwise whatever the idea's own 「状态：」 line says (kept as written).
-export function ideaStatus(text,todos) {
+// An idea with no linked to-dos also counts as 已落地 when its own 「状态：」 line says so (starts with ✅ or
+// contains 已落地); then the time is when the idea was last edited.
+export function ideaStatus(text,todos,editedAt=null) {
   const live=todos.filter(todo=>!todo.deleted);
   if(live.length&&live.every(todo=>todo.completed))
     return {status:'landed',label:'已落地',landed_at:live.map(todo=>todo.updated_at).filter(Boolean).sort().at(-1)??null};
   if(live.length)return {status:'todo',label:'已转待办',landed_at:null};
   const line=/^\s*状态[：:]\s*(.+?)\s*$/m.exec(text)?.[1]??'';
+  if(/^✅|已落地/.test(line))return {status:'landed',label:'已落地',landed_at:editedAt};
   return {status:'idea',label:line||'想法',landed_at:null};
 }
 export function ideaPriority(text) {
@@ -80,7 +83,7 @@ async function listIdeas(store,owner,user) {
   const todos=await todosFor(store,user,[...new Set([...links.values()].flat().map(link=>link.todo_id))]);
   const items=ideas.map(row=>{
     const linked=(links.get(row.id)??[]).map(link=>todos.get(link.todo_id)).filter(Boolean);
-    return {...row,...ideaStatus(row.text,linked),...ideaPriority(row.text),todos:linked};
+    return {...row,...ideaStatus(row.text,linked,row.updated_at),...ideaPriority(row.text),todos:linked};
   });
   return {items,total:rows.length,truncated};
 }
@@ -98,7 +101,7 @@ async function linkTodo(db,request,owner,actor,ideaId) {
     const view=async()=>{
       const all=await todosFor(store,actor.id,[...new Set([...links.map(link=>link.todo_id),input.todo_id])]);
       const linked=[...all.values()];
-      return {...idea,...ideaStatus(idea.text,linked),...ideaPriority(idea.text),todos:linked};
+      return {...idea,...ideaStatus(idea.text,linked,idea.updated_at),...ideaPriority(idea.text),todos:linked};
     };
     if(links.some(link=>link.todo_id===input.todo_id))return {replayed:true,response:json(await view())};
     if(links.length>=MAX_LINKS)throw fail(409,'IDEA_LINK_LIMIT','一条想法最多关联 20 条待办');

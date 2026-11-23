@@ -81,6 +81,19 @@ test('status and priority come from the idea text unless linked to-dos decide', 
   assert.deepEqual(ideaStatus('a\n状态：搁置',[]),{status:'idea',label:'搁置',landed_at:null});
   assert.equal(ideaStatus('a',[{completed:true,deleted:true,updated_at:'x'}]).status,'idea');
   assert.equal(ideaStatus('a',[{completed:true,deleted:false,updated_at:'2026-11-20T00:00:00.000Z'},{completed:false,deleted:true}]).status,'landed');
+  assert.deepEqual(ideaStatus('✅ 已落地 11/19\n状态：✅ 已落地（11/19 上线）',[],'2026-11-19T12:54:41.965Z'),
+    {status:'landed',label:'已落地',landed_at:'2026-11-19T12:54:41.965Z'});
+  assert.equal(ideaStatus('状态：快要已落地了',[]).status,'landed');
+  assert.equal(ideaStatus('✅ 第一行不算\n状态：想法池',[]).status,'idea');
+  assert.equal(ideaStatus('状态：✅',[{completed:false,deleted:false}]).status,'todo');
   assert.deepEqual(ideaPriority('优先级：⭐⭐'),{priority:2,priority_label:'⭐⭐'});
   assert.deepEqual(ideaPriority('无'),{priority:null,priority_label:null});
+});
+
+test('the page names an idea by its first real line, skipping a ✅ stamp', async () => {
+  const {ideaTitle,todoTextFor}=await import('../web/pages/ideas.mjs');
+  assert.equal(ideaTitle('✅ 已落地 11/19\n想法 ①：AI 读碎碎念\n状态：✅'),'想法 ①：AI 读碎碎念');
+  assert.equal(ideaTitle('\n桌面挂件\n优先级：⭐⭐'),'桌面挂件');
+  assert.equal(ideaTitle('✅ 只有这一行'),'✅ 只有这一行');
+  assert.equal(todoTextFor('想法 ⑧：App 语音大按钮'),'App 语音大按钮');
 });

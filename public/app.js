@@ -250,8 +250,8 @@ var init_requests = __esm({
 
 // web/core/format.mjs
 function displayTime(value) {
-  const stamp3 = Date.parse(value), diff = Date.now() - stamp3;
-  return !Number.isFinite(stamp3) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
+  const stamp4 = Date.parse(value), diff = Date.now() - stamp4;
+  return !Number.isFinite(stamp4) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
 }
 function safeURL(value) {
   try {
@@ -1631,8 +1631,8 @@ var init_conflict = __esm({
 // web/offline/conflict-plan.mjs
 function checkedDay(value) {
   if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) invalid();
-  const stamp3 = Date.parse(value + "T00:00:00Z");
-  if (!Number.isFinite(stamp3) || new Date(stamp3).toISOString().slice(0, 10) !== value) invalid();
+  const stamp4 = Date.parse(value + "T00:00:00Z");
+  if (!Number.isFinite(stamp4) || new Date(stamp4).toISOString().slice(0, 10) !== value) invalid();
   return value;
 }
 function shortText(value) {
@@ -1949,7 +1949,7 @@ function createConflictDecisions({
       if (prepared.remote?.can_edit !== void 0) entity.api_server = prepared.remote;
       await tx.put("entities", entity);
       await rememberParents(tx, scope, prepared.groups || [], plan.operations);
-      const stamp3 = new Date(now()).toISOString();
+      const stamp4 = new Date(now()).toISOString();
       const decisionProtocol = conflict.operation.protocol === 5 || conflict.operation.entity_type === "note_entry" && currentLocal(conflict)?.labels_version === 1 ? 5 : 3;
       const inputs = plan.operations.map((input) => ({
         ...input,
@@ -1960,8 +1960,8 @@ function createConflictDecisions({
         local: {
           ...input.local,
           ...decisionProtocol === 5 ? { labels_version: 1, label: input.local.label ?? null } : {},
-          created_at: input.base?.created_at || stamp3,
-          updated_at: stamp3
+          created_at: input.base?.created_at || stamp4,
+          updated_at: stamp4
         }
       }));
       const saved = await append(tx, inputs, { assertActive: active5 });
@@ -3915,7 +3915,7 @@ function createNoteMutations(context) {
     if (labelMode && visible3 && Object.hasOwn(body4, "label") && body4.label !== evidence2.label)
       throw failure2("已有记录的标签不可更改，原文已保留。");
     const label = visible3 ? evidence2?.label : body4.label ?? null;
-    const stamp3 = new Date(now()).toISOString();
+    const stamp4 = new Date(now()).toISOString();
     const local = {
       ...visible3,
       ...body4,
@@ -3923,9 +3923,9 @@ function createNoteMutations(context) {
       id: route2.id,
       can_edit: true,
       deleted: route2.method === "DELETE",
-      created_at: visible3?.created_at || stamp3,
-      updated_at: stamp3,
-      deleted_at: route2.method === "DELETE" ? stamp3 : null
+      created_at: visible3?.created_at || stamp4,
+      updated_at: stamp4,
+      deleted_at: route2.method === "DELETE" ? stamp4 : null
     };
     let result;
     try {
@@ -5206,14 +5206,14 @@ function mutationActions(context) {
       throw fail4(visible3.date ? `此待办已安排到 ${visible3.date}，原未来待办仍保留。` : "该待办标识已使用，原未来待办仍保留。", "TODO_ID_IN_USE");
     }
     if (!route2.create && !visible3) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
-    const stamp3 = new Date(now()).toISOString(), method2 = options3.method.toUpperCase();
+    const stamp4 = new Date(now()).toISOString(), method2 = options3.method.toUpperCase();
     const local = {
       ...visible3,
       ...body4,
       id: id2,
-      created_at: visible3?.created_at || stamp3,
-      updated_at: stamp3,
-      deleted_at: method2 === "DELETE" ? stamp3 : route2.restore ? null : visible3?.deleted_at || null,
+      created_at: visible3?.created_at || stamp4,
+      updated_at: stamp4,
+      deleted_at: method2 === "DELETE" ? stamp4 : route2.restore ? null : visible3?.deleted_at || null,
       ...route2.create ? { completed: false, ...route2.type === "template" ? { completed_days: 0, habit_status: "todo" } : {} } : {},
       ...route2.restore ? { deleted: false } : {}
     };
@@ -7061,11 +7061,11 @@ function platformColor(platform) {
   return `var(--p-${["toutiao", "zhihu", "wechat"].includes(platform) ? platform : "other"})`;
 }
 function freshness(c, now = Date.now()) {
-  const stamp3 = [c.as_of, c.collected_at].find((v) => v && Number.isFinite(Date.parse(v)));
-  if (!stamp3) return { kind: "unknown", label: "数据新鲜度未知" };
-  const days = Math.floor((Date.parse(bjtDate(now)) - Date.parse(bjtDate(stamp3))) / 864e5);
+  const stamp4 = [c.as_of, c.collected_at].find((v) => v && Number.isFinite(Date.parse(v)));
+  if (!stamp4) return { kind: "unknown", label: "数据新鲜度未知" };
+  const days = Math.floor((Date.parse(bjtDate(now)) - Date.parse(bjtDate(stamp4))) / 864e5);
   return days < 0 ? { kind: "unknown", label: "数据日期待核实" } : { kind: days <= 1 ? "up" : days <= 3 ? "warn" : "danger", label: `数据截至 ${time(
-    stamp3,
+    stamp4,
     true
   )} · ${days === 0 ? "今天更新" : `已 ${days} 天未更新`}` };
 }
@@ -8637,9 +8637,9 @@ var monthLoader = createTodoMonthLoader({
   async seed(month, owner2, { refresh = false } = {}) {
     const loaded = [];
     if (todosState.owner === todoOwner()) for (const [date2, day8] of todosState.days) {
-      const stamp3 = monthDayOwners.get(day8);
-      if (date2.startsWith(month + "-") && day8.loaded && stamp3?.owner === owner2 && (!refresh || todoPending(day8))) {
-        loaded.push({ date: date2, items: monthDayItems(day8), readAt: stamp3.at, pending: todoPending(day8) });
+      const stamp4 = monthDayOwners.get(day8);
+      if (date2.startsWith(month + "-") && day8.loaded && stamp4?.owner === owner2 && (!refresh || todoPending(day8))) {
+        loaded.push({ date: date2, items: monthDayItems(day8), readAt: stamp4.at, pending: todoPending(day8) });
       }
     }
     const offline = getOfflineRuntime(), scope = offline?.state.scope;
@@ -8954,11 +8954,11 @@ function paintTodoDom() {
   const root3 = $("#daily-todos");
   if (!root3 || !todosVisible()) return;
   const day8 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
-  const stamp3 = monthDayOwners.get(day8);
-  if (day8.loaded && stamp3?.owner === monthOwner()) {
-    if (stamp3.revision !== day8.revision) {
-      stamp3.at = Date.now();
-      stamp3.revision = day8.revision;
+  const stamp4 = monthDayOwners.get(day8);
+  if (day8.loaded && stamp4?.owner === monthOwner()) {
+    if (stamp4.revision !== day8.revision) {
+      stamp4.at = Date.now();
+      stamp4.revision = day8.revision;
     }
     if (monthLoader.update(monthOwner(), day8.date, monthDayItems(day8))) {
       const calendar = $("#todo-calendar");
@@ -10932,8 +10932,8 @@ var el2 = (tag2, className, text) => {
   return node3;
 };
 var short = (date2) => `${Number(date2.slice(5, 7))}/${Number(date2.slice(8))}`;
-var time2 = (stamp3) => {
-  const value = Date.parse(stamp3);
+var time2 = (stamp4) => {
+  const value = Date.parse(stamp4);
   return Number.isFinite(value) ? new Date(value + 8 * 36e5).toISOString().slice(5, 16).replace("T", " ").replace("-", "/") : "";
 };
 function paintBodySummary(root3, label) {
@@ -11062,8 +11062,8 @@ function draw(section) {
     refresh.type = "button";
     refresh.disabled = Boolean(view.busy || view.loading);
     refresh.addEventListener("click", () => generate(section, "current", true));
-    const stamp3 = summary3?.generated_at ? el2("span", "body-summary-meta", `生成于 ${time2(summary3.generated_at)}`) : null;
-    actions4.append(...[stamp3, refresh].filter(Boolean));
+    const stamp4 = summary3?.generated_at ? el2("span", "body-summary-meta", `生成于 ${time2(summary3.generated_at)}`) : null;
+    actions4.append(...[stamp4, refresh].filter(Boolean));
     parts2.push(actions4, contextEditor(section));
   }
   parts2.push(el2("p", "body-summary-foot", "只整理你写下的记录，不是诊断。"));
@@ -13065,10 +13065,10 @@ function paintAiReports(items, error2 = "", loading = false, selectedDate2 = dai
     const validDate = Number.isFinite(date2.getTime());
     const submissionDay = validDate ? dateFormatter.format(date2) : "日期未知";
     const { body: body4 } = reportContent(row.content);
-    const stamp3 = validDate ? `${submissionDay} ${timeFormatter.format(date2)}（北京时间）` : String(row.created_at ?? "未知");
+    const stamp4 = validDate ? `${submissionDay} ${timeFormatter.format(date2)}（北京时间）` : String(row.created_at ?? "未知");
     const author = String(row.author ?? "");
     const group = reportGroup(author);
-    groups2[group].push(`<article class="card field-spaced ai-report-card" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body4)}</div></article>`);
+    groups2[group].push(`<article class="card field-spaced ai-report-card" title="提交于 ${e(stamp4)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body4)}</div></article>`);
   }
   for (const [name, entries] of Object.entries(groups2)) {
     if (name === "其他作者" && !entries.length) continue;
@@ -13173,16 +13173,16 @@ function finiteNumber(value) {
 }
 function calendarDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-  const stamp3 = Date.parse(`${value}T00:00:00Z`);
-  return Number.isFinite(stamp3) && new Date(stamp3).toISOString().slice(0, 10) === value ? value : "";
+  const stamp4 = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(stamp4) && new Date(stamp4).toISOString().slice(0, 10) === value ? value : "";
 }
 var clock = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 function parts(value) {
   if (typeof value !== "string") return null;
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match || !calendarDate(match[1]) || +match[2] > 23 || +match[3] > 59 || +match[4] > 59 || match[5] !== "Z" && (+match[5].slice(1, 3) > 23 || +match[5].slice(4, 6) > 59)) return null;
-  const stamp3 = Date.parse(value);
-  return Number.isFinite(stamp3) ? Object.fromEntries(clock.formatToParts(stamp3).map((part) => [part.type, part.value])) : null;
+  const stamp4 = Date.parse(value);
+  return Number.isFinite(stamp4) ? Object.fromEntries(clock.formatToParts(stamp4).map((part) => [part.type, part.value])) : null;
 }
 function day4(value) {
   if (calendarDate(value)) return value;
@@ -14054,17 +14054,17 @@ function finiteNumber2(value) {
 }
 function calendarDate2(date2) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date2)) return "";
-  const stamp3 = Date.parse(`${date2}T00:00:00Z`);
-  return Number.isFinite(stamp3) && new Date(stamp3).toISOString().slice(0, 10) === date2 ? date2 : "";
+  const stamp4 = Date.parse(`${date2}T00:00:00Z`);
+  return Number.isFinite(stamp4) && new Date(stamp4).toISOString().slice(0, 10) === date2 ? date2 : "";
 }
 var shanghaiClock = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 function shanghaiParts(value) {
   if (typeof value !== "string") return null;
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match || !calendarDate2(match[1]) || Number(match[2]) > 23 || Number(match[3]) > 59 || Number(match[4] || 0) > 59 || match[6] !== "Z" && (Number(match[6].slice(1, 3)) > 23 || Number(match[6].slice(4, 6)) > 59)) return null;
-  const stamp3 = Date.parse(value);
-  if (!Number.isFinite(stamp3)) return null;
-  return Object.fromEntries(shanghaiClock.formatToParts(stamp3).map((part) => [part.type, part.value]));
+  const stamp4 = Date.parse(value);
+  if (!Number.isFinite(stamp4)) return null;
+  return Object.fromEntries(shanghaiClock.formatToParts(stamp4).map((part) => [part.type, part.value]));
 }
 function day5(value) {
   if (typeof value !== "string") return "";
@@ -14520,13 +14520,18 @@ init_modal();
 var FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
 var view2 = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, error: "" };
 var day7 = (value) => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
+var stamp2 = (line) => /^\s*✅/.test(line);
+function titleIndex(lines) {
+  const index = lines.findIndex((line) => line.trim() && !stamp2(line));
+  return index >= 0 ? index : lines.findIndex((line) => line.trim());
+}
 function ideaTitle(text) {
-  const first = String(text || "").split("\n").find((line) => line.trim()) || "（空）";
-  return first.trim();
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return index >= 0 ? lines[index].trim() : "（空）";
 }
 function ideaBody(text) {
-  const lines = String(text || "").split("\n"), first = lines.findIndex((line) => line.trim());
-  return lines.slice(first + 1).filter((line) => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return lines.slice(index + 1).filter((line) => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
 }
 function todoTextFor(text) {
   return ideaTitle(text).replace(/^想法\s*[^：:]{0,4}[：:]\s*/, "").slice(0, 500) || ideaTitle(text).slice(0, 500);
@@ -14766,7 +14771,7 @@ var ROLLING_DAYS = 7;
 var ROLLING_MIN_SAMPLES = 3;
 var DAY_MS = 864e5, BEIJING_OFFSET_MS = 8 * 36e5;
 var instant = (value) => typeof value === "string" && value.includes("T") && day5(value) ? Date.parse(value) : null;
-var stamp2 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
+var stamp3 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
 var number = (value, max = Infinity) => {
   const n = finiteNumber2(value);
   return n !== null && n >= 0 && n <= max ? n : null;
@@ -14777,7 +14782,7 @@ var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
 function trendBounds({ range: range2 = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const today2 = day5(now);
-  if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
+  if (!today2 || stamp3(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range2)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
   const start = range2 === "custom" ? from : shiftDay4(today2, range2 === "30d" ? -29 : -6);
   const end = range2 === "custom" ? to : today2;
@@ -14855,19 +14860,19 @@ function headline(current2, previous) {
 }
 function reviewTrends(data3 = {}, options3 = {}) {
   const { account: account3 = "V字", verdict = "", now = (/* @__PURE__ */ new Date()).toISOString() } = options3;
-  const bounds = trendBounds({ ...options3, now }), nowMs = stamp2(now);
+  const bounds = trendBounds({ ...options3, now }), nowMs = stamp3(now);
   const source = (data3.articles || []).filter((row) => row.account === account3);
-  const past = (row) => day5(row.published_at) && day5(row.published_at) <= bounds.today && (stamp2(row.published_at) === null || stamp2(row.published_at) <= nowMs);
+  const past = (row) => day5(row.published_at) && day5(row.published_at) <= bounds.today && (stamp3(row.published_at) === null || stamp3(row.published_at) <= nowMs);
   const articles = source.filter((row) => !unpublished(row) && past(row));
   const byId = new Map(articles.map((row) => [String(row.id), row]));
   const snapshots = (data3.snapshots || []).filter((snapshot) => {
     const row = byId.get(String(snapshot.article_id)), date2 = day5(snapshot.snapshot_date);
     if (!row || !date2 || date2 > bounds.today || date2 < day5(row.published_at)) return false;
-    const published = stamp2(row.published_at), hours = number(snapshot.age_hours);
+    const published = stamp3(row.published_at), hours = number(snapshot.age_hours);
     return published === null || hours === null || hours <= (nowMs - published) / 36e5 + 1;
   });
   const rows = enrichArticles({ ...data3, articles, snapshots }, { account: account3, baselineData: data3 }).map((row) => {
-    const published = stamp2(row.published_at), age = number(row.sample24h?.age_hours);
+    const published = stamp3(row.published_at), age = number(row.sample24h?.age_hours);
     const elapsed = published === null ? null : (nowMs - published) / 36e5;
     return {
       ...row,
@@ -14898,7 +14903,7 @@ function reviewTrends(data3 = {}, options3 = {}) {
     };
   });
   const points = selected.map((row) => {
-    const date2 = day5(row.published_at), published = stamp2(row.published_at);
+    const date2 = day5(row.published_at), published = stamp3(row.published_at);
     const position = published === null ? ((Date.parse(`${date2}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days : (published + BEIJING_OFFSET_MS - startMs) / (plot.days * DAY_MS);
     return {
       id: row.id,
@@ -15346,8 +15351,8 @@ function renderPromptPage(data3, vm2) {
 // web/core/review-overview-metrics.mjs
 function instant2(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
-  const stamp3 = Date.parse(value);
-  return Number.isFinite(stamp3) ? stamp3 : null;
+  const stamp4 = Date.parse(value);
+  return Number.isFinite(stamp4) ? stamp4 : null;
 }
 function metricSample(rows, valueOf, maximum = Infinity) {
   const entries = rows.map((row) => ({ value: finiteNumber2(valueOf(row)), hours: finiteNumber2(row.sample24h?.age_hours) })).filter(({ value, hours: hours2 }) => value !== null && value >= 0 && value <= maximum && hours2 !== null);
@@ -15479,8 +15484,8 @@ function formatReviewListMetric(observation, key) {
 // web/core/review-list-observation.mjs
 function instant3(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day5(value)) return null;
-  const stamp3 = Date.parse(value);
-  return Number.isFinite(stamp3) ? stamp3 : null;
+  const stamp4 = Date.parse(value);
+  return Number.isFinite(stamp4) ? stamp4 : null;
 }
 var compare2 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 function reviewListObservation(row, snapshots = [], now = (/* @__PURE__ */ new Date()).toISOString()) {

@@ -14,13 +14,19 @@ const view = { items: [], total: 0, truncated: false, filter: "all", open: new S
 
 const day = value => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
 // The first line is the idea's name; a leading 「想法 ⑧：」 is kept as written.
+// A first line such as 「✅ 已落地 11/19」 is a stamp, not the name; the status already says it.
+const stamp = line => /^\s*✅/.test(line);
+function titleIndex(lines) {
+  const index = lines.findIndex(line => line.trim() && !stamp(line));
+  return index >= 0 ? index : lines.findIndex(line => line.trim());
+}
 export function ideaTitle(text) {
-  const first = String(text || "").split("\n").find(line => line.trim()) || "（空）";
-  return first.trim();
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return index >= 0 ? lines[index].trim() : "（空）";
 }
 function ideaBody(text) {
-  const lines = String(text || "").split("\n"), first = lines.findIndex(line => line.trim());
-  return lines.slice(first + 1).filter(line => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
+  const lines = String(text || "").split("\n"), index = titleIndex(lines);
+  return lines.slice(index + 1).filter(line => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
 }
 // What 转成待办 offers by default: the name without a 「想法 ⑧：」 style prefix.
 export function todoTextFor(text) {
