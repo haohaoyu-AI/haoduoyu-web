@@ -25,6 +25,7 @@ import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNa
 import {renderTodoSettings} from "./pages/workbench-settings.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
+import {loadIdeas, renderIdeas} from "./pages/ideas.mjs";
 import {renderContentReview} from "./pages/content-review.mjs";
 import {renderReviewArchiveShell} from "./pages/review-archive.mjs";
 import {archiveHref, canAccessReviewArchive} from "./core/review-archive-state.mjs";
@@ -37,6 +38,7 @@ const PAGE_HEADERS = {
   review: ["内容复盘", "数据表现与爆款方法沉淀"],
   todos: ["每日待办", "今日任务与日程安排"],
   notes: ["碎碎念", "随时记录想法与状态"],
+  ideas: ["想法池", "碎碎念里的灵感，想好了就转成待办"],
   "ai-reports": ["AI 日报", "待拍板、日报和周报"],
   settings: ["设置", "待办偏好、AI 配置与账号安全"]
 };
@@ -152,6 +154,7 @@ function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "ai-reports") return renderAiReports();
+  if (page === "ideas") return renderIdeas();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -187,6 +190,9 @@ async function renderPage() {
         break;
       case "ai-reports":
         await loadAiReports({resetDate:true});
+        break;
+      case "ideas":
+        html = await loadIdeas(context);
         break;
       case "review":
         if (reviewArchiveActive()) await loadReviewArchive(context);

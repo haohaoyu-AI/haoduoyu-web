@@ -29,6 +29,7 @@ var init_constants = __esm({
       { id: "review", label: "内容复盘", icon: "chart" },
       { id: "todos", label: "每日待办", icon: "check" },
       { id: "notes", label: "碎碎念", icon: "edit" },
+      { id: "ideas", label: "想法池", icon: "bulb" },
       { id: "ai-reports", label: "AI 日报", icon: "calendar" },
       { id: "settings", label: "设置", icon: "settings" }
     ];
@@ -374,13 +375,13 @@ function syncTodoDay(now = Date.now()) {
 function todoSessionActive(owner2) {
   return Boolean(state.me) && owner2 === todoOwner() && owner2 === todosState.owner;
 }
-function mergeTodo(day7, item) {
-  const index = day7.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day7.items.push(item);
-  else if (day7.items[index].version <= item.version) day7.items[index] = item;
+function mergeTodo(day8, item) {
+  const index = day8.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day8.items.push(item);
+  else if (day8.items[index].version <= item.version) day8.items[index] = item;
 }
-function todoTemplateAdded(day7, id2) {
-  return day7.items.some((item) => item.date === day7.date && item.template_id === id2 && !item.deleted_at);
+function todoTemplateAdded(day8, id2) {
+  return day8.items.some((item) => item.date === day8.date && item.template_id === id2 && !item.deleted_at);
 }
 var todosState;
 var init_todos_state = __esm({
@@ -440,7 +441,8 @@ var init_dom = __esm({
       menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
       refresh: '<path d="M20 7a8 8 0 1 0 0 10M20 3v5h-5"/>',
       copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
-      key: '<circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-3-3 3-3m-6 0 3-3"/>'
+      key: '<circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-3-3 3-3m-6 0 3-3"/>',
+      bulb: '<path d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.6 1 2.5h6c0-.9.2-1.7 1-2.5A6 6 0 0 0 12 3z"/>'
     };
     icon = (name, size = 17) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.articles}</svg>`;
   }
@@ -2619,10 +2621,10 @@ function remoteMethods(context) {
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
     const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
-    const day7 = operation2.body.date || operation2.base?.date || operation2.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?window=date&date=" + day7 + "&version=2");
+    const day8 = operation2.body.date || operation2.base?.date || operation2.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?window=date&date=" + day8 + "&version=2");
     const head = snapshot?.batch_format === "haoduoyu-workbench-window-v1" ? snapshot.index : snapshot;
-    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) || snapshot.coverage && (snapshot.coverage.from !== day7 || snapshot.coverage.to !== day7)) {
+    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) || snapshot.coverage && (snapshot.coverage.from !== day8 || snapshot.coverage.to !== day8)) {
       throw new Error("Todo absence could not be verified completely");
     }
     return snapshot.data.todos.find((value) => value.source_id === operation2.source_id) ? { ...snapshot.data.todos.find((value) => value.source_id === operation2.source_id), id: operation2.source_id } : null;
@@ -3871,8 +3873,8 @@ function checked(body4, method2, labelsV1) {
       if (body4.category !== "life" || typeof label !== "string" || !label.isWellFormed() || !label.trim() || [...label.trim()].length > 32 || /[\u0000-\u001f\u007f]/.test(label) || ["生活", "工作"].includes(label.trim().normalize("NFC"))) throw failure2("标签无效，草稿已保留。");
       body4 = { ...body4, label: label.trim().normalize("NFC") };
     }
-    const day7 = /* @__PURE__ */ new Date(body4.date + "T00:00:00Z");
-    if (!["life", "work"].includes(body4.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(day7.getTime()) || day7.toISOString().slice(0, 10) !== body4.date || typeof body4.text !== "string" || !body4.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body4.text) || new TextEncoder().encode(body4.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+    const day8 = /* @__PURE__ */ new Date(body4.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body4.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(day8.getTime()) || day8.toISOString().slice(0, 10) !== body4.date || typeof body4.text !== "string" || !body4.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body4.text) || new TextEncoder().encode(body4.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
       throw failure2("分类、日期或正文无效，草稿已保留。");
   }
   return structuredClone(body4);
@@ -5409,9 +5411,9 @@ async function acceptMovedTodo(context, { source, todo }, token) {
       });
     }
     if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    const day7 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+    const day8 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
     if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    return Array.isArray(day7?.data?.items) ? "saved" : "refresh";
+    return Array.isArray(day8?.data?.items) ? "saved" : "refresh";
   });
 }
 async function acceptTodoNote(context, type, row, token) {
@@ -5795,8 +5797,8 @@ var daysUntil = (due, today2) => Math.round((parse(due) - parse(today2)) / DAY);
 var DUE_LEAD = 3;
 var dueSoon = (due, today2) => typeof due === "string" && daysUntil(due, today2) <= DUE_LEAD;
 function dueLabel(due, today2) {
-  const days = daysUntil(due, today2), day7 = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
-  return days > 0 ? `${day7} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day7} 截止 · 已过期 ${-days} 天`;
+  const days = daysUntil(due, today2), day8 = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
+  return days > 0 ? `${day8} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day8} 截止 · 已过期 ${-days} 天`;
 }
 function dueGroup(due, today2) {
   const choices = periodChoices(today2), week = weekOf(due);
@@ -5930,14 +5932,14 @@ function clearSmartTodo() {
   smart.sequence++;
   Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, rows: null, done: null });
 }
-async function startSmartTodo(day7, sentence, given) {
+async function startSmartTodo(day8, sentence, given) {
   hooks = given;
   const sequence5 = ++smart.sequence;
-  Object.assign(smart, { sentence, date: day7.date, status: "reading", proposal: null, error: "", busy: false });
+  Object.assign(smart, { sentence, date: day8.date, status: "reading", proposal: null, error: "", busy: false });
   hooks.repaint();
   try {
     if (TODO_COMMAND_HINT.test(sentence) && hooks.commandItems) {
-      const { rows, items } = await commandCandidates(hooks.commandItems(day7));
+      const { rows, items } = await commandCandidates(hooks.commandItems(day8));
       const reading = items.length ? await api("/todo-command", { method: "POST", body: { text: sentence, items } }) : null;
       if (sequence5 !== smart.sequence) return;
       if (reading?.needs_model && reading.action !== "none") {
@@ -5948,17 +5950,17 @@ async function startSmartTodo(day7, sentence, given) {
       if (!TODO_PARSE_HINT.test(sentence)) {
         clearSmartTodo();
         hooks.repaint();
-        await hooks.plain(day7, sentence);
+        await hooks.plain(day8, sentence);
         return;
       }
     }
-    const context = day7.date === FUTURE_SCOPE ? "future" : "today";
+    const context = day8.date === FUTURE_SCOPE ? "future" : "today";
     const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence, context } });
     if (sequence5 !== smart.sequence) return;
     if (!data3.needs_model) {
       clearSmartTodo();
       hooks.repaint();
-      await hooks.plain(day7, sentence, data3);
+      await hooks.plain(day8, sentence, data3);
       return;
     }
     smart.status = "ready";
@@ -5970,22 +5972,22 @@ async function startSmartTodo(day7, sentence, given) {
   }
   hooks.repaint();
 }
-async function confirmSmartTodo(day7) {
+async function confirmSmartTodo(day8) {
   const proposal = smart.proposal;
-  if (!proposal || smart.busy || !hooks || smart.date !== day7.date) return;
+  if (!proposal || smart.busy || !hooks || smart.date !== day8.date) return;
   smart.busy = true;
   smart.error = "";
   hooks.repaint();
-  if (proposal.kind === "command") return confirmCommand(day7, proposal);
-  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence, target = smartTarget(proposal, day7.date);
+  if (proposal.kind === "command") return confirmCommand(day8, proposal);
+  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence, target = smartTarget(proposal, day8.date);
   try {
-    if (target === "daily") await hooks.saveDaily(day7, text, note);
+    if (target === "daily") await hooks.saveDaily(day8, text, note);
     else if (target === "today") {
-      const date2 = day7.date === FUTURE_SCOPE ? bjtDate() : day7.date;
-      if (day7.date === FUTURE_SCOPE) await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: date2, text }, "今天", note);
-      else await hooks.save(day7, { id: crypto.randomUUID(), date: date2, text }, note);
-    } else if (target === "day") await hooks.saveElsewhere(day7, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
-    else await hooks.saveFuture(day7, proposal, smartPlace(proposal, day7.date).replace(/^加到 /, ""));
+      const date2 = day8.date === FUTURE_SCOPE ? bjtDate() : day8.date;
+      if (day8.date === FUTURE_SCOPE) await hooks.saveElsewhere(day8, { id: crypto.randomUUID(), date: date2, text }, "今天", note);
+      else await hooks.save(day8, { id: crypto.randomUUID(), date: date2, text }, note);
+    } else if (target === "day") await hooks.saveElsewhere(day8, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
+    else await hooks.saveFuture(day8, proposal, smartPlace(proposal, day8.date).replace(/^加到 /, ""));
     if (sequence5 === smart.sequence) clearSmartTodo();
   } catch (error2) {
     if (sequence5 === smart.sequence) {
@@ -5995,12 +5997,12 @@ async function confirmSmartTodo(day7) {
   }
   hooks.repaint();
 }
-async function confirmCommand(day7, proposal) {
+async function confirmCommand(day8, proposal) {
   const sequence5 = smart.sequence;
   try {
     const result = await runTodoCommand(proposal, smart.rows);
     if (sequence5 !== smart.sequence) return;
-    hooks.consume?.(day7, smart.sentence);
+    hooks.consume?.(day8, smart.sentence);
     Object.assign(smart, { status: "done", busy: false, proposal: null, rows: null, done: result });
     hooks.refresh?.();
     const shown2 = smart.sequence;
@@ -6044,11 +6046,11 @@ function commandSummary(proposal) {
   const target = proposal.action !== "reschedule" ? "" : proposal.date ? smartDayLabel(proposal.date, today2) : PERIOD_NAME(proposal.period, today2);
   return [[`${COMMAND_VERB[proposal.action]}${target ? " " + target : ""}`, "todo-smart-day"], [`${place} · ${proposal.text}`, "todo-smart-text"]];
 }
-async function plainSmartTodo(day7) {
+async function plainSmartTodo(day8) {
   const sentence = smart.sentence;
   clearSmartTodo();
   hooks.repaint();
-  await hooks.plain(day7, sentence);
+  await hooks.plain(day8, sentence);
 }
 function summary(proposal, scope) {
   const text = smartTodoText(proposal), count3 = countLabel(proposal);
@@ -6064,11 +6066,11 @@ function hint(proposal, scope) {
   if (proposal.recurrence) return `做完后会自动出现${proposal.recurrence === "week" ? "下周" : "下个月"}的一条。`;
   return "";
 }
-function paintSmartTodo(root3, day7) {
-  const future = day7.date === FUTURE_SCOPE, id2 = future ? "todo-smart-future" : "todo-smart";
+function paintSmartTodo(root3, day8) {
+  const future = day8.date === FUTURE_SCOPE, id2 = future ? "todo-smart-future" : "todo-smart";
   const form = root3.querySelector(future ? "#todo-future-form" : "#todo-form");
   let row = root3.querySelector("#" + id2);
-  if (!smart.status || smart.date !== day7.date || !form) {
+  if (!smart.status || smart.date !== day8.date || !form) {
     row?.remove();
     return;
   }
@@ -6087,10 +6089,10 @@ function paintSmartTodo(root3, day7) {
   else if (smart.status === "ready") {
     parts2.push(el("span", "todo-smart-kicker", smart.proposal.kind === "command" ? "AI 理解为：处理已有的待办" : "AI 理解为"));
     const line = el("p", "todo-smart-line");
-    const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day7.date);
+    const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day8.date);
     for (const [text, className] of pieces) line.append(el("span", className, text));
     parts2.push(line);
-    const tip = hint(smart.proposal, day7.date);
+    const tip = hint(smart.proposal, day8.date);
     if (tip) parts2.push(el("p", "todo-smart-hint", tip));
   } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
   if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
@@ -6112,8 +6114,8 @@ function paintSmartTodo(root3, day7) {
     row.replaceChildren(...parts2);
     return;
   }
-  if (smart.status === "ready") button2(smart.busy ? command ? "正在处理…" : "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day7));
-  if (smart.status !== "reading") button2("按原文添加", "btn text", () => void plainSmartTodo(day7));
+  if (smart.status === "ready") button2(smart.busy ? command ? "正在处理…" : "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day8));
+  if (smart.status !== "reading") button2("按原文添加", "btn text", () => void plainSmartTodo(day8));
   button2("取消", "btn text", () => {
     clearSmartTodo();
     hooks?.repaint();
@@ -6479,12 +6481,12 @@ async function verifyFutureMove(row, date2, { readSource, readDay, guard = () =>
   try {
     const source = await readSource(row.id);
     guard();
-    const day7 = await readDay(date2);
+    const day8 = await readDay(date2);
     guard();
-    const todo = Array.isArray(day7?.items) ? day7.items.find((item) => item.id === row.id) : null;
+    const todo = Array.isArray(day8?.items) ? day8.items.find((item) => item.id === row.id) : null;
     if (moved(row, date2, source, todo, complete)) return { state: "confirmed", source, todo };
     const compatible = !todo || todo.date === date2 && todo.text === row.text && (complete || todo.completed === row.completed) && todo.deleted_at === null && !todo.template_id;
-    return unchanged(row, source) && day7?.date === date2 && Array.isArray(day7.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
+    return unchanged(row, source) && day8?.date === date2 && Array.isArray(day8.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
   } catch {
     return { state: "unknown" };
   }
@@ -6532,8 +6534,8 @@ function timedNetwork(path, options3 = {}) {
   return apiNetwork(path, { ...options3, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 function formatMovedDate(date2) {
-  const [, month, day7] = date2.split("-");
-  return `${Number(month)}月${Number(day7)}日`;
+  const [, month, day8] = date2.split("-");
+  return `${Number(month)}月${Number(day8)}日`;
 }
 async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   if (!onTodos()) return;
@@ -6557,7 +6559,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
       throw Object.assign(new Error("账号或数据范围已变化"), { staleSession: true });
   };
   const readSource = (sourceId) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId));
-  const readDay = (day7) => timedNetwork("/todos?date=" + encodeURIComponent(day7));
+  const readDay = (day8) => timedNetwork("/todos?date=" + encodeURIComponent(day8));
   const services = {
     guard,
     readSource,
@@ -6610,10 +6612,10 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
         return;
       }
       if (cacheStatus === "saved" && todosState.owner === todoOwner()) {
-        const day7 = todosState.days.get(date2);
-        if (day7) {
-          mergeTodo(day7, result.todo);
-          day7.revision++;
+        const day8 = todosState.days.get(date2);
+        if (day8) {
+          mergeTodo(day8, result.todo);
+          day8.revision++;
         }
       }
       const note = cacheStatus === "pending" ? "；本地仍有待处理内容，请在设置中处理" : cacheStatus === "saved" ? "" : "；本地缓存待刷新";
@@ -6657,24 +6659,24 @@ var done = (v, typed, message2) => {
 };
 var futureHooks = {
   repaint: () => paintUnscheduledTodos(),
-  plain: (day7, text) => addTyped(text, "none"),
+  plain: (day8, text) => addTyped(text, "none"),
   commandItems: () => bridge?.todayItems?.() || [],
-  consume: (day7, sentence) => done(current(), sentence),
+  consume: (day8, sentence) => done(current(), sentence),
   refresh: () => {
     refreshFutureTodos();
     bridge?.refreshToday?.();
   },
-  async saveElsewhere(day7, request2, label, note) {
+  async saveElsewhere(day8, request2, label, note) {
     const v = current();
     await bridge.toDay(request2, note);
     done(v, smartSentence(v), `已添加到 ${label}`);
   },
-  async saveDaily(day7, text, note) {
+  async saveDaily(day8, text, note) {
     const v = current();
     await bridge.daily(text, note);
     done(v, smartSentence(v), "已存为常用并加到今天");
   },
-  async saveFuture(day7, proposal, label) {
+  async saveFuture(day8, proposal, label) {
     const v = current();
     await addFutureTodo(proposal);
     done(v, smartSentence(v), `已加到 ${label}`);
@@ -7012,7 +7014,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "ideas", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
@@ -7249,10 +7251,10 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label) last.rows.push(row);
     else groups2.push({ day: day22, actor: row.actor, label, rows: [row] });
   }
-  let day7 = "";
+  let day8 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups2.map((g) => {
-    const heading = day7 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day7 = g.day;
+    const heading = day8 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day8 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><span class="article-title">${e(article.entity_label)}</span>` : ""}</li>`;
@@ -7302,25 +7304,25 @@ function keyModal() {
 
 // web/core/todo-note-drafts.mjs
 init_state();
-function draftKey(day7, id2) {
-  return state.me?.id ? `haoduoyu:todo-note:${JSON.stringify([state.me.id, day7.date, id2])}` : "";
+function draftKey(day8, id2) {
+  return state.me?.id ? `haoduoyu:todo-note:${JSON.stringify([state.me.id, day8.date, id2])}` : "";
 }
-function dailyTodoDraft(day7, id2) {
-  if (day7.noteDrafts.has(id2)) return day7.noteDrafts.get(id2);
-  const key = draftKey(day7, id2);
+function dailyTodoDraft(day8, id2) {
+  if (day8.noteDrafts.has(id2)) return day8.noteDrafts.get(id2);
+  const key = draftKey(day8, id2);
   try {
     const stored = key && JSON.parse(sessionStorage.getItem(key));
     if (stored && typeof stored.text === "string" && typeof stored.base === "string" && (stored.text !== stored.base || stored.check === true)) {
       const draft = { id: id2, text: stored.text, base: stored.base, check: stored.check === true };
-      day7.noteDrafts.set(id2, draft);
+      day8.noteDrafts.set(id2, draft);
       return draft;
     }
   } catch {
   }
   return null;
 }
-function persistDailyTodoDraft(day7, draft) {
-  const key = draftKey(day7, draft.id);
+function persistDailyTodoDraft(day8, draft) {
+  const key = draftKey(day8, draft.id);
   if (!key) return;
   try {
     if (!draft.check && draft.text === draft.base) sessionStorage.removeItem(key);
@@ -7423,8 +7425,8 @@ function todoMonthSeed(month, snapshot, loaded) {
       days[date2] = snapshot.days[date2] || [];
     }
   }
-  for (const day7 of loaded) {
-    if (!snapshot?.days || day7.pending || day7.readAt > snapshot.verified_at) days[day7.date] = day7.items;
+  for (const day8 of loaded) {
+    if (!snapshot?.days || day8.pending || day8.readAt > snapshot.verified_at) days[day8.date] = day8.items;
   }
   return days;
 }
@@ -7597,18 +7599,18 @@ init_requests();
 init_format();
 init_state();
 init_todos_state();
-function templateUnavailable(store, day7, id2) {
-  return !store.loaded || !day7.loaded || day7.loading || day7.adding || store.pending.has(id2) || todoTemplateAdded(day7, id2) || [...day7.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
+function templateUnavailable(store, day8, id2) {
+  return !store.loaded || !day8.loaded || day8.loading || day8.adding || store.pending.has(id2) || todoTemplateAdded(day8, id2) || [...day8.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
 }
 function inlineTodoTemplateContent(store) {
-  const day7 = todoDay(), label = day7.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day8 = todoDay(), label = day8.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = "";
   const error2 = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error2 + store.items.map((item) => {
-    const added = todoTemplateAdded(day7, item.id);
+    const added = todoTemplateAdded(day8, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label : "添加：" + item.text)}" ${templateUnavailable(store, day7, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label : "添加：" + item.text)}" ${templateUnavailable(store, day8, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label}</span>` : ""}</button>`;
   }).join("");
 }
@@ -7629,12 +7631,12 @@ function paintInlineTodoTemplates(store) {
   root3.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day7 = todoDay();
-  const added = (id2) => todoTemplateAdded(day7, id2);
-  const addedLabel = day7.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day8 = todoDay();
+  const added = (id2) => todoTemplateAdded(day8, id2);
+  const addedLabel = day8.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day7, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day8, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-archive" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>归档</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
@@ -7895,13 +7897,13 @@ init_todos_state();
 init_popover();
 init_runtime();
 init_modal();
-function todoBusy(day7, id2) {
-  return day7.updates.has(id2) || day7.noteCompletions.has(id2) || day7.removals.has(id2) || day7.templateWrites.has(id2);
+function todoBusy(day8, id2) {
+  return day8.updates.has(id2) || day8.noteCompletions.has(id2) || day8.removals.has(id2) || day8.templateWrites.has(id2);
 }
 function todoActionContext({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date2) || date2 !== todoDate() || !todoSessionActive(owner2)) return null;
-  const day7 = todoDay(date2), item = day7.items.find((row) => row.id === id2);
-  return item ? { day: day7, item, owner: owner2 } : null;
+  const day8 = todoDay(date2), item = day8.items.find((row) => row.id === id2);
+  return item ? { day: day8, item, owner: owner2 } : null;
 }
 function canOpenTodoMenu({ id: id2, date: date2, anchor }) {
   const context = todoActionContext({ id: id2, date: date2 });
@@ -7929,20 +7931,20 @@ ${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</b
 async function changeTodoCount(options3, action, target = 0) {
   const context = todoActionContext({ ...options3, owner: options3.owner || todoOwner() });
   if (!context || todoBusy(context.day, context.item.id) || context.day.countWrites?.has(context.item.id)) return false;
-  const { day: day7, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
+  const { day: day8, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
   if (note === null) return false;
-  (day7.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
+  (day8.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
   try {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
     if (!todoSessionActive(owner2)) return false;
-    mergeTodo(day7, saved);
+    mergeTodo(day8, saved);
     return true;
   } catch (error2) {
     if (isRequestAbort(error2) || !todoSessionActive(owner2)) return false;
-    setTodoNotice(day7, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
+    setTodoNotice(day8, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
     return false;
   } finally {
-    day7.countWrites.delete(item.id);
+    day8.countWrites.delete(item.id);
     if (todoSessionActive(owner2)) paintTodos();
   }
 }
@@ -8006,17 +8008,17 @@ function rememberNote(node3) {
     placeNoteCaret(node3);
   }
   if (node3.dataset.future === "1") {
-    const view2 = futureTodoView();
-    if (view2.noteEdit?.id === node3.dataset.id) view2.noteEdit.text = text;
+    const view3 = futureTodoView();
+    if (view3.noteEdit?.id === node3.dataset.id) view3.noteEdit.text = text;
     return;
   }
-  const day7 = todoDay(node3.dataset.date);
-  const draft = day7.noteEdit;
+  const day8 = todoDay(node3.dataset.date);
+  const draft = day8.noteEdit;
   if (draft?.id !== node3.dataset.id || draft.text === text) return;
   draft.text = text;
   draft.error = "";
   if (draft.save) draft.check = true;
-  persistDailyTodoDraft(day7, draft);
+  persistDailyTodoDraft(day8, draft);
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
@@ -8058,11 +8060,11 @@ function watchTodoNotes() {
   });
 }
 function openFutureNote(options3) {
-  const view2 = futureTodoView(), id2 = options3.id || options3.target?.dataset.id;
-  const item = view2.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
-  if (!item || view2.pending || view2.uncertain[id2]) return;
-  view2.noteEdit = { id: item.id, text: item.note || "", base: item.note || "" };
-  view2.noteError = "";
+  const view3 = futureTodoView(), id2 = options3.id || options3.target?.dataset.id;
+  const item = view3.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
+  if (!item || view3.pending || view3.uncertain[id2]) return;
+  view3.noteEdit = { id: item.id, text: item.note || "", base: item.note || "" };
+  view3.noteError = "";
   paintUnscheduledTodos();
   placeNoteCaret(document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -8071,10 +8073,10 @@ function openTodoNote(options3) {
   if (options3.target?.dataset.future === "1") return openFutureNote(options3);
   const context = todoActionContext({ ...options3, date: options3.date || options3.target?.dataset.date, owner: options3.owner || options3.target?.dataset.owner });
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { item, day: day7 } = context;
-  const draft = dailyTodoDraft(day7, item.id) || { id: item.id, text: item.note || "", base: item.note || "" };
-  day7.noteDrafts.set(item.id, draft);
-  day7.noteEdit = draft;
+  const { item, day: day8 } = context;
+  const draft = dailyTodoDraft(day8, item.id) || { id: item.id, text: item.note || "", base: item.note || "" };
+  day8.noteDrafts.set(item.id, draft);
+  day8.noteEdit = draft;
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -8150,22 +8152,22 @@ var elsewhereMessage = (note) => note ? `这条备注刚在别处改成了「${n
 var noteFailure = (error2) => error2.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : noteConflict(error2) ? "这项待办正在别处更新，备注还没存上，内容已保留。稍后点空白再存一次。" : error2.message || "保存失败，请重试";
 async function commitFutureNote(input) {
   if (futureRepainting()) return;
-  const view2 = futureTodoView(), item = view2.items.find((row) => row.id === input.dataset.id);
-  if (!item || view2.noteEdit?.id !== item.id || view2.noteEdit.committing) return;
+  const view3 = futureTodoView(), item = view3.items.find((row) => row.id === input.dataset.id);
+  if (!item || view3.noteEdit?.id !== item.id || view3.noteEdit.committing) return;
   const text = readNote(input);
   if (text === (item.note || "")) {
-    view2.noteEdit = null;
-    view2.noteError = "";
+    view3.noteEdit = null;
+    view3.noteError = "";
     paintUnscheduledTodos();
     return;
   }
-  view2.noteEdit.committing = true;
-  view2.noteEdit.text = text;
+  view3.noteEdit.committing = true;
+  view3.noteEdit.text = text;
   try {
     const saved = await saveNoteFresh({
       id: item.id,
       text,
-      base: view2.noteEdit.base ?? (item.note || ""),
+      base: view3.noteEdit.base ?? (item.note || ""),
       version: item.version,
       type: "unscheduled_todo",
       latest: async () => (await api("/unscheduled-todos"))?.items?.find((row) => row.id === item.id)
@@ -8173,32 +8175,32 @@ async function commitFutureNote(input) {
     if (saved.changedElsewhere) {
       Object.assign(item, saved.fresh);
       if (!saved.fresh.note) delete item.note;
-      if (view2.noteEdit?.id === item.id) {
-        view2.noteEdit.committing = false;
-        view2.noteEdit.base = saved.fresh.note || "";
+      if (view3.noteEdit?.id === item.id) {
+        view3.noteEdit.committing = false;
+        view3.noteEdit.base = saved.fresh.note || "";
       }
-      view2.noteError = elsewhereMessage(saved.fresh.note);
+      view3.noteError = elsewhereMessage(saved.fresh.note);
     } else {
       Object.assign(item, saved);
       if (!saved.note) delete item.note;
-      if (view2.noteEdit?.id === item.id) view2.noteEdit = null;
-      view2.noteError = "";
+      if (view3.noteEdit?.id === item.id) view3.noteEdit = null;
+      view3.noteError = "";
     }
   } catch (error2) {
     if (isRequestAbort(error2)) return;
-    if (view2.noteEdit?.id === item.id) {
-      view2.noteEdit.committing = false;
-      view2.noteError = noteFailure(error2);
+    if (view3.noteEdit?.id === item.id) {
+      view3.noteEdit.committing = false;
+      view3.noteError = noteFailure(error2);
     }
   }
   paintUnscheduledTodos();
-  if (view2.noteEdit?.id === item.id) document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+  if (view3.noteEdit?.id === item.id) document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
 }
-function finishDailyTodoNote(day7, draft) {
-  if (day7.noteEdit === draft) day7.noteEdit = null;
-  day7.noteDrafts.delete(draft.id);
+function finishDailyTodoNote(day8, draft) {
+  if (day8.noteEdit === draft) day8.noteEdit = null;
+  day8.noteDrafts.delete(draft.id);
 }
-async function storeDailyTodoNote(day7, item, owner2, draft, text) {
+async function storeDailyTodoNote(day8, item, owner2, draft, text) {
   const active5 = () => todoSessionActive(owner2);
   try {
     const saved = await saveNoteFresh({
@@ -8208,13 +8210,13 @@ async function storeDailyTodoNote(day7, item, owner2, draft, text) {
       version: item.version,
       active: active5,
       latest: async () => {
-        const data3 = await api(`/todos?date=${encodeURIComponent(day7.date)}`, { requireNetwork: true });
+        const data3 = await api(`/todos?date=${encodeURIComponent(day8.date)}`, { requireNetwork: true });
         return data3?.items?.find((row) => row.id === item.id);
       }
     });
     if (!active5()) return false;
-    mergeTodo(day7, saved.changedElsewhere ? saved.fresh : saved);
-    day7.revision++;
+    mergeTodo(day8, saved.changedElsewhere ? saved.fresh : saved);
+    day8.revision++;
     if (saved.changedElsewhere) {
       const note = saved.fresh.note;
       draft.error = note ? `另一设备已保存「${note}」。你的草稿仍在，请先核对两个版本。` : "另一设备已清空备注。你的草稿仍在，请先核对。";
@@ -8222,9 +8224,9 @@ async function storeDailyTodoNote(day7, item, owner2, draft, text) {
     }
     draft.base = text;
     draft.check = false;
-    persistDailyTodoDraft(day7, draft);
+    persistDailyTodoDraft(day8, draft);
     if (draft.text !== text) return false;
-    finishDailyTodoNote(day7, draft);
+    finishDailyTodoNote(day8, draft);
     return true;
   } catch (error2) {
     if (active5()) draft.error = `备注未保存，草稿已保留。按回车可重试。${error2?.message ? " " + error2.message : ""}`;
@@ -8234,16 +8236,16 @@ async function storeDailyTodoNote(day7, item, owner2, draft, text) {
     if (active5()) paintTodos();
   }
 }
-function saveDailyTodoNote(day7, item, owner2) {
-  const draft = dailyTodoDraft(day7, item.id);
+function saveDailyTodoNote(day8, item, owner2) {
+  const draft = dailyTodoDraft(day8, item.id);
   if (!draft) return true;
   if (draft.save) return draft.save;
   if (!draft.check && draft.text === draft.base) {
-    finishDailyTodoNote(day7, draft);
+    finishDailyTodoNote(day8, draft);
     return true;
   }
   draft.error = "";
-  draft.save = storeDailyTodoNote(day7, item, owner2, draft, draft.text);
+  draft.save = storeDailyTodoNote(day8, item, owner2, draft, draft.text);
   return draft.save;
 }
 async function commitTodoNote(input, { retry = false } = {}) {
@@ -8251,10 +8253,10 @@ async function commitTodoNote(input, { retry = false } = {}) {
   if (todoRepainting()) return;
   const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
   if (!context || context.day.noteEdit?.id !== context.item.id) return;
-  const { day: day7, item, owner: owner2 } = context;
+  const { day: day8, item, owner: owner2 } = context;
   rememberNote(input);
-  if (day7.noteEdit.error && !retry) return;
-  if (await saveDailyTodoNote(day7, item, owner2) && todoSessionActive(owner2)) paintTodos();
+  if (day8.noteEdit.error && !retry) return;
+  if (await saveDailyTodoNote(day8, item, owner2) && todoSessionActive(owner2)) paintTodos();
 }
 async function submitTodoNote({ form, data: data3 }) {
   const context = todoActionContext({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner });
@@ -8282,8 +8284,8 @@ async function submitTodoNote({ form, data: data3 }) {
 }
 function textTarget({ id: id2, date: date2, owner: owner2, future }) {
   if (future === "1") {
-    const view2 = futureTodoView(), item = view2.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
-    return item && !view2.pending && !view2.uncertain[id2] ? { item, view: view2 } : null;
+    const view3 = futureTodoView(), item = view3.items.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
+    return item && !view3.pending && !view3.uncertain[id2] ? { item, view: view3 } : null;
   }
   const context = todoActionContext({ id: id2, date: date2, owner: owner2 || todoOwner() });
   return context && !context.item.deleted_at && !todoBusy(context.day, id2) ? context : null;
@@ -8379,69 +8381,69 @@ async function submitTodoText({ form, data: data3 }) {
     button2.disabled = false;
   }
 }
-function renderTodoUndo(day7) {
-  return [...day7.removals.entries()].map(([id2, ticket2]) => {
+function renderTodoUndo(day8) {
+  return [...day8.removals.entries()].map(([id2, ticket2]) => {
     const label = ticket2.phase === "deleting" ? "删除中…" : ticket2.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label}：${e(ticket2.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day7.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day8.date)}"
 data-owner="${e(todoOwner())}" ${ticket2.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day7, id2, ticket2, owner2) {
+function expireTodoUndo(day8, id2, ticket2, owner2) {
   clearTimeout(ticket2.timer);
   ticket2.timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day7.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
-    day7.removals.delete(id2);
+    if (!todoSessionActive(owner2) || day8.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
+    day8.removals.delete(id2);
     paintTodos();
   }, 8e3);
   ticket2.timer?.unref?.();
 }
-async function todoActionFailure(day7, error2, owner2) {
+async function todoActionFailure(day8, error2, owner2) {
   if (!todoSessionActive(owner2) || isRequestAbort(error2) || error2.staleSession) return;
-  day7.error = error2.message;
-  if ([404, 409].includes(error2.status) && day7.date === todoDate()) {
-    day7.error = "这项计划已更新，请核对最新内容后再操作。";
+  day8.error = error2.message;
+  if ([404, 409].includes(error2.status) && day8.date === todoDate()) {
+    day8.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
 async function deleteTodo(options3) {
   const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day7, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
-  day7.removals.set(item.id, ticket2);
-  day7.error = "";
-  day7.notice = "";
-  day7.revision++;
+  const { day: day8, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
+  day8.removals.set(item.id, ticket2);
+  day8.error = "";
+  day8.notice = "";
+  day8.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day7.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day8.date, version: item.version } });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day7, saved);
+    mergeTodo(day8, saved);
     ticket2.item = saved;
     ticket2.phase = "ready";
-    expireTodoUndo(day7, item.id, ticket2, owner2);
+    expireTodoUndo(day8, item.id, ticket2, owner2);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day7.removals.delete(item.id);
-    await todoActionFailure(day7, error2, owner2);
+    day8.removals.delete(item.id);
+    await todoActionFailure(day8, error2, owner2);
     if (todoSessionActive(owner2) && item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day7.revision++;
+      day8.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date2 !== todoDate() || !todoSessionActive(owner2)) return;
-  const day7 = todoDay(date2), ticket2 = day7.removals.get(id2);
+  const day8 = todoDay(date2), ticket2 = day8.removals.get(id2);
   if (!ticket2 || ticket2.phase !== "ready") return;
   clearTimeout(ticket2.timer);
   ticket2.phase = "restoring";
-  mergeTodo(day7, ticket2.item);
-  day7.error = "";
-  day7.revision++;
+  mergeTodo(day8, ticket2.item);
+  day8.error = "";
+  day8.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id2)}/restore`, {
@@ -8449,73 +8451,73 @@ async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }
       body: { date: date2, version: ticket2.item.version }
     });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day7, saved);
-    day7.removals.delete(id2);
-    setTodoNotice(day7, "已恢复");
+    mergeTodo(day8, saved);
+    day8.removals.delete(id2);
+    setTodoNotice(day8, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    if (error2.status === 409) day7.removals.delete(id2);
+    if (error2.status === 409) day8.removals.delete(id2);
     else {
       ticket2.phase = "ready";
-      expireTodoUndo(day7, id2, ticket2, owner2);
+      expireTodoUndo(day8, id2, ticket2, owner2);
     }
-    await todoActionFailure(day7, error2, owner2);
+    await todoActionFailure(day8, error2, owner2);
     if (todoSessionActive(owner2) && ticket2.item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day7.revision++;
+      day8.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day7, item) {
-  let request2 = day7.templateLinks.get(item.id);
+function todoTemplateRequest(day8, item) {
+  let request2 = day8.templateLinks.get(item.id);
   if (!request2 || request2.version !== item.version || request2.template_version !== (item.template_version || 0)) {
     request2 = {
-      date: day7.date,
+      date: day8.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day7.templateLinks.set(item.id, request2);
+    day8.templateLinks.set(item.id, request2);
   }
   return request2;
 }
 async function changeTodoTemplate(options3, remove = false) {
   const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day7, item, owner: owner2 } = context;
+  const { day: day8, item, owner: owner2 } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day7.templateWrites.add(item.id);
-  day7.error = "";
-  day7.notice = "";
-  day7.revision++;
+  day8.templateWrites.add(item.id);
+  day8.error = "";
+  day8.notice = "";
+  day8.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day7, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day8, item)
     });
     if (!todoSessionActive(owner2)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day7, saved.todo);
+      mergeTodo(day8, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day7.templateLinks.delete(item.id);
-    setTodoNotice(day7, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day8.templateLinks.delete(item.id);
+    setTodoNotice(day8, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day7.date === todoDate()) await loadTodos();
+    if (remove && day8.date === todoDate()) await loadTodos();
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      await todoActionFailure(day7, error2, owner2);
+      await todoActionFailure(day8, error2, owner2);
       if (todoSessionActive(owner2) && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day7.templateWrites.delete(item.id);
-      day7.revision++;
+      day8.templateWrites.delete(item.id);
+      day8.revision++;
       paintTodos();
     }
   }
@@ -8634,10 +8636,10 @@ var monthLoader = createTodoMonthLoader({
   active: (owner2) => owner2 === monthOwner() && todoSessionActive(todoOwner()),
   async seed(month, owner2, { refresh = false } = {}) {
     const loaded = [];
-    if (todosState.owner === todoOwner()) for (const [date2, day7] of todosState.days) {
-      const stamp3 = monthDayOwners.get(day7);
-      if (date2.startsWith(month + "-") && day7.loaded && stamp3?.owner === owner2 && (!refresh || todoPending(day7))) {
-        loaded.push({ date: date2, items: monthDayItems(day7), readAt: stamp3.at, pending: todoPending(day7) });
+    if (todosState.owner === todoOwner()) for (const [date2, day8] of todosState.days) {
+      const stamp3 = monthDayOwners.get(day8);
+      if (date2.startsWith(month + "-") && day8.loaded && stamp3?.owner === owner2 && (!refresh || todoPending(day8))) {
+        loaded.push({ date: date2, items: monthDayItems(day8), readAt: stamp3.at, pending: todoPending(day8) });
       }
     }
     const offline = getOfflineRuntime(), scope = offline?.state.scope;
@@ -8712,15 +8714,15 @@ function todoCalendar(date2) {
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
 <div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats2}
 <div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day7) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day7}</span>`).join("")}
-${visible3.map((day7) => day7 ? todoCalendarDay(day7, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day8) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day8}</span>`).join("")}
+${visible3.map((day8) => day8 ? todoCalendarDay(day8, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day7 = todoDay(), month = todoCalendarMonth(day7.date);
+  const day8 = todoDay(), month = todoCalendarMonth(day8.date);
   if (todosState.calendarView === "week") {
-    const anchor = day7.date.startsWith(month) ? day7.date : `${month}-01`;
+    const anchor = day8.date.startsWith(month) ? day8.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
     weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
     const next = weekDate.toISOString().slice(0, 10);
@@ -8734,7 +8736,7 @@ function moveTodoMonth(offset) {
   todosState.calendarMonth = nextMonth2;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day7.date);
+  paintTodoCalendar(day8.date);
   void loadTodoMonth2(nextMonth2);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
@@ -8802,55 +8804,55 @@ function todoDateControls(date2) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoCountButton(item, day7, pending) {
+function todoCountButton(item, day8, pending) {
   const count3 = todoCount(item.note);
-  if (!count3 || day7.noteEdit?.id === item.id) return "";
+  if (!count3 || day8.noteEdit?.id === item.id) return "";
   const full = count3.target !== null && count3.done >= count3.target;
   const so = count3.target === null ? `${count3.done} 次` : `${count3.done}/${count3.target} 次`;
-  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day7.date)}"
+  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day8.date)}"
 aria-label="${full ? `已记满 ${count3.target} 次` : `记一次，目前 ${so}`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
 }
-function todoRow(item, day7) {
-  const pending = todoBusy(day7, item.id);
-  const completed = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
-  const removal = day7.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day8) {
+  const pending = todoBusy(day8, item.id);
+  const completed = day8.updates.has(item.id) ? day8.updates.get(item.id) : item.completed;
+  const removal = day8.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2) return "";
-  const draft = dailyTodoDraft(day7, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
+  const draft = dailyTodoDraft(day8, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
   if (completed && !hasDraft && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
-  const note = todoNoteField(item, { date: day7.date, pending, editing: day7.noteEdit, error: draft?.error, hasDraft });
+  const note = todoNoteField(item, { date: day8.date, pending, editing: day8.noteEdit, error: draft?.error, hasDraft });
   const check2 = `todo-check-${e(item.id)}`;
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day7.date)}">
-<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day7.date)}"
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day8.date)}">
+<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day8.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check2}">${e(item.text)}</label>
-${note}</div>${todoCountButton(item, day7, pending)}
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day7.date)}"
+${note}</div>${todoCountButton(item, day8, pending)}
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day8.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day7) {
-  const label = day7.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day7.date)}" aria-label="添加 ${e(day7.date)} 的计划">
+function todoForm(day8) {
+  const label = day8.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day8.date)}" aria-label="添加 ${e(day8.date)} 的计划">
 <label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label}" value="${e(day7.draft)}" >
-<button class="btn primary" type="submit" ${day7.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label}" value="${e(day8.draft)}" >
+<button class="btn primary" type="submit" ${day8.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day7) {
-  const today2 = day7.date === bjtDate();
-  return `<time datetime="${e(day7.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day7.date)}</time>`;
+function todoCaption(day8) {
+  const today2 = day8.date === bjtDate();
+  return `<time datetime="${e(day8.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day8.date)}</time>`;
 }
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
-function todoHeading(day7) {
+function todoHeading(day8) {
   const selected = state.todoPanel || "today";
-  return `<span id="todo-caption" hidden>${todoCaption(day7)}</span><nav class="todo-page-tabs" aria-label="待办页面">
+  return `<span id="todo-caption" hidden>${todoCaption(day8)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["templates", "常用"]].map(([panel2, label]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
   aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label}</button>`).join("")}</nav>`;
 }
-function renderTodoHistory(day7) {
+function renderTodoHistory(day8) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day7.date)}" data-today="${bjtDate()}">
-${todoCalendar(day7.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day7.date))}</h3></section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day8.date)}" data-today="${bjtDate()}">
+${todoCalendar(day8.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day8.date))}</h3></section>`;
 }
 function paintTodoPanels(root3) {
   const panel2 = state.todoPanel || "";
@@ -8878,62 +8880,62 @@ async function setTodoPanel(panel2) {
   const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day7) {
-  return Boolean(day7.adding || day7.updates.size || day7.noteCompletions.size || day7.templateWrites.size || [...day7.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
+function todoPending(day8) {
+  return Boolean(day8.adding || day8.updates.size || day8.noteCompletions.size || day8.templateWrites.size || [...day8.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day7) {
-  if (todoPending(day7) || day7.error || todoPreferences().error) return "";
-  return day7.loading && !day7.loaded ? "" : day7.notice;
+function todoStatus(day8) {
+  if (todoPending(day8) || day8.error || todoPreferences().error) return "";
+  return day8.loading && !day8.loaded ? "" : day8.notice;
 }
-function paintTodoSaving(root3, day7) {
-  const busy2 = todoPending(day7);
+function paintTodoSaving(root3, day8) {
+  const busy2 = todoPending(day8);
   root3.setAttribute("aria-busy", String(busy2));
   if (!busy2) {
-    clearTimeout(savingTimers.get(day7));
-    savingTimers.delete(day7);
-    savingTimes.delete(day7);
+    clearTimeout(savingTimers.get(day8));
+    savingTimers.delete(day8);
+    savingTimes.delete(day8);
     return;
   }
-  if (!savingTimes.has(day7)) {
-    savingTimes.set(day7, Date.now());
-    savingTimers.set(day7, setTimeout(() => {
-      if (todosVisible() && todoDay() === day7) paintTodos();
+  if (!savingTimes.has(day8)) {
+    savingTimes.set(day8, Date.now());
+    savingTimers.set(day8, setTimeout(() => {
+      if (todosVisible() && todoDay() === day8) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day7) >= 900) $("#todo-status", root3).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day8) >= 900) $("#todo-status", root3).textContent = "正在同步…";
 }
-function pendingTodo(day7) {
-  return day7.adding && day7.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day7.submitting.text)}</span></li>` : "";
+function pendingTodo(day8) {
+  return day8.adding && day8.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day8.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day7) {
-  const error2 = [day7.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error2 ? `${e(error2)} ${day7.failedCreate ? `<span>「${e(day7.failedCreate.text)}」</span>
+function todoFeedback(day8) {
+  const error2 = [day8.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error2 ? `${e(error2)} ${day8.failedCreate ? `<span>「${e(day8.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day7) {
-  return state.todoPanel === "history" && day7.loaded && !day7.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day8) {
+  return state.todoPanel === "history" && day8.loaded && !day8.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day7 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day7.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day7)}</div>
-${renderTodoHistory(day7)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day7)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day7)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day7)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day7)}</div>
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day7)}</p>
+  const day8 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day8.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day8)}</div>
+${renderTodoHistory(day8)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day8)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day8)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day8)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day8)}</div>
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day8)}</p>
 <ul id="todo-due" class="daily-todo-items todo-due-items" aria-label="快到期的未来待办" hidden></ul>
-<ul id="todo-items" class="daily-todo-items">${day7.items.map((item) => todoRow(item, day7)).join("")}${pendingTodo(day7)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day7) : ""}</div>
+<ul id="todo-items" class="daily-todo-items">${day8.items.map((item) => todoRow(item, day8)).join("")}${pendingTodo(day8)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day8) : ""}</div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
-function monthDayItems(day7) {
-  return day7.items.filter((item) => {
-    const removal = day7.removals.get(item.id);
+function monthDayItems(day8) {
+  return day8.items.filter((item) => {
+    const removal = day8.removals.get(item.id);
     return !removal || removal.phase === "restoring";
-  }).map((item) => day7.updates.has(item.id) ? { ...item, completed: day7.updates.get(item.id) } : item);
+  }).map((item) => day8.updates.has(item.id) ? { ...item, completed: day8.updates.get(item.id) } : item);
 }
 var repaintingTodos = false;
 function todoRepainting() {
@@ -8951,20 +8953,20 @@ function paintTodoDom() {
   notifyTodoChanges();
   const root3 = $("#daily-todos");
   if (!root3 || !todosVisible()) return;
-  const day7 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
-  const stamp3 = monthDayOwners.get(day7);
-  if (day7.loaded && stamp3?.owner === monthOwner()) {
-    if (stamp3.revision !== day7.revision) {
+  const day8 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const stamp3 = monthDayOwners.get(day8);
+  if (day8.loaded && stamp3?.owner === monthOwner()) {
+    if (stamp3.revision !== day8.revision) {
       stamp3.at = Date.now();
-      stamp3.revision = day7.revision;
+      stamp3.revision = day8.revision;
     }
-    if (monthLoader.update(monthOwner(), day7.date, monthDayItems(day7))) {
+    if (monthLoader.update(monthOwner(), day8.date, monthDayItems(day8))) {
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
   }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root3.dataset.date !== day7.date) {
+  if (root3.dataset.date !== day8.date) {
     root3.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
@@ -8972,44 +8974,44 @@ function paintTodoDom() {
   const form = $("#todo-form", root3), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root3);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
   const liveNote = document.activeElement?.matches?.("[data-todo-note-input]:not([data-future])") ? document.activeElement : null;
-  const keepNote = liveNote?.isConnected && day7.noteEdit?.id === liveNote.dataset.id;
+  const keepNote = liveNote?.isConnected && day8.noteEdit?.id === liveNote.dataset.id;
   const parts2 = {
-    "todo-caption": todoCaption(day7),
-    "todo-status": todoStatus(day7),
-    "todo-undo": renderTodoUndo(day7),
-    "todo-items": day7.items.map((item) => todoRow(item, day7)).join("") + pendingTodo(day7),
-    "todo-feedback": todoFeedback(day7),
-    "todo-history-empty": todoHistoryEmpty(day7)
+    "todo-caption": todoCaption(day8),
+    "todo-status": todoStatus(day8),
+    "todo-undo": renderTodoUndo(day8),
+    "todo-items": day8.items.map((item) => todoRow(item, day8)).join("") + pendingTodo(day8),
+    "todo-feedback": todoFeedback(day8),
+    "todo-history-empty": todoHistoryEmpty(day8)
   };
   for (const [id2, html] of Object.entries(parts2)) {
     if (id2 === "todo-items" && keepNote) continue;
     const node3 = $("#" + id2, root3);
     if (node3 && node3.innerHTML !== html) node3.innerHTML = html;
   }
-  paintTodoCalendar(day7.date);
+  paintTodoCalendar(day8.date);
   const input = $("#todo-text", root3), button2 = $("#todo-form button[type=submit]", root3);
-  const prompt = day7.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label = $('label[for="todo-text"]', root3);
-  if (input && input.value !== day7.draft) input.value = day7.draft;
+  const prompt = day8.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label = $('label[for="todo-text"]', root3);
+  if (input && input.value !== day8.draft) input.value = day8.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label) label.textContent = prompt;
   if (button2) {
-    button2.disabled = day7.adding;
+    button2.disabled = day8.adding;
     button2.textContent = "添加";
-    button2.setAttribute("aria-busy", String(day7.adding));
+    button2.setAttribute("aria-busy", String(day8.adding));
   }
-  paintTodoSaving(root3, day7);
+  paintTodoSaving(root3, day8);
   paintTodoPanels(root3);
   paintUnscheduledTodos();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root3) || $("[data-todo-id]", root3) || $("#todo-text", root3))?.focus();
   paintTodoTemplates();
-  paintSmartTodo(root3, day7);
+  paintSmartTodo(root3, day8);
 }
-function todoReadActive(owner2, version2, date2, day7, sequence5) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day7.sequence === sequence5 && todosVisible();
+function todoReadActive(owner2, version2, date2, day8, sequence5) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day8.sequence === sequence5 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -9022,20 +9024,20 @@ async function loadTodos(context) {
   }
   void loadTodoTemplates({ ensure: true });
   void loadDueTodos();
-  const day7 = todoDay(), date2 = day7.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
-  const sequence5 = ++day7.sequence, revision2 = day7.revision;
-  day7.loading = true;
-  day7.error = "";
+  const day8 = todoDay(), date2 = day8.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
+  const sequence5 = ++day8.sequence, revision2 = day8.revision;
+  day8.loading = true;
+  day8.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`, { context });
-    if (!todoReadActive(owner2, version2, date2, day7, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
-    if (day7.revision !== revision2) return loadTodos(context);
+    if (!todoReadActive(owner2, version2, date2, day8, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
+    if (day8.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day7.items = data3.items;
-    day7.loaded = true;
-    monthDayOwners.set(day7, { owner: monthOwner(), at: Date.now(), revision: day7.revision });
-    if (date2 === bjtDate()) void carryUnfinishedTodos(day7, owner2);
+    day8.items = data3.items;
+    day8.loaded = true;
+    monthDayOwners.set(day8, { owner: monthOwner(), at: Date.now(), revision: day8.revision });
+    if (date2 === bjtDate()) void carryUnfinishedTodos(day8, owner2);
     if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date2, data3.items);
       const calendar = $("#todo-calendar");
@@ -9043,11 +9045,11 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error2) {
-    if (todoReadActive(owner2, version2, date2, day7, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
+    if (todoReadActive(owner2, version2, date2, day8, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day8.error = error2.message;
   } finally {
-    if (todoSessionActive(owner2) && day7.sequence === sequence5) {
-      const visible3 = todoReadActive(owner2, version2, date2, day7, sequence5);
-      day7.loading = false;
+    if (todoSessionActive(owner2) && day8.sequence === sequence5) {
+      const visible3 = todoReadActive(owner2, version2, date2, day8, sequence5);
+      day8.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(date2));
       if (!visible3 && todoObservers.size && date2 === bjtDate()) void loadFloatingToday();
@@ -9055,17 +9057,17 @@ async function loadTodos(context) {
   }
 }
 var carriedDays = /* @__PURE__ */ new Map();
-async function carryUnfinishedTodos(day7, owner2) {
-  if (carriedDays.get(owner2) === day7.date) return;
-  carriedDays.set(owner2, day7.date);
+async function carryUnfinishedTodos(day8, owner2) {
+  if (carriedDays.get(owner2) === day8.date) return;
+  carriedDays.set(owner2, day8.date);
   try {
     const result = await apiNetwork("/todo-carry", { method: "POST", body: {} });
-    if (!todoSessionActive(owner2) || !result?.carried?.length || day7.date !== bjtDate()) return;
-    day7.revision++;
-    setTodoNotice(day7, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
+    if (!todoSessionActive(owner2) || !result?.carried?.length || day8.date !== bjtDate()) return;
+    day8.revision++;
+    setTodoNotice(day8, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
     void loadTodos();
   } catch (error2) {
-    if (carriedDays.get(owner2) === day7.date && !error2?.staleSession) carriedDays.delete(owner2);
+    if (carriedDays.get(owner2) === day8.date && !error2?.staleSession) carriedDays.delete(owner2);
   }
 }
 function inputTodo(target) {
@@ -9075,97 +9077,97 @@ function inputTodo(target) {
     notifyTodoChanges();
   }
 }
-function showTodoFailure(day7, error2) {
+function showTodoFailure(day8, error2) {
   if (isRequestAbort(error2) || error2.staleSession) return;
-  day7.error = /preceding local version/.test(error2.message || "") ? "这项待办上一步还在同步，请等几秒再点一次。" : error2.message;
+  day8.error = /preceding local version/.test(error2.message || "") ? "这项待办上一步还在同步，请等几秒再点一次。" : error2.message;
 }
-function setTodoNotice(day7, text) {
-  const owner2 = todoOwner(), version2 = ++day7.noticeVersion;
-  day7.notice = text;
+function setTodoNotice(day8, text) {
+  const owner2 = todoOwner(), version2 = ++day8.noticeVersion;
+  day8.notice = text;
   const timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day7.noticeVersion !== version2) return;
-    day7.notice = "";
-    if (day7.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner2) || day8.noticeVersion !== version2) return;
+    day8.notice = "";
+    if (day8.date === todoDate()) paintTodos();
   }, 2500);
   timer?.unref?.();
 }
-async function saveTodo(day7, request2, templateId = "") {
-  const owner2 = todoOwner(), submittedDraft = day7.draft;
-  day7.adding = true;
-  day7.submitting = request2;
-  day7.failedCreate = null;
-  day7.error = "";
-  day7.notice = "";
-  day7.revision++;
+async function saveTodo(day8, request2, templateId = "") {
+  const owner2 = todoOwner(), submittedDraft = day8.draft;
+  day8.adding = true;
+  day8.submitting = request2;
+  day8.failedCreate = null;
+  day8.error = "";
+  day8.notice = "";
+  day8.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request2 });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day7, item);
-    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day7.date.slice(0, 7)) {
-      monthSnapshot.days.set(day7.date, [...day7.items]);
+    mergeTodo(day8, item);
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day8.date.slice(0, 7)) {
+      monthSnapshot.days.set(day8.date, [...day8.items]);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
-    if (templateId) day7.templateCreates.delete(templateId);
+    if (templateId) day8.templateCreates.delete(templateId);
     else {
-      if (day7.draft === submittedDraft && submittedDraft.trim() === request2.text) day7.draft = "";
-      day7.create = null;
+      if (day8.draft === submittedDraft && submittedDraft.trim() === request2.text) day8.draft = "";
+      day8.create = null;
     }
-    setTodoNotice(day7, "已添加");
+    setTodoNotice(day8, "已添加");
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      day7.failedCreate = request2;
-      showTodoFailure(day7, error2);
+      day8.failedCreate = request2;
+      showTodoFailure(day8, error2);
       if (error2.status === 410) {
-        if (templateId) day7.templateCreates.delete(templateId);
-        else day7.create = null;
-        day7.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day8.templateCreates.delete(templateId);
+        else day8.create = null;
+        day8.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day7.adding = false;
-      day7.submitting = null;
-      day7.revision++;
+      day8.adding = false;
+      day8.submitting = null;
+      day8.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day7 = todoDay();
-  if (todosVisible() && day7.failedCreate && !day7.adding)
-    await saveTodo(day7, day7.failedCreate, day7.failedCreate.template_id || "");
+  const day8 = todoDay();
+  if (todosVisible() && day8.failedCreate && !day8.adding)
+    await saveTodo(day8, day8.failedCreate, day8.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data: data3 }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day7 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
-  if (day7.adding) return;
-  day7.draft = String(data3.text || "");
-  if (day7.date !== todoDate()) {
+  const day8 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
+  if (day8.adding) return;
+  day8.draft = String(data3.text || "");
+  if (day8.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day7.error = "请填写 1–500 字的计划。";
+    day8.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (smartTodoReady(text)) return confirmSmartTodo(day7);
-  if (smartTodoWanted(text)) return startSmartTodo(day7, text, smartHooks);
-  await addTypedTodo(day7, text);
+  if (smartTodoReady(text)) return confirmSmartTodo(day8);
+  if (smartTodoWanted(text)) return startSmartTodo(day8, text, smartHooks);
+  await addTypedTodo(day8, text);
 }
-async function addTypedTodo(day7, text) {
-  if (!day7.create || day7.create.text !== text) day7.create = { id: crypto.randomUUID(), date: day7.date, text };
-  await saveTodo(day7, day7.create);
+async function addTypedTodo(day8, text) {
+  if (!day8.create || day8.create.text !== text) day8.create = { id: crypto.randomUUID(), date: day8.date, text };
+  await saveTodo(day8, day8.create);
 }
 var smartHooks = {
   repaint: () => paintTodos(),
-  plain: (day7, text) => addTypedTodo(day7, text),
+  plain: (day8, text) => addTypedTodo(day8, text),
   // "删掉每周看电影" handles an existing to-do: the shown day's rows plus 未来待办.
-  commandItems: (day7) => day7.items,
-  consume: (day7, sentence) => {
-    if (day7.draft.trim() === sentence) day7.draft = "";
+  commandItems: (day8) => day8.items,
+  consume: (day8, sentence) => {
+    if (day8.draft.trim() === sentence) day8.draft = "";
     const input = $("#todo-text");
     if (input && input.value.trim() === sentence) input.value = "";
   },
@@ -9173,34 +9175,34 @@ var smartHooks = {
     void loadTodos();
     refreshFutureTodos();
   },
-  async save(day7, request2, note) {
-    await saveTodo(day7, request2);
-    if (day7.failedCreate === request2) {
-      day7.failedCreate = null;
-      throw new Error(day7.error || "添加失败，请稍后再试");
+  async save(day8, request2, note) {
+    await saveTodo(day8, request2);
+    if (day8.failedCreate === request2) {
+      day8.failedCreate = null;
+      throw new Error(day8.error || "添加失败，请稍后再试");
     }
-    day7.draft = "";
-    day7.error = "";
-    await startCount(day7, day7.items.find((row) => row.id === request2.id), note);
+    day8.draft = "";
+    day8.error = "";
+    await startCount(day8, day8.items.find((row) => row.id === request2.id), note);
     paintTodos();
   },
-  async saveElsewhere(day7, request2, label, note) {
+  async saveElsewhere(day8, request2, label, note) {
     await addToOtherDay(request2, note);
-    day7.draft = "";
-    setTodoNotice(day7, `已添加到 ${label}`);
+    day8.draft = "";
+    setTodoNotice(day8, `已添加到 ${label}`);
   },
-  async saveFuture(day7, proposal, label) {
+  async saveFuture(day8, proposal, label) {
     await addFutureTodo(proposal);
-    day7.draft = "";
-    setTodoNotice(day7, `已加到未来待办 · ${label}`);
+    day8.draft = "";
+    setTodoNotice(day8, `已加到未来待办 · ${label}`);
   },
-  async saveDaily(day7, text, note) {
+  async saveDaily(day8, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
     refreshOpenTodoTemplates();
-    day7.draft = "";
+    day8.draft = "";
     await submitTodoTemplate(template);
-    if (day7.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
-    await startCount(day7, day7.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
+    if (day8.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+    await startCount(day8, day8.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
     paintTodos();
   }
 };
@@ -9228,13 +9230,13 @@ setFutureBridge({
   toDay: (request2, note) => addToOtherDay(request2, note),
   daily: (text, note) => smartHooks.saveDaily(todoDay(bjtDate()), text, note)
 });
-async function startCount(day7, item, note) {
+async function startCount(day8, item, note) {
   if (!note || !item) return;
   try {
-    mergeTodo(day7, await countNote(item, note));
-    day7.revision++;
+    mergeTodo(day8, await countNote(item, note));
+    day8.revision++;
   } catch {
-    setTodoNotice(day7, "已添加，但计数没设上，可以在“⋯”里设置次数");
+    setTodoNotice(day8, "已添加，但计数没设上，可以在“⋯”里设置次数");
   }
 }
 async function countNote(item, note, tries = 8) {
@@ -9249,99 +9251,99 @@ async function countNote(item, note, tries = 8) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day7 = todoDay();
-  if (day7.adding || todoTemplateAdded(day7, template.id)) return;
-  let request2 = day7.templateCreates.get(template.id);
+  const day8 = todoDay();
+  if (day8.adding || todoTemplateAdded(day8, template.id)) return;
+  let request2 = day8.templateCreates.get(template.id);
   if (!request2 || request2.text !== template.text) {
-    request2 = { id: crypto.randomUUID(), date: day7.date, text: template.text, template_id: template.id };
-    day7.templateCreates.set(template.id, request2);
+    request2 = { id: crypto.randomUUID(), date: day8.date, text: template.text, template_id: template.id };
+    day8.templateCreates.set(template.id, request2);
   }
-  await saveTodo(day7, request2, template.id);
+  await saveTodo(day8, request2, template.id);
 }
 async function toggleTodo(target, { floating = false } = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
-  const day7 = todoDay(target.dataset.date), owner2 = todoOwner();
+  const day8 = todoDay(target.dataset.date), owner2 = todoOwner();
   const id2 = target.dataset.todoId;
-  let item = day7.items.find((row) => row.id === id2);
-  if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) return;
-  if (todoBusy(day7, item.id)) {
-    target.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : item.completed;
+  let item = day8.items.find((row) => row.id === id2);
+  if (!item || item.deleted_at || day8.date !== (floating ? bjtDate() : todoDate())) return;
+  if (todoBusy(day8, item.id)) {
+    target.checked = day8.updates.has(item.id) ? day8.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  const note = saveDailyTodoNote(day7, item, owner2);
+  const note = saveDailyTodoNote(day8, item, owner2);
   if (note !== true) {
-    day7.noteCompletions.add(id2);
+    day8.noteCompletions.add(id2);
     target.checked = item.completed;
     paintTodos();
     const saved = await note;
     if (!todoSessionActive(owner2)) return;
-    day7.noteCompletions.delete(id2);
+    day8.noteCompletions.delete(id2);
     if (!saved) {
-      day7.error = "备注还未存好，本次操作未提交。草稿已保留。";
+      day8.error = "备注还未存好，本次操作未提交。草稿已保留。";
       paintTodos();
       return;
     }
-    item = day7.items.find((row) => row.id === id2);
-    if (!item || item.deleted_at || day7.date !== (floating ? bjtDate() : todoDate())) {
+    item = day8.items.find((row) => row.id === id2);
+    if (!item || item.deleted_at || day8.date !== (floating ? bjtDate() : todoDate())) {
       paintTodos();
       return;
     }
   }
-  day7.updates.set(item.id, completed);
-  day7.error = "";
-  day7.notice = "";
-  day7.revision++;
+  day8.updates.set(item.id, completed);
+  day8.error = "";
+  day8.notice = "";
+  day8.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner2)) {
-      mergeTodo(day7, updated);
+      mergeTodo(day8, updated);
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day7.updates.set(item.id, item.completed);
-    showTodoFailure(day7, error2);
-    if (error2.status === 409 && (floating || day7.date === todoDate())) {
+    day8.updates.set(item.id, item.completed);
+    showTodoFailure(day8, error2);
+    if (error2.status === 409 && (floating || day8.date === todoDate())) {
       if (floating) await loadFloatingToday();
       else await loadTodos();
       if (todoSessionActive(owner2)) {
-        day7.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
+        day8.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
         if (item.template_id) refreshOpenTodoTemplates();
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day7.updates.delete(item.id);
-      day7.revision++;
+      day8.updates.delete(item.id);
+      day8.revision++;
       paintTodos();
     }
   }
 }
 async function loadFloatingToday() {
   if (!state.me) return;
-  const date2 = bjtDate(), day7 = todoDay(date2), owner2 = todoOwner();
-  const sequence5 = ++day7.sequence, revision2 = day7.revision;
-  const current2 = () => todoSessionActive(owner2) && date2 === bjtDate() && day7.sequence === sequence5;
-  day7.loading = true;
-  day7.error = "";
+  const date2 = bjtDate(), day8 = todoDay(date2), owner2 = todoOwner();
+  const sequence5 = ++day8.sequence, revision2 = day8.revision;
+  const current2 = () => todoSessionActive(owner2) && date2 === bjtDate() && day8.sequence === sequence5;
+  day8.loading = true;
+  day8.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`);
     if (!current2()) return;
-    if (day7.revision !== revision2) {
+    if (day8.revision !== revision2) {
       void loadFloatingToday();
       return;
     }
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day7.items = data3.items;
-    day7.loaded = true;
+    day8.items = data3.items;
+    day8.loaded = true;
   } catch (error2) {
-    if (current2() && !isRequestAbort(error2) && !error2.staleSession) day7.error = error2.message;
+    if (current2() && !isRequestAbort(error2) && !error2.staleSession) day8.error = error2.message;
   } finally {
     if (current2()) {
-      day7.loading = false;
+      day8.loading = false;
       paintTodos();
     }
   }
@@ -9387,16 +9389,16 @@ function registerTodosClock() {
     document,
     selection() {
       if (!state.me || state.page !== "todos" || ["future", "templates"].includes(state.todoPanel) || document.activeElement?.matches?.("[data-todo-note-input]") || document.querySelector("#overlay > *, .popover")) return null;
-      const day7 = todoDay(), offline = getOfflineRuntime()?.state;
-      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day7.draft) return null;
-      if (!day7.loaded || day7.loading || day7.noteEdit || todoPending(day7) || offline?.pending || offline?.conflicts) return null;
-      return { date: day7.date, day: day7, key: JSON.stringify([monthOwner(), runtime.renderVersion, day7.date, day7.sequence, day7.revision]) };
+      const day8 = todoDay(), offline = getOfflineRuntime()?.state;
+      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day8.draft) return null;
+      if (!day8.loaded || day8.loading || day8.noteEdit || todoPending(day8) || offline?.pending || offline?.conflicts) return null;
+      return { date: day8.date, day: day8, key: JSON.stringify([monthOwner(), runtime.renderVersion, day8.date, day8.sequence, day8.revision]) };
     },
     read: (date2) => api("/todos?date=" + encodeURIComponent(date2)),
-    apply({ date: date2, day: day7 }, data3) {
-      if (!Array.isArray(data3?.items) || JSON.stringify(day7.items) === JSON.stringify(data3.items)) return;
-      day7.items = data3.items;
-      monthDayOwners.set(day7, { owner: monthOwner(), at: Date.now(), revision: day7.revision });
+    apply({ date: date2, day: day8 }, data3) {
+      if (!Array.isArray(data3?.items) || JSON.stringify(day8.items) === JSON.stringify(data3.items)) return;
+      day8.items = data3.items;
+      monthDayOwners.set(day8, { owner: monthOwner(), at: Date.now(), revision: day8.revision });
       if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7)) monthSnapshot.days.set(date2, data3.items);
       paintTodos();
     }
@@ -9446,26 +9448,26 @@ function createNotesEditorView() {
     return views2.get(key);
   };
   function activate(category, date2, key) {
-    const view2 = page(category, date2);
-    view2.active = key;
-    view2.revision++;
-    view2.collapseRequested = false;
-    view2.explicit = false;
-    return view2;
+    const view3 = page(category, date2);
+    view3.active = key;
+    view3.revision++;
+    view3.collapseRequested = false;
+    view3.explicit = false;
+    return view3;
   }
   function requestCollapse(category, date2, key, revision2, { explicit = false } = {}) {
-    const view2 = page(category, date2);
-    if (view2.active !== key || view2.revision !== revision2) return;
-    view2.collapseRequested = true;
-    view2.explicit = explicit;
+    const view3 = page(category, date2);
+    if (view3.active !== key || view3.revision !== revision2) return;
+    view3.collapseRequested = true;
+    view3.explicit = explicit;
   }
   function sync(category, date2, items, legacy2, { focused = false, composing = false } = {}) {
-    const view2 = page(category, date2), item = view2.active === "legacy" ? legacy2 : items.find((value) => value.id === view2.active);
-    if (view2.active && !item) activate(category, date2, "");
-    else if (view2.collapseRequested && (noteEditorCanCollapse(item) || view2.explicit && item && !item.pending) && !composing && (!focused || view2.explicit)) {
+    const view3 = page(category, date2), item = view3.active === "legacy" ? legacy2 : items.find((value) => value.id === view3.active);
+    if (view3.active && !item) activate(category, date2, "");
+    else if (view3.collapseRequested && (noteEditorCanCollapse(item) || view3.explicit && item && !item.pending) && !composing && (!focused || view3.explicit)) {
       activate(category, date2, "");
     }
-    return view2;
+    return view3;
   }
   const clear = () => views2.clear();
   return { page, activate, requestCollapse, sync, clear };
@@ -10460,8 +10462,8 @@ function noteMonthWeeks(month) {
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
   const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
-  for (let day7 = 1; day7 <= last.getUTCDate(); day7++)
-    weeks[Math.floor((offset + day7 - 1) / 7)][(offset + day7 - 1) % 7] = month + "-" + String(day7).padStart(2, "0");
+  for (let day8 = 1; day8 <= last.getUTCDate(); day8++)
+    weeks[Math.floor((offset + day8 - 1) / 7)][(offset + day8 - 1) % 7] = month + "-" + String(day8).padStart(2, "0");
   return weeks;
 }
 function checkedNoteMonth(data3, month) {
@@ -10471,16 +10473,16 @@ function checkedNoteMonth(data3, month) {
   if (!validNoteMonth(month) || !data3 || data3.month !== month || data3.complete !== true || ![1, 2, 3].includes(data3.labels_version) || !Array.isArray(data3.days) || data3.days.length > 31) fail6();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
-  for (const day7 of data3.days) {
-    if (!day7 || !validDailyNotesDate(day7.date) || !day7.date.startsWith(month + "-") || result.has(day7.date) || !Array.isArray(day7.items)) fail6();
-    const items = day7.items.map((item) => {
+  for (const day8 of data3.days) {
+    if (!day8 || !validDailyNotesDate(day8.date) || !day8.date.startsWith(month + "-") || result.has(day8.date) || !Array.isArray(day8.items)) fail6();
+    const items = day8.items.map((item) => {
       if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data3.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data3.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label) => data3.labels_version === 3 ? !validNoteLabel(label) : item.category !== "life" || !validCustomNoteLabel(label)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
       ids.add(item.entity_id);
       total++;
       const displayLabels = data3.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
       return { ...item, displayLabels, displayLabel: displayLabels.join("、") };
     });
-    result.set(day7.date, items);
+    result.set(day8.date, items);
   }
   if (total > 2e3) fail6();
   return result;
@@ -10512,23 +10514,23 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
     list4.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
-      const card2 = node3("article", "", "note-entry note-entry-saved"), head = node3("div", "", "note-entry-head");
+      const card3 = node3("article", "", "note-entry note-entry-saved"), head = node3("div", "", "note-entry-head");
       head.append(node3("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
       const time3 = node3("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
       time3.dateTime = item.updated_at;
       head.append(time3);
-      card2.append(head, node3("div", item.text || "这条记录没有文字。", "note-entry-reader"));
+      card3.append(head, node3("div", item.text || "这条记录没有文字。", "note-entry-reader"));
       const open = node3("button", "查看当天", "btn text");
       open.type = "button";
       open.addEventListener("click", () => {
         if (active5()) void selectDate(selected, item.category);
       });
-      card2.append(open);
-      list4.append(card2);
+      card3.append(open);
+      list4.append(card3);
     }
     if (!rows.length) list4.append(node3("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
-  function paint3() {
+  function paint4() {
     const grid = find("#notes-month-grid");
     grid.replaceChildren();
     for (const date2 of noteMonthWeeks(month).flat()) {
@@ -10562,7 +10564,7 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
-      paint3();
+      paint4();
     } catch (error2) {
       if (!active5() || current2 !== sequence5) return;
       find("#notes-month-status").textContent = error2.message || "月记录读取失败，请重试。";
@@ -10582,7 +10584,7 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
       void load2();
     } else if (event.target.id === "notes-month-category") {
       category = event.target.value;
-      if (loaded === month) paint3();
+      if (loaded === month) paint4();
     }
   }
   function click(event) {
@@ -10600,7 +10602,7 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
       }
     } else if (target.dataset.notesMonthDate) {
       selected = target.dataset.notesMonthDate;
-      paint3();
+      paint4();
     } else void load2(true);
   }
   panel2.addEventListener("toggle", toggle);
@@ -10623,7 +10625,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button><a class="notes-ideas-link" href="/?page=ideas">💡 想法池</a></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -10704,12 +10706,13 @@ function paintDailyNotes(root3, item, { compatibility = false, editing = false }
 function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送"></button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
+var IDEA_LABEL = "想法池";
 function createEntryElement(item, editing) {
   const node3 = document.createElement("article");
   node3.className = "note-entry " + (editing ? "note-entry-editing" : "note-entry-saved");
   node3.dataset.noteEntry = item.id;
   node3.dataset.category = item.category;
-  node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  node3.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-idea" type="button" data-note-idea="add" hidden>放进想法池</button><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node3;
 }
 function paintEntrySummary(node3, item) {
@@ -10733,6 +10736,12 @@ function paintSavedEntry(node3, item) {
   const edit = node3.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
+  const idea = node3.querySelector("[data-note-idea]"), inPool = (item.labels || []).includes(IDEA_LABEL);
+  const ready = item.canEdit && !item.deleted && !draft && item.labelKnown && item.labelComplete && item.version > 0;
+  idea.hidden = !(inPool ? !item.deleted : ready);
+  idea.dataset.noteIdea = inPool ? "open" : "add";
+  idea.disabled = !inPool && (Boolean(item.pending) || item.dirty);
+  idea.textContent = inPool ? "💡 在想法池 →" : "放进想法池";
   paintNoteSuggestion(node3, item);
 }
 function paintEntryEditor(node3, item, confirmId, labels4, labelsVerified) {
@@ -11714,7 +11723,7 @@ function paintDailyNotesPage() {
     const first = mixedStore.entry(a), second = mixedStore.entry(b);
     return String(first?.createdAt || first?.localCreatedAt || "").localeCompare(String(second?.createdAt || second?.localCreatedAt || "")) || a.localeCompare(b);
   });
-  const host = root3.querySelector("#notes-composer"), view2 = editorViews.page(category, date2), active5 = view2.active;
+  const host = root3.querySelector("#notes-composer"), view3 = editorViews.page(category, date2), active5 = view3.active;
   const field2 = active5 === "legacy" ? root3.querySelector("#notes-editor") : host.querySelector('[data-note-entry-editor="' + active5 + '"]');
   const selected = editorViews.sync(
     category,
@@ -11847,7 +11856,7 @@ var scoreTrend = /* @__PURE__ */ new Map(), scoreTrendMonths = /* @__PURE__ */ n
 var scoreDayBefore = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") - days * 864e5).toISOString().slice(0, 10);
 function scoreTrendSvg(date2) {
   const days = Array.from({ length: 7 }, (_, index) => scoreDayBefore(date2, 6 - index));
-  const points = days.map((day7, index) => scoreTrend.has(day7) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day7) - 1) * 2, day: day7 } : null);
+  const points = days.map((day8, index) => scoreTrend.has(day8) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day8) - 1) * 2, day: day8 } : null);
   if (points.filter(Boolean).length < 2) return "";
   let lines = "";
   for (let index = 1; index < points.length; index++) {
@@ -11855,7 +11864,7 @@ function scoreTrendSvg(date2) {
     if (from && to) lines += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"/>';
   }
   const dots = points.filter(Boolean).map((point) => '<circle cx="' + point.x + '" cy="' + point.y + '" r="' + (point.day === date2 ? 3 : 2) + '"/>').join("");
-  const spoken = days.filter((day7) => scoreTrend.has(day7)).map((day7) => day7.slice(5) + " " + scoreTrend.get(day7) + " 分").join("，");
+  const spoken = days.filter((day8) => scoreTrend.has(day8)).map((day8) => day8.slice(5) + " " + scoreTrend.get(day8) + " 分").join("，");
   return '<svg width="84" height="24" viewBox="0 0 84 24" role="img" aria-label="近 7 天打分：' + spoken + '">' + lines + dots + "</svg>";
 }
 async function readScoreTrend(date2, expected = notesIdentityNow()) {
@@ -11976,11 +11985,11 @@ function timelineDay(date2, items) {
   button2.setAttribute("aria-label", dayLine(date2, items.length) + "，打开这一天");
   const when = node("span", "notes-tl-date");
   when.append(node("span", "notes-tl-num", String(Number(date2.slice(8)))), node("span", "notes-tl-week", dayTitle(date2).split(" ")[1]));
-  const card2 = node("span", "notes-tl-card");
-  card2.append(node("span", "notes-tl-preview", items.map((row) => `${monthTime(row.updated_at)} ${row.text}`).join("\n")));
+  const card3 = node("span", "notes-tl-card");
+  card3.append(node("span", "notes-tl-preview", items.map((row) => `${monthTime(row.updated_at)} ${row.text}`).join("\n")));
   const score = scoreByDate.get(date2), tags = [...new Set(items.flatMap(rowLabels))].join(" · ");
-  card2.append(node("span", "notes-tl-foot", [tags, items.length + " 条", score ? score + "分" : ""].filter(Boolean).join(" · ")));
-  button2.append(when, node("span", "notes-tl-dot"), card2);
+  card3.append(node("span", "notes-tl-foot", [tags, items.length + " 条", score ? score + "分" : ""].filter(Boolean).join(" · ")));
+  button2.append(when, node("span", "notes-tl-dot"), card3);
   return button2;
 }
 function paintTimeline(list4, shown2, order, open) {
@@ -12149,10 +12158,10 @@ async function handleEntryAction(target, entries) {
     notesConfirmEntry = "";
     paintDailyNotesPage();
   } else if (action === "confirm-delete") {
-    const view2 = editorViews.page(item.category, item.date), revision2 = view2.revision;
+    const view3 = editorViews.page(item.category, item.date), revision2 = view3.revision;
     notesConfirmEntry = "";
     await entries.deleteEntry(id2);
-    if ((!entries.entry(id2) || entries.entry(id2).deleted && !entries.entry(id2).pending) && view2.active === id2 && view2.revision === revision2)
+    if ((!entries.entry(id2) || entries.entry(id2).deleted && !entries.entry(id2).pending) && view3.active === id2 && view3.revision === revision2)
       editorViews.activate(item.category, item.date, "");
     paintDailyNotesPage();
   } else if (action === "check") {
@@ -12322,6 +12331,12 @@ function registerDailyNotesEvents() {
   });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
   document.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-note-idea]");
+    if (!target || !target.closest("#daily-notes")) return;
+    event.preventDefault();
+    void putInIdeaPool(target);
+  });
+  document.addEventListener("click", (event) => {
     const target = event.target.closest("[data-note-suggest]");
     if (!target) return;
     event.preventDefault();
@@ -12344,6 +12359,25 @@ function registerDailyNotesEvents() {
       event.returnValue = "";
     }
   });
+}
+async function putInIdeaPool(target) {
+  if (target.dataset.noteIdea === "open") {
+    location.href = "/?page=ideas";
+    return;
+  }
+  const id2 = target.closest("[data-note-entry]")?.dataset.noteEntry;
+  const [store, item] = [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
+  if (!store || !item || target.disabled) return;
+  const labels4 = [.../* @__PURE__ */ new Set([...item.labels || [], IDEA_LABEL])];
+  target.disabled = true;
+  if (!notesLabelsVerified || !store.relabelDraft(id2, labels4)) {
+    item.error = "现在放不进想法池：请联网后再试，或点「编辑」手动勾选「想法池」标签。";
+    paintDailyNotesPage();
+    return;
+  }
+  await store.save(id2);
+  if (item.phase !== "saved" && item.phase !== "queued" && item.phase !== "cached") item.error ||= "没放进去，请点「编辑」手动勾选「想法池」标签。";
+  paintDailyNotesPage();
 }
 async function loadDailyNotes() {
   registerDailyNotesEvents();
@@ -12576,7 +12610,7 @@ function settingsNavigation() {
   return navigationLink(nav.find((item) => item.id === "settings"));
 }
 function mobileNavigation() {
-  const items = nav.filter((item) => item.id !== "settings").map((item) => item.id === "review" ? mediaNavigation(true) : navigationLink(item, true));
+  const items = nav.filter((item) => item.id !== "settings" && item.id !== "ideas").map((item) => item.id === "review" ? mediaNavigation(true) : navigationLink(item, true));
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.join("")}</nav>`;
 }
 function mobileSettingsMenu() {
@@ -12921,9 +12955,9 @@ function decisionCards(items = []) {
 }
 var WEEK2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function decisionHistory(days = []) {
-  const rows = days.filter((day7) => visibleWorkReminders(day7.items).length).map((day7) => {
-    const count3 = decisionCount(day7.items), week = WEEK2[(/* @__PURE__ */ new Date(day7.date + "T00:00:00Z")).getUTCDay()];
-    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day7.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day7.items)}<span class="notes-tl-foot">${Number(day7.date.slice(5, 7))}月${Number(day7.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
+  const rows = days.filter((day8) => visibleWorkReminders(day8.items).length).map((day8) => {
+    const count3 = decisionCount(day8.items), week = WEEK2[(/* @__PURE__ */ new Date(day8.date + "T00:00:00Z")).getUTCDay()];
+    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day8.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day8.items)}<span class="notes-tl-foot">${Number(day8.date.slice(5, 7))}月${Number(day8.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
   });
   return rows.length ? `<div class="notes-tl">${rows.join("")}</div>` : '<p class="muted">前 7 天没有提醒。</p>';
 }
@@ -12989,8 +13023,8 @@ function reportDay(row) {
   return `${parts2.year}-${parts2.month}-${parts2.day}`;
 }
 function reportShownDay(row) {
-  const day7 = reportDay(row);
-  return day7 ? new Date(Date.parse(day7 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
+  const day8 = reportDay(row);
+  return day8 ? new Date(Date.parse(day8 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
 }
 var shortDay2 = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
 function reportGroup(author) {
@@ -13012,9 +13046,9 @@ function paintAiCalendar(selectedDate2, visibleMonth2 = selectedDate2.slice(0, 7
   const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
   let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
   calendar += "<span></span>".repeat(first.getUTCDay());
-  for (let day7 = 1; day7 <= days; day7++) {
-    const date2 = `${visibleMonth2}-${String(day7).padStart(2, "0")}`;
-    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day7}</button>`;
+  for (let day8 = 1; day8 <= days; day8++) {
+    const date2 = `${visibleMonth2}-${String(day8).padStart(2, "0")}`;
+    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day8}</button>`;
   }
   root3.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
 }
@@ -13048,7 +13082,7 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   if (!root3) return;
   root3.querySelector("#ai-reminder-status").textContent = error2 || (loading ? "正在读取工作提醒…" : "");
   const items = visibleWorkReminders(data3?.items || []), count3 = items.length ? decisionCount(items) : 0;
-  const date2 = data3?.date || dailyNotesToday(), day7 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
+  const date2 = data3?.date || dailyNotesToday(), day8 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
   const open = items.length ? openDecisionCount(items) : 0;
   const box = root3.querySelector("#ai-reminder-list");
   if (loading || error2) {
@@ -13056,10 +13090,10 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
     return;
   }
   if (!open) {
-    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day7)} · ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
+    box.innerHTML = `<p class="ai-decision-done" id="ai-decision-title"><span aria-hidden="true">✓</span> ${e(day8)} · ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
     return;
   }
-  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day7)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span> · ${e(day8)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
 }
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
@@ -13079,8 +13113,8 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   paintAiCalendar(`${month}-01`, month);
   const days = /* @__PURE__ */ new Map();
   for (const row of items) {
-    const day7 = reportShownDay(row);
-    if (day7.startsWith(month)) days.set(day7, [...days.get(day7) || [], row]);
+    const day8 = reportShownDay(row);
+    if (day8.startsWith(month)) days.set(day8, [...days.get(day8) || [], row]);
   }
   root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
   const head = root3.querySelector("#ai-report-dayhead");
@@ -14465,16 +14499,158 @@ function registerAiReportEvents() {
       paintReports();
       document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
     } else {
-      const day7 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-      if (day7 && validDailyNotesDate(day7)) {
-        selectedDate = day7;
-        visibleMonth = day7.slice(0, 7);
-        state.aiDailyDate = day7;
+      const day8 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+      if (day8 && validDailyNotesDate(day8)) {
+        selectedDate = day8;
+        visibleMonth = day8.slice(0, 7);
+        state.aiDailyDate = day8;
         updateRoute();
         void loadAiReports();
       }
     }
   });
+}
+
+// web/pages/ideas.mjs
+init_api();
+init_dom();
+init_format();
+init_entry();
+init_modal();
+var FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
+var view2 = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, error: "" };
+var day7 = (value) => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
+function ideaTitle(text) {
+  const first = String(text || "").split("\n").find((line) => line.trim()) || "（空）";
+  return first.trim();
+}
+function ideaBody(text) {
+  const lines = String(text || "").split("\n"), first = lines.findIndex((line) => line.trim());
+  return lines.slice(first + 1).filter((line) => !/^\s*(状态|优先级)[：:]/.test(line)).join("\n").trim();
+}
+function todoTextFor(text) {
+  return ideaTitle(text).replace(/^想法\s*[^：:]{0,4}[：:]\s*/, "").slice(0, 500) || ideaTitle(text).slice(0, 500);
+}
+function todoLine(todo) {
+  const when = todo.kind === "future" ? "未来待办" : smartDayLabel(todo.date, bjtDate());
+  return `<li class="idea-todo${todo.completed ? " done" : ""}${todo.deleted ? " gone" : ""}"><span class="idea-todo-mark" aria-hidden="true">${todo.deleted ? "×" : todo.completed ? "✓" : "○"}</span><span class="idea-todo-text">${e(todo.text)}</span><em>${todo.deleted ? "已删除" : e(when)}</em></li>`;
+}
+function card(item) {
+  const body4 = ideaBody(item.text), open = view2.open.has(item.id), long = body4.length > 120 || body4.split("\n").length > 3;
+  const stars = item.priority ? `<span class="idea-stars" aria-label="优先级 ${item.priority} 星">${"⭐".repeat(Math.min(item.priority, 5))}</span>` : "";
+  const landed = item.status === "landed" ? `<span class="idea-landed-at">${e(day7(bjtDate(item.landed_at || Date.now())))}落地</span>` : "";
+  return `<article class="idea-card" data-status="${e(item.status)}" data-idea="${e(item.id)}">
+<header class="idea-card-head"><span class="idea-status idea-status-${e(item.status)}">${e(item.label)}</span>${stars}
+<time datetime="${e(item.created_at)}">${e(day7(item.date))}</time>${landed}</header>
+<h3 class="idea-title">${e(ideaTitle(item.text))}</h3>
+${body4 ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body4)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
+${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
+<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}">在碎碎念里看</a>
+${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
+</article>`;
+}
+function renderIdeas(state2 = view2) {
+  if (!state2.loaded && !state2.error) return '<section class="ideas-page" aria-busy="true"><p class="muted">正在读取想法池…</p></section>';
+  if (state2.error) return `<section class="ideas-page"><p class="form-message" role="alert">${e(state2.error)}</p>
+<button class="btn" type="button" data-action="ideas-reload">重新读取</button></section>`;
+  const counts = Object.fromEntries(FILTERS.map(([id2]) => [id2, id2 === "all" ? state2.items.length : state2.items.filter((item) => item.status === id2).length]));
+  const shown2 = state2.items.filter((item) => state2.filter === "all" || item.status === state2.filter);
+  const tabs2 = FILTERS.map(([id2, label]) => `<button type="button" role="tab" aria-selected="${state2.filter === id2}" data-action="ideas-filter" data-filter="${id2}">${label}<span>${counts[id2]}</span></button>`).join("");
+  const empty3 = state2.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` : `<div class="ideas-empty"><p>想法池还是空的。</p><p class="muted">在碎碎念里点一条下面的「放进想法池」，它就会出现在这里。</p></div>`;
+  return `<section class="ideas-page">
+<p class="ideas-intro">碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。</p>
+<div class="ideas-filters" role="tablist" aria-label="按状态看">${tabs2}</div>
+${state2.truncated ? `<p class="muted">只显示最新的 ${state2.items.length} 条（共 ${state2.total} 条）。</p>` : ""}
+<div class="ideas-list">${shown2.length ? shown2.map(card).join("") : empty3}</div>
+</section>`;
+}
+function paint2() {
+  replacePageContent(renderIdeas());
+}
+async function loadIdeas(context) {
+  view2.error = "";
+  try {
+    const data3 = await api("/ideas", { context });
+    Object.assign(view2, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), loaded: true });
+  } catch (error2) {
+    if (error2?.name === "AbortError") throw error2;
+    view2.error = error2?.message || "想法池没读出来，请稍后再试。";
+  }
+  return renderIdeas();
+}
+function setIdeasFilter(filter) {
+  if (FILTERS.some(([id2]) => id2 === filter)) {
+    view2.filter = filter;
+    paint2();
+  }
+}
+function toggleIdea(id2) {
+  if (view2.open.has(id2)) view2.open.delete(id2);
+  else view2.open.add(id2);
+  paint2();
+}
+async function reloadIdeas() {
+  view2.loaded = false;
+  paint2();
+  await loadIdeas();
+  paint2();
+}
+function openIdeaTodo(id2) {
+  const item = view2.items.find((row) => row.id === id2);
+  if (!item) return;
+  const today2 = bjtDate(), tomorrow = bjtDate(Date.now() + 864e5);
+  openModal("转成待办", `<form id="idea-todo-form" data-id="${e(id2)}">
+<p class="muted idea-todo-source">来自想法：${e(ideaTitle(item.text))}</p>
+<label for="idea-todo-text">待办内容</label>
+<input class="input" id="idea-todo-text" name="text" maxlength="500" required value="${e(todoTextFor(item.text))}" autocomplete="off">
+<fieldset class="idea-todo-when"><legend>什么时候做</legend>
+<label><input type="radio" name="when" value="future" checked> 未来待办（先不定日子）</label>
+<label><input type="radio" name="when" value="${today2}"> 今天</label>
+<label><input type="radio" name="when" value="${tomorrow}"> 明天</label>
+<label><input type="radio" name="when" value="pick"> 选日子 <input class="input" type="date" name="date" min="${today2}" aria-label="选日子"></label>
+</fieldset>
+<p class="muted">待办做完后，这条想法会自动显示「已落地」。原来的碎碎念不会被改动。</p>
+<p class="form-message" role="alert"></p>
+<div class="form-actions"><button class="btn primary" type="submit">转成待办</button></div></form>`);
+}
+async function submitIdeaTodo({ form, data: data3 }) {
+  const id2 = form.dataset.id, message2 = form.querySelector(".form-message"), button2 = form.querySelector("button[type=submit]");
+  const text = String(data3.text ?? "").replace(/\r?\n/g, " ").trim();
+  const date2 = data3.when === "pick" ? data3.date : data3.when;
+  if (!text || text.length > 500) {
+    message2.textContent = "待办内容需要 1 至 500 个字";
+    return;
+  }
+  if (date2 !== "future" && !/^\d{4}-\d{2}-\d{2}$/.test(date2 || "")) {
+    message2.textContent = "请选一个日子";
+    return;
+  }
+  if (button2.disabled) return;
+  button2.disabled = true;
+  message2.textContent = "";
+  let todo = null;
+  try {
+    todo = date2 === "future" ? await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text } }) : await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: date2, text } });
+    await settleQueuedTodo(date2 === "future" ? "unscheduled_todo" : "todo", todo.id);
+    let linked2 = null;
+    for (let attempt = 0; !linked2; attempt++) {
+      try {
+        linked2 = await api(`/ideas/${encodeURIComponent(id2)}/todos`, { method: "POST", body: { todo_id: todo.id } });
+      } catch (error2) {
+        if (error2?.status !== 404 || attempt >= 5) throw error2;
+        await new Promise((done3) => setTimeout(done3, 800));
+      }
+    }
+    const index = view2.items.findIndex((row) => row.id === id2);
+    if (index >= 0) view2.items[index] = linked2;
+    closeModal();
+    paint2();
+    toast(date2 === "future" ? "已转成未来待办" : `已加到${smartDayLabel(date2, bjtDate())}的待办`);
+  } catch (error2) {
+    message2.textContent = todo ? "待办已经建好了，但没能和这条想法连上。请稍后在想法池里刷新看看。" : error2?.message || "没转成，请稍后再试。";
+  } finally {
+    button2.disabled = false;
+  }
 }
 
 // web/core/review-rule-scopes.mjs
@@ -14816,7 +14992,7 @@ function scale(values, kind, top, bottom) {
   return { y: (value) => bottom - value / max * height, ticks: [0, max / 2, max] };
 }
 function dateLabels(series) {
-  const plotted = series.filter((day7) => day7.position !== null), step = Math.ceil(plotted.length / 6);
+  const plotted = series.filter((day8) => day8.position !== null), step = Math.ceil(plotted.length / 6);
   return plotted.filter((_, index) => (plotted.length - 1 - index) % step === 0);
 }
 function readout(point) {
@@ -14825,17 +15001,17 @@ function readout(point) {
   return `${when}《${point.title || "未命名"}》阅读 ${reads2(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
 function figure(result, { key, rolling, kind, title, hint: hint2, format, tick, height, threshold, daily = true }) {
-  const plotted = result.series.filter((day7) => day7.position !== null);
-  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day7) => day7[rolling] !== null);
+  const plotted = result.series.filter((day8) => day8.position !== null);
+  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day8) => day8[rolling] !== null);
   const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint2)}</span></div>`;
   if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
     <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
   const top = 16, bottom = height - 30;
-  const values = [...points.map((point) => point[key]), ...curve.map((day7) => day7[rolling]), ...known2(threshold) ? [threshold] : []];
+  const values = [...points.map((point) => point[key]), ...curve.map((day8) => day8[rolling]), ...known2(threshold) ? [threshold] : []];
   const { y, ticks } = scale(values, kind, top, bottom), x = (position) => `${(position * 100).toFixed(2)}%`;
   const grid = ticks.map((mark) => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join("");
-  const days = dateLabels(result.series).map((day7) => `<text x="${x(day7.position)}" y="${height - 8}" text-anchor="middle">${e(day7.date.slice(5))}</text>`).join("");
+  const days = dateLabels(result.series).map((day8) => `<text x="${x(day8.position)}" y="${height - 8}" text-anchor="middle">${e(day8.date.slice(5))}</text>`).join("");
   const hitLine = known2(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" y2="${y(threshold).toFixed(2)}"/>` : "";
   const hitLabel = known2(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
     text-anchor="end">爆款线 ${e(format(threshold))}</text>` : "";
@@ -14843,12 +15019,12 @@ function figure(result, { key, rolling, kind, title, hint: hint2, format, tick, 
       cx="${x(point.position)}" cy="${y(point[key]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
       data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join("");
   let previous = null, lines = "";
-  for (const day7 of plotted) {
-    if (day7[rolling] === null) {
+  for (const day8 of plotted) {
+    if (day8[rolling] === null) {
       previous = null;
       continue;
     }
-    const now = { x: x(day7.position), y: y(day7[rolling]).toFixed(2) };
+    const now = { x: x(day8.position), y: y(day8[rolling]).toFixed(2) };
     if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${now.x}" y2="${now.y}"/>`;
     previous = now;
   }
@@ -15133,7 +15309,7 @@ function copyButton(action, id2 = "") {
   const marker = id2 ? ` data-prompt-id="${e(id2)}"` : "";
   return `<button type="button" class="btn" data-review-action="${action}"${marker}>复制完整提示词</button>`;
 }
-function card(title, note, time3, content2, action, key = "") {
+function card2(title, note, time3, content2, action, key = "") {
   const long = String(content2).split("\n").length > 10 || String(content2).length > 600;
   const [since, updated] = Array.isArray(time3) ? time3 : [time3, ""];
   const when = since || updated ? `<p class="review-note">${since ? `生效 ${e(since)}` : ""}${since && updated ? " · " : ""}${updated ? `最后更新 ${e(updated)}` : ""} · 北京时间</p>` : "";
@@ -15150,7 +15326,7 @@ function renderPromptPage(data3, vm2) {
   });
   const shown2 = new Set(prompts.map((row) => String(row.content_md || "").trim()));
   const extras = (data3.playbooks || []).flatMap((book) => playbookPromptBlocks(book.content_md)).filter((block) => block.content && !shown2.has(block.content));
-  const cards = prompts.map((prompt) => card(
+  const cards = prompts.map((prompt) => card2(
     labels3[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "),
     [reviewDateTime2(prompt.created_at) || "未记录", reviewDateTime2(prompt.updated_at)],
@@ -15158,7 +15334,7 @@ function renderPromptPage(data3, vm2) {
     copyButton("copy-prompt", prompt.id),
     prompt.prompt_key
   ));
-  for (const block of extras) cards.push(card(block.title, "规则手册中的提示词", "", block.content, copyButton("copy-prompt-block")));
+  for (const block of extras) cards.push(card2(block.title, "规则手册中的提示词", "", block.content, copyButton("copy-prompt-block")));
   const parts2 = [
     prompts.length ? `独立版本 ${prompts.length} 份` : "",
     extras.length ? `规则手册内置 ${extras.length} 份` : ""
@@ -16296,8 +16472,8 @@ function renderReviewArchiveShell(allowed) {
   if (allowed) return beginning + '<p class="review-status" role="status">正在读取档案…</p></section>';
   return beginning + `<div class="review-empty"><strong>此档案仅对站点所有者开放</strong><p><a href="${reviewHref}">返回内容复盘</a></p></div></section>`;
 }
-function renderArchiveFrame(view2, body4, { error: error2 = "", notice: notice2 = "" } = {}) {
-  const tabs2 = Object.entries(views).map(([key, label]) => `<button type="button" data-archive-action="view" data-archive-view="${key}" aria-pressed="${view2 === key}">${label}</button>`).join("");
+function renderArchiveFrame(view3, body4, { error: error2 = "", notice: notice2 = "" } = {}) {
+  const tabs2 = Object.entries(views).map(([key, label]) => `<button type="button" data-archive-action="view" data-archive-view="${key}" aria-pressed="${view3 === key}">${label}</button>`).join("");
   const feedback = error2 ? `<p class="review-archive-alert" role="alert">${e(error2)}</p>` : notice2 ? `<p class="review-note" role="status">${e(notice2)}</p>` : "";
   return `<h2 class="review-sr-only">V字档案</h2><nav class="review-secondary-tabs review-archive-tabs" aria-label="档案页面">${tabs2}</nav>${feedback}${body4}`;
 }
@@ -16511,7 +16687,7 @@ function renderArchiveCompleteness(data3) {
 init_state();
 var registered3 = false;
 var visible2 = () => state.page === "settings" && state.settingsTab === "ai";
-function paint2() {
+function paint3() {
   const node3 = document.querySelector("#ai-settings");
   if (!visible2() || !node3) return;
   const active5 = document.activeElement, focus = node3.contains(active5) && active5.dataset.aiSetting ? [
@@ -16524,9 +16700,9 @@ function paint2() {
 function register2() {
   if (registered3) return;
   registered3 = true;
-  watchReviewAi(paint2);
+  watchReviewAi(paint3);
   document.addEventListener("change", (event) => {
-    if (visible2() && event.target.closest?.("#ai-settings") && reviewAiInput(event.target)) paint2();
+    if (visible2() && event.target.closest?.("#ai-settings") && reviewAiInput(event.target)) paint3();
   });
   document.addEventListener("submit", (event) => {
     if (event.target.id !== "ai-settings-form") return;
@@ -16634,11 +16810,11 @@ async function readContentReviewDataWithRetry(read2, selectedAccount, current2 =
 function reviewRoute(href, defaultAccount = vm.account) {
   const p = new URL(href).searchParams, legacy2 = p.get("review_view");
   const requested = p.get("tab") || (legacy2 === "playbooks" ? "playbook" : legacy2);
-  const view2 = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
+  const view3 = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
   const section = p.get("review_section");
   const benchmark = p.get("review_benchmark") || "";
   const listed = REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : "";
-  const secondary = benchmark ? "library" : listed || (section === "trends" ? "cockpit" : "") || (section === "review" || section === "playbook" || view2 === "playbook" ? "rules" : view2 === "articles" ? "articles" : "cockpit");
+  const secondary = benchmark ? "library" : listed || (section === "trends" ? "cockpit" : "") || (section === "review" || section === "playbook" || view3 === "playbook" ? "rules" : view3 === "articles" ? "articles" : "cockpit");
   const trendRange = p.get("review_trend_range");
   const trends = {
     range: ["7d", "30d", "custom"].includes(trendRange) ? trendRange : "30d",
@@ -16647,7 +16823,7 @@ function reviewRoute(href, defaultAccount = vm.account) {
   };
   return {
     account: p.get("account")?.trim() || defaultAccount,
-    view: view2,
+    view: view3,
     secondary,
     trends,
     week: p.get("review_week") === "last" ? "last" : "this",
@@ -17287,8 +17463,8 @@ function renderReconciliation(reconcile) {
   const sections2 = Object.keys(groups).map((key) => reconcileSection(key, reconcile[key] || [])).join("");
   return archivePanel("对账结果", info + sections2);
 }
-function renderArchiveImports(view2) {
-  return '<div class="review-archive-stack">' + importForm(view2.checkpoint) + (view2.preview ? importPreview(view2.preview) : "") + (view2.checkpoint ? runHistory(view2.checkpoint) : "") + (view2.reconcile ? renderReconciliation(view2.reconcile) : "") + runPicker(view2.runs || []) + "</div>";
+function renderArchiveImports(view3) {
+  return '<div class="review-archive-stack">' + importForm(view3.checkpoint) + (view3.preview ? importPreview(view3.preview) : "") + (view3.checkpoint ? runHistory(view3.checkpoint) : "") + (view3.reconcile ? renderReconciliation(view3.reconcile) : "") + runPicker(view3.runs || []) + "</div>";
 }
 
 // web/pages/review-archive-reports.mjs
@@ -17640,7 +17816,7 @@ var clickActions = {
 };
 function bindArchive(root3, vm2, request2, live2, context, lock) {
   let running = false;
-  const paint3 = () => {
+  const paint4 = () => {
     if (live2()) root3.innerHTML = renderArchiveFrame(vm2.tab, archiveView(vm2), vm2);
   };
   const wipe = () => {
@@ -17661,7 +17837,7 @@ function bindArchive(root3, vm2, request2, live2, context, lock) {
     if (status) status.textContent = "处理中…";
     try {
       await operation2();
-      paint3();
+      paint4();
     } catch (error2) {
       if (!live2() || error2.name === "AbortError") return;
       if (error2.status === 401 || error2.status === 403) {
@@ -17670,7 +17846,7 @@ function bindArchive(root3, vm2, request2, live2, context, lock) {
       } else if (status) status.textContent = error2.message || "操作失败，请重新读取。";
       else {
         vm2.error = error2.message || "操作失败，请重新读取。";
-        paint3();
+        paint4();
       }
     } finally {
       running = false;
@@ -17701,7 +17877,7 @@ function bindArchive(root3, vm2, request2, live2, context, lock) {
     window.removeEventListener("pageshow", show);
     wipe();
   }, { once: true });
-  return { paint: paint3, run };
+  return { paint: paint4, run };
 }
 async function loadReviewArchive(context) {
   if (!canAccessReviewArchive(state.me, state.account)) return;
@@ -17711,8 +17887,8 @@ async function loadReviewArchive(context) {
   const lock = { active: true };
   const live2 = () => lock.active && root3.isConnected && runtime.sessionEpoch === epoch && state.me?.id === identity5 && reviewArchiveActive() && canAccessReviewArchive(state.me, state.account) && !context?.controller.signal.aborted;
   const vm2 = createView(), request2 = protectedTransport(context, live2);
-  const { paint: paint3, run } = bindArchive(root3, vm2, request2, live2, context, lock);
-  paint3();
+  const { paint: paint4, run } = bindArchive(root3, vm2, request2, live2, context, lock);
+  paint4();
   await run(async () => {
     try {
       await updateItems(vm2, request2, true);
@@ -17740,6 +17916,7 @@ var PAGE_HEADERS = {
   review: ["内容复盘", "数据表现与爆款方法沉淀"],
   todos: ["每日待办", "今日任务与日程安排"],
   notes: ["碎碎念", "随时记录想法与状态"],
+  ideas: ["想法池", "碎碎念里的灵感，想好了就转成待办"],
   "ai-reports": ["AI 日报", "待拍板、日报和周报"],
   settings: ["设置", "待办偏好、AI 配置与账号安全"]
 };
@@ -17840,6 +18017,7 @@ function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "ai-reports") return renderAiReports();
+  if (page === "ideas") return renderIdeas();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -17877,6 +18055,9 @@ async function renderPage() {
         break;
       case "ai-reports":
         await loadAiReports({ resetDate: true });
+        break;
+      case "ideas":
+        html = await loadIdeas(context);
         break;
       case "review":
         if (reviewArchiveActive()) await loadReviewArchive(context);
@@ -18446,36 +18627,36 @@ function makeView(pip) {
     retry
   };
 }
-function paintTodo(view2) {
-  const day7 = todoDay(bjtDate());
-  view2.head.querySelector("time").textContent = day7.date;
-  view2.todoMessage.textContent = day7.error || (!day7.loaded && day7.loading ? "正在读取待办…" : "");
-  const fragment = view2.doc.createDocumentFragment();
-  for (const item of day7.items) {
-    const removal = day7.removals.get(item.id);
+function paintTodo(view3) {
+  const day8 = todoDay(bjtDate());
+  view3.head.querySelector("time").textContent = day8.date;
+  view3.todoMessage.textContent = day8.error || (!day8.loaded && day8.loading ? "正在读取待办…" : "");
+  const fragment = view3.doc.createDocumentFragment();
+  for (const item of day8.items) {
+    const removal = day8.removals.get(item.id);
     if (item.deleted_at || removal && removal.phase !== "restoring") continue;
-    const li = node2(view2.doc, "li"), label = node2(view2.doc, "label"), check2 = node2(view2.doc, "input");
+    const li = node2(view3.doc, "li"), label = node2(view3.doc, "label"), check2 = node2(view3.doc, "input");
     check2.type = "checkbox";
     check2.dataset.todoId = item.id;
-    check2.dataset.date = day7.date;
-    check2.checked = day7.updates.has(item.id) ? day7.updates.get(item.id) : Boolean(item.completed);
-    check2.disabled = !day7.loaded || todoBusy(day7, item.id);
-    label.append(check2, node2(view2.doc, "span", item.text));
+    check2.dataset.date = day8.date;
+    check2.checked = day8.updates.has(item.id) ? day8.updates.get(item.id) : Boolean(item.completed);
+    check2.disabled = !day8.loaded || todoBusy(day8, item.id);
+    label.append(check2, node2(view3.doc, "span", item.text));
     li.append(label);
     if (check2.checked) li.classList.add("is-complete");
     fragment.append(li);
   }
-  if (!day7.items.some((item) => !item.deleted_at) && day7.loaded) fragment.append(node2(view2.doc, "li", "今天还没有待办。", "floating-empty"));
-  view2.todoList.replaceChildren(fragment);
+  if (!day8.items.some((item) => !item.deleted_at) && day8.loaded) fragment.append(node2(view3.doc, "li", "今天还没有待办。", "floating-empty"));
+  view3.todoList.replaceChildren(fragment);
 }
-function paintNotes(view2) {
+function paintNotes(view3) {
   const snap = floatingNotesSnapshot(), item = snap?.item, page = snap?.page;
   const previousDate = Boolean(item && item.date !== snap?.date);
   const text = item?.draft || "";
-  const fragment = view2.doc.createDocumentFragment();
+  const fragment = view3.doc.createDocumentFragment();
   for (const record of snap?.entries || []) {
-    const row = node2(view2.doc, "li");
-    const content2 = record.legacy ? node2(view2.doc, "div") : node2(view2.doc, "button");
+    const row = node2(view3.doc, "li");
+    const content2 = record.legacy ? node2(view3.doc, "div") : node2(view3.doc, "button");
     if (!record.legacy) {
       content2.type = "button";
       content2.dataset.noteId = record.id;
@@ -18487,49 +18668,49 @@ function paintNotes(view2) {
       { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
     ).format(new Date(time3)) : "";
     content2.append(
-      node2(view2.doc, "small", [caption, record.legacy ? "原有记录 · 只读" : record.dirty ? "草稿" : ""].filter(Boolean).join(" · ")),
-      node2(view2.doc, "span", record.dirty ? record.draft : record.draft ?? record.serverText ?? "")
+      node2(view3.doc, "small", [caption, record.legacy ? "原有记录 · 只读" : record.dirty ? "草稿" : ""].filter(Boolean).join(" · ")),
+      node2(view3.doc, "span", record.dirty ? record.draft : record.draft ?? record.serverText ?? "")
     );
     row.append(content2);
     fragment.append(row);
   }
-  view2.noteList.replaceChildren(fragment);
-  view2.newNote.disabled = !page?.loaded || !page.canEdit;
-  if ((view2.doc.activeElement !== view2.notesInput || !view2.doc.hasFocus()) && view2.notesInput.value !== text)
-    view2.notesInput.value = text;
-  view2.notesInput.disabled = !page?.loaded || !page.canEdit || item?.canEdit === false;
-  view2.notesInput.readOnly = Boolean(view2.frozen);
-  view2.labels.disabled = Boolean(view2.frozen) || !snap?.labelsVerified || !page?.canEdit || Boolean(item?.pending) || item?.labelComplete === false;
-  const current2 = [...view2.options.querySelectorAll("input")].map((input) => input.value);
+  view3.noteList.replaceChildren(fragment);
+  view3.newNote.disabled = !page?.loaded || !page.canEdit;
+  if ((view3.doc.activeElement !== view3.notesInput || !view3.doc.hasFocus()) && view3.notesInput.value !== text)
+    view3.notesInput.value = text;
+  view3.notesInput.disabled = !page?.loaded || !page.canEdit || item?.canEdit === false;
+  view3.notesInput.readOnly = Boolean(view3.frozen);
+  view3.labels.disabled = Boolean(view3.frozen) || !snap?.labelsVerified || !page?.canEdit || Boolean(item?.pending) || item?.labelComplete === false;
+  const current2 = [...view3.options.querySelectorAll("input")].map((input) => input.value);
   const available = [.../* @__PURE__ */ new Set([...snap?.labels || [], ...item?.labels || []])];
   if (JSON.stringify(current2) !== JSON.stringify(available)) {
-    const fragment2 = view2.doc.createDocumentFragment();
+    const fragment2 = view3.doc.createDocumentFragment();
     for (const name of available) {
-      const label = node2(view2.doc, "label"), input = node2(view2.doc, "input");
+      const label = node2(view3.doc, "label"), input = node2(view3.doc, "input");
       input.type = "checkbox";
       input.value = name;
-      label.append(input, node2(view2.doc, "span", name));
+      label.append(input, node2(view3.doc, "span", name));
       fragment2.append(label);
     }
-    view2.options.replaceChildren(fragment2);
+    view3.options.replaceChildren(fragment2);
   }
-  for (const input of view2.options.querySelectorAll("input")) input.checked = Boolean(item?.labels?.includes(input.value));
+  for (const input of view3.options.querySelectorAll("input")) input.checked = Boolean(item?.labels?.includes(input.value));
   const blocked2 = item?.pending || item?.composing || ["unknown", "conflict", "oversize"].includes(item?.phase);
-  view2.send.disabled = Boolean(view2.frozen) || !item?.dirty || Boolean(blocked2) || !item.canEdit || previousDate;
-  view2.check.hidden = item?.phase !== "unknown";
-  view2.check.disabled = Boolean(view2.frozen || item?.pending?.checking);
-  view2.retry.hidden = item?.phase !== "unknown" || !item?.pending?.retryReady;
-  view2.retry.disabled = Boolean(view2.frozen);
-  view2.newNote.disabled ||= Boolean(view2.frozen);
-  view2.noteMessage.textContent = item?.error || snap?.error || page?.error || snap?.draftError || snap?.labelError || (previousDate ? `此草稿属于 ${item.date}，请在原日期处理；点击“写一条”可继续今日记录。` : !page?.loaded ? "正在读取碎碎念…" : !page.canEdit ? "当前身份为只读。" : item?.phase === "queued" ? "已存本机，待同步。" : "");
+  view3.send.disabled = Boolean(view3.frozen) || !item?.dirty || Boolean(blocked2) || !item.canEdit || previousDate;
+  view3.check.hidden = item?.phase !== "unknown";
+  view3.check.disabled = Boolean(view3.frozen || item?.pending?.checking);
+  view3.retry.hidden = item?.phase !== "unknown" || !item?.pending?.retryReady;
+  view3.retry.disabled = Boolean(view3.frozen);
+  view3.newNote.disabled ||= Boolean(view3.frozen);
+  view3.noteMessage.textContent = item?.error || snap?.error || page?.error || snap?.draftError || snap?.labelError || (previousDate ? `此草稿属于 ${item.date}，请在原日期处理；点击“写一条”可继续今日记录。` : !page?.loaded ? "正在读取碎碎念…" : !page.canEdit ? "当前身份为只读。" : item?.phase === "queued" ? "已存本机，待同步。" : "");
 }
-function bindOfflineStatus(view2, active5) {
+function bindOfflineStatus(view3, active5) {
   let unsubscribe = () => {
   };
   const stop = onOfflineRuntime((runtime2) => {
     unsubscribe();
     unsubscribe = runtime2.subscribe((value) => {
-      if (active5()) view2.offline.textContent = [
+      if (active5()) view3.offline.textContent = [
         offlineStatusLabel(value),
         value.partial ? "仅显示本机已保存事项，完整列表需联网读取。" : ""
       ].filter(Boolean).join(" ");
@@ -18541,17 +18722,17 @@ function bindOfflineStatus(view2, active5) {
   };
 }
 function mountFloating(pip) {
-  const view2 = makeView(pip), owner2 = todoOwner();
+  const view3 = makeView(pip), owner2 = todoOwner();
   let alive = true, tab = "todos", notesLoaded = false, composing = false, date2 = bjtDate();
   const active5 = () => alive && !pip.closed && todoSessionActive(owner2);
-  const paint3 = () => {
+  const paint4 = () => {
     if (active5()) {
-      paintTodo(view2);
-      if (tab === "notes") paintNotes(view2);
+      paintTodo(view3);
+      if (tab === "notes") paintNotes(view3);
     }
   };
-  const stopTodos = observeTodoChanges(paint3), stopNotes = observeFloatingNotes(paint3);
-  const stopRuntime = bindOfflineStatus(view2, active5);
+  const stopTodos = observeTodoChanges(paint4), stopNotes = observeFloatingNotes(paint4);
+  const stopRuntime = bindOfflineStatus(view3, active5);
   const beforeUnload = (event) => {
     if (active5() && hasFloatingNoteDraft()) {
       event.preventDefault();
@@ -18565,12 +18746,12 @@ function mountFloating(pip) {
       return;
     }
     const current2 = floatingNotesSnapshot()?.item;
-    if (tab === "notes" && view2.notesInput.value !== (current2?.draft || "")) editFloatingNote(view2.notesInput.value);
-    view2.frozen = true;
-    paint3();
+    if (tab === "notes" && view3.notesInput.value !== (current2?.draft || "")) editFloatingNote(view3.notesInput.value);
+    view3.frozen = true;
+    paint4();
     event.detail.onFailure?.(() => {
-      view2.frozen = false;
-      if (active5()) paint3();
+      view3.frozen = false;
+      if (active5()) paint4();
     });
   };
   const reset = () => {
@@ -18601,7 +18782,7 @@ function mountFloating(pip) {
   function cleanup() {
     if (!alive) return;
     if (composing && todoSessionActive(owner2)) {
-      editFloatingNote(view2.notesInput.value, false);
+      editFloatingNote(view3.notesInput.value, false);
       composing = false;
     }
     markFloatingNoteComposing(false);
@@ -18618,56 +18799,56 @@ function mountFloating(pip) {
     if (activeWindow === pip) activeWindow = null;
     if (draft && todoSessionActive(owner2)) toast("未发送内容仍在当前页面，请确认保存后再关闭主页面。");
   }
-  view2.tabs.addEventListener("click", (event) => {
+  view3.tabs.addEventListener("click", (event) => {
     const button2 = event.target.closest("button[data-tab]");
     if (!button2) return;
     tab = button2.dataset.tab;
-    view2.todo.hidden = tab !== "todos";
-    view2.notes.hidden = tab !== "notes";
-    for (const control of view2.tabs.querySelectorAll("button")) control.setAttribute("aria-pressed", String(control === button2));
+    view3.todo.hidden = tab !== "todos";
+    view3.notes.hidden = tab !== "notes";
+    for (const control of view3.tabs.querySelectorAll("button")) control.setAttribute("aria-pressed", String(control === button2));
     if (tab === "notes" && !notesLoaded) {
       notesLoaded = true;
       void loadFloatingNotes();
     }
-    paint3();
+    paint4();
   });
-  view2.todoList.addEventListener("change", (event) => {
+  view3.todoList.addEventListener("change", (event) => {
     const input = event.target;
     if (input.dataset.todoId) void toggleTodo(input, { floating: true });
   });
-  view2.newNote.addEventListener("click", () => {
+  view3.newNote.addEventListener("click", () => {
     newFloatingNote();
-    paint3();
-    view2.notesInput.focus();
+    paint4();
+    view3.notesInput.focus();
   });
-  view2.noteList.addEventListener("click", (event) => {
+  view3.noteList.addEventListener("click", (event) => {
     const button2 = event.target.closest("[data-note-id]");
     if (button2) selectFloatingNote(button2.dataset.noteId, button2.dataset.category);
   });
-  view2.notesInput.addEventListener("compositionstart", () => {
+  view3.notesInput.addEventListener("compositionstart", () => {
     composing = true;
     markFloatingNoteComposing(true);
   });
-  view2.notesInput.addEventListener("input", (event) => {
-    editFloatingNote(view2.notesInput.value, composing || event.isComposing);
+  view3.notesInput.addEventListener("input", (event) => {
+    editFloatingNote(view3.notesInput.value, composing || event.isComposing);
     if (composing || event.isComposing) markFloatingNoteComposing(true);
   });
-  view2.notesInput.addEventListener("compositionend", () => {
+  view3.notesInput.addEventListener("compositionend", () => {
     composing = false;
-    editFloatingNote(view2.notesInput.value);
+    editFloatingNote(view3.notesInput.value);
     markFloatingNoteComposing(false);
   });
-  view2.options.addEventListener("change", () => {
-    labelFloatingNote([...view2.options.querySelectorAll("input:checked")].map((input) => input.value));
-    paint3();
+  view3.options.addEventListener("change", () => {
+    labelFloatingNote([...view3.options.querySelectorAll("input:checked")].map((input) => input.value));
+    paint4();
   });
-  view2.send.addEventListener("click", () => {
+  view3.send.addEventListener("click", () => {
     void sendFloatingNote();
   });
-  view2.check.addEventListener("click", () => {
+  view3.check.addEventListener("click", () => {
     void checkFloatingNote();
   });
-  view2.retry.addEventListener("click", () => {
+  view3.retry.addEventListener("click", () => {
     void checkFloatingNote(true);
   });
   window.addEventListener("beforeunload", beforeUnload);
@@ -18675,8 +18856,8 @@ function mountFloating(pip) {
   window.addEventListener("haoduoyu-todos-reset", reset);
   pip.addEventListener("focus", focus);
   pip.addEventListener("pagehide", cleanup, { once: true });
-  view2.tabs.querySelector('[data-tab="todos"]').setAttribute("aria-pressed", "true");
-  paint3();
+  view3.tabs.querySelector('[data-tab="todos"]').setAttribute("aria-pressed", "true");
+  paint4();
   void loadFloatingToday();
 }
 async function openFloatingWorkbench() {
@@ -18783,6 +18964,10 @@ var actions3 = {
   "todo-count-undo": ({ target }) => void changeTodoCount(target.dataset, "undo"),
   "todo-count-clear": ({ target }) => void changeTodoCount(target.dataset, "clear"),
   "todo-edit-text": ({ target }) => openTodoText(target.dataset),
+  "ideas-filter": ({ target }) => setIdeasFilter(target.dataset.filter),
+  "idea-expand": ({ target }) => toggleIdea(target.dataset.id),
+  "idea-todo": ({ target }) => openIdeaTodo(target.dataset.id),
+  "ideas-reload": () => reloadIdeas(),
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
   "todo-make-template": ({ target }) => changeTodoTemplate(target.dataset),
@@ -18903,6 +19088,11 @@ var forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (form.id === "idea-todo-form") {
+    event.preventDefault();
+    await submitIdeaTodo({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
   if (form.id === "todo-text-form") {
     event.preventDefault();
     await submitTodoText({ form, data: Object.fromEntries(new FormData(form)) });

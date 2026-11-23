@@ -30,7 +30,8 @@ export function sidebarNavigation() {
 }
 export function settingsNavigation() { return navigationLink(nav.find(item => item.id === 'settings')); }
 export function mobileNavigation() {
-  const items = nav.filter(item => item.id !== 'settings').map(item => item.id === 'review' ? mediaNavigation(true) : navigationLink(item, true));
+  // 想法池 is reached from 碎碎念 on phones, so the bottom bar keeps its four places.
+  const items = nav.filter(item => item.id !== 'settings' && item.id !== 'ideas').map(item => item.id === 'review' ? mediaNavigation(true) : navigationLink(item, true));
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.join('')}</nav>`;
 }
 export function mobileSettingsMenu() {

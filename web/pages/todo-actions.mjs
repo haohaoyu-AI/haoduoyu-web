@@ -580,5 +580,5 @@ async function changeTodoTemplate(options, remove = false) {
     }
   }
 }
-export { changeTodoCount, openTodoCount, openTodoText, submitTodoText, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
+export { settleQueuedTodo, changeTodoCount, openTodoCount, openTodoText, submitTodoText, submitTodoCount, canOpenTodoMenu, changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, submitTodoNote,
   renderTodoUndo, restoreTodo, saveDailyTodoNote, todoBusy };

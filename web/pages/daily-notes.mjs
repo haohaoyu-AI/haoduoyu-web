@@ -34,7 +34,8 @@ export function renderDailyNotes() {
     '<div class="segmented" role="group" aria-label="碎碎念视图">' +
     '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
     '<button type="button" data-notes-view="history" aria-pressed="false">时间轴</button>' +
-    '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div>' +
+    '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button>' +
+    '<a class="notes-ideas-link" href="/?page=ideas">💡 想法池</a></div>' +
     '<section id="notes-history" hidden aria-label="碎碎念时间轴">' +
     '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
     '<div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button>' +
@@ -159,6 +160,7 @@ function entryControlsMarkup() {
     '<button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button>' +
     '<button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
+export const IDEA_LABEL = '想法池';
 function createEntryElement(item, editing) {
   const node = document.createElement('article');
   node.className = 'note-entry ' + (editing ? 'note-entry-editing' : 'note-entry-saved'); node.dataset.noteEntry = item.id;
@@ -171,6 +173,7 @@ function createEntryElement(item, editing) {
       'class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
+    '<button class="btn text note-entry-idea" type="button" data-note-idea="add" hidden>放进想法池</button>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
@@ -192,6 +195,13 @@ function paintSavedEntry(node, item) {
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
+  // 想法池: one tap labels a saved 碎碎念 as an idea; once it is one, the same spot opens the 想法池 page.
+  const idea = node.querySelector('[data-note-idea]'), inPool = (item.labels || []).includes(IDEA_LABEL);
+  const ready = item.canEdit && !item.deleted && !draft && item.labelKnown && item.labelComplete && item.version > 0;
+  idea.hidden = !(inPool ? !item.deleted : ready);
+  idea.dataset.noteIdea = inPool ? 'open' : 'add';
+  idea.disabled = !inPool && (Boolean(item.pending) || item.dirty);
+  idea.textContent = inPool ? '💡 在想法池 →' : '放进想法池';
   paintNoteSuggestion(node, item);
 }
 function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {

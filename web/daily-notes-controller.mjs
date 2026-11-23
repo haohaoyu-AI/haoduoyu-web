@@ -7,7 +7,7 @@ import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
 import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-state.mjs';
 import {checkedNoteMonth, coalesceNoteMonthFlight, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
 import {createNotesEditorView, noteDraftNeedsAttention} from './core/notes-editor-view.mjs';
-import {paintNoteEntries} from './pages/daily-notes.mjs';
+import {paintNoteEntries, IDEA_LABEL} from './pages/daily-notes.mjs';
 import {paintBodySummary} from './body-summary-controller.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
@@ -1000,6 +1000,12 @@ function registerDailyNotesEvents() {
   document.addEventListener('click', event => { void handleNotesClick(event); });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
   document.addEventListener('click', event => {
+    const target = event.target.closest('[data-note-idea]');
+    if (!target || !target.closest('#daily-notes')) return;
+    event.preventDefault();
+    void putInIdeaPool(target);
+  });
+  document.addEventListener('click', event => {
     const target = event.target.closest('[data-note-suggest]');
     if (!target) return;
     event.preventDefault();
@@ -1020,6 +1026,22 @@ function registerDailyNotesEvents() {
       event.preventDefault(); event.returnValue = '';
     }
   });
+}
+// 放进想法池: adds the 想法池 label through the same offline-safe save as 编辑 and AI 贴上.
+async function putInIdeaPool(target) {
+  if (target.dataset.noteIdea === 'open') { location.href = '/?page=ideas'; return; }
+  const id = target.closest('[data-note-entry]')?.dataset.noteEntry;
+  const [store, item] = [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
+  if (!store || !item || target.disabled) return;
+  const labels = [...new Set([...(item.labels || []), IDEA_LABEL])];
+  target.disabled = true;
+  if (!notesLabelsVerified || !store.relabelDraft(id, labels)) {
+    item.error = '现在放不进想法池：请联网后再试，或点「编辑」手动勾选「想法池」标签。';
+    paintDailyNotesPage(); return;
+  }
+  await store.save(id);
+  if (item.phase !== 'saved' && item.phase !== 'queued' && item.phase !== 'cached') item.error ||= '没放进去，请点「编辑」手动勾选「想法池」标签。';
+  paintDailyNotesPage();
 }
 export async function loadDailyNotes() {
   registerDailyNotesEvents(); setDailyNotesRouteDate(dailyNotesRouteDate());

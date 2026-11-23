@@ -16,7 +16,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) ||
+  if (["notes", "ideas", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) ||
       state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}\
 <button class="icon-button" data-action="refresh" \

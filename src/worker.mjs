@@ -32,6 +32,7 @@ import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
 import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 import {handleSnapshot} from './snapshot.mjs';
 import {handleNoteEntries} from './note-entries.mjs';
+import {isIdeaRoute,handleIdeas} from './idea-pool.mjs';
 import {handleBodySummary,BODY_SUMMARY_ROUTES} from './body-summary.mjs';
 import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
@@ -327,6 +328,7 @@ async function handle(request,env,trace) {
       if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
       if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
       if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
+      if(isIdeaRoute(route)) return handleIdeas(db,request,route,env,origin);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
       if(method==='GET') return publicBusinessResult(protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,access.actor));
       return publicBusinessResult(protectedWrite(db,request,route,env,origin,trace,access.actor));
@@ -340,6 +342,7 @@ async function handle(request,env,trace) {
     if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
     if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
     if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
+    if(isIdeaRoute(route)) return handleIdeas(db,request,route,env,origin);
     if(method==='GET') {
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,null,env);
     }
