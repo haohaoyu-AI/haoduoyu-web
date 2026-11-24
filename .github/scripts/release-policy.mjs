@@ -675,7 +675,15 @@ export const weeklyCountRelease=Object.freeze({
   baseline:'0f43968c-a8f3-4e7b-ab5d-e471098098c9',
   bytes:3314795,sha256:'1f27ded1e6cb383f8cdd040a81e7837573d8907f771769eff0af4c1e6ce68341',
   label:'production-weekly-count'});
-const acceptedRelease=commit=>commit===weeklyCountRelease.commit?weeklyCountRelease:
+// 每周 N 次 做够了还能多勾 (本周 3/2). Frontend only, no migration.
+export const weeklyExtraRelease=Object.freeze({
+  commit:'1b56ac7084ffc1ad56ddb228c04446093bce0d08',
+  tree:'15d719436946399046488b585fc8141a5098d359',
+  baseline:'362d0a9b-cd6c-4b4a-aed6-8db3d000554b',
+  bytes:3317685,sha256:'b4a8e1edf9f45a09b7bc21f721b705ddf879f5b4941eb9268879b9bddf0334be',
+  label:'production-weekly-extra'});
+const acceptedRelease=commit=>commit===weeklyExtraRelease.commit?weeklyExtraRelease:
+  commit===weeklyCountRelease.commit?weeklyCountRelease:
   commit===noLeftAccentRelease.commit?noLeftAccentRelease:
   commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
   commit===batch1123Release.commit?batch1123Release:
