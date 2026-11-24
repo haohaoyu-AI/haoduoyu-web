@@ -129,8 +129,9 @@ function groupRow(group) {
     `<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete-all" ` +
     `data-id="${e(lead.id)}" ${off}>删除</button></div></div>`;
   return `<li class="daily-todo-row todo-future-times-row${full?' is-complete':''}${open?' is-open':''}">` +
-    `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(lead.id)}" ` +
-    `${full?'checked disabled':off} aria-label="${e(group.text)} 做了一次"></label>` +
+    `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" ` +
+    `${full?`data-future-extra-id="${e(lead.id)}" ${off} aria-label="${e(group.text)} 又做了一次（已做够）"`:
+      `data-future-todo-id="${e(lead.id)}" ${off} aria-label="${e(group.text)} 做了一次"`}></label>` +
     `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(group.text)}</label>` +
     `<span class="todo-future-repeat">${REPEAT_LABEL[group.recurrence]} ${group.times} 次</span>` +
     `<span class="todo-future-times${full?' is-full':''}">${timesLabel(group)}</span></div>` +
@@ -166,12 +167,12 @@ export function futureGroups(items,today=bjtDate()) {
 /** Copies of one 每周 N 次 to-do become one row, placed in 本周 / 本月. A repeat done once stays as it was. */
 export function collapseTimes(rows,today=bjtDate()) {
   const multi=repeatGroups(rows,today).filter(group=>group.times>1),taken=new Map();
-  for(const group of multi)for(const copy of group.copies)taken.set(copy.id,group);
+  for(const group of multi)for(const copy of [...group.copies,...group.extras])taken.set(copy.id,group);
   const out=[],seen=new Set();
   for(const row of rows) {
     const group=taken.get(row.id);
     if(!group){out.push(row);continue;}
-    if(seen.has(group.key))continue;seen.add(group.key);
+    if(seen.has(group.key)||!group.copies.includes(row))continue;seen.add(group.key);
     out.push({id:(group.open[0]||group.copies[0]).id,text:group.text,period:group.current,group});
   }
   return out;
@@ -576,7 +577,34 @@ export async function deleteUnscheduledTodoTimes(id) {
   const v=current(),key=v.owner;if(v.pending)return;
   const group=repeatGroups(v.items,bjtDate()).find(g=>g.copies.some(x=>x.id===id));if(!group)return deleteUnscheduledTodo(id);
   v.pending=true;v.error='';v.open='';paintUnscheduledTodos();
-  try {for(const copy of group.copies)await removeCopy(copy,key);}
+  try {for(const copy of [...group.copies,...group.extras])await removeCopy(copy,key);}
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
+  finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
+}
+
+/** A tick on a week already done enough: keeps a finished one-off in this week (counted as 3/2)
+ * and adds a finished to-do on 今日, so the extra time shows in today's done list too. */
+export async function addUnscheduledTodoExtra(el) {
+  const v=current(),key=v.owner,id=el.dataset.futureExtraId,today=bjtDate();
+  const group=repeatGroups(v.items,today).find(g=>g.copies.some(x=>x.id===id));
+  if(!group||group.open.length||v.pending){el.checked=false;return;}
+  v.pending=true;v.error='';paintUnscheduledTodos();
+  try {
+    // The create may wait in the offline queue, so the period and 完成 steps retry like addMeta does.
+    const made=await api('/unscheduled-todos',{method:'POST',body:{id:crypto.randomUUID(),text:group.text}});
+    if(v.owner!==key||owner()!==key)return;
+    v.items=[...v.items.filter(x=>x.id!==made.id),{...made,completed:true,period:group.current}];
+    await addMeta(made.id,{period:group.current},key);
+    const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    for(let attempt=0;;attempt++) {
+      const latest=await api('/unscheduled-todos/'+encodeURIComponent(made.id));
+      try {const row=await api('/unscheduled-todos/'+encodeURIComponent(made.id),{method:'PATCH',body:{completed:true,version:latest.version}});
+        if(v.owner===key&&owner()===key)v.items=v.items.map(x=>x.id===row.id?row:x);break;}
+      catch(error){if(attempt>=5||!transient(error))throw error;await pause(500*(attempt+1));}
+    }
+    const todo=await api('/todos',{method:'POST',body:{id:crypto.randomUUID(),date:today,text:group.text}});
+    await api('/todos/'+encodeURIComponent(todo.id),{method:'PATCH',body:{completed:true,version:todo.version}});
+    if(v.owner===key&&owner()===key)toast(`又做了一次：${group.text}`);
+  } catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }

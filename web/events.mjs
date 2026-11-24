@@ -1,4 +1,5 @@
 import {inputUnscheduledTodo,toggleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
+import {addUnscheduledTodoExtra} from "./pages/unscheduled-todos.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { handleResponsiveLayout, navigate, navigateLink, renderShell } from "./controller.mjs";
 import { $, $$ } from "./core/dom.mjs";
@@ -59,6 +60,10 @@ function handleChange(event) {
   }
   if (el.dataset?.futureTodoId) {
     toggleUnscheduledTodo(el);
+    return;
+  }
+  if (el.dataset?.futureExtraId) {
+    addUnscheduledTodoExtra(el);
     return;
   }
   if (el.dataset?.futureDateId || el.dataset?.futureDueId) {

@@ -49,3 +49,15 @@ test('the list shows several copies as one row in 本周; a single repeat is unt
   assert.equal(rows[0].group.times,2);assert.equal(rows[0].period,'2026-W48');assert.equal(rows[0].id,'a');
   assert.equal(rows[1].id,'c');assert.equal(rows[1].group,undefined);
 });
+
+test('a tick after the week is done enough counts as extra: 本周 3/2', () => {
+  const extra={id:'x',text:'每周总结数据',period:'2026-W48',completed:true,version:3};
+  const old={id:'y',text:'每周总结数据',period:'2026-W47',completed:true,version:3};
+  const items=[copy('a','2026-W49'),copy('b','2026-W49'),extra,old];
+  const [group]=repeatGroups(items,'2026-11-24');
+  assert.equal(group.extra,1);assert.equal(timesLabel(group),'本周 3/2，多做了 1 次');
+  const rows=collapseTimes(items,'2026-11-24');
+  assert.deepEqual(rows.map(r=>r.id),['a']); // extras of this and past weeks are folded into the row
+  const [next]=repeatGroups(items,'2026-11-30');
+  assert.equal(next.extra,0);assert.equal(timesLabel(next),'本周 0/2');
+});

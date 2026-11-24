@@ -24,7 +24,11 @@ export function readTimes(sentence) {
 export const currentPeriod = (recurrence, today) => recurrence === 'week' ? periodChoices(today).week : monthOf(today);
 const live = item => item && !item.deleted_at && !item.deleted && ['week', 'month'].includes(item.recurrence) && validPeriod(item.period);
 
-/** Repeating to-dos with the same text and repeat, gathered: copies, open (still to do, oldest first) and done. */
+// 多做 (2026-11-24): once a week is done enough, a tick still counts. It saves a finished one-off to-do with the same text
+// in this week (kept, not moved to 今日), shown as 本周 3/2; past weeks' extras are hidden.
+const extraOf=(item,recurrence)=>item && !item.deleted_at && !item.deleted && !item.recurrence && (item.completed===true||item.completed===1) &&
+  validPeriod(item.period) && (recurrence==='week'?/W/.test(item.period):!/W/.test(item.period));
+/** Repeating to-dos with the same text and repeat, gathered: copies, open (still to do, oldest first), done and extra. */
 export function repeatGroups(items, today) {
   const groups = new Map();
   for (const item of items) {
@@ -39,6 +43,8 @@ export function repeatGroups(items, today) {
     group.done = group.copies.filter(item => item.period > now);
     group.open = group.copies.filter(item => item.period <= now).sort((a, b) => a.period < b.period ? -1 : a.period > b.period ? 1 : 0);
     group.times = group.copies.length;
+    group.extras = items.filter(item => extraOf(item, group.recurrence) && item.text.trim() === group.text);
+    group.extra = group.extras.filter(item => item.period === now).length;
   }
   return [...groups.values()];
 }
@@ -57,7 +63,8 @@ export function needsNudge(group, today) {
   return left > 0 && (days <= (group.recurrence === 'week' ? 2 : 3) || left >= days);
 }
 export const timesLabel = group => {
-  const span = group.recurrence === 'week' ? '本周' : '本月';
-  return group.open.length ? `${span} ${group.done.length}/${group.times}` : `${span}做够了 ${group.times}/${group.times}`;
+  const span = group.recurrence === 'week' ? '本周' : '本月', extra = group.extra || 0;
+  if (group.open.length) return `${span} ${group.done.length}/${group.times}`;
+  return extra ? `${span} ${group.times + extra}/${group.times}，多做了 ${extra} 次` : `${span}做够了 ${group.times}/${group.times}`;
 };
 export const leftLabel = group => `${group.recurrence === 'week' ? '本周' : '本月'}还差 ${group.open.length} 次`;

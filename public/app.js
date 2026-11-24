@@ -6236,6 +6236,7 @@ function readTimes(sentence) {
 }
 var currentPeriod = (recurrence, today2) => recurrence === "week" ? periodChoices(today2).week : monthOf(today2);
 var live2 = (item) => item && !item.deleted_at && !item.deleted && ["week", "month"].includes(item.recurrence) && validPeriod(item.period);
+var extraOf = (item, recurrence) => item && !item.deleted_at && !item.deleted && !item.recurrence && (item.completed === true || item.completed === 1) && validPeriod(item.period) && (recurrence === "week" ? /W/.test(item.period) : !/W/.test(item.period));
 function repeatGroups(items, today2) {
   const groups = /* @__PURE__ */ new Map();
   for (const item of items) {
@@ -6250,6 +6251,8 @@ function repeatGroups(items, today2) {
     group.done = group.copies.filter((item) => item.period > now);
     group.open = group.copies.filter((item) => item.period <= now).sort((a, b) => a.period < b.period ? -1 : a.period > b.period ? 1 : 0);
     group.times = group.copies.length;
+    group.extras = items.filter((item) => extraOf(item, group.recurrence) && item.text.trim() === group.text);
+    group.extra = group.extras.filter((item) => item.period === now).length;
   }
   return [...groups.values()];
 }
@@ -6264,8 +6267,9 @@ function needsNudge(group, today2) {
   return left > 0 && (days <= (group.recurrence === "week" ? 2 : 3) || left >= days);
 }
 var timesLabel = (group) => {
-  const span = group.recurrence === "week" ? "本周" : "本月";
-  return group.open.length ? `${span} ${group.done.length}/${group.times}` : `${span}做够了 ${group.times}/${group.times}`;
+  const span = group.recurrence === "week" ? "本周" : "本月", extra = group.extra || 0;
+  if (group.open.length) return `${span} ${group.done.length}/${group.times}`;
+  return extra ? `${span} ${group.times + extra}/${group.times}，多做了 ${extra} 次` : `${span}做够了 ${group.times}/${group.times}`;
 };
 var leftLabel = (group) => `${group.recurrence === "week" ? "本周" : "本月"}还差 ${group.open.length} 次`;
 
@@ -6402,7 +6406,7 @@ function groupRow(group) {
   const v = current(), lead = group.open[0] || group.copies[0], busy2 = v.pending || group.copies.some((x) => v.uncertain[x.id]), off = busy2 ? "disabled" : "";
   const full = !group.open.length, check2 = `future-check-${lead.id}`, open = v.open === lead.id;
   const panel2 = `<div class="todo-future-panel" id="todo-future-panel-${e(lead.id)}">${timesRow(lead, group.times, off)}<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete-all" data-id="${e(lead.id)}" ${off}>删除</button></div></div>`;
-  return `<li class="daily-todo-row todo-future-times-row${full ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(lead.id)}" ${full ? "checked disabled" : off} aria-label="${e(group.text)} 做了一次"></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(group.text)}</label><span class="todo-future-repeat">${REPEAT_LABEL[group.recurrence]} ${group.times} 次</span><span class="todo-future-times${full ? " is-full" : ""}">${timesLabel(group)}</span></div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(lead.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(lead.id)}" aria-label="安排 ${e(group.text)}">▾</button>` + (open ? panel2 : "") + `</li>`;
+  return `<li class="daily-todo-row todo-future-times-row${full ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" ${full ? `data-future-extra-id="${e(lead.id)}" ${off} aria-label="${e(group.text)} 又做了一次（已做够）"` : `data-future-todo-id="${e(lead.id)}" ${off} aria-label="${e(group.text)} 做了一次"`}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(group.text)}</label><span class="todo-future-repeat">${REPEAT_LABEL[group.recurrence]} ${group.times} 次</span><span class="todo-future-times${full ? " is-full" : ""}">${timesLabel(group)}</span></div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(lead.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(lead.id)}" aria-label="安排 ${e(group.text)}">▾</button>` + (open ? panel2 : "") + `</li>`;
 }
 function futureRow(item) {
   if (item.group) return groupRow(item.group);
@@ -6421,7 +6425,7 @@ function futureGroups(items, today2 = bjtDate()) {
 }
 function collapseTimes(rows, today2 = bjtDate()) {
   const multi = repeatGroups(rows, today2).filter((group) => group.times > 1), taken = /* @__PURE__ */ new Map();
-  for (const group of multi) for (const copy of group.copies) taken.set(copy.id, group);
+  for (const group of multi) for (const copy of [...group.copies, ...group.extras]) taken.set(copy.id, group);
   const out = [], seen = /* @__PURE__ */ new Set();
   for (const row of rows) {
     const group = taken.get(row.id);
@@ -6429,7 +6433,7 @@ function collapseTimes(rows, today2 = bjtDate()) {
       out.push(row);
       continue;
     }
-    if (seen.has(group.key)) continue;
+    if (seen.has(group.key) || !group.copies.includes(row)) continue;
     seen.add(group.key);
     out.push({ id: (group.open[0] || group.copies[0]).id, text: group.text, period: group.current, group });
   }
@@ -7014,7 +7018,46 @@ async function deleteUnscheduledTodoTimes(id2) {
   v.open = "";
   paintUnscheduledTodos();
   try {
-    for (const copy of group.copies) await removeCopy(copy, key);
+    for (const copy of [...group.copies, ...group.extras]) await removeCopy(copy, key);
+  } catch (error2) {
+    if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
+  } finally {
+    if (v.owner === key && owner() === key) {
+      v.pending = false;
+      paintUnscheduledTodos();
+    }
+  }
+}
+async function addUnscheduledTodoExtra(el3) {
+  const v = current(), key = v.owner, id2 = el3.dataset.futureExtraId, today2 = bjtDate();
+  const group = repeatGroups(v.items, today2).find((g) => g.copies.some((x) => x.id === id2));
+  if (!group || group.open.length || v.pending) {
+    el3.checked = false;
+    return;
+  }
+  v.pending = true;
+  v.error = "";
+  paintUnscheduledTodos();
+  try {
+    const made = await api("/unscheduled-todos", { method: "POST", body: { id: crypto.randomUUID(), text: group.text } });
+    if (v.owner !== key || owner() !== key) return;
+    v.items = [...v.items.filter((x) => x.id !== made.id), { ...made, completed: true, period: group.current }];
+    await addMeta(made.id, { period: group.current }, key);
+    const pause2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    for (let attempt = 0; ; attempt++) {
+      const latest2 = await api("/unscheduled-todos/" + encodeURIComponent(made.id));
+      try {
+        const row = await api("/unscheduled-todos/" + encodeURIComponent(made.id), { method: "PATCH", body: { completed: true, version: latest2.version } });
+        if (v.owner === key && owner() === key) v.items = v.items.map((x) => x.id === row.id ? row : x);
+        break;
+      } catch (error2) {
+        if (attempt >= 5 || !transient(error2)) throw error2;
+        await pause2(500 * (attempt + 1));
+      }
+    }
+    const todo = await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: today2, text: group.text } });
+    await api("/todos/" + encodeURIComponent(todo.id), { method: "PATCH", body: { completed: true, version: todo.version } });
+    if (v.owner === key && owner() === key) toast(`又做了一次：${group.text}`);
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
   } finally {
@@ -18431,6 +18474,10 @@ function handleChange(event) {
   }
   if (el3.dataset?.futureTodoId) {
     toggleUnscheduledTodo(el3);
+    return;
+  }
+  if (el3.dataset?.futureExtraId) {
+    addUnscheduledTodoExtra(el3);
     return;
   }
   if (el3.dataset?.futureDateId || el3.dataset?.futureDueId) {
