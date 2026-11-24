@@ -1783,9 +1783,9 @@ function memoOperation(context, id2, body4, value, base = null) {
   return result;
 }
 function memoParentCopy(context, value, groups) {
-  const live2 = groups.filter(liveMemoGroup).sort((a, b) => (a.position || 0) - (b.position || 0) || a.id.localeCompare(b.id));
+  const live3 = groups.filter(liveMemoGroup).sort((a, b) => (a.position || 0) - (b.position || 0) || a.id.localeCompare(b.id));
   const operations = [];
-  let parent = live2[0]?.id.toLowerCase();
+  let parent = live3[0]?.id.toLowerCase();
   if (!parent) {
     parent = context.fresh();
     const groupValue = { title: "本机冲突副本", position: 0 };
@@ -6220,6 +6220,55 @@ function readPeriodWords(sentence) {
   return null;
 }
 
+// shared/todo-times.mjs
+var MAX_TIMES = 7;
+var DIGIT = { "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7 };
+var SPAN = "(一周|一个?礼拜|一个?星期|每周|每个?礼拜|每个?星期|一个?月|每个?月)?";
+var TIMES = new RegExp(`${SPAN}\\s*([2-7两二三四五六七])\\s*(?:次|回|遍)`);
+var EDGE2 = /^[\s,，.。、;；:：!！~～-]+|[\s,，.。、;；:：!！~～-]+$/g;
+function readTimes(sentence) {
+  const source = String(sentence ?? ""), match = TIMES.exec(source);
+  if (!match) return null;
+  const span = match[1] || "", every = !span ? null : /月/.test(span) ? "every_month" : "every_week";
+  const keep = span.startsWith("每") ? span : "";
+  const text = (source.slice(0, match.index) + keep + source.slice(match.index + match[0].length)).replace(/\s+/g, " ").replace(EDGE2, "").trim();
+  return { times: DIGIT[match[2]], every, text: text || source.trim() };
+}
+var currentPeriod = (recurrence, today2) => recurrence === "week" ? periodChoices(today2).week : monthOf(today2);
+var live2 = (item) => item && !item.deleted_at && !item.deleted && ["week", "month"].includes(item.recurrence) && validPeriod(item.period);
+function repeatGroups(items, today2) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    if (!live2(item)) continue;
+    const key = item.recurrence + "|" + item.text.trim();
+    if (!groups.has(key)) groups.set(key, { key, text: item.text.trim(), recurrence: item.recurrence, copies: [] });
+    groups.get(key).copies.push(item);
+  }
+  for (const group of groups.values()) {
+    const now = currentPeriod(group.recurrence, today2);
+    group.current = now;
+    group.done = group.copies.filter((item) => item.period > now);
+    group.open = group.copies.filter((item) => item.period <= now).sort((a, b) => a.period < b.period ? -1 : a.period > b.period ? 1 : 0);
+    group.times = group.copies.length;
+  }
+  return [...groups.values()];
+}
+function daysLeft(recurrence, today2) {
+  const date2 = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
+  if (recurrence === "week") return 7 - (date2.getUTCDay() + 6) % 7;
+  const last = new Date(Date.UTC(date2.getUTCFullYear(), date2.getUTCMonth() + 1, 0)).getUTCDate();
+  return last - date2.getUTCDate() + 1;
+}
+function needsNudge(group, today2) {
+  const left = group.open.length, days = daysLeft(group.recurrence, today2);
+  return left > 0 && (days <= (group.recurrence === "week" ? 2 : 3) || left >= days);
+}
+var timesLabel = (group) => {
+  const span = group.recurrence === "week" ? "本周" : "本月";
+  return group.open.length ? `${span} ${group.done.length}/${group.times}` : `${span}做够了 ${group.times}/${group.times}`;
+};
+var leftLabel = (group) => `${group.recurrence === "week" ? "本周" : "本月"}还差 ${group.open.length} 次`;
+
 // web/pages/unscheduled-todos.mjs
 init_api();
 init_dom();
@@ -6290,7 +6339,7 @@ function renderUnscheduledTodos() {
 <label class="sr-only" for="todo-future-period">大概什么时候</label><select id="todo-future-period" class="input todo-future-period" name="period">` + ADD_CHOICES.map(([key, label]) => `<option value="${key}" ${v.newPeriod === key ? "selected" : ""}>${label}</option>`).join("") + `</select>
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
 <p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
-<p class="todo-future-help">可以直接说「下周看电影」「每周跑步」「12月16号之前退订会员」；勾选＝做完了，移到今日；点 ▾ 定日子、改时间或截止日。</p>
+<p class="todo-future-help">可以直接说「下周看电影」「每周跑步」「每周两次总结数据」「12月16号之前退订会员」；勾选＝做完了，移到今日；点 ▾ 定日子、改时间或截止日。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -6327,7 +6376,7 @@ function futurePanel(item, v, off) {
     const value = key === "none" ? "" : choices[key], on = (mine || "") === value;
     return `<button class="btn small${on ? " is-on" : ""}" type="button" data-action="todo-future-period" data-id="${id2}" data-period="${value}" aria-pressed="${on}" ${off}>${label}</button>`;
   }).join("");
-  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id2}" data-future="1" ${off}>修改文字</button><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
+  return `<div class="todo-future-panel" id="todo-future-panel-${id2}"><div class="todo-future-panel-row"><span class="todo-future-panel-label">定具体日子</span><div class="todo-future-chips">${days}</div></div>` + (v.picking[item.id] ? dateField(item, v, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div><div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div>` + (item.recurrence ? timesRow(item, 1, off) : "") + `<div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule"><input class="input" type="date" data-future-due-id="${id2}" value="${e(v.dues[item.id] ?? item.due_date ?? "")}" aria-label="${e(item.text)} 的截止日" ${off}><button class="btn small" type="button" data-action="todo-future-due" data-id="${id2}" ${off}>设为截止日</button>` + (item.due_date ? `<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id2}" ${off}>去掉</button>` : "") + `</div></div><div class="todo-future-panel-foot"><button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id2}" data-future="1" ${off}>修改文字</button><button class="btn small text danger" type="button" data-action="todo-future-delete" data-id="${id2}" ${off}>删除</button></div></div>`;
 }
 function quickScheduleUnscheduledTodo(id2, date2) {
   if (!validTodoDate(date2)) return;
@@ -6344,7 +6393,19 @@ function toggleUnscheduledTodoPanel(id2) {
   v.open = v.open === id2 ? "" : id2;
   paintUnscheduledTodos();
 }
+function timesRow(item, times, off) {
+  const span = item.recurrence === "week" ? "每周" : "每月", id2 = e(item.id);
+  const chips = Array.from({ length: MAX_TIMES }, (_, i) => i + 1).map((n) => `<button class="btn small${n === times ? " is-on" : ""}" type="button" data-action="todo-future-times" data-id="${id2}" data-times="${n}" aria-pressed="${n === times}" ${off}>${n} 次</button>`).join("");
+  return `<div class="todo-future-panel-row"><span class="todo-future-panel-label">${span}做几次（日子不固定，做一次勾一次）</span><div class="todo-future-chips">${chips}</div></div>`;
+}
+function groupRow(group) {
+  const v = current(), lead = group.open[0] || group.copies[0], busy2 = v.pending || group.copies.some((x) => v.uncertain[x.id]), off = busy2 ? "disabled" : "";
+  const full = !group.open.length, check2 = `future-check-${lead.id}`, open = v.open === lead.id;
+  const panel2 = `<div class="todo-future-panel" id="todo-future-panel-${e(lead.id)}">${timesRow(lead, group.times, off)}<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete-all" data-id="${e(lead.id)}" ${off}>删除</button></div></div>`;
+  return `<li class="daily-todo-row todo-future-times-row${full ? " is-complete" : ""}${open ? " is-open" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(lead.id)}" ${full ? "checked disabled" : off} aria-label="${e(group.text)} 做了一次"></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(group.text)}</label><span class="todo-future-repeat">${REPEAT_LABEL[group.recurrence]} ${group.times} 次</span><span class="todo-future-times${full ? " is-full" : ""}">${timesLabel(group)}</span></div><button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(lead.id)}" aria-expanded="${open}" aria-controls="todo-future-panel-${e(lead.id)}" aria-label="安排 ${e(group.text)}">▾</button>` + (open ? panel2 : "") + `</li>`;
+}
 function futureRow(item) {
+  if (item.group) return groupRow(item.group);
   const v = current(), busy2 = v.pending || v.uncertain[item.id], off = busy2 ? "disabled" : "", check2 = `future-check-${item.id}`, open = v.open === item.id;
   const note = todoNoteField(item, { pending: busy2, editing: v.noteEdit, error: v.noteError, future: true });
   const badge = item.recurrence ? `<span class="todo-future-repeat">${REPEAT_LABEL[item.recurrence] || ""}</span>` : "";
@@ -6357,6 +6418,22 @@ function futureGroups(items, today2 = bjtDate()) {
   for (const item of items) groups.get(item.due_date ? dueGroup(item.due_date, today2) : periodGroup(item.period, today2)).push(item);
   for (const rows of groups.values()) rows.sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : (a.due_date || "9999") > (b.due_date || "9999") ? 1 : 0);
   return [...groups].filter(([, rows]) => rows.length);
+}
+function collapseTimes(rows, today2 = bjtDate()) {
+  const multi = repeatGroups(rows, today2).filter((group) => group.times > 1), taken = /* @__PURE__ */ new Map();
+  for (const group of multi) for (const copy of group.copies) taken.set(copy.id, group);
+  const out = [], seen = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const group = taken.get(row.id);
+    if (!group) {
+      out.push(row);
+      continue;
+    }
+    if (seen.has(group.key)) continue;
+    seen.add(group.key);
+    out.push({ id: (group.open[0] || group.copies[0]).id, text: group.text, period: group.current, group });
+  }
+  return out;
 }
 function paintUnscheduledTodos() {
   paintingFuture = true;
@@ -6376,9 +6453,9 @@ function paintFutureList() {
   if (button2) button2.disabled = v.pending;
   if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error2) error2.textContent = v.error;
-  const live2 = document.activeElement;
-  const keep = live2?.matches?.('[data-todo-note-input][data-future="1"]') && live2.isConnected && v.noteEdit?.id === live2.dataset.id;
-  const rows = v.items.filter((x) => !x.deleted_at && !x.deleted), groups = futureGroups(rows), only = groups.length === 1 && groups[0][0] === "none";
+  const live3 = document.activeElement;
+  const keep = live3?.matches?.('[data-todo-note-input][data-future="1"]') && live3.isConnected && v.noteEdit?.id === live3.dataset.id;
+  const rows = collapseTimes(v.items.filter((x) => !x.deleted_at && !x.deleted)), groups = futureGroups(rows), only = groups.length === 1 && groups[0][0] === "none";
   if (list3 && !keep) list3.innerHTML = groups.map(([key, items]) => (only ? "" : `<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}<span class="todo-future-count">${items.length}</span></li>`) + items.map(futureRow).join("")).join("");
   paintSmartTodo(root3, { date: FUTURE_SCOPE });
 }
@@ -6389,10 +6466,15 @@ function paintDueList() {
   const list3 = $("#todo-due");
   if (!list3) return;
   const v = current(), today2 = bjtDate(), show = !state.todoPanel && (!state.todoDate || state.todoDate === today2);
-  const html = show ? dueTodos(v.items, today2).map((item) => {
+  const due = show ? dueTodos(v.items, today2) : [], dueIds = new Set(due.map((x) => x.id));
+  const nudges = show ? repeatGroups(v.items, today2).filter((group) => needsNudge(group, today2) && !group.open.some((x) => dueIds.has(x.id))) : [];
+  const html = due.map((item) => {
     const check2 = `due-check-${item.id}`, busy2 = v.pending || v.uncertain[item.id], over = daysUntil(item.due_date, today2) < 0;
     return `<li class="daily-todo-row todo-due-row${over ? " is-over" : ""}"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(item.id)}" ${busy2 ? "disabled" : ""}></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(item.text)}</label><span class="todo-future-due is-soon${over ? " is-over" : ""}">${dueLabel(item.due_date, today2)}</span></div></li>`;
-  }).join("") : "";
+  }).join("") + nudges.map((group) => {
+    const lead = group.open[0], check2 = `due-check-${lead.id}`, busy2 = v.pending || v.uncertain[lead.id];
+    return `<li class="daily-todo-row todo-due-row todo-due-times"><label class="daily-todo-check" for="${e(check2)}"><input id="${e(check2)}" type="checkbox" data-future-todo-id="${e(lead.id)}" ${busy2 ? "disabled" : ""} aria-label="${e(group.text)} 做了一次"></label><div class="daily-todo-main"><label class="daily-todo-text" for="${e(check2)}">${e(group.text)}</label><span class="todo-future-due is-soon">${leftLabel(group)}${group.times > 1 ? `（${group.done.length}/${group.times}）` : ""}</span></div></li>`;
+  }).join("");
   if (list3.innerHTML !== html) list3.innerHTML = html;
   list3.hidden = !html;
 }
@@ -6444,6 +6526,11 @@ async function loadUnscheduledTodos() {
 var GROUP_NAME = Object.fromEntries(ADD_CHOICES);
 function heardText(v) {
   if (smartTodoActive(FUTURE_SCOPE)) return "";
+  const times = readTimes(v.draft);
+  if (times && REPEAT_OF[v.newPeriod]) {
+    const span = v.newPeriod === "every_week" ? "周" : "月";
+    return `认出「每${span} ${times.times} 次」，会存成「${times.text}」：本${span}做 ${times.times} 次，做一次勾一次，下${span === "周" ? "周" : "个月"}重新算`;
+  }
   const heard = readPeriodWords(v.draft);
   if (!heard || v.newPeriod !== heard.period) return "";
   return REPEAT_OF[heard.period] ? `认出「${GROUP_NAME[heard.period]}」重复，做完会自动出现${heard.period === "every_week" ? "下周" : "下个月"}的一条` : `认出「${GROUP_NAME[heard.period]}」，会存成「${heard.text}」`;
@@ -6457,7 +6544,7 @@ function inputUnscheduledTodo(el3) {
   if (el3.id === "todo-future-text") {
     const v = current();
     v.draft = el3.value;
-    if (!v.manualPeriod) v.newPeriod = readPeriodWords(el3.value)?.period || "none";
+    if (!v.manualPeriod) v.newPeriod = readPeriodWords(el3.value)?.period || readTimes(el3.value)?.every || "none";
     paintHeard(v);
   }
   if (el3.id === "todo-future-period") {
@@ -6692,6 +6779,8 @@ async function submitUnscheduledTodo({ data: data3 }) {
     paintUnscheduledTodos();
     return;
   }
+  const times = readTimes(typed);
+  if (times && (times.every || readPeriodWords(typed)?.period?.startsWith("every_") || REPEAT_OF[data3.period])) return addTyped(typed, String(data3.period || "none"));
   if (!v.manualPeriod && smartTodoReady(typed, FUTURE_SCOPE)) return confirmSmartTodo(FUTURE_DAY);
   if (!v.manualPeriod && smartTodoWanted(typed)) {
     v.smartTyped = typed;
@@ -6703,8 +6792,10 @@ async function submitUnscheduledTodo({ data: data3 }) {
 async function addTyped(typed, choice) {
   const v = current(), key = v.owner, heard = readPeriodWords(typed);
   if (choice === "none" && !v.manualPeriod && heard) choice = heard.period;
-  const text = heard && heard.period === choice ? heard.text : typed;
-  const { period, recurrence } = choiceValue(choice);
+  const counted = readTimes(typed);
+  if (choice === "none" && !v.manualPeriod && counted?.every) choice = counted.every;
+  const { period, recurrence } = choiceValue(choice), times = recurrence && counted ? counted.times : 1;
+  const text = times > 1 ? counted.text : heard && heard.period === choice ? heard.text : typed;
   if (!v.request || v.request.text !== text) v.request = { id: crypto.randomUUID(), text };
   const submitted = v.request;
   v.pending = true;
@@ -6717,6 +6808,8 @@ async function addTyped(typed, choice) {
     v.request = null;
     done(v, typed);
     if (period) void addMeta(row.id, recurrence ? { period, recurrence } : { period }, key);
+    for (let i = 1; i < times; i++) await addFutureTodo({ text, period, recurrence });
+    if (times > 1) toast(`已加：${text}，${recurrence === "week" ? "每周" : "每月"} ${times} 次`);
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
   } finally {
@@ -6727,6 +6820,19 @@ async function addTyped(typed, choice) {
   }
 }
 async function addFutureTodo(proposal) {
+  const counted = proposal.recurrence && readTimes(proposal.text);
+  if (counted && counted.times > 1) {
+    const one = { ...proposal, text: counted.text };
+    let first = null;
+    for (let i = 0; i < counted.times; i++) {
+      const row = await addOne(one);
+      first ??= row;
+    }
+    return first;
+  }
+  return addOne(proposal);
+}
+async function addOne(proposal) {
   const v = current(), key = v.owner, change3 = { period: proposal.period || null };
   if (proposal.recurrence) change3.recurrence = proposal.recurrence;
   if (proposal.due_date) change3.due_date = proposal.due_date;
@@ -6740,22 +6846,22 @@ async function addFutureTodo(proposal) {
 var transient = (error2) => error2.status === 404 || error2.status === 409 || error2.status === 429 || error2.status >= 500 || error2.code === "NETWORK_UNAVAILABLE" || !error2.status;
 var same2 = (saved, change3) => Object.entries(change3).every(([name, value]) => (saved[name] ?? null) === value);
 async function addMeta(id2, change3, key) {
-  const v = current(), live2 = () => v.owner === key && owner() === key, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const v = current(), live3 = () => v.owner === key && owner() === key, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let last = null;
   for (let attempt = 0; attempt < 10; attempt++) {
     if (attempt) await wait(Math.min(400 * attempt, 2e3));
     const row = v.items.find((x) => x.id === id2);
-    if (!row || !live2()) return;
+    if (!row || !live3()) return;
     try {
       const saved = await api("/unscheduled-todos/" + encodeURIComponent(id2));
-      if (!live2()) return;
+      if (!live3()) return;
       if (same2(saved, change3)) {
         v.items = v.items.map((x) => x.id === id2 ? saved : x);
         paintUnscheduledTodos();
         return;
       }
       const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2) + "/period", { method: "PATCH", body: { ...change3, version: saved.version } });
-      if (live2()) {
+      if (live3()) {
         v.items = v.items.map((x) => x.id === id2 ? updated : x);
         paintUnscheduledTodos();
       }
@@ -6847,6 +6953,68 @@ async function savePeriod(id2, change3) {
       v.items = v.items.map((x) => x.id === id2 ? updated : x);
       v.open = "";
     }
+  } catch (error2) {
+    if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
+  } finally {
+    if (v.owner === key && owner() === key) {
+      v.pending = false;
+      paintUnscheduledTodos();
+    }
+  }
+}
+async function setUnscheduledTodoTimes(id2, times) {
+  const v = current(), key = v.owner, row = v.items.find((x) => x.id === id2);
+  if (!row || !row.recurrence || v.pending || !Number.isInteger(times) || times < 1 || times > MAX_TIMES) return;
+  const group = repeatGroups(v.items, bjtDate()).find((g) => g.copies.some((x) => x.id === id2));
+  if (!group) return;
+  if (times === group.times) {
+    v.open = "";
+    paintUnscheduledTodos();
+    return;
+  }
+  v.pending = true;
+  v.error = "";
+  paintUnscheduledTodos();
+  try {
+    if (times > group.times) {
+      v.pending = false;
+      for (let i = group.times; i < times; i++) {
+        await addOne({ text: group.text, period: group.current, recurrence: group.recurrence });
+        if (v.owner !== key || owner() !== key) return;
+      }
+    } else {
+      const drop = [...group.open].reverse().concat([...group.done].reverse()).slice(0, group.times - times);
+      for (const copy of drop) await removeCopy(copy, key);
+    }
+    if (v.owner === key && owner() === key) {
+      v.open = "";
+      toast(`改成${group.recurrence === "week" ? "每周" : "每月"} ${times} 次`);
+    }
+  } catch (error2) {
+    if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
+  } finally {
+    if (v.owner === key && owner() === key) {
+      v.pending = false;
+      paintUnscheduledTodos();
+    }
+  }
+}
+async function removeCopy(copy, key) {
+  const v = current(), latest2 = v.items.find((x) => x.id === copy.id) || copy;
+  const updated = await api("/unscheduled-todos/" + encodeURIComponent(copy.id), { method: "DELETE", body: { version: latest2.version } });
+  if (v.owner === key && owner() === key) v.items = v.items.map((x) => x.id === copy.id ? updated : x);
+}
+async function deleteUnscheduledTodoTimes(id2) {
+  const v = current(), key = v.owner;
+  if (v.pending) return;
+  const group = repeatGroups(v.items, bjtDate()).find((g) => g.copies.some((x) => x.id === id2));
+  if (!group) return deleteUnscheduledTodo(id2);
+  v.pending = true;
+  v.error = "";
+  v.open = "";
+  paintUnscheduledTodos();
+  try {
+    for (const copy of group.copies) await removeCopy(copy, key);
   } catch (error2) {
     if (v.owner === key && owner() === key && !error2.staleSession) v.error = error2.message;
   } finally {
@@ -13869,23 +14037,23 @@ function unavailable(ai2) {
   if (!ai2.data?.configured) return '<p class="review-note">服务器还没有配置 API 密钥和默认模型，AI 功能暂不可用。</p>';
   return "";
 }
-function evidenceLine(live2) {
-  if (!live2.n_with) return live2.tagged ? `已有 ${live2.tagged} 篇用了这条，数据还没满 24 小时。` : "还没有文章标明用了这条。";
-  const compare3 = live2.n_without ? `；同期没用的 ${live2.n_without} 篇：阅读 ${reads(live2.reads_without)}，点击率 ${rate2(live2.ctr_without)}` : "";
-  return `用了的 ${live2.n_with} 篇：阅读中位数 ${reads(live2.reads_with)}，点击率 ${rate2(live2.ctr_with)}${compare3}。`;
+function evidenceLine(live3) {
+  if (!live3.n_with) return live3.tagged ? `已有 ${live3.tagged} 篇用了这条，数据还没满 24 小时。` : "还没有文章标明用了这条。";
+  const compare3 = live3.n_without ? `；同期没用的 ${live3.n_without} 篇：阅读 ${reads(live3.reads_without)}，点击率 ${rate2(live3.ctr_without)}` : "";
+  return `用了的 ${live3.n_with} 篇：阅读中位数 ${reads(live3.reads_with)}，点击率 ${rate2(live3.ctr_with)}${compare3}。`;
 }
 function ruleCard(rule, ai2) {
   const working = ai2?.busy === "rule:" + rule.rule_id, canWrite = Boolean(rule.playbook.content_hash);
   const attrs = `data-rule-id="${e(rule.rule_id)}" data-playbook-id="${e(rule.playbook.id)}"${working || ai2?.busy || !canWrite ? " disabled" : ""}`;
-  const trial = rule.status === "trial", live2 = rule.live;
+  const trial = rule.status === "trial", live3 = rule.live;
   const actions2 = trial ? `${button("采纳", "rule-status", `data-status="kept" ${attrs}`, "btn small primary")}
-      ${button("放弃", "rule-status", `data-status="dropped" ${attrs}`)}${live2.ready ? "" : '<span class="review-note">样本还少，建议先继续观察</span>'}` : `${button("同意试验", "rule-status", `data-status="trial" ${attrs}`, "btn small primary")}${button("不采纳", "rule-status", `data-status="dropped" ${attrs}`)}`;
+      ${button("放弃", "rule-status", `data-status="dropped" ${attrs}`)}${live3.ready ? "" : '<span class="review-note">样本还少，建议先继续观察</span>'}` : `${button("同意试验", "rule-status", `data-status="trial" ${attrs}`, "btn small primary")}${button("不采纳", "rule-status", `data-status="dropped" ${attrs}`)}`;
   const progress = trial ? `<div class="review-exp-progress"><span class="review-exp-bar"><i class="review-exp-fill review-exp-fill-${Math.min(
     6,
-    live2.n_with
+    live3.n_with
   )}"></i></span>
-      <strong>${live2.n_with}/${live2.needed} 篇</strong>${live2.ready ? '<span class="review-exp-ready">可以下结论</span>' : ""}</div>
-      <p class="review-exp-evidence">${e(evidenceLine(live2))}</p>` : "";
+      <strong>${live3.n_with}/${live3.needed} 篇</strong>${live3.ready ? '<span class="review-exp-ready">可以下结论</span>' : ""}</div>
+      <p class="review-exp-evidence">${e(evidenceLine(live3))}</p>` : "";
   return `<article class="review-exp-card${trial ? " is-trial" : ""}"><p class="review-exp-text">${e(rule.text || rule.rule_id)}</p>${progress}
     <div class="review-exp-actions">${actions2}</div><span
       class="review-exp-id">${e(rule.rule_id)} · ${e(rule.playbook.account)} v${e(rule.playbook.version)}</span></article>`;
@@ -14586,9 +14754,9 @@ async function loadWeekly() {
     const reports = await readAllReviewReports(current2);
     if (!reports || !current2()) return;
     const html = renderWeeklyReview({ reports }, { account: state.account || "V字", now: (/* @__PURE__ */ new Date()).toISOString() });
-    const live2 = document.querySelector("#ai-reports #ai-weekly-list");
-    if (!live2) return;
-    live2.innerHTML = html;
+    const live3 = document.querySelector("#ai-reports #ai-weekly-list");
+    if (!live3) return;
+    live3.innerHTML = html;
     document.querySelector("#ai-reports #ai-weekly-status").textContent = html ? "" : "还没有周报，小小鱼每周日写。";
     weeklyRead.loaded = true;
   } catch (error2) {
@@ -18054,6 +18222,8 @@ var actions = {
   "todo-future-menu": ({ id: id2 }) => toggleUnscheduledTodoPanel(id2),
   "todo-future-period": ({ id: id2, target }) => setUnscheduledTodoPeriod(id2, target.dataset.period),
   "todo-future-repeat": ({ id: id2, target }) => setUnscheduledTodoRepeat(id2, target.dataset.repeat),
+  "todo-future-times": ({ id: id2, target }) => setUnscheduledTodoTimes(id2, Number(target.dataset.times)),
+  "todo-future-delete-all": ({ id: id2 }) => deleteUnscheduledTodoTimes(id2),
   "todo-future-due": ({ id: id2 }) => setUnscheduledTodoDue(id2),
   "todo-future-due-clear": ({ id: id2 }) => setUnscheduledTodoDue(id2, true),
   "todo-retry-add": retryTodoCreate,

@@ -1296,3 +1296,8 @@ body.floating-workbench {
 #ai-reports .ai-report-panel .ai-daily-tabs { width:auto; flex:none; }
 @media (max-width:767px) { #ai-reports .ai-report-panel .ai-calendar-layout { justify-content:flex-start; } }
 .note-entry-more{min-width:36px;padding:0 10px;font-size:18px;line-height:1;letter-spacing:1px;color:var(--ink-3)}
+
+/* 每周 N 次 (2026-11-24): 本周 1/2 next to the repeat badge; no colored side line. */
+.todo-future-times { display:inline-block; margin-left:8px; font-size:12px; font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; }
+.todo-future-times.is-full { color:var(--color-text-secondary); font-weight:400; }
+.todo-future-times-row.is-complete .daily-todo-text { text-decoration:line-through; opacity:.6; }

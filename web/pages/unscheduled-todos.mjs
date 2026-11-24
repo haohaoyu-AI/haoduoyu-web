@@ -18,6 +18,7 @@ function choiceValue(choice,today=bjtDate()) {
   return {period,recurrence};
 }
 import {readPeriodWords} from '../../shared/todo-period-words.mjs';
+import {MAX_TIMES,leftLabel,needsNudge,readTimes,repeatGroups,timesLabel} from '../../shared/todo-times.mjs';
 
 const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
   uncertain:{},noteEdit:null,noteError:'',picking:{},open:'',newPeriod:'none',manualPeriod:false,dues:{}};
@@ -41,7 +42,7 @@ export function renderUnscheduledTodos() {
   ADD_CHOICES.map(([key,label])=>`<option value="${key}" ${v.newPeriod===key?'selected':''}>${label}</option>`).join('') + `</select>
 <button class="btn primary" type="submit" ${v.pending?'disabled':''}>添加</button></form>
 <p id="todo-future-heard" class="todo-future-heard" aria-live="polite">${e(heardText(v))}</p>
-<p class="todo-future-help">可以直接说「下周看电影」「每周跑步」「12月16号之前退订会员」；勾选＝做完了，移到今日；点 ▾ 定日子、改时间或截止日。</p>
+<p class="todo-future-help">可以直接说「下周看电影」「每周跑步」「每周两次总结数据」「12月16号之前退订会员」；勾选＝做完了，移到今日；点 ▾ 定日子、改时间或截止日。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -88,6 +89,7 @@ function futurePanel(item,v,off) {
     (v.picking[item.id]?dateField(item,v,off):'') +
     `<div class="todo-future-panel-row"><span class="todo-future-panel-label">大概什么时候</span><div class="todo-future-chips">${periods}</div></div>` +
     `<div class="todo-future-panel-row"><span class="todo-future-panel-label">重复</span><div class="todo-future-chips">${repeats}</div></div>` +
+    (item.recurrence?timesRow(item,1,off):'') +
     `<div class="todo-future-panel-row"><span class="todo-future-panel-label">截止日（前三天起每天出现在今日）</span><div class="todo-future-schedule">` +
     `<input class="input" type="date" data-future-due-id="${id}" value="${e(v.dues[item.id]??item.due_date??'')}" ` +
     `aria-label="${e(item.text)} 的截止日" ${off}>` +
@@ -111,7 +113,33 @@ export function pickUnscheduledTodoDate(id) {
 export function toggleUnscheduledTodoPanel(id) {
   const v=current();v.open=v.open===id?'':id;paintUnscheduledTodos();
 }
+/** 每周 / 每月 做几次: 1 to 7 chips; more than one keeps that many copies and shows 本周 1/2. */
+function timesRow(item,times,off) {
+  const span=item.recurrence==='week'?'每周':'每月',id=e(item.id);
+  const chips=Array.from({length:MAX_TIMES},(_,i)=>i+1).map(n=>`<button class="btn small${n===times?' is-on':''}" type="button" ` +
+    `data-action="todo-future-times" data-id="${id}" data-times="${n}" aria-pressed="${n===times}" ${off}>${n} 次</button>`).join('');
+  return `<div class="todo-future-panel-row"><span class="todo-future-panel-label">${span}做几次（日子不固定，做一次勾一次）</span>` +
+    `<div class="todo-future-chips">${chips}</div></div>`;
+}
+/** Several copies of one repeating to-do, as one row: tick = one more done. */
+function groupRow(group) {
+  const v=current(),lead=group.open[0]||group.copies[0],busy=v.pending||group.copies.some(x=>v.uncertain[x.id]),off=busy?'disabled':'';
+  const full=!group.open.length,check=`future-check-${lead.id}`,open=v.open===lead.id;
+  const panel=`<div class="todo-future-panel" id="todo-future-panel-${e(lead.id)}">${timesRow(lead,group.times,off)}` +
+    `<div class="todo-future-panel-foot"><button class="btn small text danger" type="button" data-action="todo-future-delete-all" ` +
+    `data-id="${e(lead.id)}" ${off}>删除</button></div></div>`;
+  return `<li class="daily-todo-row todo-future-times-row${full?' is-complete':''}${open?' is-open':''}">` +
+    `<label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" type="checkbox" data-future-todo-id="${e(lead.id)}" ` +
+    `${full?'checked disabled':off} aria-label="${e(group.text)} 做了一次"></label>` +
+    `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(group.text)}</label>` +
+    `<span class="todo-future-repeat">${REPEAT_LABEL[group.recurrence]} ${group.times} 次</span>` +
+    `<span class="todo-future-times${full?' is-full':''}">${timesLabel(group)}</span></div>` +
+    `<button class="icon-button todo-future-more" type="button" data-action="todo-future-menu" data-id="${e(lead.id)}" ` +
+    `aria-expanded="${open}" aria-controls="todo-future-panel-${e(lead.id)}" aria-label="安排 ${e(group.text)}">▾</button>` +
+    (open?panel:'') + `</li>`;
+}
 function futureRow(item) {
+  if(item.group)return groupRow(item.group);
   const v=current(),busy=v.pending||v.uncertain[item.id],off=busy?'disabled':'',check=`future-check-${item.id}`,open=v.open===item.id;
   const note=todoNoteField(item,{pending:busy,editing:v.noteEdit,error:v.noteError,future:true});
   const badge=item.recurrence?`<span class="todo-future-repeat">${REPEAT_LABEL[item.recurrence]||''}</span>`:'';
@@ -135,6 +163,19 @@ export function futureGroups(items,today=bjtDate()) {
   for(const rows of groups.values())rows.sort((a,b)=>(a.due_date||'9999')<(b.due_date||'9999')?-1:(a.due_date||'9999')>(b.due_date||'9999')?1:0);
   return [...groups].filter(([,rows])=>rows.length);
 }
+/** Copies of one 每周 N 次 to-do become one row, placed in 本周 / 本月. A repeat done once stays as it was. */
+export function collapseTimes(rows,today=bjtDate()) {
+  const multi=repeatGroups(rows,today).filter(group=>group.times>1),taken=new Map();
+  for(const group of multi)for(const copy of group.copies)taken.set(copy.id,group);
+  const out=[],seen=new Set();
+  for(const row of rows) {
+    const group=taken.get(row.id);
+    if(!group){out.push(row);continue;}
+    if(seen.has(group.key))continue;seen.add(group.key);
+    out.push({id:(group.open[0]||group.copies[0]).id,text:group.text,period:group.current,group});
+  }
+  return out;
+}
 export function paintUnscheduledTodos() {
   paintingFuture=true;
   try { paintFutureList(); paintDueList(); }
@@ -151,7 +192,7 @@ function paintFutureList() {
   if(error)error.textContent=v.error;
   const live=document.activeElement;
   const keep=live?.matches?.('[data-todo-note-input][data-future="1"]')&&live.isConnected&&v.noteEdit?.id===live.dataset.id;
-  const rows=v.items.filter(x=>!x.deleted_at&&!x.deleted),groups=futureGroups(rows),only=groups.length===1&&groups[0][0]==='none';
+  const rows=collapseTimes(v.items.filter(x=>!x.deleted_at&&!x.deleted)),groups=futureGroups(rows),only=groups.length===1&&groups[0][0]==='none';
   if(list&&!keep)list.innerHTML=groups.map(([key,items])=>(only?'':`<li class="todo-future-group" role="presentation">${GROUP_LABEL[key]}` +
     `<span class="todo-future-count">${items.length}</span></li>`)+items.map(futureRow).join('')).join('');
   paintSmartTodo(root,{date:FUTURE_SCOPE});
@@ -163,12 +204,20 @@ export function dueTodos(items,today=bjtDate()) {
 function paintDueList() {
   const list=$('#todo-due');if(!list)return;
   const v=current(),today=bjtDate(),show=!state.todoPanel&&(!state.todoDate||state.todoDate===today);
-  const html=show?dueTodos(v.items,today).map(item=>{
+  const due=show?dueTodos(v.items,today):[],dueIds=new Set(due.map(x=>x.id));
+  const nudges=show?repeatGroups(v.items,today).filter(group=>needsNudge(group,today)&&!group.open.some(x=>dueIds.has(x.id))):[];
+  const html=due.map(item=>{
     const check=`due-check-${item.id}`,busy=v.pending||v.uncertain[item.id],over=daysUntil(item.due_date,today)<0;
     return `<li class="daily-todo-row todo-due-row${over?' is-over':''}"><label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" ` +
       `type="checkbox" data-future-todo-id="${e(item.id)}" ${busy?'disabled':''}></label><div class="daily-todo-main"><label class="daily-todo-text" ` +
       `for="${e(check)}">${e(item.text)}</label><span class="todo-future-due is-soon${over?' is-over':''}">${dueLabel(item.due_date,today)}</span></div></li>`;
-  }).join(''):'';
+  }).join('')+nudges.map(group=>{
+    const lead=group.open[0],check=`due-check-${lead.id}`,busy=v.pending||v.uncertain[lead.id];
+    return `<li class="daily-todo-row todo-due-row todo-due-times"><label class="daily-todo-check" for="${e(check)}"><input id="${e(check)}" ` +
+      `type="checkbox" data-future-todo-id="${e(lead.id)}" ${busy?'disabled':''} aria-label="${e(group.text)} 做了一次"></label>` +
+      `<div class="daily-todo-main"><label class="daily-todo-text" for="${e(check)}">${e(group.text)}</label>` +
+      `<span class="todo-future-due is-soon">${leftLabel(group)}${group.times>1?`（${group.done.length}/${group.times}）`:''}</span></div></li>`;
+  }).join('');
   if(list.innerHTML!==html)list.innerHTML=html;
   list.hidden=!html;
 }
@@ -199,6 +248,9 @@ const GROUP_NAME=Object.fromEntries(ADD_CHOICES);
 /** "认出「下周」，会存成「看电影」" while the sentence names a rough time and the menu still agrees with it. */
 function heardText(v) {
   if(smartTodoActive(FUTURE_SCOPE))return '';
+  const times=readTimes(v.draft);
+  if(times&&REPEAT_OF[v.newPeriod]){const span=v.newPeriod==='every_week'?'周':'月';
+    return `认出「每${span} ${times.times} 次」，会存成「${times.text}」：本${span}做 ${times.times} 次，做一次勾一次，下${span==='周'?'周':'个月'}重新算`;}
   const heard=readPeriodWords(v.draft);
   if(!heard||v.newPeriod!==heard.period)return '';
   return REPEAT_OF[heard.period]?`认出「${GROUP_NAME[heard.period]}」重复，做完会自动出现${heard.period==='every_week'?'下周':'下个月'}的一条`:
@@ -213,7 +265,7 @@ export function inputUnscheduledTodo(el) {
   if(el.id==='todo-future-text') {
     const v=current();v.draft=el.value;
     // The menu follows the sentence until it is changed by hand.
-    if(!v.manualPeriod)v.newPeriod=readPeriodWords(el.value)?.period||'none';
+    if(!v.manualPeriod)v.newPeriod=readPeriodWords(el.value)?.period||readTimes(el.value)?.every||'none';
     paintHeard(v);
   }
   if(el.id==='todo-future-period') {const v=current();v.newPeriod=el.value;v.manualPeriod=true;paintHeard(v);}
@@ -379,6 +431,9 @@ export async function submitUnscheduledTodo({data}) {
   if(!visible())return;const v=current(),typed=String(data.text||'').trim();
   if(v.pending)return;if(!typed||typed.length>500){v.error='请填写 1–500 字的内容。';paintUnscheduledTodos();return;}
   // A menu chosen by hand wins; otherwise a sentence with a time in it is read by the model, as on 今日.
+  // "每周两次…" is read here, not by the model, so the count is never lost.
+  const times=readTimes(typed);
+  if(times&&(times.every||readPeriodWords(typed)?.period?.startsWith('every_')||REPEAT_OF[data.period]))return addTyped(typed,String(data.period||'none'));
   if(!v.manualPeriod&&smartTodoReady(typed,FUTURE_SCOPE))return confirmSmartTodo(FUTURE_DAY);
   if(!v.manualPeriod&&smartTodoWanted(typed)){v.smartTyped=typed;v.error='';return startSmartTodo(FUTURE_DAY,typed,futureHooks);}
   return addTyped(typed,String(data.period||'none'));
@@ -387,21 +442,34 @@ export async function submitUnscheduledTodo({data}) {
 async function addTyped(typed,choice) {
   const v=current(),key=v.owner,heard=readPeriodWords(typed);
   if(choice==='none'&&!v.manualPeriod&&heard)choice=heard.period; // model switched off: the word list still works
+  const counted=readTimes(typed);
+  if(choice==='none'&&!v.manualPeriod&&counted?.every)choice=counted.every;
   // The time words are dropped from the saved text only when the menu still shows what they said.
-  const text=heard&&heard.period===choice?heard.text:typed;
-  const {period,recurrence}=choiceValue(choice);
+  const {period,recurrence}=choiceValue(choice),times=recurrence&&counted?counted.times:1;
+  const text=times>1?counted.text:heard&&heard.period===choice?heard.text:typed;
   if(!v.request||v.request.text!==text)v.request={id:crypto.randomUUID(),text};
   const submitted=v.request;v.pending=true;v.error='';paintUnscheduledTodos();
   try {const row=await api('/unscheduled-todos',{method:'POST',body:submitted});if(v.owner!==key||owner()!==key)return;
     // Shown in its group at once; addMeta saves it and takes the mark back off if that fails.
     v.items=[...v.items.filter(x=>x.id!==row.id),period?{...row,period,...(recurrence?{recurrence}:{})}:row];v.request=null;
     done(v,typed);
-    if(period)void addMeta(row.id,recurrence?{period,recurrence}:{period},key);}
+    if(period)void addMeta(row.id,recurrence?{period,recurrence}:{period},key);
+    for(let i=1;i<times;i++)await addFutureTodo({text,period,recurrence});
+    if(times>1)toast(`已加：${text}，${recurrence==='week'?'每周':'每月'} ${times} 次`);}
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }
 /** A confirmed reading for 未来待办, from either page: a rough time, a repeat or a deadline. */
 export async function addFutureTodo(proposal) {
+  const counted=proposal.recurrence&&readTimes(proposal.text);
+  if(counted&&counted.times>1) {
+    const one={...proposal,text:counted.text};let first=null;
+    for(let i=0;i<counted.times;i++){const row=await addOne(one);first??=row;}
+    return first;
+  }
+  return addOne(proposal);
+}
+async function addOne(proposal) {
   const v=current(),key=v.owner,change={period:proposal.period||null};
   if(proposal.recurrence)change.recurrence=proposal.recurrence;
   if(proposal.due_date)change.due_date=proposal.due_date;
@@ -475,6 +543,40 @@ async function savePeriod(id,change) {
   v.pending=true;v.error='';paintUnscheduledTodos();
   try {const updated=await api('/unscheduled-todos/'+encodeURIComponent(id)+'/period',{method:'PATCH',body:{...change,version:row.version}});
     if(v.owner===key&&owner()===key){v.items=v.items.map(x=>x.id===id?updated:x);v.open='';}}
+  catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
+  finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
+}
+
+/** 做几次 from the panel: adds copies of this repeat, or deletes the ones still to do first. */
+export async function setUnscheduledTodoTimes(id,times) {
+  const v=current(),key=v.owner,row=v.items.find(x=>x.id===id);
+  if(!row||!row.recurrence||v.pending||!Number.isInteger(times)||times<1||times>MAX_TIMES)return;
+  const group=repeatGroups(v.items,bjtDate()).find(g=>g.copies.some(x=>x.id===id));if(!group)return;
+  if(times===group.times){v.open='';paintUnscheduledTodos();return;}
+  v.pending=true;v.error='';paintUnscheduledTodos();
+  try {
+    if(times>group.times) {
+      v.pending=false;
+      for(let i=group.times;i<times;i++){await addOne({text:group.text,period:group.current,recurrence:group.recurrence});if(v.owner!==key||owner()!==key)return;}
+    } else {
+      const drop=[...group.open].reverse().concat([...group.done].reverse()).slice(0,group.times-times);
+      for(const copy of drop)await removeCopy(copy,key);
+    }
+    if(v.owner===key&&owner()===key){v.open='';toast(`改成${group.recurrence==='week'?'每周':'每月'} ${times} 次`);}
+  } catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
+  finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
+}
+async function removeCopy(copy,key) {
+  const v=current(),latest=v.items.find(x=>x.id===copy.id)||copy;
+  const updated=await api('/unscheduled-todos/'+encodeURIComponent(copy.id),{method:'DELETE',body:{version:latest.version}});
+  if(v.owner===key&&owner()===key)v.items=v.items.map(x=>x.id===copy.id?updated:x);
+}
+/** 删除 on a 每周 N 次 row removes every copy (each one can still be restored like any deleted to-do). */
+export async function deleteUnscheduledTodoTimes(id) {
+  const v=current(),key=v.owner;if(v.pending)return;
+  const group=repeatGroups(v.items,bjtDate()).find(g=>g.copies.some(x=>x.id===id));if(!group)return deleteUnscheduledTodo(id);
+  v.pending=true;v.error='';v.open='';paintUnscheduledTodos();
+  try {for(const copy of group.copies)await removeCopy(copy,key);}
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }
