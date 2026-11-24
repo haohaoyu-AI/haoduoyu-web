@@ -668,7 +668,15 @@ export const noLeftAccentRelease=Object.freeze({
   baseline:'b816df6e-2022-4ce2-8c0a-48b3ca9731b8',
   bytes:3303163,sha256:'d64dcba2efb3513a3613f49c85678ad2993a6dedb67a2d5c2e5a1d16f50ff006',
   label:'production-no-left-accent'});
-const acceptedRelease=commit=>commit===noLeftAccentRelease.commit?noLeftAccentRelease:
+// 未来待办 每周 N 次 / 每月 N 次 (本周 1/2, 今日 nudge near the week's end). Frontend only, no migration.
+export const weeklyCountRelease=Object.freeze({
+  commit:'67895075bcf442337464e10bc063028ddaff1b31',
+  tree:'3225a143a64c4f873fc5d85919a49ea2807d7548',
+  baseline:'0f43968c-a8f3-4e7b-ab5d-e471098098c9',
+  bytes:3314795,sha256:'1f27ded1e6cb383f8cdd040a81e7837573d8907f771769eff0af4c1e6ce68341',
+  label:'production-weekly-count'});
+const acceptedRelease=commit=>commit===weeklyCountRelease.commit?weeklyCountRelease:
+  commit===noLeftAccentRelease.commit?noLeftAccentRelease:
   commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
   commit===batch1123Release.commit?batch1123Release:
   commit===ideaPoolRelease.commit?ideaPoolRelease:
