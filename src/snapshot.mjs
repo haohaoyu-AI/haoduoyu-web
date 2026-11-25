@@ -13,7 +13,7 @@ export async function handleSnapshot(db,request,route,env,{limits={}}={}) {
       !index&&query.getAll('date').length!==1||query.has('notes')&&!includeWork)
     fail(400,'VALIDATION_ERROR','快照日期或分类参数无效');
   const date=index?null:snapshotDate(query.get('date'));
-  const access=snapshotAccess(request,env),budget=snapshotBudget(limits),database=snapshotDatabase(db,budget);
+  const access=snapshotAccess(request,env,db),budget=snapshotBudget(limits),database=snapshotDatabase(db,budget);
   const generated_at=new Date().toISOString();
   const text=await consistentRead(database,async store=>{
     const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');

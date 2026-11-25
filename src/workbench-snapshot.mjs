@@ -185,7 +185,7 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={},no
   if(route==='/workbench-snapshot/index'||!new URL(request.url).searchParams.has('window'))
     fail(426,'SNAPSHOT_UPGRADE_REQUIRED','离线同步已升级为最近60天，请更新页面；历史日期可按需读取');
   const coverage=workbenchWindow(new URL(request.url).searchParams,now());
-  const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
+  const access=snapshotAccess(request,env,db),memosOwnerId=memosOwner(env);
   // Retries share a budget and the per-scope cold-build allowance. Cache hits
   // still resolve access and pass both revision bookends on every request.
   const budget=snapshotBudget({maxQueries:135,...limits}),database=snapshotDatabase(db,budget);
@@ -213,7 +213,7 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={},no
 async function workbenchScope(db,request,env,limits) {
   if(request.method!=='GET')fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
   if([...new URL(request.url).searchParams.keys()].length)fail(400,'VALIDATION_ERROR','身份范围接口不接受查询参数');
-  const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
+  const access=snapshotAccess(request,env,db),memosOwnerId=memosOwner(env);
   const budget=snapshotBudget({maxQueries:20,...limits}),database=snapshotDatabase(db,budget);
   const text=await consistentRead(database,async (store,revision)=>{
     const {scope_id,mode}=await resolveWorkbenchScope(store,access,memosOwnerId,budget);

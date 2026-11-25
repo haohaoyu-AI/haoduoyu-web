@@ -1,6 +1,7 @@
 import {authenticate,fail,requireOrigin} from './security.mjs';
 import {registerPublicBusiness} from './business-access.mjs';
 import {storeFor} from './storage.mjs';
+import {deletedAccountIds,publicAccountHistory} from './public-audit-scope.mjs';
 
 const buckets=new Map();
 const reads=new Set(['/auth/me','/ideas','/accounts','/account-profiles','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
@@ -76,8 +77,9 @@ export async function publicBusinessAccess(db,request,route,env,origin) {
   const actorName='public:'+id;
   // New public-created accounts remain in this explicit public workspace. Existing
   // accounts are never added merely because they happen to be present in the DB.
-  const history=(await db.prepare("SELECT action,entity_id FROM matrix_audit WHERE actor=? AND (action='POST /accounts' OR action LIKE 'DELETE /accounts/%')").bind(actorName).all()).results;
-  const deleted=new Set(history.filter(row=>row.action==='DELETE /accounts/'+row.entity_id).map(row=>row.entity_id));
+  const history=await publicAccountHistory(async (sql,...values)=>(await db.prepare(sql).bind(...values).all()).results,
+    actorName,{cacheKey:db});
+  const deleted=deletedAccountIds(history);
   scope=[...new Set([...scope,...history.filter(row=>row.action==='POST /accounts').map(row=>row.entity_id)])].filter(id=>!deleted.has(id));
   if(scope.length>50) throw fail(503,'CONFIGURATION','公开业务账号数量需要重新确认');
   if(scope.length) {

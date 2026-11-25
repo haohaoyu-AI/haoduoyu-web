@@ -27,7 +27,7 @@ export async function handleDesktopTodos(db,request,route,env,origin) {
   // mutate() checks the global revision and aborts the complete D1 batch on a race.
   // Resolve again on every attempt, including replayed creates and no-op mutations.
   async function checkScope(store,actor) {
-    const scope=await resolveWorkbenchScope(store,snapshotAccess(request,env),owner,snapshotBudget());
+    const scope=await resolveWorkbenchScope(store,snapshotAccess(request,env,db),owner,snapshotBudget());
     if(scope.mode!=='public'||scope.ownerId!==actor.id||scope.scope_id!==expected)
       fail(412,'WORKSPACE_SCOPE_MISMATCH','工作区已变化，本次待办操作未提交');
   }
