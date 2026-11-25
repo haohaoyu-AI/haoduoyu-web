@@ -4,6 +4,8 @@ import {randomUUID,randomBytes} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {handleContentReview} from '../src/content-review.mjs';
+import {readContentReviewData} from '../web/review-controller.mjs';
+import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 import {digest,csrfFor,stable} from '../src/security.mjs';
 import {reviewView} from '../src/content-review-validation.mjs';
 import {validateReviewAttributionMigrationSource,reviewAttributionMigrationTag} from '../scripts/migration-contract.mjs';
@@ -12,7 +14,7 @@ function fixture(t) {
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');t.after(()=>sql.close());
   const journal=JSON.parse(readFileSync(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
   for(const {tag} of journal.entries)for(const statement of readFileSync(new URL('../drizzle/'+tag+'.sql',import.meta.url),'utf8').split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean))sql.exec(statement);
-  const db={prepare(text){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(text).get(...values)||null;},async all(){return {results:sql.prepare(text).all(...values)};},async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}};}};},async batch(statements){sql.exec('BEGIN');try{for(const statement of statements)await statement.run();sql.exec('COMMIT');}catch(error){sql.exec('ROLLBACK');throw error;}}};
+  const db={prepare(text){let values=[];return {bind(...args){assert.ok(args.length<=100,`D1 bind parameter limit exceeded: ${args.length}`);values=args;return this;},async first(){return sql.prepare(text).get(...values)||null;},async all(){return {results:sql.prepare(text).all(...values)};},async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}};}};},async batch(statements){sql.exec('BEGIN');try{for(const statement of statements)await statement.run();sql.exec('COMMIT');}catch(error){sql.exec('ROLLBACK');throw error;}}};
   const owner=randomUUID(),token=randomBytes(32).toString('hex'),origin='http://localhost';
   sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(owner,'owner','synthetic',new Date().toISOString());
   sql.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(digest(token),owner,new Date(Date.now()+60000).toISOString());
@@ -98,6 +100,64 @@ test('review list pagination preserves a chosen revision and rejects ambiguous f
   await app.call('articles/'+randomUUID(),'PUT',{title:'Later'});
   assert.equal((await app.call('articles?offset=100&read_revision='+first.data.read_revision)).error.code,'READ_REVISION_CHANGED');
   for(const query of ['offset=-1','offset=0&offset=1','read_revision=x','from=2026-10-31&to=2026-10-30','account=','unknown=1'])assert.equal((await app.call('articles?'+query)).status,400);
+});
+
+test('benchmark article full pages stay within the D1 binding limit for all sorts',async t=>{
+  const app=fixture(t),time='2026-11-25T00:00:00Z',account=encodeURIComponent('V字');
+  const insertAccount=app.sql.prepare('INSERT INTO matrix_review_benchmark_accounts(user_id,id,account,platform,name,created_at,updated_at) VALUES(?,?,?,?,?,?,?)');
+  const insertSample=app.sql.prepare('INSERT INTO matrix_review_benchmark_articles(user_id,id,benchmark_account_id,title,url,reads,collected_on,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)');
+  const insertArticle=app.sql.prepare('INSERT INTO matrix_review_articles(user_id,id,account,platform,title,reference_article_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)');
+  const parentIds=Array.from({length:110},()=>randomUUID());
+  const expected=new Map(),linkedSample=new Map();
+  for(const [index,parent] of parentIds.entries())insertAccount.run(app.owner,parent,'V字','toutiao','benchmark-'+index,time,time);
+  for(let index=0;index<130;index++) {
+    const id=randomUUID(),parent=parentIds[index%parentIds.length],reads=1000-index,collected='2026-11-'+(index%5+20),deleted=index>=125?time:null;
+    insertSample.run(app.owner,id,parent,'sample-'+index,'https://example.com/sample/'+index,reads,collected,time,time,deleted);
+    expected.set(id,{parent,reads,collected,deleted});
+    if(index===0||index===99||index===124) {
+      const refs=[randomUUID(),randomUUID()].sort();
+      for(const ref of refs.toReversed())insertArticle.run(app.owner,ref,'V字','toutiao','reference',id,time,time);
+      linkedSample.set(id,refs);
+    }
+  }
+  const other=randomUUID();insertAccount.run(app.owner,other,'other','toutiao','other',time,time);
+  insertSample.run(app.owner,randomUUID(),other,'other','https://example.com/other',2000,'2026-11-25',time,time,null);
+  for(const sort of ['', 'reads', 'collected_on', 'benchmark_account_id'])for(const includeDeleted of [0,1]) {
+    const query='benchmark-articles?account='+account+'&include_deleted='+includeDeleted+(sort?'&sort='+sort:'');
+    const first=await app.call(query+'&offset=0');
+    assert.equal(first.status,200);assert.equal(first.data.items.length,100);assert.equal(first.data.has_more,true);
+    const second=await app.call(query+'&offset=100&read_revision='+first.data.read_revision);
+    assert.equal(second.status,200);assert.equal(second.data.items.length,includeDeleted?30:25);assert.equal(second.data.has_more,false);
+    const items=[...first.data.items,...second.data.items];
+    const compareId=(a,b)=>a<b?-1:a>b?1:0;
+    const expectedOrder=[...expected].filter(([,row])=>includeDeleted||!row.deleted).sort(([a,x],[b,y])=>{
+      const order=sort==='benchmark_account_id'?compareId(x.parent,y.parent)
+        :sort==='collected_on'?compareId(y.collected,x.collected)
+        :y.reads-x.reads||(!sort?compareId(y.collected,x.collected):0);
+      return order||compareId(a,b);
+    }).map(([id])=>id);
+    assert.deepEqual(items.map(row=>row.id),expectedOrder);
+    for(const row of items) {
+      assert.equal(row.account,'V字');assert.equal(row.benchmark_account_id,expected.get(row.id).parent);
+      assert.equal(row.deleted_at,expected.get(row.id).deleted);
+      assert.deepEqual(row.used_by_article_ids,linkedSample.get(row.id)??[]);
+      const {content_hash,...rest}=row;
+      assert.equal(content_hash,digest(JSON.stringify(stable(rest))));
+    }
+  }
+  const filtered=await app.call('benchmark-articles?account='+account+'&benchmark_account_id='+parentIds[0]);
+  assert.equal(filtered.status,200);assert.equal(filtered.data.has_more,false);assert.equal(filtered.data.items.length,2);
+  const data=await readContentReviewData(async route=>{
+    const result=await app.call(route.slice('/review/'.length));
+    assert.equal(result.status,200,route);
+    return result.data;
+  },'V字');
+  assert.equal(data.benchmarkArticles.length,125);
+  const rendered=renderContentReviewContent(data,{account:'V字',secondary:'library',filters:{},loading:false});
+  assert.doesNotMatch(rendered,/内容复盘读取失败/);
+  assert.match(rendered,/sample-124/);
+  const last=await app.call('benchmark-articles?account='+account+'&offset=125');
+  assert.equal(last.status,200);assert.deepEqual(last.data.items,[]);assert.equal(last.data.has_more,false);
 });
 
 test('review snapshot batch returns per-item results, protects uniqueness, and preserves null metrics',async t=>{

@@ -2,7 +2,7 @@ import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
 import {renderCockpitTrends} from './review-trends.mjs';
-import {renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
+import {promptPageUpdateRows, renderPromptPage, rulesIntroMarkdown} from './review-prompt-page.mjs';
 import {renderArticleList, renderDetailPatterns} from './review-article-list.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderArticleRemarks} from './review-remarks.mjs';
@@ -165,7 +165,7 @@ function sectionBody(selected,data,vm,rows) {
 }
 // 最近更新: each tab's newest change (北京时间), and the newest of all of them in one line above the tabs.
 const SECTION_ROWS = {cockpit: d => d.articles, articles: d => d.articles, benchmarks: d => d.benchmarkAccounts,
-  library: d => d.benchmarkArticles, rules: d => d.playbooks, prompts: d => d.prompts};
+  library: d => d.benchmarkArticles, rules: d => d.playbooks, prompts: promptPageUpdateRows};
 export function lastUpdated(rows = []) {
   let best = '';
   for (const row of rows || []) {

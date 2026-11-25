@@ -50,6 +50,32 @@ function patternValue(tags,id,dimension) {
   return entry && Object.hasOwn(entry,dimension) && typeof entry[dimension] === 'string' ? entry[dimension].trim() : '';
 }
 
+// Display aliases only. Do not rewrite tags returned by the review API.
+const PATTERN_PRESENTATION = {
+  title: {
+    '谁跟谁较劲': {aliases:['中外交锋']},
+    '谁做了什么': {aliases:['身份反差']},
+    '一件小事引出大事': {aliases:['细节引大案']},
+    '败局揭底': {note:'旧名，按内容归谁跟谁较劲或谁做了什么'},
+  },
+  article: {
+    '双方怎么争': {aliases:['历史名场面与暗战纪实','脑洞怪题与硬核剥笋流']},
+    '一个人怎么走到这一步': {aliases:['市井切片与江湖高人传']},
+    '事情怎么搞砸的': {aliases:['商业败局与作死复盘流']},
+    '赛博罪案与猫鼠博弈流': {note:'备用'},
+    '草根江湖与赛博淘金流': {note:'备用'},
+    '隐形冠军与暴利商战流': {note:'备用'},
+  },
+};
+const PATTERN_ALIASES = Object.fromEntries(Object.entries(PATTERN_PRESENTATION).map(([kind,entries]) =>
+  [kind,new Map(Object.entries(entries).flatMap(([name,{aliases = []}]) => aliases.map(alias => [alias,name])))]));
+function patternKind(tags,dimension) {
+  if (!dimension) return '';
+  const [title,article] = articlePatternDimensions(tags);
+  return dimension === title ? 'title' : dimension === article ? 'article' : '';
+}
+function displayPattern(kind,name) { return PATTERN_ALIASES[kind]?.get(name) || name; }
+
 function availableDimensions(tags,rows) {
   return articlePatternDimensions(tags).map(dimension => rows.some(row => patternValue(tags,row.id,dimension)) ? dimension : '');
 }
@@ -105,8 +131,16 @@ function groupBy(rows,keyFor) {
 
 const tailRank = name => name === '未分类' ? 2 : name === '其他' ? 1 : 0;
 export function articlePatternGroups(rows,tags,dimension,observations) {
-  return [...groupBy(rows,row => patternValue(tags,row.id,dimension) || '未分类')]
-    .map(([name,rows]) => ({name,rows,...summary(rows,observations)}))
+  const kind = patternKind(tags,dimension);
+  const rawNames = new Map(rows.map(row => [row,patternValue(tags,row.id,dimension)]));
+  return [...groupBy(rows,row => displayPattern(kind,rawNames.get(row)) || '未分类')]
+    .map(([name,rows]) => {
+      const entry = PATTERN_PRESENTATION[kind];
+      const presentation = entry && Object.hasOwn(entry,name) ? entry[name] : {};
+      const observedNames = new Set(rows.map(row => rawNames.get(row)));
+      const legacyNames = (presentation.aliases || []).filter(alias => observedNames.has(alias));
+      return {name,rows,legacyNames,note:presentation.note || '',...summary(rows,observations)};
+    })
     .sort((a,b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) ||
       (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name,'zh-CN'));
 }
@@ -128,11 +162,14 @@ export function filterArticles(rows,filters,tags,now) {
   const today = day(now), from = range === 'all' ? '' : shiftDay(today,range === '7d' ? -6 : -29);
   const query = (filters.query || '').trim().toLocaleLowerCase();
   const matchesTitle = row => !query || (row.title || '').toLocaleLowerCase().includes(query);
+  const pattern = filters.pattern;
+  const kind = patternKind(tags,pattern?.dimension);
+  const patternName = displayPattern(kind,pattern?.name);
   return {
     range,
     published:rows.filter(row => reviewPublishState(row) === 'published' && filterDate(row.published_at,from,today) &&
       matchesTitle(row) && (!filters.verdict || row.verdict === filters.verdict) &&
-      (!filters.pattern || patternValue(tags,row.id,filters.pattern.dimension) === filters.pattern.name)),
+      (!pattern || displayPattern(kind,patternValue(tags,row.id,pattern.dimension)) === patternName)),
     drafts:rows.filter(row => reviewPublishState(row) === 'pending' && matchesTitle(row)).sort(activityArticles)
   };
 }
@@ -213,7 +250,7 @@ function draftBox(rows) {
 
 // Pattern names as quiet text on the meta line; clicking one filters the list to that pattern.
 function patternButton(tags,row,dimension,kind) {
-  const name = patternValue(tags,row.id,dimension);
+  const name = displayPattern(kind,patternValue(tags,row.id,dimension));
   if (!name) return '';
   return `<button type="button" class="review-pattern-label is-${kind}" data-review-pattern="${e(name)}" ` +
     `data-review-dimension="${e(dimension)}" title="${kind === 'title' ? '标题套路' : '文章套路'}：${e(name)}，点击只看这一类">${e(name)}</button>`;
@@ -308,11 +345,15 @@ function weekBody(week,lines,cols) {
 function patternGroup(group,dimension,headers,lines,density) {
   const few = group.rows.length < 5 ? '<span class="review-sample-badge" title="少于 5 篇，结论先别当真">样本少</span>' : '';
   const rate = group.hitRate === null ? '—' : `${group.hitRate.toFixed(1)}%`;
+  const annotations = [
+    group.legacyNames.length ? `含旧名：${group.legacyNames.join('、')}` : '',
+    group.note,
+  ].filter(Boolean).map(note => `<span class="review-group-count">${e(note)}</span>`).join('');
   const figure = (label,value,css = '') => `<div${css ? ` class="${css}"` : ''}><dt>${label}</dt><dd>${e(value)}</dd></div>`;
   const full = density === 'full' ? figure('展现中位',medianText(group.impressions,'impressions')) +
     figure('粉丝阅读中位',medianText(group.fan_reads,'fan_reads')) + figure('粉丝展现中位',medianText(group.fan_impressions,'fan_impressions')) : '';
   return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension,group.name]))}"><summary>` +
-    `<span class="review-article-group-name">${e(group.name)}</span><span class="review-group-count">${group.rows.length} 篇</span>${few}` +
+    `<span class="review-article-group-name">${e(group.name)}</span>${annotations}<span class="review-group-count">${group.rows.length} 篇</span>${few}` +
     `<span class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</span>` +
     `<dl class="review-article-group-figures">${figure('爆率',rate,group.hitRate > 0 ? 'is-hitrate is-positive' : 'is-hitrate')}` +
     `${figure('阅读中位',medianText(group.reads,'reads'))}${figure('点击中位',medianText(group.ctr,'ctr'))}` +
@@ -336,7 +377,11 @@ function latestObservation(snapshots) {
 export function articleDensity(value) { return DENSITIES.includes(value) ? value : 'compact'; }
 
 export function renderArticleList(rows,vm,snapshots,flagged,tag) {
-  const now = vm.now || new Date().toISOString(), filters = vm.filters || {};
+  const now = vm.now || new Date().toISOString(), filters = {...vm.filters};
+  if (filters.pattern) {
+    const {dimension,name} = filters.pattern;
+    filters.pattern = {dimension,name:displayPattern(patternKind(vm.tags,dimension),name)};
+  }
   const density = articleDensity(filters.density), cols = columnsFor(density);
   const dimensions = availableDimensions(vm.tags,rows.filter(row => reviewPublishState(row) === 'published'));
   const group = filters.group && dimensions.includes(filters.group) ? filters.group : TABLE_VIEW;

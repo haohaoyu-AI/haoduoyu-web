@@ -25,3 +25,36 @@ test('lastUpdated picks the newest instant and ignores rows without times', () =
   assert.equal(lastUpdated([{updated_at:'2026-11-01T00:00:00Z'},{created_at:'2026-11-02T00:00:00+08:00'},{},{updated_at:'x'}]),'2026-11-02T00:00:00+08:00');
   assert.equal(lastUpdated([]),'');
 });
+
+test('prompt page timestamp picks the newest displayed prompt and falls back to its creation time', () => {
+  const fixture = data();
+  fixture.prompts.push(
+    {id:'poster',prompt_key:'poster_image',scope:'vzi',status:'active',version:1,title:'AI海报提示词',content_md:'海报',
+      created_at:'2026-11-23T08:30:00Z'},
+    {id:'retired',prompt_key:'article_diagnosis',scope:'vzi',status:'active',version:1,content_md:'不展示',
+      updated_at:'2026-11-25T01:00:00Z'},
+    {id:'other',prompt_key:'longform_write',scope:'yujian',status:'active',version:1,content_md:'另一个账号',
+      updated_at:'2026-11-26T01:00:00Z'},
+  );
+  const html = renderContentReviewContent(fixture,{account:'V字',secondary:'prompts'});
+  assert.match(html,/本页最近更新 <time datetime="2026-11-23T08:30:00Z">2026-11-23 16:30<\/time>/);
+  assert.match(html,/>AI海报提示词<\/h2>/);
+  assert.doesNotMatch(html,/不展示|另一个账号/);
+});
+
+test('prompt page takes the timestamp of a displayed handbook excerpt, even with no standalone prompt', () => {
+  const fixture = data();
+  fixture.prompts = [];
+  fixture.playbooks[0].content_md = '# 手册\n## 写作提示词\n写作规则';
+  const html = renderContentReviewContent(fixture,{account:'V字',secondary:'prompts'});
+  assert.match(html,/本页最近更新 <time datetime="2026-11-22T05:05:00Z">2026-11-22 13:05<\/time>/);
+  assert.match(html,/>写作提示词<\/h2>/);
+});
+
+test('a handbook with a suppressed duplicate excerpt does not affect the prompt page timestamp', () => {
+  const fixture = data();
+  fixture.playbooks[0].content_md = '# 手册\n## 配图提示词\nx';
+  const html = renderContentReviewContent(fixture,{account:'V字',secondary:'prompts'});
+  assert.match(html,/本页最近更新 <time datetime="2026-11-12T04:30:00Z">2026-11-12 12:30<\/time>/);
+  assert.doesNotMatch(html,/规则手册中的提示词/);
+});

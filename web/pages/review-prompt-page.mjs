@@ -81,7 +81,7 @@ function card(title, note, time, content, action, key = '') {
     (long ? '<button type="button" class="btn text review-prompt-toggle" data-review-action="toggle-prompt"' +
       ' aria-expanded="false">展开全文</button>' : '') + '</article>';
 }
-export function renderPromptPage(data, vm) {
+function displayedPrompts(data) {
   const order = ['longform_write','image','weitoutiao_write','transfer_chat'];
   const prompts = (data.prompts || []).filter(row => row.prompt_key !== 'article_diagnosis').slice().sort((a,b) => {
     const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
@@ -90,7 +90,16 @@ export function renderPromptPage(data, vm) {
   });
   // AI 诊断 was retired (2026-11-21); its stored prompt stays in the database but is no longer shown.
   const shown = new Set(prompts.map(row => String(row.content_md || '').trim()));
-  const extras = (data.playbooks || []).flatMap(book => playbookPromptBlocks(book.content_md)).filter(block => block.content && !shown.has(block.content));
+  const extras = (data.playbooks || []).flatMap(book => playbookPromptBlocks(book.content_md)
+    .filter(block => !shown.has(block.content)).map(block => ({...block, book})));
+  return {prompts,extras};
+}
+export function promptPageUpdateRows(data) {
+  const {prompts,extras} = displayedPrompts(data);
+  return [...prompts,...new Set(extras.map(block => block.book))];
+}
+export function renderPromptPage(data, vm) {
+  const {prompts,extras} = displayedPrompts(data);
   const cards = prompts.map(prompt => card(labels[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, 'v' + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '),
     [reviewDateTime(prompt.created_at) || '未记录', reviewDateTime(prompt.updated_at)], prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
