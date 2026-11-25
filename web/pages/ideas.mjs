@@ -10,7 +10,7 @@ import { smartDayLabel } from "./todo-smart.mjs";
 import { settleQueuedTodo } from "./todo-actions.mjs";
 
 const FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
-const view = { items: [], total: 0, truncated: false, filter: "all", open: new Set(), loaded: false, error: "" };
+const view = { items: [], total: 0, truncated: false, filter: "all", open: new Set(), loaded: false, readOnly: false, error: "" };
 
 const day = value => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
 // The first line is the idea's name; a leading 「想法 ⑧：」 is kept as written.
@@ -38,7 +38,7 @@ function todoLine(todo) {
     todo.deleted ? "×" : todo.completed ? "✓" : "○"}</span><span class="idea-todo-text">${e(todo.text)}</span><em>${
     todo.deleted ? "已删除" : e(when)}</em></li>`;
 }
-function card(item) {
+function card(item, readOnly) {
   const body = ideaBody(item.text), open = view.open.has(item.id), long = body.length > 120 || body.split("\n").length > 3;
   const stars = item.priority ? `<span class="idea-stars" aria-label="优先级 ${item.priority} 星">${"⭐".repeat(Math.min(item.priority, 5))}</span>` : "";
   const landed = item.status === "landed" ? `<span class="idea-landed-at">${e(day(bjtDate(item.landed_at || Date.now())))}落地</span>` : "";
@@ -49,9 +49,9 @@ function card(item) {
 ${body ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${
   e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
 ${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
-<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${
+${readOnly ? "" : `<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${
   e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
-${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
+${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>`}
 </article>`;
 }
 export function renderIdeas(state = view) {
@@ -67,10 +67,10 @@ export function renderIdeas(state = view) {
   const empty = state.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` :
     `<div class="ideas-empty"><p>想法池还是空的。</p><p class="muted">在碎碎念里点一条下面的「放进想法池」，它就会出现在这里。</p></div>`;
   return `<section class="ideas-page">
-<p class="ideas-intro">碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。</p>
+<p class="ideas-intro">${state.readOnly ? "这里只展示已放进想法池的条目。编辑请使用管理员入口。" : "碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。"}</p>
 <div class="ideas-filters" role="tablist" aria-label="按状态看">${tabs}</div>
 ${state.truncated ? `<p class="muted">只显示最新的 ${state.items.length} 条（共 ${state.total} 条）。</p>` : ""}
-<div class="ideas-list">${shown.length ? shown.map(card).join("") : empty}</div>
+<div class="ideas-list">${shown.length ? shown.map(item => card(item, state.readOnly)).join("") : empty}</div>
 </section>`;
 }
 function paint() { replacePageContent(renderIdeas()); }
@@ -78,7 +78,7 @@ export async function loadIdeas(context) {
   view.error = "";
   try {
     const data = await api("/ideas", { context });
-    Object.assign(view, { items: data.items || [], total: data.total || 0, truncated: Boolean(data.truncated), loaded: true });
+    Object.assign(view, { items: data.items || [], total: data.total || 0, truncated: Boolean(data.truncated), readOnly: data.readOnly === true, loaded: true });
   } catch (error) {
     if (error?.name === "AbortError") throw error;
     view.error = error?.message || "想法池没读出来，请稍后再试。";

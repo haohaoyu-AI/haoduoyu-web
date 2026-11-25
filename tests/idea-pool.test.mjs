@@ -7,10 +7,10 @@ import {ideaStatus,ideaPriority} from '../src/idea-pool.mjs';
 import {beijingDay} from '../src/lib/time.mjs';
 const today=beijingDay(Date.now());
 
-async function site(t) {
+async function site(t, {publicMode=false}={}) {
   const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
-  const env={DB:app.db,SITE_ORIGIN:ORIGIN,DAILY_NOTES_OWNER_ID:owner};
+  const env={DB:app.db,SITE_ORIGIN:ORIGIN,DAILY_NOTES_OWNER_ID:owner,...(publicMode?{PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'}:{})};
   async function call(path,method='GET',body,{labels=false,cookie=true}={}) {
     const headers={Origin:ORIGIN,...(cookie?{Cookie:session.cookie,'X-CSRF-Token':session.csrfToken}:{}),...(labels?{'X-Note-Labels-Version':'3'}:{})};
     if(body!==undefined)headers['Content-Type']='application/json';
@@ -116,4 +116,23 @@ test('the page marks landed ideas with ✅ and lists them after the open ones', 
   const order=[...html.matchAll(/data-idea="([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(order,['乙','丙','甲']);
   assert.match(html,/✅<\/span> 甲/);assert.doesNotMatch(html,/✅<\/span> 乙/);
+});
+
+test('public mode allows reading only tagged ideas, never linked task text or edits', async t=>{
+  const {call,note}=await site(t,{publicMode:true});
+  const id=await note('一条公开想法',['想法池']);
+  await note('不在池里的笔记',['生活']);
+  const todo=(await call('/unscheduled-todos','POST',{id:randomUUID(),text:'不由想法池公开的待办'})).data;
+  assert.equal((await call('/ideas/'+id+'/todos','POST',{todo_id:todo.id})).status,201);
+  const anon={cookie:false}, list=await call('/ideas','GET',undefined,anon);
+  assert.equal(list.status,200,list.text);
+  assert.equal(list.data.readOnly,true);
+  assert.deepEqual(list.data.items.map(item=>item.id),[id]);
+  assert.equal(list.data.items[0].status,'todo');
+  assert.deepEqual(list.data.items[0].todos,[]);
+  assert.equal(list.data.items[0].category,undefined);
+  assert.equal(list.data.items[0].version,undefined);
+  assert.doesNotMatch(list.text,/不在池里的笔记|不由想法池公开的待办/);
+  assert.equal((await call('/ideas/'+id+'/todos','POST',{todo_id:todo.id},anon)).status,401);
+  assert.equal((await call('/ideas')).data.items[0].todos[0].id,todo.id);
 });

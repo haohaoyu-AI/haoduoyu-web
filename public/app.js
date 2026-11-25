@@ -11138,7 +11138,7 @@ init_format();
 init_entry();
 init_modal();
 var FILTERS = [["all", "全部"], ["idea", "想法"], ["todo", "已转待办"], ["landed", "已落地"]];
-var view = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, error: "" };
+var view = { items: [], total: 0, truncated: false, filter: "all", open: /* @__PURE__ */ new Set(), loaded: false, readOnly: false, error: "" };
 var day4 = (value) => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : "";
 var stamp2 = (line) => /^\s*✅/.test(line);
 function titleIndex(lines) {
@@ -11160,7 +11160,7 @@ function todoLine(todo) {
   const when = todo.kind === "future" ? "未来待办" : smartDayLabel(todo.date, bjtDate());
   return `<li class="idea-todo${todo.completed ? " done" : ""}${todo.deleted ? " gone" : ""}"><span class="idea-todo-mark" aria-hidden="true">${todo.deleted ? "×" : todo.completed ? "✓" : "○"}</span><span class="idea-todo-text">${e(todo.text)}</span><em>${todo.deleted ? "已删除" : e(when)}</em></li>`;
 }
-function card(item) {
+function card(item, readOnly) {
   const body4 = ideaBody(item.text), open = view.open.has(item.id), long = body4.length > 120 || body4.split("\n").length > 3;
   const stars = item.priority ? `<span class="idea-stars" aria-label="优先级 ${item.priority} 星">${"⭐".repeat(Math.min(item.priority, 5))}</span>` : "";
   const landed = item.status === "landed" ? `<span class="idea-landed-at">${e(day4(bjtDate(item.landed_at || Date.now())))}落地</span>` : "";
@@ -11170,8 +11170,8 @@ function card(item) {
 <h3 class="idea-title">${item.status === "landed" ? '<span class="idea-done-mark" aria-label="已落地">✅</span> ' : ""}${e(ideaTitle(item.text))}</h3>
 ${body4 ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body4)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
 ${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
-<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
-${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>
+${readOnly ? "" : `<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
+${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>`}
 </article>`;
 }
 function renderIdeas(state2 = view) {
@@ -11183,10 +11183,10 @@ function renderIdeas(state2 = view) {
   const tabs = FILTERS.map(([id2, label]) => `<button type="button" role="tab" aria-selected="${state2.filter === id2}" data-action="ideas-filter" data-filter="${id2}">${label}<span>${counts[id2]}</span></button>`).join("");
   const empty3 = state2.items.length ? `<p class="ideas-empty">这一栏还没有想法。</p>` : `<div class="ideas-empty"><p>想法池还是空的。</p><p class="muted">在碎碎念里点一条下面的「放进想法池」，它就会出现在这里。</p></div>`;
   return `<section class="ideas-page">
-<p class="ideas-intro">碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。</p>
+<p class="ideas-intro">${state2.readOnly ? "这里只展示已放进想法池的条目。编辑请使用管理员入口。" : "碎碎念里贴了「想法池」标签的都在这里。想好了就「转成待办」，待办都做完，想法就算落地了。"}</p>
 <div class="ideas-filters" role="tablist" aria-label="按状态看">${tabs}</div>
 ${state2.truncated ? `<p class="muted">只显示最新的 ${state2.items.length} 条（共 ${state2.total} 条）。</p>` : ""}
-<div class="ideas-list">${shown2.length ? shown2.map(card).join("") : empty3}</div>
+<div class="ideas-list">${shown2.length ? shown2.map((item) => card(item, state2.readOnly)).join("") : empty3}</div>
 </section>`;
 }
 function paint() {
@@ -11196,7 +11196,7 @@ async function loadIdeas(context) {
   view.error = "";
   try {
     const data3 = await api("/ideas", { context });
-    Object.assign(view, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), loaded: true });
+    Object.assign(view, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), readOnly: data3.readOnly === true, loaded: true });
   } catch (error2) {
     if (error2?.name === "AbortError") throw error2;
     view.error = error2?.message || "想法池没读出来，请稍后再试。";

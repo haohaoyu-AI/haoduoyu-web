@@ -119,7 +119,13 @@ export async function handleIdeas(db,request,route,env,origin) {
     if(new URL(request.url).search)invalid('不接受查询参数');
     return consistentRead(db,async store=>{
       const actor=await authenticate(store,request,'read');requireUser(actor);
-      return json(await listIdeas(store,owner,actor.id));
+      if(actor.kind!=='public')return json(await listIdeas(store,owner,actor.id));
+      // Only the designated public workspace's tagged ideas, never private links or other notes.
+      if(actor.id!==owner)throw fail(403,'FORBIDDEN','想法池不在当前公开工作区');
+      const {items,total,truncated}=await listIdeas(store,owner,actor.id);
+      return Response.json({data:{items:items.map(({id,text,date,created_at,status,label,landed_at,priority,priority_label})=>
+        ({id,text,date,created_at,status,label,landed_at,priority,priority_label,todos:[]})),total,truncated,readOnly:true}},
+        {headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex'}});
     });
   }
   if(link&&method==='POST') {
