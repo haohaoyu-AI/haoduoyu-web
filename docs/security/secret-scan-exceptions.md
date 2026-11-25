@@ -207,3 +207,13 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 仅追加这 5 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/43109615308>。
 
 本地用与 CI 相同的 Gitleaks 8.30.1 和 `--all --full-history -m --root` 扫描 647 个提交，追加后为 0 项。把其中一条指纹的提交号改一位后，仍只报告原来那一条 `tests/oct28-small-fix-projection.mjs:31`，说明没有按路径放行。
+
+## 2026-11-18 合成测试密钥字符串
+
+PR 122 的 secret-scan（run 44223498164）在全历史扫描中报告 3 条 generic-api-key。三处都是测试夹具里的字面量 `sk-synthetic-key-` 加固定占位十六进制，写在 `OPENAI_API_KEY` 环境对象中，供本地假的 review fetch 使用。不是已签发的密钥。
+
+- `3c8f550809843d2dc50026d292b1f141fa308b83` `tests/todo-parse.test.mjs:24`
+- `c776a8816861605f9d43bdc91fbc0a79cbec67b6` `tests/body-summary.test.mjs:20`
+- `8ebc589f0e5d9f990aed0003d4b90538e2602dea` `tests/body-summary.test.mjs:20`
+
+只追加这 3 条不可变历史指纹。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/44223498164>。

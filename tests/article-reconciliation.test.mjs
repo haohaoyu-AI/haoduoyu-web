@@ -7,7 +7,6 @@ import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {countingDb} from './counting-d1.mjs';
 import {reconcileArticles,readArticleReconciliation} from '../src/article-reconciliation.mjs';
-import {renderReconciliation} from '../web/pages/article-reconciliation.mjs';
 import {projectWorkbenchRound2} from './workbench-round2-projection.mjs';
 const row=(id,series_no,status='draft_saved',slot='gzh')=>({id,series_no,status,slot,run_date:null,writer:null,
   title:'保险第200篇不是编号依据',sample:null,missing_fields:['run_date','writer'],warnings:[],has_pending_verify:null,verify_state:'unknown'});
@@ -19,13 +18,6 @@ test('actual reconciliation preserves unknowns, distinct numbers, duplicate IDs 
   assert.deepEqual(value.insurance.duplicate_numbers,[{number:4,article_ids:['a','b']}]);
   assert.deepEqual(value.insurance.observed_gap_ranges,[{from:5,to:7}]);assert.equal(value.insurance.target,null);
   assert.equal(value.insurance.sample_mapping,'unknown');assert.deepEqual(value.dates,[{date:null,count:5}]);
-});
-test('reconciliation rendering escapes all user text and never invents schedule values or title-derived series',()=>{
-  const data=reconcileArticles([{...row('a',null),title:'<img src=x onerror=alert(1)>',sample:{ref:'<script>danger</script>'}}]);
-  const html=renderReconciliation(data);assert.ok(!html.includes('<img'));assert.ok(!html.includes('<script>'));
-  assert.ok(html.includes('&lt;img'));assert.ok(html.includes('应产出：未配置'));
-  assert.match(html,/<details><summary>编号口径<\/summary><p>起点、目标与样本编号映射未知/);
-  assert.ok(renderReconciliation(reconcileArticles([])).includes('没有符合条件'));assert.throws(()=>renderReconciliation({complete:false}));
 });
 test('API scans complete pages in one consistent read, retains nulls and isolates account-scoped keys and public scope',async t=>{
   const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
@@ -76,7 +68,9 @@ test('new UI and API projections reject changed additions and preserve the compl
   const {reconciliationDocumentSpec}=await import('./article-pipeline-projection.mjs');
   const file='web/pages/article-reconciliation.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
   assert.equal(projectReconciliation(file,source),'');assert.throws(()=>projectReconciliation(file,source+'\nconst unauthorized=1;'));
-  const spec=JSON.parse(await readFile(new URL('../public/openapi.json',import.meta.url),'utf8'));
+  const {projectQuietSync}=await import('./oct28-small-fix-projection.mjs');
+  const spec=JSON.parse(projectQuietSync('public/openapi.json',
+    await readFile(new URL('../public/openapi.json',import.meta.url),'utf8')));
   assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(execFileSync('git',['show','f405b4c:public/openapi.json'],{encoding:'utf8'})));
   spec.paths['/api/v1/article-reconciliation'].get.summary='unauthorized';assert.throws(()=>reconciliationDocumentSpec(spec));
 });

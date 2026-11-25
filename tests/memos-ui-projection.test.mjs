@@ -13,7 +13,7 @@ test('combined frontend boundary pins each memo module and every released articl
 });
 test('memo projection cannot authorize edits to released article functions or unrelated state',async()=>{
   const file='web/controller.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-  const mutation=source.replace('await loadArticleOverview(version, context)','await loadMemos(version, context)');
+  const mutation=source.replace('await loadContentReview(context)','await loadMemos()');
   assert.notEqual(mutation,source);
   await assert.rejects(projectMemoFrontend(file,mutation),/exact memo additions retain every released article frontend AST node|approved workbench delta/);
 });

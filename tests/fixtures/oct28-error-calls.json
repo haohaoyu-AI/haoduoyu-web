@@ -1,0 +1,1897 @@
+{
+  "baseline": "b242cd573ab05c2fae2d5af779d7275ca45c20ad",
+  "product": "0fa66b9de623886d76c150f70b98f0cf398dd2a0",
+  "files": {
+    "src/account-profiles.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "message"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "message"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": []
+    },
+    "src/backup.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备忘录字段或归属无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备忘录笔记或分组归属无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'工作台记录字段、归属或主页链接无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'RESTORE_DISABLED'",
+            "'恢复只允许在显式指定的空隔离数据库执行'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份格式或校验和无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份修订号无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份表不完整'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份表格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份列格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'旧文章备份的链接和发布时间不得为空'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'文章流水线备份无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'碎碎念变更号超过源修订号'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标必须为空，禁止覆盖现有数据'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标已经初始化或有未完成的恢复'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标已被其他操作占用'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'恢复外键校验失败，目标保持隔离'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备忘录字段或归属无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备忘录笔记或分组归属无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'工作台记录字段、归属或主页链接无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'未定日期待办或碎碎念标签无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'RESTORE_DISABLED'",
+            "'恢复只允许在显式指定的空隔离数据库执行'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份格式或校验和无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份修订号无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份表不完整'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份表格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'备份列格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'旧文章备份的链接和发布时间不得为空'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'文章流水线备份无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'碎碎念变更号超过源修订号'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标必须为空，禁止覆盖现有数据'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标已经初始化或有未完成的恢复'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'RESTORE_NOT_EMPTY'",
+            "'恢复目标已被其他操作占用'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'恢复外键校验失败，目标保持隔离'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_BACKUP'",
+            "'未定日期待办或碎碎念标签无效'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/note-entries.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'该日记录已达 200 条，请保留未保存草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'日期列表每页最多100项'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_LIMIT'",
+            "'该日记录超过完整读取上限，请保留草稿后核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "request.headers.has('cookie')||request.headers.has('authorization')?403:401",
+            "'FORBIDDEN'",
+            "'当前身份无权读取此工作区保存状态'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'碎碎念接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'该条记录不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'碎碎念接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'保存标识已用于不同内容，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'该条记录已有更新，请先核对保存收据'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'该条记录已在其他位置更新，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'该条记录不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'已有记录的分类和日期不可更改'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTE_ENTRY_DELETED'",
+            "'请先恢复已删除的记录'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'删除状态已变化，请重新读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_REVISION'",
+            "'碎碎念版本需要私下核对，草稿尚未保存'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'该日记录已达 200 条，请保留未保存草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'日期列表每页最多100项'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_LIMIT'",
+            "'该日记录超过完整读取上限，请保留草稿后核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "request.headers.has('cookie')||request.headers.has('authorization')?403:401",
+            "'FORBIDDEN'",
+            "'当前身份无权读取此工作区保存状态'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_RECEIPT'",
+            "'保存收据对应记录无法核对，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'碎碎念接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'该条记录不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'碎碎念接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'保存标识已用于不同内容，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'该条记录已有更新，请先核对保存收据'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'该条记录已在其他位置更新，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'该条记录不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'已有记录的分类和日期不可更改'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'已有记录的标签不可更改'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTE_ENTRY_DELETED'",
+            "'请先恢复已删除的记录'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'删除状态已变化，请重新读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_REVISION'",
+            "'碎碎念版本需要私下核对，草稿尚未保存'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'自建标签已达上限'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_RECEIPT'",
+            "'保存收据对应记录无法核对，请保留草稿'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'已有记录的标签不可更改'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'自建标签已达上限'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/note-entry-validation.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念标识无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念分类无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念查询参数无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念字段或版本无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'正文必须为纯文字'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'NOTES_TOO_LARGE'",
+            "'正文最多 64KiB，请保留未保存草稿'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念标识无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念分类无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签须为 1–32 字，且不能与生活或工作重名'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念查询参数无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'碎碎念字段或版本无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'自建标签须使用生活分类'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'正文必须为纯文字'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'NOTES_TOO_LARGE'",
+            "'正文最多 64KiB，请保留未保存草稿'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签须为 1–32 字，且不能与生活或工作重名'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'自建标签须使用生活分类'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/note-labels.mjs": {
+      "before": [],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_LIMIT'",
+            "'标签超过完整读取上限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "405",
+            "'METHOD_NOT_ALLOWED'",
+            "'不支持的标签操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签字段无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'保存标识已用于其他标签'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'自建标签已达上限'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_LIMIT'",
+            "'标签超过完整读取上限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "405",
+            "'METHOD_NOT_ALLOWED'",
+            "'不支持的标签操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'标签字段无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'保存标识已用于其他标签'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'NOTES_LIMIT'",
+            "'自建标签已达上限'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/note-month.mjs": {
+      "before": [],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'NOTES_MONTH_LIMIT'",
+            "'该月记录超过完整读取上限，请缩小范围后核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "405",
+            "'METHOD_NOT_ALLOWED'",
+            "'月记录只提供读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'月份必须为 YYYY-MM'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录读取数量无法核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录日期无法核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录内容无法核对'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'NOTES_MONTH_LIMIT'",
+            "'该月记录超过完整读取上限，请缩小范围后核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "405",
+            "'METHOD_NOT_ALLOWED'",
+            "'月记录只提供读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'月份必须为 YYYY-MM'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_CONFIG'",
+            "'碎碎念归属尚未核实'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录读取数量无法核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录日期无法核对'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'NOTES_DATA'",
+            "'月记录内容无法核对'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/public-business.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "429",
+            "'RATE_LIMITED'",
+            "'公开操作较多，请稍后重试'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'BODY_TOO_LARGE'",
+            "'公开写入内容超过 16KB'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务的数据归属尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'CSRF'",
+            "'公开写入需要同源业务请求'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务的数据归属尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务账号数量需要重新确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务账号范围尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'账号不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VALIDATION_ERROR'",
+            "'公开业务账号已达到上限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'记录不存在'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "429",
+            "'RATE_LIMITED'",
+            "'公开操作较多，请稍后重试'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'BODY_TOO_LARGE'",
+            "'公开写入内容超过 16KB'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务的数据归属尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'CSRF'",
+            "'公开写入需要同源业务请求'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务的数据归属尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务账号数量需要重新确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'公开业务账号范围尚未确认'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'账号不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VALIDATION_ERROR'",
+            "'公开业务账号已达到上限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'记录不存在'"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": []
+    },
+    "src/unscheduled-todos.mjs": {
+      "before": [],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办标识需要使用 UUID'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'请求字段不符合待办接口要求'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办版本需要为正整数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办内容需要 1 至 500 个字符'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'完成状态需要为布尔值'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'同一待办标识已经用于不同内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "410",
+            "'TODO_DELETED'",
+            "'待办已删除，请使用恢复操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'待办不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "410",
+            "'TODO_DELETED'",
+            "'待办已删除，请使用恢复操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'待办已更新，请刷新后重试'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'未来待办接口不接受查询参数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'待办不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        }
+      ],
+      "added": [
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办标识需要使用 UUID'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'请求字段不符合待办接口要求'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办版本需要为正整数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'待办内容需要 1 至 500 个字符'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'完成状态需要为布尔值'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'同一待办标识已经用于不同内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "410",
+            "'TODO_DELETED'",
+            "'待办已删除，请使用恢复操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'待办不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "410",
+            "'TODO_DELETED'",
+            "'待办已删除，请使用恢复操作'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'VERSION_CONFLICT'",
+            "'待办已更新，请刷新后重试'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'未来待办接口不接受查询参数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'待办不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        }
+      ],
+      "removed": []
+    },
+    "src/workbench-snapshot.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SNAPSHOT_DATA'",
+            "'工作台数据无法完整投影，未返回部分内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'SNAPSHOT_LIMIT'",
+            "'工作台日期超过完整读取预算，未返回部分内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'工作台快照只提供明确的只读接口'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'工作台快照只接受一个明确日期，完整索引不接受查询参数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SETUP_REQUIRED'",
+            "'数据库尚未就绪，工作台快照未读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SNAPSHOT_CONFIG'",
+            "'备忘录数据归属无法核实'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SNAPSHOT_DATA'",
+            "'工作台数据无法完整投影，未返回部分内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "413",
+            "'SNAPSHOT_LIMIT'",
+            "'工作台日期超过完整读取预算，未返回部分内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'工作台快照只提供明确的只读接口'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'工作台快照只接受一个明确日期，完整索引不接受查询参数'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SETUP_REQUIRED'",
+            "'数据库尚未就绪，工作台快照未读取'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SNAPSHOT_CONFIG'",
+            "'备忘录数据归属无法核实'"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": []
+    },
+    "src/worker.mjs": {
+      "before": [
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'UNAUTHORIZED'",
+            "'初始化授权无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_USERNAME'",
+            "'账号需要 3 至 80 个字母、数字或 . _ @ -'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'SETUP_COMPLETE'",
+            "'初始化已完成'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'INVALID_CREDENTIALS'",
+            "'当前密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'Idempotency-Key 格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'CONFLICT'",
+            "'密码已修改，请重新登录'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'请填写凭证名称、运营账号与读写权限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'授权账号不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'凭证不存在或已撤销'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'同一幂等键已经用于不同内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'D1 绑定未配置'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SETUP_REQUIRED'",
+            "state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'period 只能提供一次'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'页面不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'地址格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'文件不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'文件不存在'"
+          ]
+        }
+      ],
+      "after": [
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'UNAUTHORIZED'",
+            "'初始化授权无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'INVALID_USERNAME'",
+            "'账号需要 3 至 80 个字母、数字或 . _ @ -'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'SETUP_COMPLETE'",
+            "'初始化已完成'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "401",
+            "'INVALID_CREDENTIALS'",
+            "'账号或密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "403",
+            "'INVALID_CREDENTIALS'",
+            "'当前密码错误'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'Idempotency-Key 格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'CONFLICT'",
+            "'密码已修改，请重新登录'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'请填写凭证名称、运营账号与读写权限'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'授权账号不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'凭证不存在或已撤销'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "409",
+            "'IDEMPOTENCY_CONFLICT'",
+            "'同一幂等键已经用于不同内容'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'CONFIGURATION'",
+            "'D1 绑定未配置'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "503",
+            "'SETUP_REQUIRED'",
+            "state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION_ERROR'",
+            "'period 只能提供一次'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'接口不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'页面不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "400",
+            "'VALIDATION'",
+            "'地址格式无效'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'文件不存在'"
+          ]
+        },
+        {
+          "callee": "fail",
+          "args": [
+            "404",
+            "'NOT_FOUND'",
+            "'文件不存在'"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": []
+    }
+  }
+}

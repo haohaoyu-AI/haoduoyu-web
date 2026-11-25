@@ -3,25 +3,27 @@ import {registerPublicBusiness} from './business-access.mjs';
 import {storeFor} from './storage.mjs';
 
 const buckets=new Map();
-const reads=new Set(['/auth/me','/accounts','/account-profiles','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
+const reads=new Set(['/auth/me','/ideas','/accounts','/account-profiles','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
   '/article-reconciliation','/todos','/todo-templates','/todo-preferences','/export']);
 export function publicBusinessRoute(route,method) {
-  if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route);
-  if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates'].includes(route)||
-    /^\/todos\/[^/]+\/(restore|template)$/.test(route);
+  if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route)||/^\/unscheduled-todos(?:\/[^/]+)?$/.test(route);
+  if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates','/todo-carry','/todo-parse','/note-suggest','/todo-command'].includes(route)||
+    /^\/todos\/[^/]+\/(restore|template)$/.test(route)||/^\/todo-templates\/[^/]+\/(archive|restore)$/.test(route)||route==='/unscheduled-todos'||/^\/unscheduled-todos\/[^/]+\/(restore|move|complete-today)$/.test(route);
   if(method==='PUT') return /^\/(accounts|articles)\/[^/]+$/.test(route);
-  if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/(todos|todo-templates)\/[^/]+$/.test(route);
-  return method==='DELETE'&&/^\/(todos|todo-templates|accounts|articles|observations|daily-metrics)\/[^/]+$/.test(route);
+  if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/todos\/[^/]+\/note$/.test(route)||/^\/unscheduled-todos\/[^/]+\/period$/.test(route)||/^\/(todos|todo-templates|unscheduled-todos)\/[^/]+$/.test(route);
+  return method==='DELETE'&&/^\/(todos|todo-templates|unscheduled-todos|accounts|articles|observations|daily-metrics)\/[^/]+$/.test(route);
 }
 
 // Bounded, best-effort per-isolate protection before any D1 access. Cloudflare's
 // Free hard limits remain authoritative; this is not a global distributed quota.
+export const PUBLIC_DAILY_LIMIT=20000,PUBLIC_MINUTE_LIMIT=300,PUBLIC_MINUTE_WRITES=60;
 export function limitPublicBusiness(key,write,time=Date.now()) {
   let bucket=buckets.get(key);
   const day=Math.floor(time/86400000),minute=Math.floor(time/60000);
   if(!bucket||bucket.day!==day) bucket={day,minute,dayCount:0,count:0,writes:0};
   if(bucket.minute!==minute) {bucket.minute=minute;bucket.count=0;bucket.writes=0;}
-  if(bucket.dayCount>=1000||bucket.count>=60||write&&bucket.writes>=20)
+  // One page load with offline sync is a few dozen requests, so these only stop runaway loops, not normal use.
+  if(bucket.dayCount>=PUBLIC_DAILY_LIMIT||bucket.count>=PUBLIC_MINUTE_LIMIT||write&&bucket.writes>=PUBLIC_MINUTE_WRITES)
     throw fail(429,'RATE_LIMITED','公开操作较多，请稍后重试');
   bucket.dayCount++;bucket.count++;if(write) bucket.writes++;
   buckets.delete(key);buckets.set(key,bucket);

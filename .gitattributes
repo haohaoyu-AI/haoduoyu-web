@@ -1,2 +1,6 @@
-# Preserve migration and snapshot bytes used by the immutable history hash check.
-drizzle/** -text
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff2 binary

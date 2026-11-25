@@ -3,6 +3,7 @@ import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {MEMO_LIMITS,memoId,memoInput,memosOwner} from './memos-validation.mjs';
 
 import {noteEditor,noteDraftScope,limitNoteWrites} from './public-note-access.mjs';
+import {clearMemoTrash,memoWasPurged} from './memo-trash.mjs';
 
 const json=value=>Response.json({data:value});
 const fields='id,title,position,version,change_seq,created_at,updated_at,deleted_at';
@@ -101,6 +102,8 @@ async function writeMemo(db,request,route,owner,env,origin) {
   return (await mutate(db,async store=>{
     await ownerExists(store,owner);
     const actor=await noteEditor(store,request,owner,env,'memos',origin,{write:true}),row=await rowFor(store,kind,owner,id);
+    if(method==='PUT'&&await memoWasPurged(store,owner,kind,id))
+      throw fail(409,'MEMO_PERMANENTLY_DELETED','该备忘录已被永久删除');
     const saved=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
     if(saved) {
       if(saved.request_hash!==hash)throw fail(409,'IDEMPOTENCY_CONFLICT','保存标识已用于不同内容，请保留草稿');
@@ -123,6 +126,7 @@ async function writeMemo(db,request,route,owner,env,origin) {
 export async function handleMemos(db,request,route,env,origin,initialRevision) {
   const owner=memosOwner(env);
   if(new URL(request.url).search)throw fail(400,'VALIDATION_ERROR','备忘录接口不接受查询参数');
+  if(route==='/memos/trash/clear'&&request.method==='POST')return clearMemoTrash(db,request,owner,env,origin);
   if(request.method==='GET')return readMemo(db,request,route,owner,env,origin,initialRevision);
   return writeMemo(db,request,route,owner,env,origin);
 }

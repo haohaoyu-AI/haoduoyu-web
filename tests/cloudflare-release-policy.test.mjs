@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {releases,repository,validateRequest,verifyCI,verifyWorker} from '../.github/scripts/release-policy.mjs';
-import {approvedSourceCommits,buildApprovedWorker,currentSourceCommit} from './helpers/release-worker-fixtures.mjs';
+import {approvedSourceCommits,buildApprovedWorker,buildReviewedBadgeWorker,currentSourceCommit} from './helpers/release-worker-fixtures.mjs';
 const commit='947bc782ea70e7808f6e7de523e5977818b292df';
 const env=()=>({GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'});
@@ -44,16 +44,20 @@ test('the current reviewed badge Worker remains outside the unchanged release al
   assert.equal(manifest.patch_commit,'3a87479d30ac4cf2b9bc484a51106713fa4c510f');
   assert.deepEqual(manifest.worker,reviewed);
   assert.deepEqual(manifest.base_worker,{bytes:releases[commit].bytes,sha256:releases[commit].sha256});
-  const data=await readFile(new URL('../dist/server/index.js',import.meta.url));
-  const actual={bytes:data.byteLength,sha256:createHash('sha256').update(data).digest('hex')};
   const sourceCommit=await currentSourceCommit();
   if(approvedSourceCommits.includes(sourceCommit)) {
     // An explicit historical checkout must still match its own exact approved
     // bytes. A similar hash or a newer commit cannot enter this branch.
+    const data=await readFile(new URL('../dist/server/index.js',import.meta.url));
+    const actual={bytes:data.byteLength,sha256:createHash('sha256').update(data).digest('hex')};
     assert.deepEqual(actual,{bytes:releases[sourceCommit].bytes,sha256:releases[sourceCommit].sha256});
     assert.equal(verifyWorker(data,sourceCommit),releases[sourceCommit]);
     for(const other of approvedSourceCommits.filter(value=>value!==sourceCommit))assert.throws(()=>verifyWorker(data,other));
   }else {
+    // Live/site-five HEAD is past the badge checkpoint; pin the independent
+    // badge artifact itself rather than today's rebuilt dist bytes.
+    const data=await buildReviewedBadgeWorker();
+    const actual={bytes:data.byteLength,sha256:createHash('sha256').update(data).digest('hex')};
     assert.deepEqual(actual,reviewed,'Current dist must be the exact reviewed badge patch');
     for(const oldCommit of approvedSourceCommits)assert.throws(()=>verifyWorker(data,oldCommit));
   }

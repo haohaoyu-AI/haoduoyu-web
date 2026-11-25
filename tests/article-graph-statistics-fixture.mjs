@@ -153,6 +153,11 @@ export async function graphStatisticsFixture(t) {
   await app.db.prepare(
     'INSERT INTO matrix_daily_notes(user_id,date,text,version,change_seq,created_at,updated_at) VALUES(?,?,?,1,1,?,?)'
   ).bind(owner, GRAPH_TODAY, '合成碎碎念保持原样', GRAPH_NOW, GRAPH_NOW).run();
+  // The five-migration fixture predates 0019, but the current after-Worker reads
+  // note/archived_at. Add the defaults so after-phase list/templates stay live
+  // without applying the rest of the journal (which would grow matrix_% tables).
+  await app.db.prepare("ALTER TABLE `matrix_todos` ADD `note` text NOT NULL DEFAULT ''").run();
+  await app.db.prepare('ALTER TABLE `matrix_todo_templates` ADD `archived_at` text').run();
   return {...app, request, accounts, articles, account};
 }
 

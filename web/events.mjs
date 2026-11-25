@@ -1,28 +1,25 @@
-import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
+import {inputUnscheduledTodo,toggleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
+import {addUnscheduledTodoExtra} from "./pages/unscheduled-todos.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
-  renderMediaOverview } from "./controller.mjs";
-import { $, $$, e } from "./core/dom.mjs";
+import { handleResponsiveLayout, navigate, navigateLink, renderShell } from "./controller.mjs";
+import { $, $$ } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
-import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
-import { handleArticleVerificationChange } from "./pages/article-verification.mjs";
-import { renderDashboard } from "./pages/dashboard.mjs";
 import { inputTodo, registerTodosClock, selectTodoDate, setTodoPanel, toggleTodo } from "./pages/todos.mjs";
 import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
 import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
 import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
 import { registerTodoGestures } from "./ui/todo-gestures.mjs";
-import { replacePageContent } from "./ui/entry.mjs";
-import { setMenu, syncMenu } from "./ui/menu.mjs";
+import { closeMobileMenuOutside, setMenu, syncMenu, trapMobileMenuFocus } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
 import { actions } from "./actions.mjs";
 import { handleFormSubmit } from "./forms.mjs";
-import {setDailyNotesRouteCategory} from "./core/daily-notes-state.mjs";
+import {setDailyNotesRouteCategory, setDailyNotesRouteDate} from "./core/daily-notes-state.mjs";
 import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
+  closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
@@ -39,7 +36,11 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    if (target.dataset.notesCategory) { setDailyNotesRouteCategory(target.dataset.notesCategory); navigate("notes"); }
+    if (target.dataset.notesCategory || target.dataset.notesDate) {
+      if (target.dataset.notesCategory) setDailyNotesRouteCategory(target.dataset.notesCategory);
+      if (target.dataset.notesDate) setDailyNotesRouteDate(target.dataset.notesDate);
+      navigate("notes");
+    }
     else navigateLink(target.dataset.nav);
     return;
   }
@@ -53,13 +54,20 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
-  if (changeReconciliationFilters(el)) return;
-  if (el.matches?.("[data-article-verify-index]")) {
-    handleArticleVerificationChange(el);
-    return;
-  }
   if (el.id === "todo-completed-mode") {
     changeTodoCompletedMode(el.value);
+    return;
+  }
+  if (el.dataset?.futureTodoId) {
+    toggleUnscheduledTodo(el);
+    return;
+  }
+  if (el.dataset?.futureExtraId) {
+    addUnscheduledTodoExtra(el);
+    return;
+  }
+  if (el.dataset?.futureDateId || el.dataset?.futureDueId) {
+    inputUnscheduledTodo(el);
     return;
   }
   if (el.dataset?.todoId) {
@@ -70,79 +78,24 @@ function handleChange(event) {
     selectTodoDate(el.value);
     return;
   }
-  if (el.id === "filter-view") {
-    const view = state.savedViews.find((v) => v.id === el.value);
-    if (view) {
-      $("#filter-panel").outerHTML = articleFilterPanel(viewDraft(view));
-      $("#filter-panel select")?.focus();
-    }
-  } else if (el.name === "columns" && el.closest("#filter-panel")) {
-    $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el.form));
-    $('#filter-panel input[value="' + el.value + '"]')?.focus();
-  } else if (el.id === "global-account") {
+  if (el.id === "global-account" || el.id === "overview-account") {
     state.account = el.value;
     state.listPage = 1;
     updateRoute();
     renderShell();
-  } else if (el.id === "page-size") {
-    state.pageSize = Number(el.value);
-    state.listPage = 1;
-    updateRoute();
-    renderPage();
-  } else if (el.id === "trend-date") {
-    state.trendDate = el.value;
-    state.trendOpen = true;
-    replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el.id === "trend-metric") {
-    state.trendMetric = el.value;
-    state.trendOpen = true;
-    replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
-    state.filters[el.name] = el.value;
-    reloadFilteredPage("[name=" + el.name + "]");
-  } else if (el.id === "review-account") {
-    const select = $("#review-article");
-    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el.value).map((a) =>
-       `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
   }
 }
 function handleToggle(event) {
   if (event.target.id === "todo-templates" && event.target.isConnected && event.target.open) loadTodoTemplates();
-  const key = event.target.dataset?.state;
-  if (event.target.isConnected && key === "trendOpen") state[key] = event.target.open;
 }
 function handleInput(event) {
   const el = event.target;
+  inputUnscheduledTodo(el);
   inputTodo(el);
   inputTodoTemplate(el);
-  if (el.name === "q" && el.closest("#article-filters")) {
-    state.filters.q = el.value;
-    state.listPage = 1;
-    updateRoute();
-    clearTimeout(runtime.searchTimer);
-    const query = el.value, version = runtime.renderVersion;
-    runtime.searchTimer = setTimeout(async () => {
-      runtime.searchTimer = null;
-      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version) return;
-      const start = el.selectionStart;
-      await renderPage();
-      if (runtime.renderVersion === version + 1 && !$("#overlay").firstChild) {
-        const next = $("#article-filters input[name=q]");
-        if (next) {
-          next.focus();
-          next.setSelectionRange(start, start);
-        }
-      }
-    }, 350);
-  }
-}
-function handleFilterSubmit(event) {
-  if (event.target.id === "filter-panel") {
-    event.preventDefault();
-    applyArticleFilters(event.target);
-  }
 }
 function handleKeydown(event) {
+  if (trapMobileMenuFocus(event)) return;
   if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
@@ -193,6 +146,7 @@ function handleKeydown(event) {
   }
 }
 function handleResize() {
+  handleResponsiveLayout();
   closePopover();
   if ($(".shell")?.classList.contains("menu-open")) setMenu(false);
   else syncMenu();
@@ -212,7 +166,6 @@ function registerEvents() {
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);
   document.addEventListener("input", handleInput);
-  document.addEventListener("submit", handleFilterSubmit);
   document.addEventListener("keydown", handleKeydown);
   document.addEventListener("submit", handleFormSubmit);
   window.addEventListener("resize", handleResize);

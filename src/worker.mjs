@@ -1,4 +1,5 @@
 import {readArticleReconciliation} from './article-reconciliation.mjs';
+import {MCP_PATHS,handleMcp,internalDispatch} from './mcp.mjs';
 import { randomUUID,randomBytes } from 'node:crypto';
 import { hashPassword,verifyPassword } from '../shared/auth.mjs';
 import { createRecords } from './records.mjs';
@@ -11,6 +12,11 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {desktopSyncPrefix,handleDesktopTodos} from './desktop-todo-sync.mjs';
+import {handleTodoCarry} from './todo-carry.mjs';
+import {handleTodoParse} from './todo-parse.mjs';
+import {handleNoteSuggest,handleTodoCommand} from './todo-assist.mjs';
+import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
 import {publicBusinessAccess,publicArticle,requirePublicAccount,publicBusinessResult} from './public-business.mjs';
@@ -18,18 +24,24 @@ import {requireBusinessCsrf} from './business-access.mjs';
 import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
-import {handleDailyNotes} from './daily-notes.mjs';
+import {handleDailyNotes,dailyNotesOwner} from './daily-notes.mjs';
+import {handleDailyScores} from './daily-scores.mjs';
 import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
 import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 import {handleSnapshot} from './snapshot.mjs';
 import {handleNoteEntries} from './note-entries.mjs';
+import {isIdeaRoute,handleIdeas} from './idea-pool.mjs';
+import {handleBodySummary,BODY_SUMMARY_ROUTES} from './body-summary.mjs';
 import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
+import {handleAiReports} from './ai-reports.mjs';
+import {handleContentReview} from './content-review.mjs';
+import {handleOpenaiReview} from './openai-review.mjs';
 
 const prefix='/api/v1';
-const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json']);
+const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json','/sw.js']);
 const writing=new Set(['POST','PUT','PATCH','DELETE']);
 const articleWriting=(method,route)=>(method==='POST'||method==='PATCH')&&route==='/articles'||method==='PUT'&&/^\/articles\/[^/]+$/.test(route);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
@@ -82,7 +94,7 @@ async function login(db,request,env,origin) {
   })).response;
 }
 
-async function protectedRead(db,request,route,query,initialRevision,publicActor=null) {
+async function protectedRead(db,request,route,query,initialRevision,publicActor=null,env={}) {
   let readActor,attemptTicket=null,attemptResponse=null;
   const abandon=async()=>{
     if(attemptTicket) await attemptTicket.abort();
@@ -95,7 +107,11 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
     const actor=publicActor||await authenticate(store,request),records=createRecords(store);
     readActor=actor;
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
-    if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
+    if(route==='/auth/me') {
+      requireAdmin(actor);
+      const identity={id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)};
+      return json(identity);
+    }
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
     if(route==='/account-profiles') return json(await records.listAccountProfiles(actor.scope));
     if(route==='/article-reconciliation') return json(await readArticleReconciliation(store,query,actor.scope));
@@ -252,20 +268,38 @@ async function handle(request,env,trace) {
   const url=new URL(request.url),path=url.pathname,method=request.method;
   trace.route=traceRoute(path);
   if(path==='/health'&&method==='GET') return json({status:'ok',application:'haoduoyu-matrix'});
+  if(MCP_PATHS.includes(path)) {
+    if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
+    const origin=originFor(env);
+    // Tool calls re-enter this handler; an error there becomes the same JSON error a browser would get.
+    const inner=r=>handle(r,env,requestTrace(r.method)).catch(error=>Response.json({error:{code:error.code||'INTERNAL_ERROR',
+      message:error.status?error.message:'服务暂时不可用'}},{status:error.status||500}));
+    return handleMcp(request,env,{origin,db:env.DB,dispatch:internalDispatch(origin,inner)});
+  }
   // No app handlers are registered for dispatch-owned sign-in/callback routes.
   if(path.startsWith(prefix+'/')) {
     if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
     const origin=originFor(env),db=env.DB,route=path.slice(prefix.length);
     if(route==='/bootstrap'&&method==='POST') {await ensureControl(db);return bootstrap(db,request,env,origin);}
     if(route==='/snapshot'||route==='/snapshot/index')return handleSnapshot(db,request,route,env);
-    if(route==='/workbench-snapshot'||route==='/workbench-snapshot/index')return handleWorkbenchSnapshot(db,request,route,env);
+    if(route==='/workbench-snapshot'||route==='/workbench-snapshot/index'||route==='/workbench-snapshot/scope')return handleWorkbenchSnapshot(db,request,route,env);
+    if(route.startsWith(desktopSyncPrefix+'/'))return handleDesktopTodos(db,request,route,env,origin);
     const access=await publicBusinessAccess(db,request,route,env,origin);
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/daily-notes'||route.startsWith('/daily-notes/'))
       return handleDailyNotes(db,request,route,env,origin,state.revision);
+    if(route==='/daily-scores'||route.startsWith('/daily-scores/'))
+      return handleDailyScores(db,request,route,env,origin,state.revision);
+    if(BODY_SUMMARY_ROUTES.includes(route))return handleBodySummary(db,request,route,dailyNotesOwner(env),env,origin);
     if(route==='/note-entries'||route.startsWith('/note-entries/'))
       return handleNoteEntries(db,request,route,env,origin,state.revision);
+    if(route==='/ai-reports'||route.startsWith('/ai-reports/'))
+      return handleAiReports(db,request,route,env,origin,state.revision);
+    if(route==='/openai-review'||route.startsWith('/openai-review/'))
+      return handleOpenaiReview(db,request,route,env,origin,state.revision);
+    if(route==='/review'||route.startsWith('/review/'))
+      return handleContentReview(db,request,route,env,origin,state.revision,trace);
     if(route==='/work-reminders'||route.startsWith('/work-reminders/'))
       return handleWorkReminders(db,request,route,env,origin,state.revision);
     if(route==='/memos'||route.startsWith('/memos/'))
@@ -281,18 +315,30 @@ async function handle(request,env,trace) {
       request=access.request;
       if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});
       if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+      if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
       if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
       if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
+      if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
+      if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
+      if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
+      if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
+      if(isIdeaRoute(route)) return handleIdeas(db,request,route,env,origin);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
       if(method==='GET') return publicBusinessResult(protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,access.actor));
       return publicBusinessResult(protectedWrite(db,request,route,env,origin,trace,access.actor));
     }
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+    if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
     if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
+    if(route==='/todo-carry') return handleTodoCarry(db,request,origin);
+    if(route==='/todo-parse') return handleTodoParse(db,request,env,origin);
+    if(route==='/note-suggest') return handleNoteSuggest(db,request,env,origin);
+    if(route==='/todo-command') return handleTodoCommand(db,request,env,origin);
+    if(isIdeaRoute(route)) return handleIdeas(db,request,route,env,origin);
     if(method==='GET') {
-      return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
+      return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,null,env);
     }
     if(writing.has(method)) return protectedWrite(db,request,route,env,origin,trace);
     await authenticate(storeFor(db),request);
@@ -304,10 +350,12 @@ async function handle(request,env,trace) {
   const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
   if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
   const headers={'Content-Type':asset.type};
+  if(path==='/sw.js')headers['Service-Worker-Allowed']='/';
   if(revalidatedStatic.has(path)) {
     headers['Cache-Control']='no-cache';headers.ETag=asset.etag;
     if(matchesIfNoneMatch(request.headers.get('If-None-Match'),asset.etag))
-      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag}});
+      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag,
+        ...(path==='/sw.js'?{'Service-Worker-Allowed':'/'}:{})}});
     headers['Content-Length']=String(asset.length);
   }
   const content=name==='api-docs'&&env.PUBLIC_BUSINESS_MODE==='1'?publicBusinessDocs(asset.content):asset.content;
@@ -335,7 +383,8 @@ export default {
     if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');
     for(const [key,value] of Object.entries({
       'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
-      'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      // A page that brings its own policy (the Claude connector's approval page) keeps it.
+      'Content-Security-Policy':response.headers.get('Content-Security-Policy')||"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
     })) response.headers.set(key,value);
     if(response.status===500) logServerFailure(trace,caughtError,!didThrow);

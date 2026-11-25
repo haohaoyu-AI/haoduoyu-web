@@ -1,0 +1,2633 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "cd71a54f-00f1-4be1-9f40-6af9f89cbe67",
+  "prevId": "5d96bcf5-6fdf-4c34-9c94-b17e1762425d",
+  "tables": {
+    "matrix_account_profiles": {
+      "name": "matrix_account_profiles",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "profile_url": {
+          "name": "profile_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "platform_identity": {
+          "name": "platform_identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_account_profile_url": {
+          "name": "matrix_account_profile_url",
+          "columns": [
+            "profile_url"
+          ],
+          "isUnique": true
+        },
+        "matrix_account_profile_identity": {
+          "name": "matrix_account_profile_identity",
+          "columns": [
+            "platform_identity"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "matrix_account_profiles_account_id_matrix_accounts_id_fk": {
+          "name": "matrix_account_profiles_account_id_matrix_accounts_id_fk",
+          "tableFrom": "matrix_account_profiles",
+          "tableTo": "matrix_accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_accounts": {
+      "name": "matrix_accounts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "active": {
+          "name": "active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_account_active": {
+          "name": "matrix_account_active",
+          "value": "\"matrix_accounts\".\"active\" IN (0,1)"
+        }
+      }
+    },
+    "matrix_api_keys": {
+      "name": "matrix_api_keys",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_ids_json": {
+          "name": "account_ids_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "permissions_json": {
+          "name": "permissions_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_key_hash": {
+          "name": "matrix_key_hash",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_articles": {
+      "name": "matrix_articles",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "platform_article_id": {
+          "name": "platform_article_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "production_mode": {
+          "name": "production_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'published'"
+        },
+        "slot": {
+          "name": "slot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "run_dir": {
+          "name": "run_dir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "run_date": {
+          "name": "run_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "series_no": {
+          "name": "series_no",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "writer": {
+          "name": "writer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "illustrator": {
+          "name": "illustrator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sample_json": {
+          "name": "sample_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "char_count": {
+          "name": "char_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subheading_count": {
+          "name": "subheading_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "image_count": {
+          "name": "image_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_desc": {
+          "name": "cover_desc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "draft_ref_json": {
+          "name": "draft_ref_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timings_json": {
+          "name": "timings_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reruns_json": {
+          "name": "reruns_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "blockers_json": {
+          "name": "blockers_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "verify_items_json": {
+          "name": "verify_items_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_article_url": {
+          "name": "matrix_article_url",
+          "columns": [
+            "account_id",
+            "url"
+          ],
+          "isUnique": true
+        },
+        "matrix_article_platform_id": {
+          "name": "matrix_article_platform_id",
+          "columns": [
+            "account_id",
+            "platform_article_id"
+          ],
+          "isUnique": true,
+          "where": "\"matrix_articles\".\"platform_article_id\" IS NOT NULL AND \"matrix_articles\".\"platform_article_id\" != ''"
+        },
+        "matrix_article_account_date": {
+          "name": "matrix_article_account_date",
+          "columns": [
+            "account_id",
+            "published_at"
+          ],
+          "isUnique": false
+        },
+        "matrix_article_run_dir": {
+          "name": "matrix_article_run_dir",
+          "columns": [
+            "run_dir"
+          ],
+          "isUnique": true,
+          "where": "\"matrix_articles\".\"run_dir\" IS NOT NULL"
+        },
+        "matrix_article_slot_date": {
+          "name": "matrix_article_slot_date",
+          "columns": [
+            "slot",
+            "run_date"
+          ],
+          "isUnique": true,
+          "where": "\"matrix_articles\".\"slot\" IS NOT NULL AND \"matrix_articles\".\"run_date\" IS NOT NULL"
+        }
+      },
+      "foreignKeys": {
+        "matrix_articles_account_id_matrix_accounts_id_fk": {
+          "name": "matrix_articles_account_id_matrix_accounts_id_fk",
+          "tableFrom": "matrix_articles",
+          "tableTo": "matrix_accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_article_mode": {
+          "name": "matrix_article_mode",
+          "value": "\"matrix_articles\".\"production_mode\" IN ('manual','automatic','mixed','unknown')"
+        },
+        "matrix_article_pipeline_status": {
+          "name": "matrix_article_pipeline_status",
+          "value": "\"matrix_articles\".\"status\" IS NULL OR \"matrix_articles\".\"status\" IN ('drafting','illustrated','draft_saved','published','failed')"
+        },
+        "matrix_article_pipeline_slot": {
+          "name": "matrix_article_pipeline_slot",
+          "value": "\"matrix_articles\".\"slot\" IS NULL OR \"matrix_articles\".\"slot\" IN ('zh1','zh2','tt1','tt2','zh3','tt3','gzh')"
+        },
+        "matrix_article_pipeline_writer": {
+          "name": "matrix_article_pipeline_writer",
+          "value": "\"matrix_articles\".\"writer\" IS NULL OR \"matrix_articles\".\"writer\" IN ('dedao','gemini_web','human','other')"
+        },
+        "matrix_article_pipeline_illustrator": {
+          "name": "matrix_article_pipeline_illustrator",
+          "value": "\"matrix_articles\".\"illustrator\" IS NULL OR \"matrix_articles\".\"illustrator\" IN ('codex','pil','human')"
+        },
+        "matrix_article_pipeline_series_no": {
+          "name": "matrix_article_pipeline_series_no",
+          "value": "\"matrix_articles\".\"series_no\" IS NULL OR (typeof(\"matrix_articles\".\"series_no\")='integer' AND \"matrix_articles\".\"series_no\" BETWEEN 1 AND 9007199254740991)"
+        },
+        "matrix_article_pipeline_char_count": {
+          "name": "matrix_article_pipeline_char_count",
+          "value": "\"matrix_articles\".\"char_count\" IS NULL OR (typeof(\"matrix_articles\".\"char_count\")='integer' AND \"matrix_articles\".\"char_count\" BETWEEN 0 AND 9007199254740991)"
+        },
+        "matrix_article_pipeline_subheading_count": {
+          "name": "matrix_article_pipeline_subheading_count",
+          "value": "\"matrix_articles\".\"subheading_count\" IS NULL OR (typeof(\"matrix_articles\".\"subheading_count\")='integer' AND \"matrix_articles\".\"subheading_count\" BETWEEN 0 AND 9007199254740991)"
+        },
+        "matrix_article_pipeline_image_count": {
+          "name": "matrix_article_pipeline_image_count",
+          "value": "\"matrix_articles\".\"image_count\" IS NULL OR (typeof(\"matrix_articles\".\"image_count\")='integer' AND \"matrix_articles\".\"image_count\" BETWEEN 0 AND 9007199254740991)"
+        },
+        "matrix_article_pipeline_sample_json": {
+          "name": "matrix_article_pipeline_sample_json",
+          "value": "\"matrix_articles\".\"sample_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"sample_json\") THEN json_type(\"matrix_articles\".\"sample_json\")='object' ELSE 0 END"
+        },
+        "matrix_article_pipeline_draft_ref_json": {
+          "name": "matrix_article_pipeline_draft_ref_json",
+          "value": "\"matrix_articles\".\"draft_ref_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"draft_ref_json\") THEN json_type(\"matrix_articles\".\"draft_ref_json\")='object' ELSE 0 END"
+        },
+        "matrix_article_pipeline_timings_json": {
+          "name": "matrix_article_pipeline_timings_json",
+          "value": "\"matrix_articles\".\"timings_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"timings_json\") THEN json_type(\"matrix_articles\".\"timings_json\")='object' ELSE 0 END"
+        },
+        "matrix_article_pipeline_reruns_json": {
+          "name": "matrix_article_pipeline_reruns_json",
+          "value": "\"matrix_articles\".\"reruns_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"reruns_json\") THEN json_type(\"matrix_articles\".\"reruns_json\")='object' ELSE 0 END"
+        },
+        "matrix_article_pipeline_blockers_json": {
+          "name": "matrix_article_pipeline_blockers_json",
+          "value": "\"matrix_articles\".\"blockers_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"blockers_json\") THEN json_type(\"matrix_articles\".\"blockers_json\")='array' ELSE 0 END"
+        },
+        "matrix_article_pipeline_verify_items_json": {
+          "name": "matrix_article_pipeline_verify_items_json",
+          "value": "\"matrix_articles\".\"verify_items_json\" IS NULL OR CASE WHEN json_valid(\"matrix_articles\".\"verify_items_json\") THEN json_type(\"matrix_articles\".\"verify_items_json\")='array' ELSE 0 END"
+        }
+      }
+    },
+    "matrix_audit": {
+      "name": "matrix_audit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "detail_json": {
+          "name": "detail_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_audit_entity_time": {
+          "name": "matrix_audit_entity_time",
+          "columns": [
+            "entity_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_control": {
+      "name": "matrix_control",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "initialized": {
+          "name": "initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "revision_guard": {
+          "name": "revision_guard",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "auth_guard": {
+          "name": "auth_guard",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "setup_guard": {
+          "name": "setup_guard",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_single_control": {
+          "name": "matrix_single_control",
+          "value": "\"matrix_control\".\"id\"=1"
+        },
+        "matrix_revision_match": {
+          "name": "matrix_revision_match",
+          "value": "\"matrix_control\".\"revision_guard\"=1"
+        },
+        "matrix_auth_match": {
+          "name": "matrix_auth_match",
+          "value": "\"matrix_control\".\"auth_guard\"=1"
+        },
+        "matrix_setup_match": {
+          "name": "matrix_setup_match",
+          "value": "\"matrix_control\".\"setup_guard\"=1"
+        }
+      }
+    },
+    "matrix_daily_metrics": {
+      "name": "matrix_daily_metrics",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "metrics_json": {
+          "name": "metrics_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_daily_account_day": {
+          "name": "matrix_daily_account_day",
+          "columns": [
+            "account_id",
+            "date"
+          ],
+          "isUnique": true,
+          "where": "\"matrix_daily_metrics\".\"article_id\" IS NULL"
+        },
+        "matrix_daily_article_day": {
+          "name": "matrix_daily_article_day",
+          "columns": [
+            "account_id",
+            "article_id",
+            "date"
+          ],
+          "isUnique": true,
+          "where": "\"matrix_daily_metrics\".\"article_id\" IS NOT NULL"
+        }
+      },
+      "foreignKeys": {
+        "matrix_daily_metrics_account_id_matrix_accounts_id_fk": {
+          "name": "matrix_daily_metrics_account_id_matrix_accounts_id_fk",
+          "tableFrom": "matrix_daily_metrics",
+          "tableTo": "matrix_accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "matrix_daily_metrics_article_id_matrix_articles_id_fk": {
+          "name": "matrix_daily_metrics_article_id_matrix_articles_id_fk",
+          "tableFrom": "matrix_daily_metrics",
+          "tableTo": "matrix_articles",
+          "columnsFrom": [
+            "article_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_daily_notes": {
+      "name": "matrix_daily_notes",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_daily_notes_user_changes": {
+          "name": "matrix_daily_notes_user_changes",
+          "columns": [
+            "user_id",
+            "change_seq",
+            "date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_daily_notes_user_id_matrix_users_id_fk": {
+          "name": "matrix_daily_notes_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_daily_notes",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_daily_notes_user_id_date_pk": {
+          "columns": [
+            "user_id",
+            "date"
+          ],
+          "name": "matrix_daily_notes_user_id_date_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_daily_notes_version": {
+          "name": "matrix_daily_notes_version",
+          "value": "\"matrix_daily_notes\".\"version\" >= 1"
+        },
+        "matrix_daily_notes_change_seq": {
+          "name": "matrix_daily_notes_change_seq",
+          "value": "\"matrix_daily_notes\".\"change_seq\" >= 1"
+        }
+      }
+    },
+    "matrix_daily_work_notes": {
+      "name": "matrix_daily_work_notes",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_daily_work_notes_user_changes": {
+          "name": "matrix_daily_work_notes_user_changes",
+          "columns": [
+            "user_id",
+            "change_seq",
+            "date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_daily_work_notes_user_id_matrix_users_id_fk": {
+          "name": "matrix_daily_work_notes_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_daily_work_notes",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_daily_work_notes_user_id_date_pk": {
+          "columns": [
+            "user_id",
+            "date"
+          ],
+          "name": "matrix_daily_work_notes_user_id_date_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_daily_work_notes_version": {
+          "name": "matrix_daily_work_notes_version",
+          "value": "\"matrix_daily_work_notes\".\"version\" >= 1"
+        },
+        "matrix_daily_work_notes_change_seq": {
+          "name": "matrix_daily_work_notes_change_seq",
+          "value": "\"matrix_daily_work_notes\".\"change_seq\" >= 1"
+        }
+      }
+    },
+    "matrix_idempotency": {
+      "name": "matrix_idempotency",
+      "columns": {
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "response_json": {
+          "name": "response_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "matrix_idempotency_actor_key_pk": {
+          "columns": [
+            "actor",
+            "key"
+          ],
+          "name": "matrix_idempotency_actor_key_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_login_attempts": {
+      "name": "matrix_login_attempts",
+      "columns": {
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_memo_groups": {
+      "name": "matrix_memo_groups",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_memo_group_owner_order": {
+          "name": "matrix_memo_group_owner_order",
+          "columns": [
+            "user_id",
+            "deleted_at",
+            "position",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_memo_groups_user_id_matrix_users_id_fk": {
+          "name": "matrix_memo_groups_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_memo_groups",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_memo_groups_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_memo_groups_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_memo_group_title": {
+          "name": "matrix_memo_group_title",
+          "value": "length(\"matrix_memo_groups\".\"title\") BETWEEN 1 AND 120"
+        },
+        "matrix_memo_group_position": {
+          "name": "matrix_memo_group_position",
+          "value": "typeof(\"matrix_memo_groups\".\"position\")='integer' AND \"matrix_memo_groups\".\"position\" BETWEEN 0 AND 1000000"
+        },
+        "matrix_memo_group_version": {
+          "name": "matrix_memo_group_version",
+          "value": "typeof(\"matrix_memo_groups\".\"version\")='integer' AND \"matrix_memo_groups\".\"version\" BETWEEN 1 AND 9007199254740991"
+        },
+        "matrix_memo_group_change_seq": {
+          "name": "matrix_memo_group_change_seq",
+          "value": "typeof(\"matrix_memo_groups\".\"change_seq\")='integer' AND \"matrix_memo_groups\".\"change_seq\" BETWEEN 1 AND 9007199254740991"
+        }
+      }
+    },
+    "matrix_memo_notes": {
+      "name": "matrix_memo_notes",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_memo_note_owner_order": {
+          "name": "matrix_memo_note_owner_order",
+          "columns": [
+            "user_id",
+            "group_id",
+            "deleted_at",
+            "position",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_memo_notes_user_id_matrix_users_id_fk": {
+          "name": "matrix_memo_notes_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_memo_notes",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "matrix_memo_notes_user_id_group_id_matrix_memo_groups_user_id_id_fk": {
+          "name": "matrix_memo_notes_user_id_group_id_matrix_memo_groups_user_id_id_fk",
+          "tableFrom": "matrix_memo_notes",
+          "tableTo": "matrix_memo_groups",
+          "columnsFrom": [
+            "user_id",
+            "group_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_memo_notes_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_memo_notes_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_memo_note_title": {
+          "name": "matrix_memo_note_title",
+          "value": "length(\"matrix_memo_notes\".\"title\") BETWEEN 1 AND 120"
+        },
+        "matrix_memo_note_body": {
+          "name": "matrix_memo_note_body",
+          "value": "length(CAST(\"matrix_memo_notes\".\"body\" AS BLOB)) <= 65536"
+        },
+        "matrix_memo_note_position": {
+          "name": "matrix_memo_note_position",
+          "value": "typeof(\"matrix_memo_notes\".\"position\")='integer' AND \"matrix_memo_notes\".\"position\" BETWEEN 0 AND 1000000"
+        },
+        "matrix_memo_note_version": {
+          "name": "matrix_memo_note_version",
+          "value": "typeof(\"matrix_memo_notes\".\"version\")='integer' AND \"matrix_memo_notes\".\"version\" BETWEEN 1 AND 9007199254740991"
+        },
+        "matrix_memo_note_change_seq": {
+          "name": "matrix_memo_note_change_seq",
+          "value": "typeof(\"matrix_memo_notes\".\"change_seq\")='integer' AND \"matrix_memo_notes\".\"change_seq\" BETWEEN 1 AND 9007199254740991"
+        }
+      }
+    },
+    "matrix_note_entries": {
+      "name": "matrix_note_entries",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_note_entry_day": {
+          "name": "matrix_note_entry_day",
+          "columns": [
+            "user_id",
+            "category",
+            "date",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_note_entries_user_id_matrix_users_id_fk": {
+          "name": "matrix_note_entries_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_note_entries",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_entries_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_note_entries_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_note_entry_category": {
+          "name": "matrix_note_entry_category",
+          "value": "\"matrix_note_entries\".\"category\" IN ('life','work')"
+        },
+        "matrix_note_entry_version": {
+          "name": "matrix_note_entry_version",
+          "value": "\"matrix_note_entries\".\"version\" >= 1"
+        },
+        "matrix_note_entry_changes": {
+          "name": "matrix_note_entry_changes",
+          "value": "\"matrix_note_entries\".\"change_seq\" >= 1"
+        }
+      }
+    },
+    "matrix_note_entry_label_overrides": {
+      "name": "matrix_note_entry_label_overrides",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "labels_json": {
+          "name": "labels_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "matrix_note_entry_label_overrides_user_id_entry_id_matrix_note_entries_user_id_id_fk": {
+          "name": "matrix_note_entry_label_overrides_user_id_entry_id_matrix_note_entries_user_id_id_fk",
+          "tableFrom": "matrix_note_entry_label_overrides",
+          "tableTo": "matrix_note_entries",
+          "columnsFrom": [
+            "user_id",
+            "entry_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_entry_label_overrides_user_id_entry_id_pk": {
+          "columns": [
+            "user_id",
+            "entry_id"
+          ],
+          "name": "matrix_note_entry_label_overrides_user_id_entry_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_note_entry_override_json": {
+          "name": "matrix_note_entry_override_json",
+          "value": "json_valid(\"matrix_note_entry_label_overrides\".\"labels_json\") AND json_type(\"matrix_note_entry_label_overrides\".\"labels_json\") = 'array'"
+        }
+      }
+    },
+    "matrix_note_entry_label_sets": {
+      "name": "matrix_note_entry_label_sets",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "labels_json": {
+          "name": "labels_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "matrix_note_entry_label_sets_user_id_entry_id_matrix_note_entries_user_id_id_fk": {
+          "name": "matrix_note_entry_label_sets_user_id_entry_id_matrix_note_entries_user_id_id_fk",
+          "tableFrom": "matrix_note_entry_label_sets",
+          "tableTo": "matrix_note_entries",
+          "columnsFrom": [
+            "user_id",
+            "entry_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_entry_label_sets_user_id_entry_id_pk": {
+          "columns": [
+            "user_id",
+            "entry_id"
+          ],
+          "name": "matrix_note_entry_label_sets_user_id_entry_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_note_entry_label_sets_json": {
+          "name": "matrix_note_entry_label_sets_json",
+          "value": "json_valid(\"matrix_note_entry_label_sets\".\"labels_json\") AND json_type(\"matrix_note_entry_label_sets\".\"labels_json\") = 'array'"
+        }
+      }
+    },
+    "matrix_note_entry_labels": {
+      "name": "matrix_note_entry_labels",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_note_entry_label_lookup": {
+          "name": "matrix_note_entry_label_lookup",
+          "columns": [
+            "user_id",
+            "label",
+            "entry_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_note_entry_labels_user_id_entry_id_matrix_note_entries_user_id_id_fk": {
+          "name": "matrix_note_entry_labels_user_id_entry_id_matrix_note_entries_user_id_id_fk",
+          "tableFrom": "matrix_note_entry_labels",
+          "tableTo": "matrix_note_entries",
+          "columnsFrom": [
+            "user_id",
+            "entry_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "matrix_note_entry_labels_user_id_label_matrix_note_labels_user_id_name_fk": {
+          "name": "matrix_note_entry_labels_user_id_label_matrix_note_labels_user_id_name_fk",
+          "tableFrom": "matrix_note_entry_labels",
+          "tableTo": "matrix_note_labels",
+          "columnsFrom": [
+            "user_id",
+            "label"
+          ],
+          "columnsTo": [
+            "user_id",
+            "name"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_entry_labels_user_id_entry_id_pk": {
+          "columns": [
+            "user_id",
+            "entry_id"
+          ],
+          "name": "matrix_note_entry_labels_user_id_entry_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_note_label_archives": {
+      "name": "matrix_note_label_archives",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "matrix_note_label_archives_user_id_matrix_users_id_fk": {
+          "name": "matrix_note_label_archives_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_note_label_archives",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_label_archives_user_id_name_pk": {
+          "columns": [
+            "user_id",
+            "name"
+          ],
+          "name": "matrix_note_label_archives_user_id_name_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_note_label_archive_name": {
+          "name": "matrix_note_label_archive_name",
+          "value": "length(\"matrix_note_label_archives\".\"name\") BETWEEN 1 AND 32"
+        }
+      }
+    },
+    "matrix_note_labels": {
+      "name": "matrix_note_labels",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "matrix_note_labels_user_id_matrix_users_id_fk": {
+          "name": "matrix_note_labels_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_note_labels",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_note_labels_user_id_name_pk": {
+          "columns": [
+            "user_id",
+            "name"
+          ],
+          "name": "matrix_note_labels_user_id_name_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_note_label_name": {
+          "name": "matrix_note_label_name",
+          "value": "length(\"matrix_note_labels\".\"name\") BETWEEN 1 AND 32"
+        }
+      }
+    },
+    "matrix_observations": {
+      "name": "matrix_observations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "as_of": {
+          "name": "as_of",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "collected_at": {
+          "name": "collected_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "metrics_json": {
+          "name": "metrics_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_observation_article_time": {
+          "name": "matrix_observation_article_time",
+          "columns": [
+            "article_id",
+            "as_of"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_observations_article_id_matrix_articles_id_fk": {
+          "name": "matrix_observations_article_id_matrix_articles_id_fk",
+          "tableFrom": "matrix_observations",
+          "tableTo": "matrix_articles",
+          "columnsFrom": [
+            "article_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_observation_kind": {
+          "name": "matrix_observation_kind",
+          "value": "\"matrix_observations\".\"kind\" IN ('latest','d1','d3','d7')"
+        }
+      }
+    },
+    "matrix_sessions": {
+      "name": "matrix_sessions",
+      "columns": {
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_session_user": {
+          "name": "matrix_session_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_sessions_user_id_matrix_users_id_fk": {
+          "name": "matrix_sessions_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_sessions",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_todo_preferences": {
+      "name": "matrix_todo_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_mode": {
+          "name": "completed_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'strike'"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "matrix_todo_preferences_user_id_matrix_users_id_fk": {
+          "name": "matrix_todo_preferences_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_todo_preferences",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_todo_completed_mode": {
+          "name": "matrix_todo_completed_mode",
+          "value": "\"matrix_todo_preferences\".\"completed_mode\" IN ('strike','hide')"
+        },
+        "matrix_todo_preferences_version": {
+          "name": "matrix_todo_preferences_version",
+          "value": "\"matrix_todo_preferences\".\"version\" >= 1"
+        }
+      }
+    },
+    "matrix_todo_template_links": {
+      "name": "matrix_todo_template_links",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "todo_id": {
+          "name": "todo_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_with_todo": {
+          "name": "created_with_todo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "matrix_todo_template_link": {
+          "name": "matrix_todo_template_link",
+          "columns": [
+            "user_id",
+            "template_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_todo_template_links_user_id_todo_id_matrix_todos_user_id_id_fk": {
+          "name": "matrix_todo_template_links_user_id_todo_id_matrix_todos_user_id_id_fk",
+          "tableFrom": "matrix_todo_template_links",
+          "tableTo": "matrix_todos",
+          "columnsFrom": [
+            "user_id",
+            "todo_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "matrix_todo_template_links_user_id_template_id_matrix_todo_templates_user_id_id_fk": {
+          "name": "matrix_todo_template_links_user_id_template_id_matrix_todo_templates_user_id_id_fk",
+          "tableFrom": "matrix_todo_template_links",
+          "tableTo": "matrix_todo_templates",
+          "columnsFrom": [
+            "user_id",
+            "template_id"
+          ],
+          "columnsTo": [
+            "user_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_todo_template_links_user_id_todo_id_pk": {
+          "columns": [
+            "user_id",
+            "todo_id"
+          ],
+          "name": "matrix_todo_template_links_user_id_todo_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_todo_templates": {
+      "name": "matrix_todo_templates",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_todo_template_user": {
+          "name": "matrix_todo_template_user",
+          "columns": [
+            "user_id",
+            "deleted_at",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_todo_templates_user_id_matrix_users_id_fk": {
+          "name": "matrix_todo_templates_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_todo_templates",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_todo_templates_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_todo_templates_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_todo_template_text": {
+          "name": "matrix_todo_template_text",
+          "value": "length(\"matrix_todo_templates\".\"text\") BETWEEN 1 AND 500"
+        },
+        "matrix_todo_template_version": {
+          "name": "matrix_todo_template_version",
+          "value": "\"matrix_todo_templates\".\"version\" >= 1"
+        }
+      }
+    },
+    "matrix_todos": {
+      "name": "matrix_todos",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_todo_user_date": {
+          "name": "matrix_todo_user_date",
+          "columns": [
+            "user_id",
+            "date",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_todos_user_id_matrix_users_id_fk": {
+          "name": "matrix_todos_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_todos",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_todos_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_todos_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_todo_completed": {
+          "name": "matrix_todo_completed",
+          "value": "\"matrix_todos\".\"completed\" IN (0,1)"
+        },
+        "matrix_todo_text": {
+          "name": "matrix_todo_text",
+          "value": "length(\"matrix_todos\".\"text\") BETWEEN 1 AND 500"
+        },
+        "matrix_todo_version": {
+          "name": "matrix_todo_version",
+          "value": "\"matrix_todos\".\"version\" >= 1"
+        }
+      }
+    },
+    "matrix_unscheduled_todos": {
+      "name": "matrix_unscheduled_todos",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_unscheduled_todo_user_created": {
+          "name": "matrix_unscheduled_todo_user_created",
+          "columns": [
+            "user_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "matrix_unscheduled_todos_user_id_matrix_users_id_fk": {
+          "name": "matrix_unscheduled_todos_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_unscheduled_todos",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_unscheduled_todos_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_unscheduled_todos_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_unscheduled_todo_completed": {
+          "name": "matrix_unscheduled_todo_completed",
+          "value": "\"matrix_unscheduled_todos\".\"completed\" IN (0,1)"
+        },
+        "matrix_unscheduled_todo_text": {
+          "name": "matrix_unscheduled_todo_text",
+          "value": "length(\"matrix_unscheduled_todos\".\"text\") BETWEEN 1 AND 500"
+        },
+        "matrix_unscheduled_todo_version": {
+          "name": "matrix_unscheduled_todo_version",
+          "value": "\"matrix_unscheduled_todos\".\"version\" >= 1"
+        }
+      }
+    },
+    "matrix_users": {
+      "name": "matrix_users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_username": {
+          "name": "matrix_username",
+          "columns": [
+            "username"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "matrix_work_reminders": {
+      "name": "matrix_work_reminders",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_seq": {
+          "name": "change_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "matrix_work_reminder_source": {
+          "name": "matrix_work_reminder_source",
+          "columns": [
+            "user_id",
+            "date",
+            "source_key"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "matrix_work_reminders_user_id_matrix_users_id_fk": {
+          "name": "matrix_work_reminders_user_id_matrix_users_id_fk",
+          "tableFrom": "matrix_work_reminders",
+          "tableTo": "matrix_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "matrix_work_reminders_user_id_id_pk": {
+          "columns": [
+            "user_id",
+            "id"
+          ],
+          "name": "matrix_work_reminders_user_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "matrix_work_reminder_version": {
+          "name": "matrix_work_reminder_version",
+          "value": "\"matrix_work_reminders\".\"version\" >= 1"
+        },
+        "matrix_work_reminder_changes": {
+          "name": "matrix_work_reminder_changes",
+          "value": "\"matrix_work_reminders\".\"change_seq\" >= 1"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

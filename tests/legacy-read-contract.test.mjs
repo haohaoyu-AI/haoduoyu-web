@@ -2,6 +2,7 @@ import {traceJSON, traceDocument} from './request-trace-projection.mjs';
 import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -35,9 +36,13 @@ async function legacyWorker(t) {
   execFileSync(process.execPath, [join(directory, 'scripts/build.mjs')], {cwd: directory, maxBuffer: 1024 * 1024});
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
 }
-function project(path, json) {
+function project(path, json, rawText) {
   if (path === '/api/v1/backup') return legacyBackupEnvelope(json);
-  const value = path === '/openapi.json' ? dashboardSpec(traceDocument(articlePipelineSpec(json))) : legacyPublishedArticles(json);
+  // QuietSync is digest-pinned to on-disk / response bytes; never re-stringify first.
+  const openapi = path === '/openapi.json'
+    ? JSON.parse(projectQuietSync('public/openapi.json', rawText))
+    : json;
+  const value = path === '/openapi.json' ? dashboardSpec(traceDocument(articlePipelineSpec(openapi))) : legacyPublishedArticles(json);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);
@@ -135,11 +140,13 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
     '/api/v1/articles', '/api/v1/articles/' + article.data.id, '/api/v1/observations',
     '/api/v1/daily-metrics', '/api/v1/dashboard', '/api/v1/api-keys', '/api/v1/audit',
     '/api/v1/export', '/api/v1/overview', '/api/v1/backup'];
-  const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
+  const liveOpenapi = await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8');
+  const liveSpec = JSON.parse(liveOpenapi);
+  const spec = JSON.parse(projectQuietSync('public/openapi.json', liveOpenapi));
   // The separately pinned Phase4 projection validates the complete new PATCH
   // contract before removing it from this historical route inventory.
   const legacySpec=articlePipelineSpec(spec);
-  const upsert=spec.paths['/api/v1/articles'].patch;
+  const upsert=liveSpec.paths['/api/v1/articles'].patch;
   if(upsert) {
     assert.equal(upsert.operationId,'upsertArticlePipeline');
     assert.equal(upsert.requestBody.required,true);
@@ -150,7 +157,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
   }
   assert.deepEqual(paths.filter(path => path !== '/api/v1/backup').map(path => path.replace(article.data.id, '{id}')).sort(),
     Object.entries(legacySpec.paths).filter(([path, route]) => route.get && path !== '/api/v1/due-reviews').map(([path]) => path).sort());
-  assert.equal(spec.paths['/api/v1/due-reviews'].get.operationId,'listDueReviews');
+  assert.equal(liveSpec.paths['/api/v1/due-reviews'].get.operationId,'listDueReviews');
   // This new endpoint has separate scope/due regressions; the legacy set is unchanged.
   const rows = await syntheticRows(app.db);
   const newPassword = 'Synthetic-new-' + PASSWORD;
@@ -206,8 +213,12 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           headersForComparison.set('Cache-Control', 'no-store');
           headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
         }
+        const projectedText = path === '/openapi.json' ? projectQuietSync('public/openapi.json', text)
+          : path === '/api-docs' ? projectQuietSync('public/api-docs.html', text)
+          : text;
         responses.push({status: response.status, headers: dashboardHeaders(path, response.status, stylePolicyHeaders(headersForComparison)),
-          body: json ? project(path, traceJSON(JSON.parse(text), response.status, response.headers)) : path==='/api-docs'?articlePipelineDocs(text):text});
+          body: json ? project(path, traceJSON(JSON.parse(projectedText), response.status, response.headers), projectedText)
+            : path==='/api-docs'?articlePipelineDocs(projectedText):projectedText});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.
       if (path === '/api/v1/backup') assert.ok(isDeepStrictEqual(responses[1], responses[0]), kind + ' exact legacy backup equality after verified todo extension');

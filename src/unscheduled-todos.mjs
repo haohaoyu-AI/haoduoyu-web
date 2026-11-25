@@ -1,0 +1,184 @@
+import {bodyFor,fail,now} from './security.mjs';
+import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,requireBusinessCsrf as requireCsrf} from './business-access.mjs';
+import {consistentRead,mutate,storeFor} from './storage.mjs';
+import {beijingDay} from './lib/time.mjs';
+import {RECURRENCES,nextPeriod,periodFits,validPeriod} from '../shared/todo-period.mjs';
+
+const baseFields='id,text,completed,version,created_at,updated_at,deleted_at';
+async function selectedFields(store) {
+  const info=await store.all('PRAGMA table_info(matrix_unscheduled_todos)'),has=name=>info.some(column=>column.name===name);
+  return baseFields+(has('note')?',note':'')+(has('period')?',period':'')+(has('recurrence')?',recurrence':'')+(has('due_date')?',due_date':'');
+}
+// 截止日 (0027): a deadline; from three days before it the to-do is shown on 今日 until it is done.
+async function hasDue(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='due_date');
+}
+// 每周 / 每月 (0026): a repeating to-do makes its next one when it is done or given a day.
+async function hasRecurrence(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='recurrence');
+}
+// The period column (0025) may be missing on a database that has not been migrated yet; then periods are refused.
+async function hasPeriod(store) {
+  return (await store.all('PRAGMA table_info(matrix_unscheduled_todos)')).some(column=>column.name==='period');
+}
+function periodOf(value) {
+  if(value!==null&&!validPeriod(value))throw fail(400,'VALIDATION_ERROR','时间段需要是 YYYY-Www 或 YYYY-MM');
+  return value;
+}
+const json=(data,status=200)=>Response.json({data},{status});
+const item=row=>{const value={...row,completed:row.completed===1||row.completed===true};if(!value.note)delete value.note;if(!value.period)delete value.period;if(!value.recurrence)delete value.recurrence;if(!value.due_date)delete value.due_date;return value;};
+function idOf(value) {
+  if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
+    throw fail(400,'VALIDATION_ERROR','待办标识需要使用 UUID');
+  return value.toLowerCase();
+}
+function exact(input,names) {
+  const keys=Object.keys(input).sort(),expected=[...names].sort();
+  if(keys.length!==expected.length||keys.some((key,i)=>key!==expected[i])) throw fail(400,'VALIDATION_ERROR','请求字段不符合待办接口要求');
+}
+function versionOf(value) {
+  if(!Number.isSafeInteger(value)||value<1||value>=Number.MAX_SAFE_INTEGER)throw fail(400,'VALIDATION_ERROR','待办版本需要为正整数');
+  return value;
+}
+function dateOf(value) {
+  if(typeof value!=='string'||!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value))throw fail(400,'VALIDATION_ERROR','日期需要使用有效的 YYYY-MM-DD');
+  const parsed=new Date(value+'T00:00:00.000Z');
+  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==value)throw fail(400,'VALIDATION_ERROR','日期需要使用有效的 YYYY-MM-DD');
+  return value;
+}
+function inputFor(body,operation) {
+  if(operation==='create') {
+    exact(body,['id','text']);
+    if(typeof body.text!=='string'||!body.text.trim()||body.text.length>500||body.text.includes('\0'))
+      throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
+    return {id:idOf(body.id),text:body.text.trim()};
+  }
+  if(operation==='period') {
+    exact(body,['period','version',...['recurrence','due_date'].filter(key=>key in body)]);versionOf(body.version);periodOf(body.period);
+    if('due_date' in body&&body.due_date!==null)dateOf(body.due_date);
+    if('recurrence' in body&&body.recurrence!==null&&(!RECURRENCES.includes(body.recurrence)||!periodFits(body.period,body.recurrence)))
+      throw fail(400,'VALIDATION_ERROR','每周重复需要一周的时间段，每月重复需要一个月的时间段');
+    return body;
+  }
+  exact(body,operation==='completed'?['completed','version']:['move','complete-today'].includes(operation)?['date','version']:['version']);versionOf(body.version);
+  if(['move','complete-today'].includes(operation))dateOf(body.date);
+  if(operation==='completed'&&typeof body.completed!=='boolean')throw fail(400,'VALIDATION_ERROR','完成状态需要为布尔值');
+  return body;
+}
+async function find(store,userId,id) {
+  return store.get('SELECT '+await selectedFields(store)+' FROM matrix_unscheduled_todos WHERE user_id=? AND id=?',userId,id);
+}
+async function write(store,actor,operation,id,input) {
+  if(operation==='create') {
+    const current=await find(store,actor.id,input.id);
+    if(current) {
+      if(current.text!==input.text)throw fail(409,'IDEMPOTENCY_CONFLICT','同一待办标识已经用于不同内容');
+      if(current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
+      return {replayed:true,response:json(item(current))};
+    }
+    const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
+    store.queue('INSERT INTO matrix_unscheduled_todos(user_id,id,text,completed,version,created_at,updated_at) VALUES(?,?,?,0,1,?,?)',actor.id,input.id,input.text,stamp,stamp);
+    return {actor,response:json(value,201)};
+  }
+  const current=await find(store,actor.id,id);
+  if(!current)throw fail(404,'NOT_FOUND','待办不存在');
+  if(operation==='move'||operation==='complete-today') {
+    const complete=operation==='complete-today';
+    const target=await store.get('SELECT id,date,text,completed,version,created_at,updated_at,deleted_at FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
+    const link=target&&await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,id);
+    if(target && target.deleted_at!==null)throw fail(410,'TODO_DELETED','目标日期中的同一待办已删除，请核对当前状态');
+    if(target&&(target.date!==input.date||target.text!==current.text||link))
+      throw fail(409,'IDEMPOTENCY_CONFLICT','已有同一标识的不同待办，请核对当前状态');
+    if(current.deleted_at!==null) {
+      if(current.version===input.version+1 && target && (!complete || Boolean(current.completed)&&Boolean(target.completed)))return {replayed:true,response:json({todo:item(target),source:item(current)})};
+      throw fail(409,'VERSION_CONFLICT','未来待办已变更，请刷新后重试');
+    }
+    if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+    if(complete&&input.date!==beijingDay(Date.now()))throw fail(409,'TODO_DAY_CHANGED','北京时间日期已变化，请刷新后重新完成');
+    if(!complete&&target&&Boolean(target.completed)!==Boolean(current.completed))
+      throw fail(409,'IDEMPOTENCY_CONFLICT','已有待办的完成状态不同，原未来待办仍保留');
+    const stamp=now();
+    const completed=complete?true:Boolean(current.completed);
+    const todo=target?(complete&&!target.completed?{...target,completed:1,version:target.version+1,updated_at:stamp}:target):
+      {id,date:input.date,text:current.text,completed,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
+    if(!target)store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)',actor.id,id,input.date,current.text,Number(completed),stamp,stamp);
+    else if(complete&&!target.completed) {
+      store.queue('UPDATE matrix_todos SET completed=1,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',stamp,actor.id,id,target.version);
+      store.expectChange();
+    }
+    store.queue('UPDATE matrix_unscheduled_todos SET completed=?,deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',Number(completed),stamp,stamp,actor.id,id,input.version);
+    store.expectChange();
+    const result={todo:item(todo),source:item({...current,completed,deleted_at:stamp,version:current.version+1,updated_at:stamp})};
+    // A repeating to-do leaves its next one behind, in the same batch, for the next week or month.
+    if(current.recurrence&&RECURRENCES.includes(current.recurrence)) {
+      const next={id:crypto.randomUUID(),text:current.text,completed:false,version:1,created_at:stamp,updated_at:stamp,deleted_at:null,
+        period:nextPeriod(current.period,current.recurrence,beijingDay(Date.now())),recurrence:current.recurrence};
+      store.queue('INSERT INTO matrix_unscheduled_todos(user_id,id,text,completed,version,created_at,updated_at,period,recurrence) VALUES(?,?,?,0,1,?,?,?,?)',
+        actor.id,next.id,next.text,stamp,stamp,next.period,next.recurrence);
+      result.next=item(next);
+    }
+    return {actor,response:json(result)};
+  }
+  if(operation==='period') {
+    if(!await hasPeriod(store))throw fail(409,'PERIOD_UNAVAILABLE','数据库还没有时间段字段');
+    if(current.deleted_at!==null)throw fail(404,'NOT_FOUND','待办不存在');
+    const repeats=await hasRecurrence(store),dues=await hasDue(store);
+    if('recurrence' in input&&input.recurrence!==null&&!repeats)throw fail(409,'RECURRENCE_UNAVAILABLE','数据库还没有重复字段');
+    if('due_date' in input&&input.due_date!==null&&!dues)throw fail(409,'DUE_UNAVAILABLE','数据库还没有截止日字段');
+    const due=!dues?null:'due_date' in input?input.due_date:current.due_date??null;
+    // Without a recurrence in the request the old one stays, unless the new period no longer fits it.
+    const recurrence=!repeats?null:'recurrence' in input?input.recurrence:
+      current.recurrence&&periodFits(input.period,current.recurrence)?current.recurrence:null;
+    if(current.version===input.version+1&&(current.period??null)===input.period&&(current.recurrence??null)===recurrence&&
+      (current.due_date??null)===due)
+      return {replayed:true,response:json(item(current))};
+    if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+    const stamp=now();
+    if(repeats&&dues)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,due_date=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
+      input.period,recurrence,due,stamp,actor.id,id,input.version);
+    else if(repeats)store.queue('UPDATE matrix_unscheduled_todos SET period=?,recurrence=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',
+      input.period,recurrence,stamp,actor.id,id,input.version);
+    else store.queue('UPDATE matrix_unscheduled_todos SET period=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.period,stamp,actor.id,id,input.version);
+    store.expectChange();
+    return {actor,response:json(item({...current,period:input.period,recurrence,due_date:due,version:current.version+1,updated_at:stamp}))};
+  }
+  if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
+  const deleted=operation==='delete',restoring=operation==='restore';
+  if((deleted||restoring)&&(current.deleted_at!==null)===deleted&&(current.version===input.version||current.version===input.version+1))
+    return {replayed:true,response:json(item(current))};
+  if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+  const stamp=now(),value={...current,version:current.version+1,updated_at:stamp};
+  if(operation==='completed') {
+    value.completed=input.completed;
+    store.queue('UPDATE matrix_unscheduled_todos SET completed=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',Number(input.completed),stamp,actor.id,id,input.version);
+  } else {
+    value.deleted_at=deleted?stamp:null;
+    store.queue('UPDATE matrix_unscheduled_todos SET deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=?',value.deleted_at,stamp,actor.id,id,input.version);
+  }
+  store.expectChange();return {actor,response:json(item(value))};
+}
+export async function handleUnscheduledTodos(db,request,route,origin,initialRevision) {
+  const method=request.method;
+  if(new URL(request.url).search)throw fail(400,'VALIDATION_ERROR','未来待办接口不接受查询参数');
+  const single=/^\/unscheduled-todos\/([^/]+)$/.exec(route);
+  if(method==='GET'&&(route==='/unscheduled-todos'||single))return consistentRead(db,async store=>{
+    const actor=await authenticate(store,request);requireUser(actor);
+    if(single) {
+      const row=await find(store,actor.id,idOf(single[1]));
+      if(!row)throw fail(404,'NOT_FOUND','待办不存在');
+      return json(item(row));
+    }
+    const rows=await store.all('SELECT '+await selectedFields(store)+' FROM matrix_unscheduled_todos WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at,id',actor.id);
+    return json({items:rows.map(item)});
+  },initialRevision);
+  const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireUser(first);
+  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route),complete=/^\/unscheduled-todos\/([^/]+)\/complete-today$/.exec(route),period=/^\/unscheduled-todos\/([^/]+)\/period$/.exec(route);
+  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':method==='POST'&&complete?'complete-today':method==='PATCH'&&period?'period':null;
+  if(!operation)throw fail(404,'NOT_FOUND','接口不存在');
+  requireCsrf(request,first,origin);
+  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move||complete||period)[1]),input=inputFor(body,operation);
+  return (await mutate(db,async store=>{
+    const actor=await authenticate(store,request,'write');requireUser(actor);requireCsrf(request,actor,origin);
+    return write(store,actor,operation,id,input);
+  })).response;
+}

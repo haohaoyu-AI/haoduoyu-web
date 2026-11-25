@@ -1,0 +1,53 @@
+{
+  "baseline": "d8c0f272ca4576d23142b40a775c0b2252f4c180",
+  "scope": "Exact reviewed service-worker shell assets, generation builder, registration-only entrypoint, dedicated SW static response headers, generated bundle and matching asset pins. No API caching, business offline modules, data stores, schema, runtime binding, permission, release-policy or deployment configuration changes.",
+  "added_modules": [
+    "web/offline/sw-client.mjs"
+  ],
+  "files": {
+    ".ci/public-assets.json": {
+      "before": "190816d2b7a2ef89a0d67a6f65adc831bcacda2a4dceb9fdfc45d7f986bd3d27",
+      "after": "c5c2a68ad7386dfd6a5c8af270830e971319abc8f0b860a9dead4385d905dc84"
+    },
+    "public/app.js": {
+      "before": "344668731398961869bdc5ca3ddf744151d5f228ad006d8fde6968f6c3a91e1a",
+      "after": "6b3355c87ea23d95f16839f45bbabe226b900cae34295e9b200d64063d0c690f"
+    },
+    "public/index.html": {
+      "before": "fbdc4a29d6bb0bc9f1918bc2ed65fb1ec537ff6fe4c8a80465a333cebb2fe4b4",
+      "after": "96e77a51da2fa9dabebc1cc6d43687bc5f659f737722e4a4cb52135d054b6592"
+    },
+    "public/manifest.webmanifest": {
+      "before": null,
+      "after": "b13e69559fb1b5a5d54a14bfc3fb59427b96c15860219ca2cd97f907d5d4d281"
+    },
+    "public/sw-update.css": {
+      "before": null,
+      "after": "8a9500d0a0b8cdb2543704b28e1dba99b029afb0af3725434b3448bd3239cd23"
+    },
+    "public/sw.js": {
+      "before": null,
+      "after": "e57a9c1f366e65775772bd4d8f67bef12c7261e60ec8f60b54d01abae17e3204"
+    },
+    "scripts/build.mjs": {
+      "before": "6cb044a07b9f0ea6887c35ebc20468106f83d7061784668d3bc6d47b4ce92ea5",
+      "after": "e13599c809e251388facaaa3a67abc1b498528327fe3041e2fbb109086eb7b6b"
+    },
+    "scripts/service-worker-build.mjs": {
+      "before": null,
+      "after": "0c1c98fa8be42a2b59d243b4b900549f64326c4075460bc1b69ccd7013747442"
+    },
+    "src/worker.mjs": {
+      "before": "fba54e9de893a4e6a88b4f4c73ea18ea33d35cd07ead19505fe3c38711f6eba7",
+      "after": "2dc7aa5cf8464241978a533e0b81b3c3708dc6df2606a4a102421d028a4120a2"
+    },
+    "web/main.mjs": {
+      "before": "9306aa76837be521a8a70a7c0027fbea12742b8262516d90b5602fb420518644",
+      "after": "db5cf1e4ede23a4a885b22ba493fd7d056936234a26220daa1b2d9f9a8e0fc8a"
+    },
+    "web/offline/sw-client.mjs": {
+      "before": null,
+      "after": "0c45f8a56781b2a90ca01fca394975d0d1c2f9dde7a41fc4ba3e4ea9a110ac7f"
+    }
+  }
+}

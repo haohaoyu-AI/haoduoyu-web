@@ -75,10 +75,10 @@ export async function readSnapshotData(store,{ownerId,accountIds,notesOwnerId},b
     }
   }
   const windowStart=date===null?null:shiftDay(date,-29);
-  const todos=await all('SELECT id,date,text,completed,version,created_at,updated_at FROM matrix_todos WHERE user_id=? AND deleted_at IS NULL'+
+  const todos=await all('SELECT id,date,text,completed,version,created_at,updated_at,note FROM matrix_todos WHERE user_id=? AND deleted_at IS NULL'+
     (date===null?'':' AND date>=? AND date<=?'),date===null?[ownerId]:[ownerId,windowStart,date]);
-  const templates=await all('SELECT id,text,version,created_at,updated_at FROM matrix_todo_templates WHERE user_id=? AND deleted_at IS NULL',[ownerId]);
-  const links=await all('SELECT l.todo_id,l.template_id FROM matrix_todo_template_links l JOIN matrix_todos d ON d.user_id=l.user_id AND d.id=l.todo_id JOIN matrix_todo_templates t ON t.user_id=l.user_id AND t.id=l.template_id WHERE l.user_id=? AND d.deleted_at IS NULL AND t.deleted_at IS NULL'+
+  const templates=await all('SELECT id,text,version,created_at,updated_at FROM matrix_todo_templates WHERE user_id=? AND deleted_at IS NULL AND archived_at IS NULL',[ownerId]);
+  const links=await all('SELECT l.todo_id,l.template_id FROM matrix_todo_template_links l JOIN matrix_todos d ON d.user_id=l.user_id AND d.id=l.todo_id JOIN matrix_todo_templates t ON t.user_id=l.user_id AND t.id=l.template_id WHERE l.user_id=? AND d.deleted_at IS NULL AND t.deleted_at IS NULL AND t.archived_at IS NULL'+
     (date===null?'':' AND d.date>=? AND d.date<=?'),date===null?[ownerId]:[ownerId,windowStart,date],'l.todo_id');
   const notes=await all('SELECT date,text,version,created_at,updated_at FROM matrix_daily_notes WHERE user_id=? AND deleted_at IS NULL'+
     (date===null?'':' AND date=?'),date===null?[notesOwnerId]:[notesOwnerId,date],'date');
@@ -112,7 +112,8 @@ function groupData(data,loadedDate,budget,includeWork) {
     if(row.completed!==0&&row.completed!==1)dataError();
     const templateId=links.get(row.id),template=templateById.get(templateId);
     if(templateId!==undefined&&!template)dataError();
-    bucket(row.date).todos.push({...row,...(template?{template_id:template.id,template_version:template.version,template_active:true}:{})});
+    const value={...row}; if(!value.note)delete value.note;
+    bucket(row.date).todos.push({...value,...(template?{template_id:template.id,template_version:template.version,template_active:true}:{})});
     if(template&&row.completed===1) {
       if(!completionSets.has(template.id))completionSets.set(template.id,new Set());
       completionSets.get(template.id).add(row.date);

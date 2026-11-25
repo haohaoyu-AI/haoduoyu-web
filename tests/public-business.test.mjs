@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
-import {limitPublicBusiness,publicBusinessRoute} from '../src/public-business.mjs';
+import {limitPublicBusiness,publicBusinessRoute,PUBLIC_DAILY_LIMIT,PUBLIC_MINUTE_LIMIT,PUBLIC_MINUTE_WRITES} from '../src/public-business.mjs';
 import {cloudflareConfig} from '../scripts/cloudflare-config.mjs';
 
 async function publicApp(t) {
@@ -25,6 +25,19 @@ async function publicApp(t) {
 }
 const article=()=>({account_id:'toutiao-haoduoyu',title:'合成公开文章',url:'https://example.invalid/'+randomUUID(),
   published_at:'2026-10-23T00:00:00.000Z',notes:'合成业务备注'});
+
+test('public account creation accepts a padded Toutiao homepage and safely reuses its identity',async t=>{
+  const app=await publicApp(t),read=app.publicRequest;
+  const base='https://www.toutiao.com/c/user/token/SYNTHETIC_public-123';
+  const created=await read('/accounts',{method:'POST',body:{name:'合成公开账号',profile_url:base+'=/'}});
+  assert.equal(created.status,201,created.text);
+  const duplicate=await read('/accounts',{method:'POST',body:{name:'不重复创建',profile_url:base+'%3d/'}});
+  assert.equal(duplicate.status,200,duplicate.text);
+  assert.equal(duplicate.data.id,created.data.id);assert.equal(duplicate.data.profile_reused,true);
+  assert.equal((await read('/accounts')).data.filter(item=>item.id===created.data.id).length,1);
+  assert.equal((await read('/accounts',{method:'POST',headers:{Origin:'https://foreign.invalid'},
+    body:{name:'拒绝跨站',profile_url:base+'=/'}})).status,403);
+});
 
 test('public mode is explicit, owner-bound, credential-free and reversible',async t=>{
   const app=await publicApp(t),read=app.publicRequest;
@@ -60,12 +73,34 @@ test('anonymous todo CRUD, templates and preferences use only the selected owner
   assert.equal((await read('/todo-preferences',{method:'PATCH',body:{completed_mode:'hide',version:0}})).status,200);
   const result=await read('/todos?date='+date);
   assert.equal(result.data.completed_mode,'hide');assert.equal(result.data.items.length,1);
+  assert.equal((await read('/todos/'+id+'/note',{method:'PATCH',body:{note:'未完成原因',version:result.data.items[0].version}})).status,200);
+  assert.equal((await read('/todos?date='+date)).data.items[0].note,'未完成原因');
   assert.ok(!result.text.includes(other));assert.ok(!result.text.includes('OTHER-USER-PRIVATE-CANARY'));
   assert.equal((await app.db.prepare('SELECT text FROM matrix_todos WHERE user_id=? AND id=?').bind(other,id).first()).text,
     'OTHER-USER-PRIVATE-CANARY');
   assert.equal((await read('/todos?date='+date,{settings:{...app.env,PUBLIC_BUSINESS_MODE:'0'}})).status,401);
   const restored=await app.request('/api/v1/todos?date='+date,{session:app.session});
   assert.equal(restored.status,200);assert.equal(restored.data.items[0].text,'公开待办');
+});
+
+test('public template archive and restore retain owner isolation and write protections',async t=>{
+  const app=await publicApp(t),read=app.publicRequest,id=randomUUID(),other=randomUUID(),otherTemplate=randomUUID();
+  await app.db.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) SELECT ?,?,password_hash,created_at FROM matrix_users LIMIT 1')
+    .bind(other,'synthetic-other-'+other).run();
+  await app.db.prepare('INSERT INTO matrix_todo_templates(user_id,id,text,version,created_at,updated_at) VALUES(?,?,?,1,?,?)')
+    .bind(other,otherTemplate,'private template','2026-10-24','2026-10-24').run();
+  assert.equal((await read('/todo-templates/'+otherTemplate+'/archive',{method:'POST',body:{version:1}})).status,404);
+  assert.equal((await app.db.prepare('SELECT archived_at FROM matrix_todo_templates WHERE user_id=? AND id=?').bind(other,otherTemplate).first()).archived_at,null);
+  assert.equal((await read('/todo-templates',{method:'POST',body:{id,text:'Archive test'}})).status,201);
+  for(const headers of [{Origin:'https://foreign.invalid'},{'X-Public-Business':null}])
+    assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',headers,body:{version:1}})).status,403);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:1}})).status,200);
+  assert.equal((await read('/todo-templates')).data.items.some(row=>row.id===id),false);
+  assert.equal((await read('/todo-templates?archived=1')).data.items.some(row=>row.id===id),true);
+  assert.equal((await read('/todo-templates/'+id+'/restore',{method:'POST',body:{version:2}})).status,200);
+  assert.equal((await read('/todo-templates')).data.items.some(row=>row.id===id),true);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:1}})).status,409);
+  assert.equal((await read('/todo-templates/'+id+'/archive',{method:'POST',body:{version:3},settings:{...app.env,PUBLIC_BUSINESS_MODE:'0'}})).status,401);
 });
 
 test('public business edits are account-scoped, new public accounts stay visible, and attribution is redacted',async t=>{
@@ -137,24 +172,26 @@ test('anonymous writes preserve origin/header checks, bounded bodies, validation
 
 test('public per-isolate request, write and daily limits are bounded',()=>{
   const key=randomUUID(),time=Date.parse('2026-10-24T01:00:00Z');
-  for(let i=0;i<20;i++)limitPublicBusiness(key,true,time);
+  for(let i=0;i<PUBLIC_MINUTE_WRITES;i++)limitPublicBusiness(key,true,time);
   assert.throws(()=>limitPublicBusiness(key,true,time),error=>error.status===429);
   limitPublicBusiness(key,true,time+60000);
-  const reads=randomUUID();for(let i=0;i<60;i++)limitPublicBusiness(reads,false,time);
+  const reads=randomUUID();for(let i=0;i<PUBLIC_MINUTE_LIMIT;i++)limitPublicBusiness(reads,false,time);
   assert.throws(()=>limitPublicBusiness(reads,false,time),error=>error.status===429);
-  const daily=randomUUID();for(let i=0;i<1000;i++)limitPublicBusiness(daily,false,time+Math.floor(i/60)*60000);
-  assert.throws(()=>limitPublicBusiness(daily,false,time+20*60000),error=>error.status===429);
+  const perMinute=PUBLIC_MINUTE_LIMIT-1,minutes=Math.ceil(PUBLIC_DAILY_LIMIT/perMinute);
+  const daily=randomUUID();for(let i=0;i<PUBLIC_DAILY_LIMIT;i++)limitPublicBusiness(daily,false,time+Math.floor(i/perMinute)*60000);
+  assert.throws(()=>limitPublicBusiness(daily,false,time+minutes*60000),error=>error.status===429);
+  assert.ok(PUBLIC_MINUTE_LIMIT>=200&&PUBLIC_DAILY_LIMIT>=10000,'a page load with offline sync stays far below the limits');
   limitPublicBusiness(daily,false,time+86400000);
 });
 
 test('varying spoofed peer headers cannot bypass the anonymous write limiter',async t=>{
   const app=await publicApp(t);
-  // All 21 attempts must share one fixed minute; wall-clock rollover resets this limiter by design.
+  // All attempts share one fixed minute; wall-clock rollover resets this limiter by design.
   t.mock.timers.enable({apis:['Date'],now:Date.now()});
-  for(let i=0;i<21;i++) {
+  for(let i=0;i<=PUBLIC_MINUTE_WRITES;i++) {
     const result=await app.publicRequest('/todos',{method:'POST',body:{id:randomUUID(),date:'2026-10-24',text:''},
       headers:{'CF-Connecting-IP':'192.0.2.'+(i+1),'X-Forwarded-For':'198.51.100.'+(i+1)}});
-    assert.equal(result.status,i<20?400:429);
+    assert.equal(result.status,i<PUBLIC_MINUTE_WRITES?400:429);
   }
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_todos').first()).n,0);
 });

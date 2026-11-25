@@ -1,2 +1,10 @@
+# Allow Claude's user-requested reads and search of public static pages.
+# API routes remain excluded. This file does not grant authentication or writes.
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+Disallow: /api/
+Allow: /
+
+# Preserve the existing policy for other crawlers, including training bots.
 User-agent: *
 Disallow: /

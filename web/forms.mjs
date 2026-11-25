@@ -1,71 +1,24 @@
+import {submitUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { init, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
-import { metrics } from "./core/constants.mjs";
 import { $, e, icon } from "./core/dom.mjs";
-import { iso } from "./core/format.mjs";
 import { runtime, state } from "./core/state.mjs";
-import { storage } from "./core/storage.mjs";
 import { renderLogin } from "./pages/login.mjs";
-import { articleFormCurrent, saveArticleForm } from "./pages/article-form.mjs";
 import { submitTodo } from "./pages/todos.mjs";
+import { submitTodoCount, submitTodoNote, submitTodoText } from "./pages/todo-actions.mjs";
+import { submitIdeaTodo } from "./pages/ideas.mjs";
 import { submitTodoTemplateEdit, submitTodoTemplateForm } from "./pages/todo-templates.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
 import { toast } from "./ui/toast.mjs";
-async function submitSaveViewForm({ data }) {
-  const saved = { id: crypto.randomUUID(), name: data.name.trim(), version: 2, filters: { ...state.filters }, columns: [...state.columns] };
-  if (!saved.name) throw new Error("请填写视图名称。");
-  state.savedViews = state.savedViews.filter((v) => v.name !== saved.name).concat(saved).slice(-20);
-  storage.set("haoduoyu.views", JSON.stringify(state.savedViews));
-  closeModal();
-  toast("常用视图已保存在此浏览器。");
-  await renderPage();
-  return;
-}
 async function submitLoginForm({ data }) {
   await api("/auth/login", { method: "POST", body: { username: data.username, password: data.password } });
   await init({ freshLogin: true });
-  return;
-}
-async function submitArticleForm({ form, data }) {
-  const saved = await saveArticleForm({ form, data });
-  if (!saved) return;
-  closeModal();
-  const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
-  toast(form.dataset.id ? "文章已更新。" : "文章已保存。");
-  try { await renderPage(); } catch {
-    if (epoch === runtime.sessionEpoch && ticket === runtime.modalRequestVersion) {
-      toast("文章已保存，但列表暂时无法刷新，请稍后刷新页面。", true);
-    }
-  }
-  return;
-}
-async function submitReviewForm({ form, data }) {
-  const m = {};
-  for (const key of Object.keys(metrics)) {
-    const value = data[`metric_${key}`];
-    if (value !== "" && value != null) m[key] = Number(value);
-  }
-  if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
-  let body, path;
-  if (form.dataset.type === "daily") {
-    path = "/daily-metrics";
-    body = { account_id: data.account_id, article_id: data.article_id || null, date: data.date, metrics: m, source: data.source.trim() };
-  } else {
-    path = "/observations";
-    body = { article_id: data.article_id, kind: data.kind, as_of: iso(data.as_of), collected_at: iso(data.collected_at), metrics: m, source: data.
-    source.trim(), note: data.note };
-  }
-  await api(path, { method: "POST", body });
-  closeModal();
-  toast("数据已保存，总览会同步更新。");
-  await renderPage();
-  return;
 }
 async function submitAccountForm({ form, data, values }) {
   const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
   const profile = String(data.profile_url || "").trim();
-  const body = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  const body = id ? { name: data.name.trim(), active: values.has("active") } : {};
   if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body.profile_url = profile;
   const signature = JSON.stringify(body);
   if (form.accountSaveSignature !== signature) {
@@ -82,7 +35,8 @@ async function submitAccountForm({ form, data, values }) {
   state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
   "wechat", "other"].indexOf(b.platform));
   closeModal();
-  toast(saved.profile_reused ? `该主页已关联「${saved.name}」，已使用现有账号。` : "运营账号已保存。");
+  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。访问状态未自动验证。`);
+  else toast("账号已保存。请打开主页自行核验；访问状态未自动验证。");
   renderShell();
   return;
 }
@@ -114,21 +68,26 @@ async function submitPasswordForm({ form, data }) {
   return;
 }
 const forms = {
-  "save-view-form": submitSaveViewForm,
   "login-form": submitLoginForm,
-  "article-form": submitArticleForm,
-  "review-form": submitReviewForm,
-  "account-form": submitAccountForm,
   "key-form": submitKeyForm,
   "revoke-form": submitRevokeForm,
   "password-form": submitPasswordForm
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (form.id === 'idea-todo-form') { event.preventDefault(); await submitIdeaTodo({form,data:Object.fromEntries(new FormData(form))}); return; }
+  if (form.id === 'todo-text-form') { event.preventDefault(); await submitTodoText({form,data:Object.fromEntries(new FormData(form))}); return; }
+  if (form.id === 'todo-count-form') { event.preventDefault(); await submitTodoCount({form,data:Object.fromEntries(new FormData(form))}); return; }
+  if (form.id === 'todo-note-form') { event.preventDefault(); await submitTodoNote({form,data:Object.fromEntries(new FormData(form))}); return; }
   if (["todo-template-form", "todo-template-edit-form"].includes(form.id)) {
     event.preventDefault();
     const handler = form.id === "todo-template-form" ? submitTodoTemplateForm : submitTodoTemplateEdit;
     await handler({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
+  if (form.id === "todo-future-form") {
+    event.preventDefault();
+    await submitUnscheduledTodo({data: Object.fromEntries(new FormData(form))});
     return;
   }
   if (form.id === "todo-form") {
@@ -136,10 +95,8 @@ async function handleFormSubmit(event) {
     await submitTodo({ form, data: Object.fromEntries(new FormData(form)) });
     return;
   }
-  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,\
-#save-view-form")) return;
+  if (!form.matches("#login-form,#key-form,#password-form,#revoke-form")) return;
   event.preventDefault();
-  if (form.id === "article-filters") return;
   const button = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(
   values);
   if (button?.disabled) return;
@@ -150,9 +107,7 @@ async function handleFormSubmit(event) {
     if (handler) await handler({ form, data, values });
   } catch (err) {
     if (err.staleSession || isRequestAbort(err)) return;
-    if (form.id === "article-form" && !articleFormCurrent(form)) return;
-    if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" :
-    err.message;
+    if (message && message.isConnected) message.textContent = err.message;
     else toast(err.message, true);
   } finally {
     if (button?.isConnected) button.disabled = false;

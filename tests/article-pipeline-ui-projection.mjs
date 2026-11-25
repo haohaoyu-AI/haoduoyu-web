@@ -1,7 +1,10 @@
 import {reconciliationModules,projectReconciliation} from './reconciliation-ui-projection.mjs';
+import {projectUnifyStage1} from './unify-stage1-projection.mjs';
+import {projectUnifySwModules} from './unify-sw-projection.mjs';
 import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {round5AddedModules,projectWorkbenchRound5} from './workbench-round5-projection.mjs';
+import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -100,10 +103,14 @@ export async function phase7ModuleFiles() {
 }
 export async function verifyPhase7FrontendBoundary() {
   const delta=await phase7Manifest(),all=await phase7ModuleFiles();
+  // Live/site-five modules added after the QuietSync baseline cannot invert to Phase7.
+  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],
+    {cwd:root,encoding:'utf8'}).trim().split('\n').filter(file=>file.endsWith('.mjs')));
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const files=all.filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
+  const files=projectUnifySwModules(all.filter(file=>quietKnown.has(file)))
+    .filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
   assert.deepEqual(files,[...delta.modules,...memoAddedModules,...workbenchAddedModules].sort(),'the complete article and memo module inventory is explicit');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -111,7 +118,8 @@ export async function verifyPhase7FrontendBoundary() {
     else if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
     else assert.equal(await projectMemoFrontend(file,source),phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
   }
-  const css=await readFile(new URL('../public/style.css',import.meta.url),'utf8'),base=phase7Baseline('public/style.css');
+  const css=projectUnifyStage1('public/style.css',await readFile(new URL('../public/style.css',import.meta.url),'utf8')),
+    base=phase7Baseline('public/style.css');
   assert.equal(css.slice(0,base.length),base,'the complete accepted CSS prefix remains byte-identical');
   // These shared branches are protected even inside approved changed functions.
   for(const file of ['web/ui/components.mjs','web/core/router.mjs']) {

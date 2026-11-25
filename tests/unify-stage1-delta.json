@@ -1,0 +1,38 @@
+{
+  "baseline": "6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c",
+  "scope": "Exact equivalent CSS constant extraction, first stylesheet link, static asset embedding and corresponding public asset pins only; no JavaScript, Worker source, business, schema or release policy changes.",
+  "files": {
+    ".ci/public-assets.json": {
+      "before": "130af4950d2251ae8b09ee31ef46503176d56d5b2854638789c0609ef7f74d54",
+      "after": "5141203a3612d963410d921be44be46dd0137c006af36a6b4fe575e9b327c1ec"
+    },
+    "public/glass.css": {
+      "before": "976d0436e1f060ed5366390b7c42e0b6fb2b398921061ab6d043b3eeacdac3a5",
+      "after": "a7ad93ee19f0d2584e953aacb3a10927a468c1a02ca6e54e2b2d1b1150223433"
+    },
+    "public/index.html": {
+      "before": "d2e1d659255b10c6cbcf953572679ab37361963954fa41ed4b3eff9bcbe24f4c",
+      "after": "8300ff15de68d88b878c7d387ad80957bc71c380f44cced2328940c7f4c8a7ba"
+    },
+    "public/memos.css": {
+      "before": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+      "after": "12492f7080e3137c3d5d5f3515375084f67948c0805941938334cbf4faea333b"
+    },
+    "public/style.css": {
+      "before": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+      "after": "91f4a95bb5437f1c1a09526255da9b34b6811c5736c03bf709e7a385bf6df881"
+    },
+    "public/tokens.css": {
+      "before": null,
+      "after": "e1dea7fcc42d7d6d842f74c447d03c5e99197b55bc746daf29a24a93bb652c78"
+    },
+    "public/workbench.css": {
+      "before": "d7811be8249bad255f111d3a8f4726ef714124e204dfcd34e38500ea58604fd9",
+      "after": "73a6207dda1e1c158d5e39567d7dea669c8897ba6fe7228bce136499fd56d6f0"
+    },
+    "scripts/build.mjs": {
+      "before": "8a0aa5eaa39255e55ded082d0805993fa79ce2e8c0fec0b97513c0b51ce37dd8",
+      "after": "57d09aab1631708ba24ed1da89f95f4f4692d635042a52276f7d15e8e11b1e39"
+    }
+  }
+}

@@ -20,6 +20,8 @@ globalThis.Date=class extends NativeDate {
   static now(){return clock;}
 };
 const app=await fixture({after:fn=>cleanups.push(fn)},{persist:false,origin});
+const syntheticOwner=(await app.db.prepare('SELECT id FROM matrix_users WHERE username=?').bind('synthetic-admin').first())?.id ||
+  (await app.db.prepare('SELECT id FROM matrix_users LIMIT 1').first()).id;
 const accounts=(await app.db.prepare('SELECT id,platform FROM matrix_accounts ORDER BY id').all()).results;
 for(const account of accounts)await app.db.prepare('UPDATE matrix_accounts SET name=? WHERE id=?')
   .bind('合成测试 '+account.platform,account.id).run();
@@ -87,7 +89,7 @@ const server=createServer(async(incoming,outgoing)=>{
     receipts.push(row);
     const request=new Request(new URL(incoming.url,origin),{method:incoming.method,headers:incoming.headers,
       ...(body.length?{body}:{})});
-    const response=await worker.fetch(request,{DB:app.db,SITE_ORIGIN:origin});
+    const response=await worker.fetch(request,{DB:app.db,SITE_ORIGIN:origin,PUBLIC_BUSINESS_USER_ID:syntheticOwner,DAILY_NOTES_OWNER_ID:syntheticOwner,MEMOS_OWNER_ID:syntheticOwner});
     row.status=response.status;
     outgoing.writeHead(response.status,Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
