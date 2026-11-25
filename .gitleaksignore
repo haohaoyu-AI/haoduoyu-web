@@ -370,3 +370,26 @@ f8420b3787f083109986685a64cd9edd4c29278c:tests/todo-parse.test.mjs:generic-api-k
 
 # Public SHA-256 of public/openapi.json on claude/review-batch2, independently recomputed.
 9619425c364ad12f0df9eaec66ffbd7778a6ca11:.ci/public-assets.json:generic-api-key:10
+# PR #187 merges eef7af7/001a03a re-introduced reviewed public SHA256 asset/source pins and the synthetic test key; not credentials (2026-11-25).
+001a03a52d2040755919da92b7e5cc0a39f23a73:.ci/public-assets.json:generic-api-key:10
+001a03a52d2040755919da92b7e5cc0a39f23a73:.ci/public-assets.json:generic-api-key:16
+001a03a52d2040755919da92b7e5cc0a39f23a73:.ci/public-assets.json:generic-api-key:5
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/body-summary.test.mjs:generic-api-key:20
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:16
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:33
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:41
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:45
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:59
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/oct28-small-fix-projection.mjs:generic-api-key:69
+001a03a52d2040755919da92b7e5cc0a39f23a73:tests/todo-parse.test.mjs:generic-api-key:24
+eef7af7823ca9af8b09c8290308dfe1576116d68:.ci/public-assets.json:generic-api-key:10
+eef7af7823ca9af8b09c8290308dfe1576116d68:.ci/public-assets.json:generic-api-key:16
+eef7af7823ca9af8b09c8290308dfe1576116d68:.ci/public-assets.json:generic-api-key:5
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/body-summary.test.mjs:generic-api-key:20
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:16
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:33
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:41
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:45
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:59
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:69
+eef7af7823ca9af8b09c8290308dfe1576116d68:tests/todo-parse.test.mjs:generic-api-key:24
