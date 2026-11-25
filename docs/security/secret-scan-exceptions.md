@@ -217,3 +217,5 @@ PR 122 的 secret-scan（run 44223498164）在全历史扫描中报告 3 条 gen
 - `8ebc589f0e5d9f990aed0003d4b90538e2602dea` `tests/body-summary.test.mjs:20`
 
 只追加这 3 条不可变历史指纹。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/44223498164>。
+
+2026-11-25 PR #187 的两个合并提交 eef7af7a 与 001a03a5（按 -m 逐父扫描）重新报告 22 条 generic-api-key，main CI 自此在密钥扫描失败，并拦下当晚的生产发布。逐条核对：`.ci/public-assets.json` 第 5/10/16 行是公开资源内容 SHA256（api-docs.html、openapi.json 已从 001a03a 的 public 文件独立重算一致；tokens.css 为该资源 pin 的历史摘要）；`tests/oct28-small-fix-projection.mjs` 第 16/33/41/45/59/69 行是历史文件内容 SHA256；`tests/body-summary.test.mjs:20` 与 `tests/todo-parse.test.mjs:24` 是合成测试值 `sk-synthetic-key-…`。均非凭据。经站长明确同意，仅追加这两个合并提交/文件/规则/行的 22 条精确指纹，没有规则、目录或未来提交豁免；原始脱敏扫描保留。
