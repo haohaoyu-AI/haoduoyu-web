@@ -684,8 +684,8 @@ export const weeklyExtraRelease=Object.freeze({
   label:'production-weekly-extra'});
 // Idea pool signed-out view only; tagged ideas, no edits or migrations.
 export const ideasPublicReadRelease=Object.freeze({
-  commit:'362828fb9e91328958e6f63bf8bea9576c238590',
-  tree:'5ec4431456e289ffd52ea694ed8cc288e67eb416',
+  commit:'45b768e7df52c15d1ae50b841bfe3e4b195f1b28',
+  tree:'32ff41e1183aba623c3498a9db936f2efb20e642',
   baseline:'8edf683c-0967-436a-86d6-141eee2c3679',
   bytes:3318668,sha256:'5a3219fccea3e7c6e35bc028bc5e52765c94813a9003067970a887ae884fde83',
   label:'production-ideas-public-read'});
