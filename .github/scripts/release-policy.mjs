@@ -696,7 +696,15 @@ export const reviewBenchmarkPresentationRelease=Object.freeze({
   baseline:'b05cae67-4097-4218-a7d9-e127f9caf30e',
   bytes:3322524,sha256:'239056075307ce0e57e6578ccc49fc9fc5f1dc8c5adde71611837110ddf33095',
   label:'production-review-benchmark-presentation'});
-const acceptedRelease=commit=>commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
+// Public account scope read incrementally from audit; stops D1 read-quota exhaustion. No data or schema changes.
+export const publicAuditReadQuotaRelease=Object.freeze({
+  commit:'a35a38258150897448bdbb471ab1c4a450b30fd3',
+  tree:'d19adfc63d9a9263577e2eb5233c53e99ca0dd18',
+  baseline:'66823137-a718-4035-bfbb-2dc0c8a03631',
+  bytes:3323802,sha256:'fbb561e8a5cf8882d7c02e4f986f52e6cda6a99ef5cf24a6ece5c3dc9c7e6e32',
+  label:'production-public-audit-read-quota'});
+const acceptedRelease=commit=>commit===publicAuditReadQuotaRelease.commit?publicAuditReadQuotaRelease:
+  commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
   commit===ideasPublicReadRelease.commit?ideasPublicReadRelease:
   commit===weeklyExtraRelease.commit?weeklyExtraRelease:
   commit===weeklyCountRelease.commit?weeklyCountRelease:
