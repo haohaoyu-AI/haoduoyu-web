@@ -311,8 +311,62 @@ a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:ge
 a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:43
 a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:57
 a83d8420633ed42a609480caa133cede8a1c6784:tests/oct28-small-fix-projection.mjs:generic-api-key:67
-
-# Synthetic OpenAI fixture string sk-synthetic-key-… in test env objects. Not a credential.
-3c8f550809843d2dc50026d292b1f141fa308b83:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the weekly-summary test fixture (no real credential).
 c776a8816861605f9d43bdc91fbc0a79cbec67b6:tests/body-summary.test.mjs:generic-api-key:20
 8ebc589f0e5d9f990aed0003d4b90538e2602dea:tests/body-summary.test.mjs:generic-api-key:20
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+3c8f550809843d2dc50026d292b1f141fa308b83:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+797289c9981d8f2a2d6e1c21c5880c26969851f2:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+b478432def7d3188c5dd5c4560c076144d96f026:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+cf4a79871aee70f0aa4217c58d39db30cd9cfb94:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+9e7e48c9852f3455f29bf6cb755ae18debf69c2a:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+154bd73596ab4eeb238880bc7012a01dddc4c8c3:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+805e14b8037a2e221ba2823f395689d78f21a399:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+700e45863c78400d77fec3f628807f245b3623f7:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+e8f182992d1f91cf42a91985572b30f12dbb554a:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+4f8e73d4b630c9190889bb55264b248dc8a9d592:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+f8c2e2f4c670496513b842454e1487fb5f38822c:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+951f4f98b193a537de060e392eb4388671d79da0:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+5a3085ccee7a0d1b56c98420dfbd486bd2d50839:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+c900549313ba36f009a57cd60d4b7c55f579ed66:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+5de12fdd815428f5eb71831bd98889affead05d0:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+aba444bea818f398c6f35099a4c356215867c3b6:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+84fe7c66b1b0977d8761851559c7c60fbcec6b1a:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+fad9f98ae1ab95087d47fced89fda2b22865192b:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+a6c257cae5726f479d48a8f168d877ca801ee124:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+b0afcfa9efbb11952d42308aec83ececd4c19620:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+0ab490e73942f84523b03287377ea4f0edc8e859:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+0630f4302603b574577563d8ecad2b81391b63a0:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+80a0b72315b3169e4a1f10ee16316dc4f2a0f9be:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+f8420b3787f083109986685a64cd9edd4c29278c:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the to-do sentence test fixture (no real credential).
+6e13a0a1587f87bd32c3cd0f791ee203f7c105f9:tests/todo-parse.test.mjs:generic-api-key:24
+
+# Public SHA-256 of public/openapi.json on claude/review-batch1, independently recomputed.
+770fe76f6c050547479a4f5bff739e3fc991a974:.ci/public-assets.json:generic-api-key:10
+
+# Public SHA-256 of public/openapi.json on claude/review-batch2, independently recomputed.
+9619425c364ad12f0df9eaec66ffbd7778a6ca11:.ci/public-assets.json:generic-api-key:10

@@ -110,6 +110,54 @@ test('uploads exact approved bytes with named strict inherits, then confirms a s
   }
   privateFree(report);
 });
+function pendingUpload(hook) {
+  const mock=mockCloudflare(hook);mock.state.latest=NEW;
+  mock.state.versions.get(NEW).annotations={'workers/commit_sha':config.targetCommit};return mock;
+}
+const resume=mock=>publishExistingWorker({...config,uploadedVersionId:NEW},{request:mock.request});
+test('resumes the exact verified pending upload with one deployment and no second upload',async()=>{
+  const mock=pendingUpload(),report=await resume(mock);
+  assert.equal(report.status,'deployed');assert.equal(report.uploaded_version_id,NEW);
+  assert.equal(writes(mock).length,1);assert.equal(writes(mock)[0].path,'/deployments');
+  assert.equal(mock.metadata,undefined);assert.equal(mock.state.active,NEW);privateFree(report);
+});
+test('resume never falls back to upload after a candidate GET failure or identity mismatch',async()=>{
+  for(const change of ['404','commit','binding']) {
+    const mock=pendingUpload(({path})=>change==='404'&&path===`/versions/${NEW}`?
+      Response.json({success:false},{status:404}):undefined);
+    if(change==='commit')delete mock.state.versions.get(NEW).annotations;
+    if(change==='binding')mock.state.versions.get(NEW).resources.bindings[1].text='changed';
+    const report=await resume(mock);
+    assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,0);
+    assert.equal(mock.state.active,OLD);privateFree(report);
+  }
+});
+for(const field of ['latest','active'])test(`resume rejects a different ${field} or an already deployed candidate`,async()=>{
+  const mock=pendingUpload();mock.state[field]=field==='active'?NEW:OTHER;
+  const report=await resume(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.code,'CURRENT_VERSION_MISMATCH');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+for(const field of ['latest','active','deploymentId','settings','sourceBinding'])
+  test(`resume rechecks ${field} before its only production write`,async()=>{
+    const mock=pendingUpload(({path,state,calls})=>{
+      if(path.startsWith('/versions?')&&calls.filter(call=>call.method==='GET'&&call.path.startsWith('/versions?')).length===2) {
+        if(field==='settings')state.settings.tags.push('changed');
+        else if(field==='sourceBinding')state.versions.get(OLD).resources.bindings[1].text='changed';
+        else state[field]=OTHER;
+      }
+    });
+    const report=await resume(mock);
+    assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,0);privateFree(report);
+  });
+test('a lost resume deployment response stays uncertain and reconciles without another write',async()=>{
+  const mock=pendingUpload(({method,path,state})=>{
+    if(method==='POST'&&path==='/deployments'){state.active=NEW;state.deploymentId=NEXT_DEPLOYMENT;throw Error(SENTINEL);}
+  });
+  const report=await resume(mock);
+  assert.equal(report.status,'uncertain');assert.equal(report.write_stage,'deploy');
+  assert.equal(report.observed_active_version_id,NEW);assert.equal(writes(mock).length,1);privateFree(report);
+});
 
 test('binding order and JSON object key order are not changes; visible values still compare exactly',()=>{
   const a=version(),b=version();b.resources.bindings.reverse();
@@ -141,6 +189,98 @@ test('empty placement metadata preserves an existing worker without smart placem
   for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
   const report=await run(mock);assert.equal(report.status,'deployed');
   assert.ok(!Object.hasOwn(mock.metadata,'placement'));
+});
+test('current smart placement is retained when the older version omits its optional placement mode',async()=>{
+  const mock=mockCloudflare();delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('the observed script placement alias preserves the same explicitly inherited smart mode',async()=>{
+  const mock=mockCloudflare();
+  for(const item of mock.state.versions.values())item.resources.script.placement={mode:'smart'};
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('script placement aliases reject unknown fields, modes and missing legacy confirmation',async()=>{
+  for(const placement of [{},{mode:'targeted'},{mode:'smart',status:'SUCCESS'},
+    {mode:'smart',last_analyzed_at:'2026-11-13T10:00:00Z'},null,[],{mode:'smart',region:'aws:us-east-1'}]) {
+    const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script.placement=placement;
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(writes(mock).length,0);privateFree(report);
+  }
+  const mock=mockCloudflare(),script=mock.state.versions.get(OLD).resources.script;
+  script.placement={mode:'smart'};delete script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.check,'script.placement.alias');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+test('an inconsistent uploaded placement alias never receives traffic',async()=>{
+  const mock=mockCloudflare();mock.state.versions.get(NEW).resources.script.placement={mode:'targeted'};
+  const report=await run(mock);
+  assert.equal(report.status,'uploaded_not_deployed');assert.equal(writes(mock).length,1);
+  assert.equal(mock.state.active,OLD);privateFree(report);
+});
+test('documented placement analysis status is validated but never uploaded or treated as configuration',async()=>{
+  const mock=mockCloudflare(({path,state})=>{
+    if(path==='/settings')state.versions.get(OLD).resources.script.placement_status='INSUFFICIENT_INVOCATIONS';
+  });
+  mock.state.versions.get(OLD).resources.script.placement_status='SUCCESS';
+  mock.state.versions.get(NEW).resources.script.placement_status='UNSUPPORTED_APPLICATION';
+  const report=await run(mock);
+  assert.equal(report.status,'deployed');assert.deepEqual(mock.metadata.placement,{mode:'smart'});
+  assert.ok(!Object.hasOwn(mock.metadata,'placement_status'));privateFree(report);
+});
+test('unknown placement status values and other script fields remain blocked',async()=>{
+  for(const patch of [{placement_status:SENTINEL},{placement_status:null},{placement_status:[]},
+    {placement_status:'SUCCESS',unreviewed_setting:true}]) {
+    const mock=mockCloudflare();Object.assign(mock.state.versions.get(OLD).resources.script,patch);
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+test('an uploaded version must independently confirm inherited smart placement before deployment',async()=>{
+  const mock=mockCloudflare();
+  for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,'uploaded_not_deployed');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,1);assert.equal(mock.state.active,OLD);
+  assert.deepEqual(mock.metadata.placement,{mode:'smart'});privateFree(report);
+});
+test('explicit smart placement still conflicts with absent or empty current placement',async()=>{
+  for(const placement of [undefined,{}]) {
+    const mock=mockCloudflare(({path,state})=>{
+      if(path!=='/settings')return;
+      return Response.json({success:true,result:{bindings:version().resources.bindings,
+        ...version().resources.script_runtime,...state.settings,...(placement?{placement}:{})}});
+    });
+    const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+for(const read of [2,3])test(`a real placement change on state read ${read} remains blocked`,async()=>{
+  let settingsReads=0;
+  const mock=mockCloudflare(({path,state})=>{
+    if(path!=='/settings'||++settingsReads<read)return;
+    const current=state.versions.get(OLD).resources;
+    return Response.json({success:true,result:{bindings:current.bindings,...current.script_runtime,
+      placement:{},...state.settings}});
+  });
+  delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await run(mock);
+  assert.equal(report.status,read===2?'blocked':'uploaded_not_deployed');
+  assert.equal(report.code,'CONFIGURATION_CHANGED');assert.equal(writes(mock).length,read-2);
+  assert.equal(mock.state.active,OLD);privateFree(report);
+});
+test('null nonversioned lists cannot conceal a nonempty current list',async()=>{
+  const mock=mockCloudflare(({path,state})=>path==='/script-settings'?
+    Response.json({success:true,result:{...state.settings,tags:null}}):undefined);
+  const report=await run(mock);
+  assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,0);privateFree(report);
 });
 
 test('native assets without a binding, or missing assets metadata, prevent a code-only upload',async()=>{
@@ -274,7 +414,8 @@ test('oversized or malformed API data blocks before writing without exposing bod
 });
 
 for(const patch of [{expectedWorkerSha256:'0'.repeat(64)},{expectedWorkerBytes:1},{workerName:'new-worker'},
-  {expectedCurrentVersion:'latest'},{accountId:'../../../other'},{token:'bad\nheader'}])
+  {expectedCurrentVersion:'latest'},{accountId:'../../../other'},{token:'bad\nheader'},
+  {uploadedVersionId:'latest'},{uploadedVersionId:OLD}])
   test(`invalid release input is rejected before contacting Cloudflare (${Object.keys(patch)[0]})`,async()=>{
     let contacted=false;
     const report=await publishExistingWorker({...config,...patch},{request:()=>{contacted=true;assert.fail('No request expected');}});
@@ -353,6 +494,51 @@ test('diagnostics inspect a valid production shape using GET only and never publ
   assert.equal(mock.calls.length,6);assert.ok(mock.calls.every(call=>call.method==='GET'));
   assert.equal(writes(mock).length,0);assert.equal(mock.state.active,OLD);assert.equal(mock.state.latest,OLD);
   privateFree(report);
+});
+test('diagnostics identify placement source and empty-list equivalence without exposing values',async()=>{
+  const mock=mockCloudflare(({path,state})=>path==='/script-settings'?
+    Response.json({success:true,result:{...state.settings,tags:null,tail_consumers:null}}):undefined);
+  mock.state.settings.tags=[];delete mock.state.versions.get(OLD).resources.script.placement_mode;
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.deepEqual(report.configuration.placement,{version_mode:'missing',version_object_mode:'missing',
+    version_status:'missing',combined_mode:'smart'});
+  for(const key of ['tags','tail_consumers'])assert.deepEqual(report.configuration.setting_lists[key],
+    {script_count:0,combined_count:0,normalized_equal:true});
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+test('diagnostics prove current content matches a commit-annotated reference using GET only',async()=>{
+  const mock=mockCloudflare(),reference=version(OTHER),commit='c'.repeat(40);
+  reference.resources.script.etag=mock.state.versions.get(OLD).resources.script.etag;
+  reference.annotations={'workers/commit_sha':commit};mock.state.versions.set(OTHER,reference);
+  mock.state.versions.get(OLD).resources.script.placement_status='SUCCESS';
+  mock.state.versions.get(OLD).resources.script.placement={mode:'smart'};
+  const report=await diagnoseExistingWorker({...config,sourceReferenceVersion:OTHER,expectedSourceCommit:commit},
+    {request:mock.request});
+  assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.deepEqual(report.current,{deployment_id:DEPLOYMENT,active_version_id:OLD,latest_version_id:OLD});
+  assert.deepEqual(report.source,{reference_version_id:OTHER,reference_commit:commit,content_etag_equal:true});
+  assert.equal(report.configuration.placement.version_status,'SUCCESS');
+  assert.equal(report.configuration.placement.version_object_mode,'smart');
+  assert.equal(report.shapes.version.resources.script.unrecognized_field_count,0);
+  assert.equal(mock.calls.length,7);assert.ok(mock.calls.every(call=>call.method==='GET'));privateFree(report);
+});
+test('source inspection rejects different content, wrong annotations and incomplete inputs',async()=>{
+  for(const mismatch of ['content','commit']) {
+    const mock=mockCloudflare(),reference=version(OTHER),commit='c'.repeat(40);
+    reference.annotations={'workers/commit_sha':mismatch==='commit'?'d'.repeat(40):commit};
+    if(mismatch==='commit')reference.resources.script.etag=mock.state.versions.get(OLD).resources.script.etag;
+    mock.state.versions.set(OTHER,reference);
+    const report=await diagnoseExistingWorker({...config,sourceReferenceVersion:OTHER,expectedSourceCommit:commit},
+      {request:mock.request});
+    assert.equal(report.code,mismatch==='commit'?'SOURCE_REFERENCE_COMMIT_MISMATCH':'SOURCE_CONTENT_MISMATCH');
+    assert.ok(mock.calls.every(call=>call.method==='GET'));privateFree(report);
+  }
+  for(const patch of [{sourceReferenceVersion:OTHER},{expectedSourceCommit:'c'.repeat(40)},
+    {sourceReferenceVersion:'latest',expectedSourceCommit:'c'.repeat(40)}]) {
+    const report=await diagnoseExistingWorker({...config,...patch},{request:()=>assert.fail('No API request allowed')});
+    assert.equal(report.code,'INVALID_SOURCE_REFERENCE');privateFree(report);
+  }
 });
 
 test('diagnostics expose documented-field types and the exact failed check, without API names or values',async()=>{

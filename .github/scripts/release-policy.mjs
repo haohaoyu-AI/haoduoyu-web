@@ -72,7 +72,717 @@ export const reviewRulesPromptsRelease=Object.freeze({
   baseline:'1a68c912-b532-4719-b4ec-e06afbe7e46a',
   bytes:2919290,sha256:'a2649c03a40db81773545f2d131ace8bf58ac80b2681b033f331836cb889e436',
   label:'production-combined-review-rules-claude-drafts-20261111'});
-const acceptedRelease=commit=>commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
+// Exact approved site-upgrade source. Apply and verify 0022 and 0023 on production D1 before dispatch.
+export const siteFiveUpgradesRelease=Object.freeze({
+  commit:'58ac4a201e5a3a0e9107d077c3642997b09ece07',
+  tree:'b9aec25fd79d9bc195f1c2eaee02134976a54fe4',
+  baseline:'a9efcff1-4876-40ff-b4c3-b23cf5846543',
+  bytes:2946480,sha256:'31e52a9001f33e0d13fa78eddac4202cb6cab4c46e71e4a9f6a6ce8c9730106d',
+  label:'production-site-five-upgrades-20261111'});
+// Exact approved night-review source. Apply and verify 0024 on production D1 before dispatch.
+export const nightReviewTwelveRelease=Object.freeze({
+  commit:'3f4789dbe1994508ed89d15e472613e91b94fb87',
+  tree:'bb54dc9ec7ea995060ee4bd055c5bbf96e7890e0',
+  baseline:'fd2185c8-4114-45a4-bd32-f1e71119dfbd',
+  bytes:2943560,sha256:'2a98bb9300978b6219756009aa44a1ec3c4af323b157649fc2ec0417340a3462',
+  label:'production-night-review-twelve-20261112'});
+// Exact chart-restoration source, independently rebuilt without production writes.
+// Expected v102 baseline comes from successful run 43113806310/job 130836462978,
+// DEPLOYMENT_CONFIRMED at 2026-11-11T22:41:23.7569521Z; not a live production read.
+// The unchanged publisher must recheck the actual active/latest version before writes.
+export const chartRestoreRelease=Object.freeze({
+  commit:'ae90dc9148ce7d579714ad245f26d6829f1a556b',
+  tree:'b498bbd131b1e59fd03fcc34786009b8a1169312',
+  baseline:'b1a7f54e-41cc-416e-b027-c54cdcd41621',
+  bytes:2966551,sha256:'f340427433c45bcb0a0dcd0ee31bccc434524c2149e152c8e59b3cf8c034799a',
+  label:'production-dashboard-chart-restore-20261112'});
+// Six upgrades (counted to-dos, compact score, review text, AI weekly loop) stacked on the deployed chart-restore source.
+// No migration, binding or wrangler change. Baseline is the version uploaded by successful run 43145436661
+// (DEPLOYMENT_CONFIRMED for ae90dc9); the publisher still rechecks the live version before writing.
+export const sixUpgradesRelease=Object.freeze({
+  commit:'75e2db9a05fd04cb873c1f41046a9ad14dfbf01e',
+  tree:'218aaab30fe8e43306cf9e08ee25127baba649a1',
+  baseline:'afb86c5e-6a63-448c-b1ac-9e6470d68e3a',
+  bytes:3054674,sha256:'013bceaae5a2bd85381fba1e8d63d3dfc0361e76605474aeef4f4d700a2728c0',
+  label:'production-six-upgrades-20261112'});
+// Follow-up to the six upgrades: readable names for rule codes and a baseline for pre-existing candidate rules.
+// Baseline is the version uploaded by successful run 43181992990 (DEPLOYMENT_CONFIRMED for 75e2db9).
+export const reviewAiNamesRelease=Object.freeze({
+  commit:'3528ad571af87b243f479611d4a049cb83ee1fa7',
+  tree:'0da628fa632d2ac4b20fc5aac0a59111c9b45386',
+  baseline:'f5dc58f5-30f5-46af-86d0-6dcc70e3a2ff',
+  bytes:3058658,sha256:'d853f3c10213f4c2428204f0aafdb232a09df1a5565d156166c956dcd7496dfe',
+  label:'production-review-ai-names-20261112'});
+// One-line follow-up: AI pattern names are stored whole. Baseline is the version uploaded by run 43183633923.
+export const patternNamesWholeRelease=Object.freeze({
+  commit:'3584b78760770487feb8bf65ad2cbaee79d93aae',
+  tree:'da512b191174c47353104d87c11a685f683bab8d',
+  baseline:'50b3d721-0549-4660-b58d-256543b9a406',
+  bytes:3058658,sha256:'8fceb6512bfbe89cfe7acc357cffdd1726a2d869c0cdda0a5833483dd8beaeac',
+  label:'production-pattern-names-whole-20261112'});
+// Title patterns shown by example title, duplicate spellings merged. Baseline is the version uploaded by run 43185724050.
+export const patternExamplesRelease=Object.freeze({
+  commit:'3fad099ae38fd2043ad398bedf9b0041af9ba082',
+  tree:'46ed2c7141c8f7a6714fa3648c91366ad2f8b8f5',
+  baseline:'be38aa14-16a7-4942-beb3-d2a1108e31ff',
+  bytes:3062847,sha256:'85a1f4bfafec05ff8d39b7fa6391aff79c57c8049f56b555fc1af15da79e978c',
+  label:'production-pattern-examples-20261112'});
+// Unified AI reports on the exact deployed title-pattern source; no D1 or binding changes.
+export const unifiedAiReportsRelease=Object.freeze({
+  commit:'9835ad1308b75656c29d234a82fb046d61934817',
+  tree:'644a97f21ed732387b42fb59f44ca3768596d143',
+  baseline:'7f460fad-6aad-4550-bf32-3f8821dc32e4',
+  bytes:3055215,sha256:'2344f363b04e83de2072b7c3ebca6bb61e628a4873b9421c0f02aa1a9697d960',
+  label:'production-unified-ai-reports-20261112'});
+// Event wiring only, on the exact unified AI reports version confirmed in production.
+export const aiReportModelOptionsRelease=Object.freeze({
+  commit:'b6f8af9dfeac65f34e40388c356a850a226a2a51',
+  tree:'dc9a71a0789724359c124fa46b767675186559a4',
+  baseline:'25c4c7ae-6e9e-4646-9896-74d5b47cfa30',
+  bytes:3055386,sha256:'f3cd419d69aa87a8166f6ffe0f3917efefd73b0eaa3cc1ebc9803bba776bbb49',
+  label:'production-ai-report-model-options-20261112'});
+// Removes the experiment cards, title patterns and headline breakdown on top of the deployed b6f8af9.
+// Baseline is the version uploaded by successful run 43268792694 (DEPLOYMENT_CONFIRMED for b6f8af9).
+export const removeAnalysisRelease=Object.freeze({
+  commit:'9ec99b201ae1438684b5b79e5caa9b13fc2988f9',
+  tree:'494d6707df005f1dd1efa928e0c303526be9d421',
+  baseline:'c7a663ad-c502-4ede-b068-bffda6d2d617',
+  bytes:3045533,sha256:'4340a7525ab703475063b0215331d9eb255af061f6768bd43be1df2fbf84cf9d',
+  label:'production-remove-analysis-20261113'});
+// To-do counter fixes on top of the deployed 9ec99b2. Baseline is the version uploaded by run 43379262582.
+export const todoCountFixesRelease=Object.freeze({
+  commit:'e407cabf98f8b3e5ad1215fc7c8d915204443b10',
+  tree:'bbaf06721b573c94387b8054a24248a650d4eba8',
+  baseline:'b8d744ce-94c5-4d14-8330-6ee45abeb52b',
+  bytes:3046801,sha256:'6ef13de15ca585f52187d02255fab4fbf91de960fd969c94ee4aadcfe8a23fda',
+  label:'production-todo-count-fixes-20261113'});
+// Article list grouped by bot-filled pattern tags, on top of the deployed e407cab. Baseline: run 43380718316's upload.
+export const articlePatternViewsRelease=Object.freeze({
+  commit:'003f01e77fe7572a1b38161e59503ac7c9d477d0',
+  tree:'fa50c4f20079e8b69e1de9869d024afbdbce884d',
+  baseline:'fb1090ac-0dd6-41a7-826a-0470d7088f51',
+  bytes:3055102,sha256:'d2efe52da19576e3d3b07d7b3a59ca7caff4b126fc631ec0ac9564e757547c47',
+  label:'production-article-pattern-views-20261113'});
+// Click and review-load speed-up on top of the deployed 003f01e. Baseline: run 43382705028's upload.
+export const speedUpRelease=Object.freeze({
+  commit:'e7499bd4d1b1f537636b2fb00b0dcf1199ab70cc',
+  tree:'f5f9f53c1706d6e4ef3daa1b0a4ca57539d52127',
+  baseline:'73703900-9614-4349-822b-cae862287fef',
+  bytes:3058520,sha256:'f44da1a42999d3e16a54ae6ddf3bcfe56422c9f17f1e4340ef06b682a5a55faf',
+  label:'production-speed-up-20261113'});
+// Recent-first resumable pulls on the deployed speed-up source; no migration or binding changes.
+export const progressiveOfflineRelease=Object.freeze({
+  commit:'b05613792693d88a1b081e511eaf95cca08d5459',
+  tree:'1b0924e5deaf7d89ca7ba6f449d560d817e159fb',
+  baseline:'ab1beb48-453c-4d06-84b8-62d3c5fad69b',
+  // Exact upload from run 43412140798; GET briefly returned 404 before deployment.
+  uploadedVersion:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
+  bytes:3068718,sha256:'bdb24edc4e53f0cf3437e75f0b6b3cef652fb0ca5a4cbe48166f95a86f3b7864',
+  label:'production-progressive-offline-sync-20261113'});
+// To-do carry-forward and the weekly bowel/bladder summary, on top of the deployed b056137. Baseline: run 43412881992's deployed version.
+export const carryBodySummaryRelease=Object.freeze({
+  commit:'c776a8816861605f9d43bdc91fbc0a79cbec67b6',
+  tree:'1741ca0e8b4eb273563ffa2c26c81d5e321d4e3a',
+  baseline:'a9c883c8-8f35-4dd1-afeb-f129422d33e4',
+  bytes:3098471,sha256:'cc763b2239a094ea9599009541face43a2656693ae324217bc93c8d34ccfdb3b',
+  label:'production-carry-body-summary-20261113'});
+// Weekly summary averages only weeks with records, on top of the deployed c776a88. Baseline: run 43454849311's deployed version.
+export const summaryAverageRelease=Object.freeze({
+  commit:'c0df37d8a691820a1598e1a55a72af2a932ae9a3',
+  tree:'7146c491abf54ba2586f42396a1aed85438e8b26',
+  baseline:'c3b18ec2-ca4f-474c-9e23-829e33e55d56',
+  bytes:3099366,sha256:'5b131c4334e2a55d43b9b2aa7b84bdcf28f07486ae3560f10634661ccb5386f7',
+  label:'production-summary-average-20261114'});
+// Bounded offline reads preserve all deployed c0df37d features and Smart Placement.
+export const boundedOfflineRelease=Object.freeze({
+  commit:'8fa6cc781f5765deb01da12b47f53b00b302d6ce',
+  tree:'cfa43720bbcd724c347792ea276e410b79d042e0',
+  baseline:'9637f764-633c-4a89-89e8-7a3296477d21',
+  bytes:3128436,sha256:'56ba0df89bbbd5b1509e7c0f6439035179f6e59564e6a0c69da62d6fd1bc7136',
+  label:'production-bounded-offline-reads-20261114'});
+// Read failures no longer lock foreground requests; relaxed public limits. On top of the deployed 8fa6cc7 (run 43463586177).
+export const unlockReadsRelease=Object.freeze({
+  commit:'d0b13d839449b8a9e62559b69e37abd012906d1a',
+  tree:'32fc4f05bdcd05d31d6de918beb71fced262c687',
+  baseline:'bdabea90-101b-4950-a90d-6aeb07c6763b',
+  bytes:3129221,sha256:'d6046a064ab87cd24206cc12621a238f0c536825c989cb6fd9bec322d1ece527',
+  label:'production-unlock-reads-20261114'});
+// Tidier notes history and plainer weekly summary, on top of the deployed d0b13d8 (run 43540411314).
+export const historyTidyRelease=Object.freeze({
+  commit:'24d9380eef7fc387c416d603efa30d3cd593f212',
+  tree:'d26c0f310d25ae957a846025a03d5136847a56b1',
+  baseline:'dd3ddf89-4e4f-47a8-b8dd-003ac6cbf1ca',
+  bytes:3133678,sha256:'25bdd64efe85355cc32218dddb190e5525383ac37736693d55f556569ff90757',
+  label:'production-history-tidy-20261114'});
+// Weekly summary compares only against whole weeks and explains itself, on top of the deployed 24d9380 (run 43541789296).
+export const summaryCompareRelease=Object.freeze({
+  commit:'cb90b5dbd864d44a056a27217e412bfd391ab697',
+  tree:'91b49629172a2b34323b671a43bccbc28102aca5',
+  baseline:'6c9bcf79-c638-44d7-8530-6f426ebf5c70',
+  bytes:3135140,sha256:'fcca07252ff3599c4ec4f700cee86f5600b86c07628c2270acbf0e82c977dcaa',
+  label:'production-summary-compare-20261114'});
+export const pausedProjectReminderRelease=Object.freeze({
+  commit:'86d36dda4f80f528da5cf089f018299a0bcb5e53',
+  tree:'1bfa784163175243848978fd6dd03806945a56fd',
+  baseline:'fd3ea4cc-0ab5-4656-94dc-418e8dffef5f',
+  bytes:3135349,sha256:'d4981257ca951628e3fd5ae2cc4f947d94a3e6934fecc545285283c098fd15da',
+  label:'production-hide-paused-project-reminders-20261114'});
+// Diary-style notes timeline, on top of the deployed 86d36dd (run 43543974757).
+export const diaryTimelineRelease=Object.freeze({
+  commit:'001cfa5edaa7a1373e78ed08e2f46cad636f1250',
+  tree:'cb6991f0e6cde025ee86b9118cd614aace0d17ae',
+  baseline:'1e584819-9f44-4479-b04a-63d56289a4d8',
+  bytes:3140293,sha256:'6fc8ab9eabda6c61e0d9f88733ffe60ac3124eb5f33a3c0df4efee685b876ecb',
+  label:'production-diary-timeline-20261114'});
+// Timeline-only notes history, on top of the deployed 001cfa5 (run 43544351531).
+export const timelineOnlyRelease=Object.freeze({
+  commit:'9fb3aaf0a0c09e3f52473282d6ebe2dbcd965c49',
+  tree:'134490cbd3588bc1993efe64897e1f1befd72f9e',
+  baseline:'74a81fbe-be68-4a27-9d7f-c681ee063707',
+  bytes:3137890,sha256:'6daa2105f6d175082d6f67e0f99fa59d8407597595d8ddcc63a07aa53098e48f',
+  // Run 43545024626 uploaded this exact artifact, then deployment hit a transient 404: resume, do not upload again.
+  uploadedVersion:'a5c493db-c68a-441e-9e92-12066455ac71',
+  label:'production-timeline-only-20261114'});
+// AI reports diary timeline, on top of the deployed 9fb3aaf (run 43545149509).
+export const aiTimelineRelease=Object.freeze({
+  commit:'3b6fadfbe1795c5134eccdcc6a31e03565f591f8',
+  tree:'40769a9c6b399d0d3f1ac103723846747c0febfc',
+  baseline:'a5c493db-c68a-441e-9e92-12066455ac71',
+  bytes:3142860,sha256:'9f7c8bee6e64b6ea4c77415a0a15c4e3e4c8fd6c4c16a62ee2ef3f3e5a8162de',
+  label:'production-ai-timeline-20261114'});
+// To-do calendar and article publishing in the shared diary design, on top of the deployed 3b6fadf (run 43546897568).
+export const unifiedTimelinesRelease=Object.freeze({
+  commit:'c61cb41fafc7180e73325e5d27b4212c0348d825',
+  tree:'80893167b3707597f71ba041cb142bcd8fbbf059',
+  baseline:'005bd44b-2262-4ab2-81d2-cac8391e1156',
+  bytes:3149490,sha256:'d87a77e47864b72cc8655869d976587c18c586377373b9254a3975d810968c41',
+  label:'production-unified-timelines-20261114'});
+// Article list view switch with the timeline by default, on top of the deployed c61cb41 (run 43548169522).
+export const articleViewSwitchRelease=Object.freeze({
+  commit:'7ec49e8ad3c33cadecba9ee599fed2237d009c9a',
+  tree:'1c74a1b2b7690dc0940dd1b6e4d290dba037909a',
+  baseline:'d18f5913-49e8-4e65-89f9-23a2d7b149f6',
+  bytes:3152465,sha256:'9c88558aa5a1799a35e126a1ea433b552b62335a011b687bfa2400074a9e85fd',
+  label:'production-article-view-switch-20261114'});
+// 一句话加待办 with a confirm row and the tidied AI model settings, on top of the deployed 7ec49e8 (run 43549188280).
+export const todoParseRelease=Object.freeze({
+  commit:'3c8f550809843d2dc50026d292b1f141fa308b83',
+  tree:'f8b48610f04d5c09f924ada94a2264d99c99c9fe',
+  baseline:'61735d16-a668-4adb-94d4-cdf5ce17098f',
+  bytes:3169205,sha256:'7151acedba61b0241eb516f5312652df08fd2bec94c9467c1bfaa2b63dee9bf5',
+  label:'production-todo-parse-20261114'});
+// 一句话加待办: "次数不限" becomes the counter's ∞, on top of the deployed 3c8f550 (run 43554217007).
+export const todoUnlimitedRelease=Object.freeze({
+  commit:'797289c9981d8f2a2d6e1c21c5880c26969851f2',
+  tree:'20ccd24bf8eabb081345aefced61d17ece8877fa',
+  baseline:'2b87a67c-529a-4172-bff6-6b8f536c03d4',
+  bytes:3169629,sha256:'ca5d308f3cec84a19c5d590af8c8929a18f4a691b18457e0e6c0bdfb2dc4feee',
+  label:'production-todo-unlimited-20261114'});
+// 一句话加待办: counts in the note, counted 常用 items restart at zero, on top of the deployed 797289c (run 43555248895).
+export const todoCountNoteRelease=Object.freeze({
+  commit:'b478432def7d3188c5dd5c4560c076144d96f026',
+  tree:'7010e01501369a02d727e33ebf38f2e1c25b6294',
+  baseline:'fbce687a-1226-4b54-90ad-df8ea18e276b',
+  bytes:3171797,sha256:'8b40303a2aa02f7ea91f7d49e018ef2dd0a64784de12aa4a7acc2a759c992ce8',
+  label:'production-todo-count-note-20261114'});
+// AI 日报 timeline shows each report on the morning after its work day, on top of the deployed b478432 (run 43555803271).
+export const aiReportDayRelease=Object.freeze({
+  commit:'cf4a79871aee70f0aa4217c58d39db30cd9cfb94',
+  tree:'0e90276b12742097644d2bf47c670819ca834e1d',
+  baseline:'c3a93f28-e124-489b-b7de-a23e8c37ff3b',
+  bytes:3172522,sha256:'6fc7267cc444a369f166e3d5a13177fa74e3b66b7759d09db952ba3ea23d18ee',
+  label:'production-ai-report-day-20261114'});
+// Future to-dos: 今天 / 明天 / weekend one-tap move buttons, on top of the deployed cf4a798 (run 43565920091).
+export const futureQuickRelease=Object.freeze({
+  commit:'9e7e48c9852f3455f29bf6cb755ae18debf69c2a',
+  tree:'35e883a87eba97bfdf2240ee30114ebb5099b235',
+  baseline:'07842567-6f01-47ec-bd85-85f75ba8f51d',
+  bytes:3174938,sha256:'be1440ac44fdb32ebce88df16fbd3bd996c3c2f76bff1857511a3bf052d46b06',
+  label:'production-future-quick-20261114'});
+// AI 日报: 待拍板 tab and today's reports opened above the timeline, on top of the deployed 9e7e48c (run 43566254217).
+export const decisionsRelease=Object.freeze({
+  commit:'154bd73596ab4eeb238880bc7012a01dddc4c8c3',
+  tree:'aab2ee69bf1e483d9f1fa62dfe8b74405c4cc5f9',
+  baseline:'f59a64b1-bbe4-4b71-bf85-eb3f79596a3c',
+  bytes:3182962,sha256:'3b5bbea13b955f4505e7f086c95055812e28cdc9d570055cebc7b4009c597d5a',
+  label:'production-decisions-20261114'});
+// 待拍板: only the questions, history as a timeline, status marks, on top of the deployed 154bd73 (run 43568540619).
+export const decisionsTimelineRelease=Object.freeze({
+  commit:'805e14b8037a2e221ba2823f395689d78f21a399',
+  tree:'72aa62ca298f4ea309a558766596e2243d6d3a26',
+  baseline:'46848449-3ad1-4a04-ab35-82fbb7dd731d',
+  bytes:3185021,sha256:'611cc17503b03258bde18765c134c7d15fc6a8ff92a152ba8f1062fd24e174e2',
+  label:'production-decisions-timeline-20261114'});
+// Article 备注 (review notes of kind article_note) in the article drawer, on top of the deployed 805e14b (run 43570144823).
+export const articleRemarksRelease=Object.freeze({
+  commit:'700e45863c78400d77fec3f628807f245b3623f7',
+  tree:'4e019c8168d926581d19ba186b9a9e70c496da04',
+  baseline:'89f52b59-f950-4fa5-ad41-8099a172eef9',
+  bytes:3187038,sha256:'15d39b1af797c9508b95b46370d9eeed3c54d5f455f95e1cc00099837ea73a87',
+  // Run 43579073579 uploaded this version but stopped before deploying (CONFIGURATION_CHANGED at verify_upload).
+  uploadedVersion:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
+  label:'production-article-remarks-20261114'});
+// 周复盘 at the top of the review cockpit, on top of the deployed 700e458 (run 43579186282).
+export const weeklyReviewRelease=Object.freeze({
+  commit:'e8f182992d1f91cf42a91985572b30f12dbb554a',
+  tree:'7fb809eaa4a21cab19d719be58cf6c90f18bf4bf',
+  baseline:'5915933f-95e6-4a5c-94a1-0ffc721f8628',
+  bytes:3190963,sha256:'c9883acbbd3cfaf2bc87f718b5cfbd35b023507041941964f04137a46623f74a',
+  label:'production-weekly-review-20261115'});
+// 周复盘 folded by default, on top of the deployed e8f1829 (run 43674712772).
+export const weeklyFoldRelease=Object.freeze({
+  commit:'4f8e73d4b630c9190889bb55264b248dc8a9d592',
+  tree:'4e25066deb3b3d2bdeedab1d709ccdd46d80faa5',
+  baseline:'5ae01eb8-cb10-4e3a-87e2-a0c34f3838f8',
+  bytes:3191226,sha256:'e7e90936313fcd567cbee84bab29644471f6f8aaf19078fc09c4581c702d82ed',
+  label:'production-weekly-fold-20261115'});
+// UI pass 1: one tab style and a slimmer top bar on phones, on top of the deployed 4f8e73d.
+export const uiPass1Release=Object.freeze({
+  commit:'f8c2e2f4c670496513b842454e1487fb5f38822c',
+  tree:'8a8b92b6891ec82a32ad0073e1465962ead0eaa4',
+  baseline:'8e03d93c-982d-486a-a827-98393e9ae8ba',
+  bytes:3192687,sha256:'95c3bfd1a03d8261fa468310913ea702ad6fec366cf071ff35672c7567b838cc',
+  label:'production-ui-pass-1-20261115'});
+// UI pass 2: denser to-do page on phones, on top of the deployed f8c2e2f.
+export const uiPass2Release=Object.freeze({
+  commit:'951f4f98b193a537de060e392eb4388671d79da0',
+  tree:'bc6aee6500ef0178c7d282fbfa14f57086ad0619',
+  baseline:'2085bc42-07b9-434f-a5a6-0f722c6a2180',
+  bytes:3194113,sha256:'d9e2ee20c7fb858f05df65fec384e10219c9e58e96b1413a66c152b5d01a18ca',
+  label:'production-ui-pass-2-20261115'});
+// UI pass 3: notes toolbar row and AI report card, on top of the deployed 951f4f9.
+export const uiPass3Release=Object.freeze({
+  commit:'5a3085ccee7a0d1b56c98420dfbd486bd2d50839',
+  tree:'f7ee2925418a547462e28a1d84184a0b148fecf0',
+  baseline:'8c77f66c-d2ec-446b-8797-4d2b53b1b1f2',
+  bytes:3195712,sha256:'0098bfdd066624af330280911c6fa86d21b7bea4baca344ab28bda63b85470ee',
+  // Run 43707746389 uploaded this version but stopped before deploying (LATEST_VERSION_CHANGED).
+  uploadedVersion:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
+  label:'production-ui-pass-3-20261115'});
+// UI pass 4: wide-screen tabs and reading column, on top of the deployed 5a3085c.
+export const uiPass4Release=Object.freeze({
+  commit:'c900549313ba36f009a57cd60d4b7c55f579ed66',
+  tree:'3497596375f99d083a18326ece935b4c4ca8cb0f',
+  baseline:'e586a086-1b88-4a6c-a4c5-c8819efe1000',
+  bytes:3197417,sha256:'d08541579f8b99d217b14e4db84d6f10523908860367db1bda0c15879e8f5229',
+  label:'production-ui-pass-4-20261115'});
+// 未来待办 by week/month with one ▾ panel per row, on top of the deployed c900549.
+export const futurePeriodRelease=Object.freeze({
+  commit:'5de12fdd815428f5eb71831bd98889affead05d0',
+  tree:'ed82ce93861f424f56daff0826ad432ade37d1b2',
+  baseline:'df2e1360-7787-4627-8837-1570cb7c3628',
+  bytes:3211306,sha256:'d0efc6728afda335f34f576e230a3992284fa93d4eef09156d9ebb7c15a44b89',
+  label:'production-future-period-20261116'});
+// 未来待办 reads Chinese week/month words in the sentence, on top of the deployed 5de12fd.
+export const futurePeriodWordsRelease=Object.freeze({
+  commit:'aba444bea818f398c6f35099a4c356215867c3b6',
+  tree:'39b5b4fb8ee9d2f8095e1700dc5f23ad0c471596',
+  baseline:'02e252ec-485a-41e5-b6b1-d04668503ebb',
+  bytes:3215695,sha256:'01a8cbfa9f27d5cb0443d1584f5ff9099e9adeb85f2c2418ff2f6f1fd84a7781',
+  label:'production-future-period-words-20261116'});
+// 未来待办 reads 每周/每月 and retries a new item's period, on top of the deployed aba444b.
+export const futurePeriodEveryRelease=Object.freeze({
+  commit:'84fe7c66b1b0977d8761851559c7c60fbcec6b1a',
+  tree:'135504ef7eff03898ece29ea906cc04a26fbe750',
+  baseline:'b6f9d335-ad95-4a42-b73b-141357d05362',
+  bytes:3217246,sha256:'64593348f28142986e71b473dd7a5917dd2ed961a87810df1c680bf97631e802',
+  label:'production-future-period-every-20261116'});
+// 未来待办 每周/每月 repeat, on top of the deployed 84fe7c6.
+export const futureRepeatRelease=Object.freeze({
+  commit:'fad9f98ae1ab95087d47fced89fda2b22865192b',
+  tree:'8e787070c1d9bb1bd488b6f4062319ef2d718753',
+  baseline:'2fbe403d-820c-4d9e-9990-2337c2653fce',
+  bytes:3223486,sha256:'eb51f65f1ace10b96e703fbe39245e0216706ea14638b010356e1ac2c4c78c6f',
+  label:'production-future-repeat-20261116'});
+// 一句话 on both inputs with deadlines on 今日, on top of the deployed fad9f98.
+export const smartDueRelease=Object.freeze({
+  commit:'a6c257cae5726f479d48a8f168d877ca801ee124',
+  tree:'bc887badf0e66c97f726b4e1c53af49f210163db',
+  baseline:'a0ca3bd4-fb32-4dc6-9c03-a1a6d9425ba2',
+  bytes:3238020,sha256:'f717e76a19473774ea8ad49bdafd152770e0ef3d6b79f916d855f41cb24951bf',
+  label:'production-smart-due-20261116'});
+// Claude connector (MCP + OAuth), on top of the deployed a6c257c.
+export const claudeConnectorRelease=Object.freeze({
+  commit:'b0afcfa9efbb11952d42308aec83ececd4c19620',
+  tree:'a95ee7ccf462d0d878c455c5ebba11692355927d',
+  baseline:'3637f13d-7fc6-4fb1-bede-08b2fb805cbd',
+  bytes:3256950,sha256:'fc2d3abb0d23915bd272737dff710082ce7c66b67adc5b0e617e6ad8683f1340',
+  label:'production-claude-connector-20261116'});
+// connector approval with Origin null, on top of the deployed b0afcfa.
+export const connectorOriginRelease=Object.freeze({
+  commit:'0ab490e73942f84523b03287377ea4f0edc8e859',
+  tree:'a3ccf0e45420a96e89d20629e7a10973e134c94d',
+  baseline:'e78bd453-fda3-4a77-addb-9c4b962c2313',
+  bytes:3257128,sha256:'0ab9f0bb90a865ca4a8f489098c645be3dbc6bc22ac46a19d5d849e6a38766d2',
+  label:'production-connector-origin-20261116'});
+// connector api_request for all routes, on top of the deployed 0ab490e.
+export const connectorAllRelease=Object.freeze({
+  commit:'0630f4302603b574577563d8ecad2b81391b63a0',
+  tree:'eef6fe9c735e06578dab06116daa3c8a1a01dfee',
+  baseline:'5563d93b-c2e1-4c3e-8bb1-f6f1f2196855',
+  bytes:3261122,sha256:'9d6e9c03cc4a9d51861cf81e64c2172eb00c1bcee4ae4a5abebd73124449a987',
+  label:'production-connector-all-20261116'});
+// connector approval asks for admin login, on top of the deployed 0630f43.
+export const connectorLoginRelease=Object.freeze({
+  commit:'80a0b72315b3169e4a1f10ee16316dc4f2a0f9be',
+  tree:'4f144bbfc17307c2a89d9a59390821de202ff0ba',
+  baseline:'056137f2-2d8e-40ee-8d1d-93fa8849f764',
+  bytes:3261612,sha256:'396aa6d990a29ffc8580e32fc1491bc9dd8afe6743e404a3019d7d7f48fd2efc',
+  label:'production-connector-login-20261116'});
+// connector for ChatGPT and Codex, on top of the deployed 80a0b72.
+export const connectorClientsRelease=Object.freeze({
+  commit:'f8420b3787f083109986685a64cd9edd4c29278c',
+  tree:'399b4832bbf2ccd8800a6df49abad96b78785519',
+  baseline:'cc0ba62d-6a20-4645-86ef-01da4be789da',
+  bytes:3262292,sha256:'a1acc8d241ae3e9ae25bf5a58be374b9f999b66b9053e1e82fc792e8b2149594',
+  label:'production-connector-clients-20261116'});
+// offline outbox uses window snapshot, on top of the deployed f8420b3.
+export const outboxWindowRelease=Object.freeze({
+  commit:'6e13a0a1587f87bd32c3cd0f791ee203f7c105f9',
+  tree:'ad1a2985c4961c399fd9b5da8bf82b3c63ee267b',
+  baseline:'1b769736-62ba-4096-afe7-8adfa1d08e96',
+  bytes:3262507,sha256:'e9f99dae1471f217cb6cd178ba231005b760c892c718faf7bf2e77e70b7ad4b4',
+  label:'production-outbox-window-20261117'});
+// Draft box status and benchmark times, on top of the deployed 6e13a0a.
+export const draftStatusRelease=Object.freeze({
+  commit:'855f65c75840dfaa0963f5e984e9128f528f90a4',
+  tree:'0d7f1a0f46502042a66c56c7abb3ab89cc8c4e70',
+  baseline:'ee2e5363-8bd0-46e0-89ce-a565d672f996',
+  bytes:3292856,sha256:'75ab1fbda984d9ededdca1ab669a4531fc66f313a5874c8171b31633624360e9',
+  label:'production-draft-status-20261118'});
+// Dated todo workbench sync and visible website refresh, built from the pinned product tree.
+export const desktopTodoSyncRelease=Object.freeze({
+  commit:'565b6a2b0659d902256a21620068daf7f78e0d7c',
+  tree:'7723d305f9cdb021038388ad299f720a13d41612',
+  baseline:'290218aa-39f9-4b52-81c5-ad5be6b0fbeb',
+  bytes:3298442,sha256:'2ced1f8e25b5323e1b6e9097fcfda6fbf450ed5ee9bb23264e8449bf3ac07205',
+  label:'production-desktop-todo-sync-20261118'});
+// Reconcile published review articles with their original drafts.
+export const reviewDraftReconciliationRelease=Object.freeze({
+  commit:'0814c393e47491fa5f59f59d1bfeb4b5603122de',
+  tree:'50f172afefa334701e03ea7a97b35358776a35d9',
+  baseline:'ef1a5106-6cb7-40fb-a377-85a0f8de81fd',
+  bytes:3325450,sha256:'2268776b78bfcf4d4c1e355699cde82a25cb0a98dadceaa335c676577a4a9a68',
+  // Run 44445639466 uploaded this version, then received HTTP 404 while verifying it before deployment.
+  uploadedVersion:'4af9e71f-5d70-4cde-a80a-3d78ae7bcc13',
+  label:'production-review-draft-reconciliation'});
+// Apply and verify the separately reviewed 0029 D1 migration before dispatch.
+export const reviewArchiveRelease=Object.freeze({
+  commit:'03021ba20adca80fdc35b86515523fc0fc6595f1',
+  tree:'16fec9a415dcadc8e32d66b45661f47abe29c558',
+  baseline:'4af9e71f-5d70-4cde-a80a-3d78ae7bcc13',
+  bytes:3507870,sha256:'1aca85b7b31915a77443c3e191fbe8b9df61587ff0e28c090cba423932078cd2',
+  label:'production-review-archive'});
+// Review batch 1 on top of the deployed review archive (03021ba): pending drafts sort by draft save time; API docs. No migration.
+export const reviewBatchOneRelease=Object.freeze({
+  commit:'770fe76f6c050547479a4f5bff739e3fc991a974',
+  tree:'aecbd9f37b7f7c592c06190ad7e4a795f413fd5d',
+  baseline:'15bc6fac-ed02-46ac-9ad4-f880071c30e4',
+  bytes:3552279,sha256:'c6c4d909d5adbf433618e1a5d479b2d507cc934fdc59de39b6b2069b654e9dac',
+  label:'production-review-batch-one'});
+// Review batch 2 on top of the deployed batch 1 (770fe76): AI reports edited in place with revisions. No migration.
+export const reviewBatchTwoRelease=Object.freeze({
+  commit:'9619425c364ad12f0df9eaec66ffbd7778a6ca11',
+  tree:'ef3b0c643c21e4bc3f4702b716c6f322a0834eff',
+  baseline:'0785c8d6-1d7a-416a-b01a-840ae68b798a',
+  bytes:3567972,sha256:'b936ec8713f2176b51d2e83401ee2701f052795b042ec413a82a022e70983a25',
+  label:'production-review-batch-two'});
+// AI reads 碎碎念 and handles existing to-dos from one sentence, on top of the deployed batch two (9619425). No migration.
+export const aiNotesCommandsRelease=Object.freeze({
+  commit:'304c242318bd0b40dfa13bbbbe8ceaa5554bf6f1',
+  tree:'b5e4ab08de3dc680c4845fee8389f36bc5a74ecc',
+  baseline:'d26a37f7-7c90-41ce-9bf1-0e012db266e7',
+  bytes:3597717,sha256:'76b2071463f7afb8a922483b7e1dc98fc27e3e4f4cc504a4cb1337b43ad443ec',
+  label:'production-ai-notes-commands'});
+// Wider hint words for AI 读碎碎念, on top of the deployed 304c242. No migration.
+export const noteHintRelease=Object.freeze({
+  commit:'d6ebb4c346b31aed675f6ab6f66dbe43e0fd057b',
+  tree:'6c0624ba719a6a508a1f9d2d1bd2ad2b0b3c5dd2',
+  baseline:'20579bf8-8171-4442-80f0-ddfdd1ac0f96',
+  bytes:3598167,sha256:'e7c8761001c82c599e8653cfca96bb1f5f908bedee01766860f0611fccfbe38b',
+  label:'production-note-hint'});
+// AI 读碎碎念 reads every note and offers implied to-dos, on top of the deployed d6ebb4c. No migration.
+export const noteImpliedRelease=Object.freeze({
+  commit:'d051c981cfd0b9f197d00c96226e2a9aa0d09bd2',
+  tree:'efbcf81bbe55ede28bd7ecddc44b2522e8abaca7',
+  baseline:'03e6888e-479f-4db2-886b-df4e2514239c',
+  bytes:3599940,sha256:'86ab522fc3abdea29c25f9404808d2b5211c494cd9605dfbc5cd5b2145989831',
+  label:'production-note-implied'});
+// Newly saved notes with the record label use the existing suggestion flow.
+export const noteSuggestRecordLabelRelease=Object.freeze({
+  commit:'5d224dccd78c48aac7c5a976aef4e32c6a8aa3bb',
+  tree:'95ef166113bfe3b95b13b85bcb75ab8fcf9c0948',
+  baseline:'d90d3aec-3cdf-42d6-8bee-398e6097ce05',
+  bytes:3599847,sha256:'21cb5d2e7917e7770fd06270352e684b08b8d431567ac0758c4f79f35467ccf1',
+  label:'production-note-suggest-record-label'});
+// 未来待办 move/complete uses the scope endpoint, on top of the deployed 5d224dc. No migration.
+export const futureMoveFixRelease=Object.freeze({
+  commit:'ba7268bdef6d496c4d2e7344c9c44cea697ad22e',
+  tree:'ab4598bde3f94d5a42f16fdbd0d044bb766a8111',
+  baseline:'70293ee5-b3d6-4e41-84f8-abef50472289',
+  // Exact upload from run 44659110496; the deploy call briefly returned 404.
+  uploadedVersion:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
+  bytes:3599837,sha256:'6f3294adfd52a18e86315e6f66af608e4b38954e495a239006c899a1394b8ef6',
+  label:'production-future-move-fix'});
+// 待办备注 saves retry with the fresh version after a 409, on top of the deployed ba7268b. No migration.
+export const todoNoteConflictRelease=Object.freeze({
+  commit:'771ef8d76fbd260cf94014f615a5a07bc6f53379',
+  tree:'bd4ad575e8ca8b7d6d9794b8c12e71fc824bda1c',
+  baseline:'d59cae9f-7ae1-46b8-9f0a-50ab27171e46',
+  bytes:3602277,sha256:'48c2bb975a65d06890dcbebee5d5a6792e5332c503bbbba184222b45991606b0',
+  label:'production-todo-note-conflict'});
+// 待办备注 waits for a queued tick before saving, on top of the deployed 771ef8d. No migration.
+export const todoNoteSettleRelease=Object.freeze({
+  commit:'afb932c3758028e0c9ce45bce81bd909f7ebf744',
+  tree:'dbdfe3f67c1f4bf34778a82ac83f5465d1c584f2',
+  baseline:'39513a4f-caae-4989-93e7-f474f8b1cad6',
+  bytes:3606362,sha256:'e356644b80e089dd87d9bdf87d82b498fc1beba49d52e08371a369bc89c52c33',
+  label:'production-todo-note-settle'});
+// Cockpit redesign: CTR x Reads quadrant + ranked list for weekly views, expanded weekly review, on top of afb932c. No migration.
+export const cockpitRedesignRelease=Object.freeze({
+  commit:'22940f90847028ffef8f3919cf8dd69f66fd08e2',
+  tree:'45da20cd164c9249130da4e60324c2b73428bf72',
+  baseline:'da3d3b80-8f10-4fae-83a2-4d8342df503f',
+  // Exact upload from run 44767098291; the deploy call briefly returned 404.
+  uploadedVersion:'579264fb-63c9-4be9-a343-bda08d1abb5f',
+  bytes:3618654,sha256:'97b3933fe724ea73c78c2f37d12299a8c160d805d651a09e354e3f4b252fb440',
+  label:'production-cockpit-redesign'});
+// PR #148: article detail frontend on the diagnosed cockpit release. No migration.
+export const reviewArticlesTableRelease=Object.freeze({
+  commit:'cc6162e932550b059626aeb8dfbb8f04a5d43b4e',
+  tree:'8bacb3e76bba155a8d6280e84aa68b8543e2d708',
+  baseline:'579264fb-63c9-4be9-a343-bda08d1abb5f',
+  bytes:3614336,sha256:'cd6849758f9f196988cb24fc3c53c4318e1c71701d0459fad4652740b5953494',
+  label:'production-review-articles-table'});
+// Phone-only cockpit presentation on the diagnosed article-details release. No migration.
+export const mobileReviewCockpitRelease=Object.freeze({
+  commit:'7867cbfe2f0bce06b969be001410ba2a847a2086',
+  tree:'0b97f0aac4544c1a283e8bdbd6f568afeceed384',
+  baseline:'30ae2725-d45c-499d-b3f0-3601b4830145',
+  bytes:3617305,sha256:'cac27c5136d12025bcca244bf66d156e329ab17b94f7d0e71cadf26371d4f566',
+  label:'production-mobile-review-cockpit'});
+// Daily todo note protection on the diagnosed mobile cockpit production source. No migration.
+export const dailyTodoNoteCompletionRelease=Object.freeze({
+  commit:'ad2ca5356a242f1dee91b9fbe58f79b276393909',
+  tree:'8b5bfa1823dbaffdcbe48eb64f4225bb58dd5e9d',
+  baseline:'6c6e8ce8-cc5c-4c2d-a0ee-871f47dfb5c2',
+  bytes:3621041,sha256:'e63ccaa0da335d905e9a1a8bd517141969cba31d427407676e9e3397361add06',
+  label:'production-daily-todo-note-completion'});
+// Mobile cockpit optimization and Cockpit-unified full-metric article details on ad2ca53. No migration.
+export const cockpitMobileAndArticlesRelease=Object.freeze({
+  commit:'f80696fd62dafdb1744d634e554afcdfee1e77bd',
+  tree:'9139cdc748707810926666052c6db17aef48dc3e',
+  baseline:'1695c7c4-99ac-43e3-bdcb-63581c2f8348',
+  bytes:3642499,sha256:'d1c248609c0851b046fc5bfc23aba51c6498c727e8495a84cf14ef6b4c7032fb',
+  label:'production-cockpit-mobile-and-articles'});
+// Unified Cockpit aesthetic & responsive polish for benchmarks, rules, prompts, and library on f80696f. No migration.
+export const reviewFourTabsPolishRelease=Object.freeze({
+  commit:'243a6c857faff447dc4e29ca39735b084d806bb3',
+  tree:'63b3d402ffd9b5c9758d65c3c746aa92e07e0997',
+  baseline:'59557306-5d25-4c55-8f43-883b2d8ef4d0',
+  bytes:3670245,sha256:'63b5c1ea193c5a9dc0f30fbca498b790af0c28f363ad2d277ad5bfde6c141332',
+  label:'production-review-four-tabs-polish'});
+// Fix benchmark library header overlap and shorten time headers to 样本发布时间 & 仿写发布时间 on 243a6c8. No migration.
+export const reviewLibraryHeaderFixRelease=Object.freeze({
+  commit:'5a3e54cb060f950bb5054c839a2de428c9d9b239',
+  tree:'7fe3733a2b37a18881dd94c8222231d70a16e65c',
+  baseline:'908a7041-ae07-46f1-9ba5-6a3ca7dd8943',
+  bytes:3670436,sha256:'237af0ecaef63c7efbcdefcc70c06b44573372dc2fbc4efd0ce698072f9ca9a1',
+  label:'production-review-library-header-fix'});
+// Whole-site warm-glass visual unification & zero-horizontal-scroll benchmark library table on 5a3e54c. No migration.
+export const siteUnifiedPolishRelease=Object.freeze({
+  commit:'5a98e2af2a617c5cf28ddd9eee0cfb2aa3a036ea',
+  tree:'f18de9b03c15e373fafa8f57003894a9c42cc478',
+  baseline:'acd70961-f9d6-46fd-bb8f-38cdd75f1d65',
+  bytes:3683705,sha256:'248d44c9e9ca122bf67414f4a0a1128092ac83c708e0970b1a5dc825d543eb00',
+  label:'production-site-unified-polish'});
+// Whole-site structural refactor: unified nav & header, grouped review tabs, V字-scoped archive, sunset ai-diagnosis & hidden modules. No migration.
+export const siteStructureRefactorRelease=Object.freeze({
+  commit:'71b98025a120d014276c7ea1c0f74813eadc669e',
+  tree:'ea0ccd8a70b1ff33a22f98b5ee117a307c22842c',
+  baseline:'4666fbdd-b275-4238-98ca-940476fa01be',
+  bytes:3421189,sha256:'b55afd33f761605d46cc9a193c881f0d239a3c6a02d80bfd80213f6a22fd9d25',
+  label:'production-site-structure-refactor'});
+// 内容复盘整理第一批: 文章详情精简/完整, one row of tabs, AI 诊断 retired from the page, account pill with 档案, quieter rules page. No migration.
+export const siteTidyBatch1Release=Object.freeze({
+  commit:'9755916524731561fa93048f45f9aa99216f3735',
+  tree:'31a78d4d82a83e7ed51eed11e1419e80c9f5b543',
+  baseline:'b40e5045-a27a-4c25-8476-a384b2b0babd',
+  bytes:3424883,sha256:'5d9e8ab42115adf9ed5d81ab2ebd54a0ad6eb18f4e23c0bd738602c5e6187c0b',
+  label:'production-site-tidy-batch1'});
+// AI 日报: 待拍板 on top, 日报 / 周报; the cockpit links to 周报. No migration.
+export const aiDailyWeeklyRelease=Object.freeze({
+  commit:'277119622254558ce52e23ea5f3b8ccc40d9adf2',
+  tree:'b655a977e4fdc7948361f35bea953f7f78f75913',
+  baseline:'c015edfa-985a-4ca0-bbf4-39d583f9fc43',
+  bytes:3429465,sha256:'f015652ebb00c25f07f08fd86a7dd74a65f2750c6858d3c693cc050e8884278c',
+  label:'production-ai-daily-weekly'});
+// 待办直接改文字: PATCH /todos/:id/text and 修改文字 in the to-do menus. No migration.
+export const todoEditTextRelease=Object.freeze({
+  commit:'3639291b7d57f554e19474e5febaa59f201a7f01',
+  tree:'59ea4a9a43ddf0db89610c890b12b0b03e6d1ef0',
+  baseline:'e705cb0c-bf63-4197-8a94-e86ea5676fb7',
+  bytes:3439190,sha256:'5f0a7a47b19a61e7130dca74191ef2adff64475c150a78811ac0028d235dafb7',
+  label:'production-todo-edit-text'});
+// 内容复盘最近更新时间: a line above the tabs, 生效 / 最后更新 on rules and prompts, read from the audit log. No migration.
+export const reviewUpdatedTimesRelease=Object.freeze({
+  commit:'7661f5439d394affcb67ff7e7551fe7fe2ef2f28',
+  tree:'cd6da66c08e4bc969a44863be5f158522adf9b64',
+  baseline:'0c4cc004-5641-479f-9375-ab886be8b2a8',
+  bytes:3443014,sha256:'8d1cd473babc7d6f111045ddbf5012574233bd16b638781d9fe43853b449fc54',
+  label:'production-review-updated-times'});
+// 提示词代码块不截断修复: ignore markdown headings inside fenced code blocks in playbookPromptBlocks / rulesIntroMarkdown. No migration.
+export const promptCodefenceSplitRelease=Object.freeze({
+  commit:'c97b7b1523e869a42b30388567df77fd48853016',
+  tree:'af16ce66e5ba0aa1e686efdbd1f08d70c994baf3',
+  baseline:'42be5f1f-2a28-4135-91e0-413a3c96c226',
+  bytes:3443727,sha256:'ced99cb603efd9d0a204ea9618b1a3934428df0e1f370c334b8cab970370a7db',
+  label:'production-prompt-codefence-split'});
+// 想法池: 放进想法池, the 想法池 page, 转成待办 and 已落地. Links live in the audit log. No migration.
+export const ideaPoolRelease=Object.freeze({
+  commit:'d754ea56e397f8d2db5508d6a7e4901643be3bec',
+  tree:'b618cab1895dd3ca691e4aa1b594d5d258088fc5',
+  baseline:'52a15b8d-b54a-4b8f-bbc8-7f65e2194e73',
+  bytes:3467679,sha256:'2984f88505e1a8e640d22fb6c0d6276914022eb6e37c98cfa0cbd165c30c8832',
+  label:'production-idea-pool'});
+// 11/23 改进清单: 碎碎念编辑框, 侧边栏, V字档案删除, 想法池导航与精简, 已落地标记 (includes #175). No migration.
+export const batch1123Release=Object.freeze({
+  commit:'a6ffdd499305679f87a60e0a2361a373ce9fe6c4',
+  tree:'0249acf9da328c88af7d5a246469805533012cb7',
+  baseline:'15bb1795-ee68-499c-ab7b-f186a530fdd8',
+  // Run 45132257072 uploaded this exact artifact, then reading it back hit a transient 404 before deploying: resume, do not upload again.
+  uploadedVersion:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
+  bytes:3296375,sha256:'4acfd60481ace444080cf4e14d548f5c64f176230a5a65545fa89bdf46759cd2',
+  label:'production-batch-1123'});
+// AI 日报 两张卡片 + 「没有要你拍板」 不算拍板 + 碎碎念 ⋯ 菜单 (#180). No migration.
+export const aiReportsMenuRelease=Object.freeze({
+  commit:'04fe4fbf278f1dfc5b92ca27d6eb542df244a11d',
+  tree:'666321261c049407b83202e3d9d034826f0cf08c',
+  baseline:'41bbea72-bfcf-4622-99a7-47bec99ab3ec',
+  bytes:3303730,sha256:'46888f2a47d469b6fcdbb02c15c97c62fd781c508ec37c3a57d44dd682139606',
+  label:'production-ai-reports-menu'});
+// 全站去掉左边彩色粗线 (碎碎念输入框, AI 日报, 待办到期, 复盘卡片, 提示条). CSS only, no migration.
+export const noLeftAccentRelease=Object.freeze({
+  commit:'6d4fb864b54434d13bb77abab008f257cafe190a',
+  tree:'e97be4f9a1b2b367df4d7eb55887f96141356732',
+  baseline:'b816df6e-2022-4ce2-8c0a-48b3ca9731b8',
+  bytes:3303163,sha256:'d64dcba2efb3513a3613f49c85678ad2993a6dedb67a2d5c2e5a1d16f50ff006',
+  label:'production-no-left-accent'});
+// 未来待办 每周 N 次 / 每月 N 次 (本周 1/2, 今日 nudge near the week's end). Frontend only, no migration.
+export const weeklyCountRelease=Object.freeze({
+  commit:'67895075bcf442337464e10bc063028ddaff1b31',
+  tree:'3225a143a64c4f873fc5d85919a49ea2807d7548',
+  baseline:'0f43968c-a8f3-4e7b-ab5d-e471098098c9',
+  bytes:3314795,sha256:'1f27ded1e6cb383f8cdd040a81e7837573d8907f771769eff0af4c1e6ce68341',
+  label:'production-weekly-count'});
+// 每周 N 次 做够了还能多勾 (本周 3/2). Frontend only, no migration.
+export const weeklyExtraRelease=Object.freeze({
+  commit:'1b56ac7084ffc1ad56ddb228c04446093bce0d08',
+  tree:'15d719436946399046488b585fc8141a5098d359',
+  baseline:'362d0a9b-cd6c-4b4a-aed6-8db3d000554b',
+  bytes:3317685,sha256:'b4a8e1edf9f45a09b7bc21f721b705ddf879f5b4941eb9268879b9bddf0334be',
+  label:'production-weekly-extra'});
+// Idea pool signed-out view only; tagged ideas, no edits or migrations.
+export const ideasPublicReadRelease=Object.freeze({
+  commit:'45b768e7df52c15d1ae50b841bfe3e4b195f1b28',
+  tree:'32ff41e1183aba623c3498a9db936f2efb20e642',
+  baseline:'8edf683c-0967-436a-86d6-141eee2c3679',
+  bytes:3318668,sha256:'5a3219fccea3e7c6e35bc028bc5e52765c94813a9003067970a887ae884fde83',
+  label:'production-ideas-public-read'});
+// Content review paging and presentation; no data or schema changes.
+export const reviewBenchmarkPresentationRelease=Object.freeze({
+  commit:'8d8a02331bc4c83e0b4f5abbabd36ea4d4c03156',
+  tree:'1a0f34a1352058e222c5803a3edcc4090847b207',
+  baseline:'b05cae67-4097-4218-a7d9-e127f9caf30e',
+  bytes:3322524,sha256:'239056075307ce0e57e6578ccc49fc9fc5f1dc8c5adde71611837110ddf33095',
+  label:'production-review-benchmark-presentation'});
+const acceptedRelease=commit=>commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
+  commit===ideasPublicReadRelease.commit?ideasPublicReadRelease:
+  commit===weeklyExtraRelease.commit?weeklyExtraRelease:
+  commit===weeklyCountRelease.commit?weeklyCountRelease:
+  commit===noLeftAccentRelease.commit?noLeftAccentRelease:
+  commit===aiReportsMenuRelease.commit?aiReportsMenuRelease:
+  commit===batch1123Release.commit?batch1123Release:
+  commit===ideaPoolRelease.commit?ideaPoolRelease:
+  commit===promptCodefenceSplitRelease.commit?promptCodefenceSplitRelease:
+  commit===reviewUpdatedTimesRelease.commit?reviewUpdatedTimesRelease:
+  commit===todoEditTextRelease.commit?todoEditTextRelease:
+  commit===aiDailyWeeklyRelease.commit?aiDailyWeeklyRelease:
+  commit===siteTidyBatch1Release.commit?siteTidyBatch1Release:
+  commit===siteStructureRefactorRelease.commit?siteStructureRefactorRelease:
+  commit===siteUnifiedPolishRelease.commit?siteUnifiedPolishRelease:
+  commit===reviewLibraryHeaderFixRelease.commit?reviewLibraryHeaderFixRelease:
+  commit===reviewFourTabsPolishRelease.commit?reviewFourTabsPolishRelease:
+  commit===cockpitMobileAndArticlesRelease.commit?cockpitMobileAndArticlesRelease:
+  commit===dailyTodoNoteCompletionRelease.commit?dailyTodoNoteCompletionRelease:
+  commit===mobileReviewCockpitRelease.commit?mobileReviewCockpitRelease:
+  commit===reviewArticlesTableRelease.commit?reviewArticlesTableRelease:
+  commit===cockpitRedesignRelease.commit?cockpitRedesignRelease:
+  commit===todoNoteSettleRelease.commit?todoNoteSettleRelease:
+  commit===todoNoteConflictRelease.commit?todoNoteConflictRelease:
+  commit===futureMoveFixRelease.commit?futureMoveFixRelease:
+  commit===noteSuggestRecordLabelRelease.commit?noteSuggestRecordLabelRelease:
+  commit===noteImpliedRelease.commit?noteImpliedRelease:
+  commit===noteHintRelease.commit?noteHintRelease:
+  commit===aiNotesCommandsRelease.commit?aiNotesCommandsRelease:
+  commit===reviewBatchTwoRelease.commit?reviewBatchTwoRelease:
+  commit===reviewBatchOneRelease.commit?reviewBatchOneRelease:
+  commit===reviewArchiveRelease.commit?reviewArchiveRelease:
+  commit===reviewDraftReconciliationRelease.commit?reviewDraftReconciliationRelease:
+  commit===desktopTodoSyncRelease.commit?desktopTodoSyncRelease:
+  commit===draftStatusRelease.commit?draftStatusRelease:
+  commit===outboxWindowRelease.commit?outboxWindowRelease:
+  commit===connectorClientsRelease.commit?connectorClientsRelease:
+  commit===connectorLoginRelease.commit?connectorLoginRelease:
+  commit===connectorAllRelease.commit?connectorAllRelease:
+  commit===connectorOriginRelease.commit?connectorOriginRelease:
+  commit===claudeConnectorRelease.commit?claudeConnectorRelease:
+  commit===smartDueRelease.commit?smartDueRelease:
+  commit===futureRepeatRelease.commit?futureRepeatRelease:
+  commit===futurePeriodEveryRelease.commit?futurePeriodEveryRelease:
+  commit===futurePeriodWordsRelease.commit?futurePeriodWordsRelease:
+  commit===futurePeriodRelease.commit?futurePeriodRelease:
+  commit===uiPass4Release.commit?uiPass4Release:
+  commit===uiPass3Release.commit?uiPass3Release:
+  commit===uiPass2Release.commit?uiPass2Release:
+  commit===uiPass1Release.commit?uiPass1Release:
+  commit===weeklyFoldRelease.commit?weeklyFoldRelease:
+  commit===weeklyReviewRelease.commit?weeklyReviewRelease:
+  commit===articleRemarksRelease.commit?articleRemarksRelease:
+  commit===decisionsTimelineRelease.commit?decisionsTimelineRelease:
+  commit===decisionsRelease.commit?decisionsRelease:
+  commit===futureQuickRelease.commit?futureQuickRelease:
+  commit===aiReportDayRelease.commit?aiReportDayRelease:
+  commit===todoCountNoteRelease.commit?todoCountNoteRelease:
+  commit===todoUnlimitedRelease.commit?todoUnlimitedRelease:
+  commit===todoParseRelease.commit?todoParseRelease:
+  commit===articleViewSwitchRelease.commit?articleViewSwitchRelease:
+  commit===unifiedTimelinesRelease.commit?unifiedTimelinesRelease:
+  commit===aiTimelineRelease.commit?aiTimelineRelease:
+  commit===timelineOnlyRelease.commit?timelineOnlyRelease:
+  commit===diaryTimelineRelease.commit?diaryTimelineRelease:
+  commit===pausedProjectReminderRelease.commit?pausedProjectReminderRelease:
+  commit===summaryCompareRelease.commit?summaryCompareRelease:
+  commit===historyTidyRelease.commit?historyTidyRelease:
+  commit===unlockReadsRelease.commit?unlockReadsRelease:
+  commit===boundedOfflineRelease.commit?boundedOfflineRelease:
+  commit===summaryAverageRelease.commit?summaryAverageRelease:
+  commit===carryBodySummaryRelease.commit?carryBodySummaryRelease:
+  commit===progressiveOfflineRelease.commit?progressiveOfflineRelease:
+  commit===speedUpRelease.commit?speedUpRelease:
+  commit===articlePatternViewsRelease.commit?articlePatternViewsRelease:
+  commit===todoCountFixesRelease.commit?todoCountFixesRelease:
+  commit===removeAnalysisRelease.commit?removeAnalysisRelease:
+  commit===aiReportModelOptionsRelease.commit?aiReportModelOptionsRelease:
+  commit===unifiedAiReportsRelease.commit?unifiedAiReportsRelease:
+  commit===patternExamplesRelease.commit?patternExamplesRelease:
+  commit===patternNamesWholeRelease.commit?patternNamesWholeRelease:
+  commit===reviewAiNamesRelease.commit?reviewAiNamesRelease:
+  commit===sixUpgradesRelease.commit?sixUpgradesRelease:
+  commit===chartRestoreRelease.commit?chartRestoreRelease:
+  commit===nightReviewTwelveRelease.commit?nightReviewTwelveRelease:
+  commit===siteFiveUpgradesRelease.commit?siteFiveUpgradesRelease:
+  commit===reviewRulesPromptsRelease.commit?reviewRulesPromptsRelease:
   commit===claudeNotesDraftsRelease.commit?claudeNotesDraftsRelease:
   commit===claudeTrendsRelease.commit?claudeTrendsRelease:
   commit===claudeRobotsRelease.commit?claudeRobotsRelease:
@@ -98,6 +808,8 @@ export function validateRequest(env) {
     deny('The exact production rollback baseline must be pinned before this release can run.');
   if(release.baseline&&env.EXPECTED_CURRENT_VERSION!==release.baseline)
     deny('The production restore requires its exact independently verified baseline version.');
+  if(release.uploadedVersion?env.UPLOADED_VERSION!==release.uploadedVersion:Boolean(env.UPLOADED_VERSION))
+    deny('Only the exact already-uploaded candidate registered for this release may be resumed.');
   return release;
 }
 export async function verifyCI(commit,{request=fetch,token}={}) {

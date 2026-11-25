@@ -6,6 +6,14 @@ on:
         description: Exact current 100% production Worker version UUID to inspect
         required: true
         type: string
+      source_reference_version:
+        description: Optional prior version UUID whose source commit annotation is known
+        required: false
+        type: string
+      expected_source_commit:
+        description: Optional full source commit; requires source_reference_version
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -30,6 +38,8 @@ jobs:
         env:
           RELEASE_OPERATION: inspect
           EXPECTED_CURRENT_VERSION: ${{ inputs.expected_current_version }}
+          SOURCE_REFERENCE_VERSION: ${{ inputs.source_reference_version }}
+          EXPECTED_SOURCE_COMMIT: ${{ inputs.expected_source_commit }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}

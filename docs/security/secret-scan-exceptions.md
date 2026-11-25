@@ -194,9 +194,19 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 
 ## 2026-11-11 线上源码恢复：四条公开内容摘要
 
-CI 42974613120 的 secret-scan 在恢复提交 `c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb` 报告 4 条 generic-api-key。三处是该提交 `.ci/public-assets.json` 第 5、10、16 行，分别对应公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）和 `public/tokens.css`（11728 字节）的内容 SHA256。从该提交原始 Git blob 重算，三处均与清单值一致，不是凭据。第 4 处是 `tests/oct28-small-fix-projection.mjs` 第 13 行保存的历史公开 `public/tokens.css` 摘要，与产品提交 `bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2` 的该文件（10460 字节）重算结果一致。
+发布登记分支的全历史扫描会读到升级分支。CI 42996761221 的 secret-scan 因此报告恢复提交 `c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb` 上的 4 条 generic-api-key，与升级分支 CI 42974613120 的 4 条相同。三处是该提交 `.ci/public-assets.json` 第 5、10、16 行，分别对应公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）和 `public/tokens.css`（11728 字节）的内容 SHA256。从该提交原始 Git blob 重算，三处均与清单值一致，不是凭据。第 4 处是 `tests/oct28-small-fix-projection.mjs` 第 13 行保存的历史公开 `public/tokens.css` 摘要，与产品提交 `bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2` 的该文件（10460 字节）重算结果一致。
 
-仅追加这 4 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42974613120>。
+仅追加这 4 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42996761221>。
+
+本地用与 CI 相同的 Gitleaks 8.30.1 和 `--all --full-history -m --root` 扫描 617 个提交，追加后为 0 项。把其中一条指纹的提交号改一位后，仍只报告原来那一条 `.ci/public-assets.json:5`，说明没有按路径放行。
+
+## 2026-11-12 QuietSync 投影：五条公开内容摘要
+
+发布登记分支的全历史扫描会读到夜间 12 条分支。CI 43109615308 的 secret-scan 因此报告提交 `a83d8420633ed42a609480caa133cede8a1c6784` 上 `tests/oct28-small-fix-projection.mjs` 的 5 条 generic-api-key（第 31、39、43、57、67 行）。它们分别钉住公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）、`public/tokens.css`（11728 字节），以及同提交的 `src/public-note-access.mjs`（2282 字节）和 `web/core/api.mjs`（5075 字节）的内容 SHA256。从该提交原始 Git blob 重算，五处均与投影清单值一致，不是凭据。
+
+仅追加这 5 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/43109615308>。
+
+本地用与 CI 相同的 Gitleaks 8.30.1 和 `--all --full-history -m --root` 扫描 647 个提交，追加后为 0 项。把其中一条指纹的提交号改一位后，仍只报告原来那一条 `tests/oct28-small-fix-projection.mjs:31`，说明没有按路径放行。
 
 ## 2026-11-18 合成测试密钥字符串
 

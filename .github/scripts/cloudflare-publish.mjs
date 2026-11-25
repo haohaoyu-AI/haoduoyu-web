@@ -13,6 +13,7 @@ import {repository,validateRequest,verifyWorker} from './release-policy.mjs';
 const API='https://api.cloudflare.com/client/v4';
 const UUID=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const MAX_RESPONSE_BYTES=2*1024*1024;
+const placementStatuses=['SUCCESS','UNSUPPORTED_APPLICATION','INSUFFICIENT_INVOCATIONS'];
 const own=(value,key)=>Object.hasOwn(value,key);
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const canonical=value=>JSON.stringify(sort(value));
@@ -101,16 +102,28 @@ export function versionSnapshot(version,expectedId) {
   check(identifier(version.id)&&version.id===expectedId,'VERSION_MISMATCH');
   keys(version.resources,['bindings','script','script_runtime'],'version.resources.fields');
   const script=version.resources.script;
-  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode'],'script.fields');
+  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode','placement_status','placement'],'script.fields');
   check(typeof script.etag==='string'&&script.etag.length>0,'UNSUPPORTED_CONFIGURATION','script.etag');
   check(stringList(script.handlers)&&script.handlers.length===1&&script.handlers[0]==='fetch',
     'UNSUPPORTED_CONFIGURATION','script.handlers');
   if(own(script,'named_handlers'))check(Array.isArray(script.named_handlers)&&script.named_handlers.length===0,
     'UNSUPPORTED_CONFIGURATION','script.named_handlers');
   if(own(script,'placement_mode'))check(script.placement_mode==='smart','UNSUPPORTED_CONFIGURATION','script.placement_mode');
+  if(own(script,'placement')) {
+    // Observed stable API alias; only the exact current smart shape is supported.
+    keys(script.placement,['mode'],'script.placement.fields');
+    check(script.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','script.placement.mode');
+    check(script.placement_mode===script.placement.mode,'CONFIGURATION_CHANGED','script.placement.alias');
+  }
+  // Read-only Smart Placement analysis status, not an upload/configuration option.
+  // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/list/
+  if(own(script,'placement_status'))check(placementStatuses.includes(script.placement_status),
+    'UNSUPPORTED_CONFIGURATION','script.placement_status');
   const invariantScript={...script};
   // Content etag and uploader attribution change when the accepted bytes change.
   delete invariantScript.etag;delete invariantScript.last_deployed_from;
+  delete invariantScript.placement_status;
+  delete invariantScript.placement;
   return {bindings:bindingsSnapshot(version.resources.bindings),script:invariantScript,
     runtime:runtimeSnapshot(version.resources.script_runtime)};
 }
@@ -140,7 +153,11 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
     if(Object.keys(settings.placement).length===0)check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
     else {
       check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','combined_settings.placement.mode');
-      check(snapshot.script.placement_mode==='smart','CONFIGURATION_CHANGED');
+      // A dashboard update can enable per-Worker placement without rewriting
+      // this older version's optional placement_mode. Preserve the validated
+      // current /settings value in upload metadata and every state comparison.
+      // Newly uploaded versions still require an independent explicit match.
+      if(!own(snapshot.script,'placement_mode'))snapshot.script.placement_mode='smart';
     }
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
@@ -241,26 +258,58 @@ function diagnosticShapes(raw) {
   return {
     version:fieldShape(raw.version,{id:true,number:true,metadata:true,annotations:true,startup_time_ms:true,
       resources:{bindings:[bindingShape],script:{etag:true,handlers:[true],named_handlers:true,
-        last_deployed_from:true,placement_mode:true},script_runtime:runtimeShape}}),
+        last_deployed_from:true,placement_mode:true,placement_status:true,placement:{mode:true}},script_runtime:runtimeShape}}),
     script_settings:fieldShape(raw.settings,settingsShape),
     combined_settings:fieldShape(raw.combined,{annotations:true,bindings:[bindingShape],...runtimeShape,
       placement:{mode:true},...settingsShape})
   };
 }
+function diagnosticConfiguration(raw) {
+  const mode=value=>value===undefined?'missing':value==='smart'?'smart':'unsupported';
+  const count=value=>value===null?0:Array.isArray(value)?value.length:null;
+  const placement=raw.combined?.placement;
+  const settingLists=Object.fromEntries(['tags','tail_consumers','streaming_tail_consumers'].map(key=>{
+    const script=raw.settings?.[key],combined=raw.combined?.[key];
+    return [key,{script_count:count(script),combined_count:count(combined),
+      normalized_equal:canonical(emptySettingList(key,script))===canonical(emptySettingList(key,combined))}];
+  }));
+  return {placement:{version_mode:mode(raw.version?.resources?.script?.placement_mode),
+    version_object_mode:mode(raw.version?.resources?.script?.placement?.mode),
+    version_status:placementStatuses.includes(raw.version?.resources?.script?.placement_status)?
+      raw.version.resources.script.placement_status:raw.version?.resources?.script?.placement_status===undefined?'missing':'unsupported',
+    combined_mode:object(placement)&&Object.keys(placement).length===0?'empty':mode(placement?.mode)},
+    setting_lists:settingLists};
+}
 export async function diagnoseExistingWorker(config,{request=fetch,timeoutMs=30000}={}) {
   const report={status:'blocked',code:'PREFLIGHT_FAILED'};
   try {
     validateTarget(config);
+    if(config.sourceReferenceVersion!==undefined||config.expectedSourceCommit!==undefined)
+      check(identifier(config.sourceReferenceVersion)&&/^[0-9a-f]{40}$/.test(config.expectedSourceCommit??''),'INVALID_SOURCE_REFERENCE');
     check(Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=60000,'INVALID_TIMEOUT');
     const api=client(config,request,timeoutMs,true),raw=await readState(api,config.expectedCurrentVersion);
     report.shapes=diagnosticShapes(raw);
+    // Only fixed mode enums, counts and equality; no setting contents or hashes.
+    report.configuration=diagnosticConfiguration(raw);
     // Successful GET inspection is not a successful publish. The publisher is
     // never called in this mode, even when every preflight check passes.
     report.status='diagnosed';
     try {
       const snapshot=stateSnapshot(raw,config.expectedCurrentVersion);
+      report.current={deployment_id:snapshot.active.id,active_version_id:snapshot.active.versionId,latest_version_id:snapshot.latest};
       check(snapshot.active.versionId===config.expectedCurrentVersion&&snapshot.latest===config.expectedCurrentVersion,
         'CURRENT_VERSION_MISMATCH');
+      if(config.sourceReferenceVersion!==undefined) {
+        const reference=await api(`/versions/${config.sourceReferenceVersion}`);
+        versionSnapshot(reference,config.sourceReferenceVersion);
+        const commit=reference.annotations?.['workers/commit_sha'];
+        check(commit===config.expectedSourceCommit,'SOURCE_REFERENCE_COMMIT_MISMATCH');
+        // Official version GET defines etag as hashed script content. Compare
+        // directly in memory; never emit either content fingerprint or bindings.
+        const equal=reference.resources.script.etag===raw.version.resources.script.etag;
+        report.source={reference_version_id:config.sourceReferenceVersion,reference_commit:commit,content_etag_equal:equal};
+        check(equal,'SOURCE_CONTENT_MISMATCH');
+      }
       report.code='PREFLIGHT_VALID';
     }catch(error) {
       report.code=error instanceof PublishFailure?error.code:'PREFLIGHT_FAILED';
@@ -302,6 +351,8 @@ function validateTarget(config) {
 }
 function validateConfig(config) {
   validateTarget(config);
+  if(config.uploadedVersionId!==undefined)check(identifier(config.uploadedVersionId)&&
+    config.uploadedVersionId!==config.expectedCurrentVersion,'INVALID_UPLOADED_VERSION');
   check(/^[0-9a-f]{40}$/.test(config.targetCommit??''),'INVALID_COMMIT');
   check(Buffer.isBuffer(config.workerBytes)&&config.workerBytes.length>0&&config.workerBytes.length<=10*1024*1024,
     'INVALID_WORKER_BYTES');
@@ -319,26 +370,33 @@ export async function publishExistingWorker(config,{request=fetch,timeoutMs=3000
       expected_version_id:config.expectedCurrentVersion});
     api=client(config,request,timeoutMs);
     const baseline=await state(api,config.expectedCurrentVersion);
-    check(baseline.active.versionId===config.expectedCurrentVersion&&baseline.latest===config.expectedCurrentVersion,
+    const expectedLatest=config.uploadedVersionId??config.expectedCurrentVersion;
+    check(baseline.active.versionId===config.expectedCurrentVersion&&baseline.latest===expectedLatest,
       'CURRENT_VERSION_MISMATCH');
-    const form=uploadForm(config.workerBytes,baseline.version,baseline.combined,config.targetCommit);
     // No CAS exists across Cloudflare's two APIs. Require stopped external
     // uploads, workflow concurrency, and another full read immediately before POST.
-    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,config.expectedCurrentVersion);
-    stage='upload';
-    const uploaded=await api('/versions?bindings_inherit=strict',{method:'POST',body:form});
-    check(identifier(uploaded?.id)&&uploaded.id!==config.expectedCurrentVersion,'API_RESPONSE_INVALID');
-    report.uploaded_version_id=uploaded.id;stage='verify_upload';
-    same(versionSnapshot(await api(`/versions/${uploaded.id}`),uploaded.id),baseline.version);
-    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,uploaded.id);
+    let uploadedId=config.uploadedVersionId;
+    if(!uploadedId) {
+      const form=uploadForm(config.workerBytes,baseline.version,baseline.combined,config.targetCommit);
+      confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,config.expectedCurrentVersion);
+      stage='upload';
+      const uploaded=await api('/versions?bindings_inherit=strict',{method:'POST',body:form});
+      check(identifier(uploaded?.id)&&uploaded.id!==config.expectedCurrentVersion,'API_RESPONSE_INVALID');
+      uploadedId=uploaded.id;
+    }
+    report.uploaded_version_id=uploadedId;stage='verify_upload';
+    const candidate=await api(`/versions/${uploadedId}`);
+    if(config.uploadedVersionId)check(candidate.annotations?.['workers/commit_sha']===config.targetCommit,'CANDIDATE_COMMIT_MISMATCH');
+    same(versionSnapshot(candidate,uploadedId),baseline.version);
+    confirmBeforeWrite(await state(api,config.expectedCurrentVersion),baseline,uploadedId);
     stage='deploy';
     const deployed=await api('/deployments',{method:'POST',body:JSON.stringify({strategy:'percentage',
-      versions:[{version_id:uploaded.id,percentage:100}]})});
+      versions:[{version_id:uploadedId,percentage:100}]})});
     check(identifier(deployed?.id),'DEPLOYMENT_RESPONSE_MISMATCH');
-    const deployment={id:deployed.id,versionId:uploaded.id};
+    const deployment={id:deployed.id,versionId:uploadedId};
     report.deployment_id=deployment.id;
-    const after=await state(api,uploaded.id);
-    same(after.active,deployment,'DEPLOYMENT_NOT_CONFIRMED');check(after.latest===uploaded.id,'LATEST_VERSION_CHANGED');
+    const after=await state(api,uploadedId);
+    same(after.active,deployment,'DEPLOYMENT_NOT_CONFIRMED');check(after.latest===uploadedId,'LATEST_VERSION_CHANGED');
     same(after.version,baseline.version);same(after.settings,baseline.settings);same(after.combined,baseline.combined);
     report.status='deployed';report.code='DEPLOYMENT_CONFIRMED';
   }catch(error) {
@@ -362,7 +420,9 @@ export async function main(env=process.env,{request=fetch,read=readFile,output=c
       // It remains restricted to the same repository, main and manual workflow.
       check(env.GITHUB_REPOSITORY===repository&&env.GITHUB_REF==='refs/heads/main'&&
         env.GITHUB_EVENT_NAME==='workflow_dispatch','INVALID_DIAGNOSTIC_CONTEXT');
-      report=await diagnoseExistingWorker(target,{request});
+      report=await diagnoseExistingWorker({...target,
+        ...(env.SOURCE_REFERENCE_VERSION?{sourceReferenceVersion:env.SOURCE_REFERENCE_VERSION}:{}),
+        ...(env.EXPECTED_SOURCE_COMMIT?{expectedSourceCommit:env.EXPECTED_SOURCE_COMMIT}:{})},{request});
     }else {
       // No release gate is relaxed. Inspection cannot enter the write path.
       validateRequest(env);
@@ -370,6 +430,7 @@ export async function main(env=process.env,{request=fetch,read=readFile,output=c
       const workerBytes=await read(env.WORKER_PATH);verifyWorker(workerBytes,env.TARGET_COMMIT);
       report=await publishExistingWorker({...target,workerBytes,
         expectedWorkerSha256:env.EXPECTED_WORKER_SHA256,expectedWorkerBytes:Number(env.EXPECTED_WORKER_BYTES),
+        ...(env.UPLOADED_VERSION?{uploadedVersionId:env.UPLOADED_VERSION}:{}),
         targetCommit:env.TARGET_COMMIT},{request});
     }
   }catch {report={status:'blocked',code:'RELEASE_INPUT_REJECTED'};}

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {desktopTodoSyncRelease} from '../.github/scripts/release-policy.mjs';
 
 const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
 const blocks=yaml.split(/^      - name: /m).slice(1);
@@ -16,8 +17,18 @@ test('fast release skips optional test commands by default without continue-on-e
   assert.match(input,/type: boolean/);
   assert.match(input,/default: false/);
   const tests=blocks.filter(block=>block.includes('node --test '));
-  assert.equal(tests.length,11);
-  for(const block of tests) assert.match(block,/\n        if: inputs\.run_regression_tests(?:\n| && \()/);
+  const desktopChecks=[
+    'Verify the scoped desktop todo release registration',
+    'Verify cross-device dated todo writes and visible list refresh',
+  ].map(step);
+  for(const block of desktopChecks) {
+    assert.ok(tests.includes(block));
+    assert.equal(block.split('\n').find(line=>line.startsWith('        if: ')),
+      "        if: inputs.target_commit == '"+desktopTodoSyncRelease.commit+"'");
+  }
+  const optional=tests.filter(block=>!desktopChecks.includes(block));
+  assert.equal(optional.length,11);
+  for(const block of optional) assert.match(block,/\n        if: inputs\.run_regression_tests(?:\n| && \()/);
   assert.doesNotMatch(yaml,/continue-on-error/);
 });
 
