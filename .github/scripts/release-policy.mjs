@@ -689,7 +689,15 @@ export const ideasPublicReadRelease=Object.freeze({
   baseline:'8edf683c-0967-436a-86d6-141eee2c3679',
   bytes:3318668,sha256:'5a3219fccea3e7c6e35bc028bc5e52765c94813a9003067970a887ae884fde83',
   label:'production-ideas-public-read'});
-const acceptedRelease=commit=>commit===ideasPublicReadRelease.commit?ideasPublicReadRelease:
+// Content review paging and presentation; no data or schema changes.
+export const reviewBenchmarkPresentationRelease=Object.freeze({
+  commit:'8d8a02331bc4c83e0b4f5abbabd36ea4d4c03156',
+  tree:'1a0f34a1352058e222c5803a3edcc4090847b207',
+  baseline:'b05cae67-4097-4218-a7d9-e127f9caf30e',
+  bytes:3322524,sha256:'239056075307ce0e57e6578ccc49fc9fc5f1dc8c5adde71611837110ddf33095',
+  label:'production-review-benchmark-presentation'});
+const acceptedRelease=commit=>commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
+  commit===ideasPublicReadRelease.commit?ideasPublicReadRelease:
   commit===weeklyExtraRelease.commit?weeklyExtraRelease:
   commit===weeklyCountRelease.commit?weeklyCountRelease:
   commit===noLeftAccentRelease.commit?noLeftAccentRelease:
