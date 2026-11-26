@@ -704,13 +704,20 @@ export const publicAuditReadQuotaRelease=Object.freeze({
   bytes:3323802,sha256:'fbb561e8a5cf8882d7c02e4f986f52e6cda6a99ef5cf24a6ece5c3dc9c7e6e32',
   label:'production-public-audit-read-quota'});
 // Date shortcuts for the daily todo list. No data, schema or API changes.
+export const diaryTitleRelease=Object.freeze({
+  commit:'e01410c1374a714959523f0ca1c9e47d97eaa88a',
+  tree:'518648adb20453f32f006f559ed28af1051fa443',
+  baseline:'b87aed8c-19f4-43db-bdb9-6afcfbdb7b28',
+  bytes:3338273,sha256:'6fad34279c773fa5ff41d79d52a6bee241d09800675d7fb57dac7f6f658bc7a2',
+  label:'production-manual-diary-title'});
 export const todoDateShortcutsRelease=Object.freeze({
   commit:'b81951f661f9ba021b4849218d5ac3fdeaafabca',
   tree:'e4720db2487f2ddf5c439575bc809a53f5a286cc',
   baseline:'0a613d36-7366-4189-90a2-d1e44ee161a9',
   bytes:3324494,sha256:'799483d0c8a6e7254c52caafaf302d6ef752237bfbdec8440f45a8927e8b6bec',
   label:'production-todo-date-shortcuts'});
-const acceptedRelease=commit=>commit===todoDateShortcutsRelease.commit?todoDateShortcutsRelease:
+const acceptedRelease=commit=>commit===diaryTitleRelease.commit?diaryTitleRelease:
+  commit===todoDateShortcutsRelease.commit?todoDateShortcutsRelease:
   commit===publicAuditReadQuotaRelease.commit?publicAuditReadQuotaRelease:
   commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
   commit===ideasPublicReadRelease.commit?ideasPublicReadRelease:
