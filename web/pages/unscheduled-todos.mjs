@@ -96,9 +96,12 @@ function futurePanel(item,v,off) {
     `<button class="btn small" type="button" data-action="todo-future-due" data-id="${id}" ${off}>设为截止日</button>` +
     (item.due_date?`<button class="btn small text" type="button" data-action="todo-future-due-clear" data-id="${id}" ${off}>去掉</button>`:'') +
     `</div></div>` +
-    `<div class="todo-future-panel-foot"><button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id}" data-future="1" ${off}>修改文字</button>` +
+    `<div class="todo-future-panel-foot">` +
+    `<button class="btn small text" type="button" data-action="todo-edit-text" data-id="${id}" ` +
+    `data-future="1" ${off}>修改文字</button>` +
     `<button class="btn small text danger" type="button" data-action="todo-future-delete" ` +
-    `data-id="${id}" ${off}>删除</button></div></div>`;
+    `data-id="${id}" ${off}>` +
+    `删除</button></div></div>`;
 }
 /** One tap: the chosen day goes through the same checked move as the date field. */
 export function quickScheduleUnscheduledTodo(id,date) {
@@ -558,7 +561,10 @@ export async function setUnscheduledTodoTimes(id,times) {
   try {
     if(times>group.times) {
       v.pending=false;
-      for(let i=group.times;i<times;i++){await addOne({text:group.text,period:group.current,recurrence:group.recurrence});if(v.owner!==key||owner()!==key)return;}
+      for (let i = group.times; i < times; i++) {
+        await addOne({text:group.text,period:group.current,recurrence:group.recurrence});
+        if (v.owner !== key || owner() !== key) return;
+      }
     } else {
       const drop=[...group.open].reverse().concat([...group.done].reverse()).slice(0,group.times-times);
       for(const copy of drop)await removeCopy(copy,key);

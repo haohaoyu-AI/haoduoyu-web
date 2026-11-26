@@ -33,9 +33,13 @@ test('notes and archived templates preserve history, protect versions, and appea
   assert.equal((await req('/todo-templates?archived=1')).data.items[0].id,template.id);
   assert.equal((await req('/todos?date=2026-11-06')).data.items[0].note,'未完成：等待回复');
   const user=(await req('/auth/me')).data.id;
-  const snapshot=await handleWorkbenchSnapshot(app.db,new Request(app.origin+'/api/v1/workbench-snapshot/index?version=2',{headers:{Cookie:session.cookie}}),'/workbench-snapshot/index',
+  const route='/workbench-snapshot',query='?window=date&date=2026-11-06&version=2';
+  const snapshot=await handleWorkbenchSnapshot(app.db,new Request(app.origin+'/api/v1'+route+query,{headers:{Cookie:session.cookie}}),route,
     {SITE_ORIGIN:app.origin,PUBLIC_BUSINESS_USER_ID:user,DAILY_NOTES_OWNER_ID:user,MEMOS_OWNER_ID:user});
   assert.equal(snapshot.status,200);
+  const {data:window}=await snapshot.json();
+  assert.deepEqual(window.coverage,{from:'2026-11-06',to:'2026-11-06'});
+  assert.equal(window.data.todos.find(row=>row.source_id===todo.id).note,'未完成：等待回复');
   assert.equal((await req('/todos','POST',{id:randomUUID(),date:'2026-11-06',text:template.text,template_id:template.id})).status,404);
   const backup=await exportBackup(app.db);
   assert.equal(backup.data.format,'haoduoyu-matrix-d1-v20');
@@ -47,9 +51,10 @@ test('notes and archived templates preserve history, protect versions, and appea
   const restoredTemplate=await target.db.prepare('SELECT archived_at FROM matrix_todo_templates WHERE id=?').bind(template.id).first();
   assert.equal(restoredTodo.note,'未完成：等待回复'); assert.equal(restoredTemplate.archived_at,archived.data.archived_at);
   const old=structuredClone(backup.data); old.format='haoduoyu-matrix-d1-v14';
-  // This historical fixture may omit only verified-empty review collections.
-  for(const name of Object.keys(old.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_')||name==='daily_scores')) {
-    assert.deepEqual(old.tables[name],[],'legacy fixture cannot hide review history: '+name);
+  // Only verified-empty collections introduced after v14 may be omitted.
+  for(const name of Object.keys(old.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_')||
+    ['daily_scores','diary_titles'].includes(name))) {
+    assert.deepEqual(old.tables[name],[],'legacy fixture cannot hide records: '+name);
     delete old.tables[name];
   }
   for(const row of old.tables.todos)delete row.note;

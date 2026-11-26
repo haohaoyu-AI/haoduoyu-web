@@ -42,7 +42,8 @@ async function setup(t) {
     return source.afterResponse ? source.afterResponse(path, options || {}, result) : result;
   }
   async function runtime() {
-    const value = createOfflineRuntime({db, request, now: () => clock.value, online: () => source.online});
+    const value = createOfflineRuntime({db, request, now: () => clock.value, online: () => source.online,
+      scopeProbe: true, windowedSnapshot: true});
     runtimes.push(value); await value.call('/auth/me'); return value;
   }
   async function notes(runtime, category = 'life', day = date) {
@@ -81,7 +82,7 @@ test('real runtime/state local acknowledgements survive reopening and deliver in
   assert.equal(restoredLife.page(f.date).ids.length, 2); assert.equal(restoredWork.page(f.date).ids.length, 1);
   assert.equal(restoredLife.entry(first.id).version, 0); assert.equal(restoredLife.entry(first.id).contentHash, '');
   f.source.online = true; f.source.session = await f.login();
-  await reopened.sync(); await restoredLife.read(f.date, {localOnly: true}); await restoredWork.read(f.date, {localOnly: true});
+  await reopened.sync({rerun: true}); await restoredLife.read(f.date, {localOnly: true}); await restoredWork.read(f.date, {localOnly: true});
   assert.equal((await reopened.queue()).operations.length, 0);
   const confirmed = await f.live('/note-entries/' + first.id);
   assert.equal(confirmed.version, 3); assert.equal(confirmed.text, '【自动测试】第三稿'); assert.equal(confirmed.content_hash, apiHash(confirmed));
@@ -99,7 +100,7 @@ test('a real offline DELETE becomes a versioned server tombstone while preservin
   f.source.online = false;
   const item = store.start(f.date); store.edit(item.id, '【自动测试】墓碑保留原文'); await store.save(item.id);
   await store.deleteEntry(item.id); assert.equal(item.deleted, true); assert.equal(item.localVersion, 2); assert.equal(item.version, 0);
-  f.source.online = true; await runtime.sync(); await store.read(f.date, {localOnly: true});
+  f.source.online = true; await runtime.sync({rerun: true}); await store.read(f.date, {localOnly: true});
   const remote = await f.live('/note-entries/' + item.id);
   assert.equal(remote.deleted, true); assert.equal(remote.version, 2); assert.equal(remote.text, '【自动测试】墓碑保留原文');
   assert.equal(remote.content_hash, apiHash(remote)); assert.equal(item.version, 2); assert.equal(item.localQueued, false);
@@ -116,7 +117,7 @@ test('real online version conflict preserves both original bodies and never impl
   const runtime = await f.runtime(), store = await f.notes(runtime), item = store.entry(id);
   f.source.online = false; store.edit(id, '【自动测试】本机离线新稿'); await store.save(id);
   await f.live('/note-entries/' + id, {method: 'DELETE', body: {version: 1, save_id: randomUUID()}});
-  f.source.online = true; await runtime.sync(); await store.read(f.date, {localOnly: true});
+  f.source.online = true; await runtime.sync({rerun: true}); await store.read(f.date, {localOnly: true});
   const queue = await runtime.queue(); assert.equal(queue.conflicts.length, 1); assert.equal(queue.operations[0].status, 'conflict');
   const conflict = queue.conflicts[0]; assert.equal(conflict.local.text, '【自动测试】本机离线新稿');
   assert.equal(conflict.remote.text, '【自动测试】原有线上稿'); assert.equal(conflict.remote.deleted, true);
@@ -138,10 +139,10 @@ test('a lost committed response is confirmed by its original real receipt withou
     if (path === '/note-entries/' + item.id && options.method === 'PUT' && !lost) { lost = true; throw offline(); }
     return result;
   };
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await runtime.sync({rerun: true});
   assert.equal((await runtime.queue()).operations[0].status, 'unknown'); assert.equal(writes(f, item.id).length, 1);
   await store.read(f.date, {localOnly: true}); assert.equal(item.phase, 'queued'); assert.equal(item.version, 0);
-  f.clock.value += 5000; await runtime.sync(); await store.read(f.date, {localOnly: true});
+  f.clock.value += 5000; await runtime.sync({rerun: true}); await store.read(f.date, {localOnly: true});
   assert.equal((await runtime.queue()).operations.length, 0); assert.equal(writes(f, item.id).length, 1);
   assert.deepEqual(writes(f, item.id)[0].body, originalBody);
   assert.ok(f.calls.some(call => call.path === '/note-entries/operations/' + original.save_id));
@@ -158,14 +159,14 @@ test('importing an already uncertain original save is atomically unknown and che
   const local = await runtime.call('/note-entries/' + id, {method: 'PUT', body, offlineUnknown: true});
   assert.equal(isLocalDocument(local), true); const [operation] = (await runtime.queue()).operations;
   assert.equal(operation.status, 'unknown'); assert.equal(operation.save_id, saveId); assert.deepEqual(operation.body, body);
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await runtime.sync({rerun: true});
   assert.equal((await runtime.queue()).operations.length, 0); assert.equal(writes(f, id).length, 1);
   assert.ok(f.calls.some(call => call.path === '/note-entries/operations/' + saveId));
   assert.equal((await f.live('/note-entries/' + id)).version, 1);
 });
 
 test('draft journals preserve an old unknown operation verbatim across reopenings and never manufacture server evidence', async t => {
-  const f = await setup(t), runtime = await f.runtime(); await f.notes(runtime, 'work', f.yesterday); await runtime.sync();
+  const f = await setup(t), runtime = await f.runtime(); await f.notes(runtime, 'work', f.yesterday); await runtime.sync({rerun: true});
   const id = randomUUID(), pending = {kind: 'put', version: 2, saveId: randomUUID(), text: '【自动测试】旧原请求稿',
     uncertain: true, checking: false, retryReady: false};
   const raw = {kind: 'note_entry', id, category: 'work', date: f.yesterday, draft: '【自动测试】后续未提交的工作草稿',
@@ -191,7 +192,7 @@ test('draft journals preserve an old unknown operation verbatim across reopening
 });
 
 test('a recovered unsubmitted draft retains its original category/day across a second reopen without automatic PUT', async t => {
-  const f = await setup(t), runtime = await f.runtime(); await f.notes(runtime, 'work', f.yesterday); await runtime.sync();
+  const f = await setup(t), runtime = await f.runtime(); await f.notes(runtime, 'work', f.yesterday); await runtime.sync({rerun: true});
   const id = randomUUID(), draft = {kind: 'note_entry', id, category: 'work', date: f.yesterday,
     draft: '【自动测试】跨午夜的未提交原稿', version: 0, serverText: '', contentHash: '', dirty: true, phase: 'error', pending: null};
   await runtime.retainDrafts([draft]); f.source.online = false;

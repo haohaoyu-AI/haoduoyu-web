@@ -1,5 +1,5 @@
-import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
-import {articlePipelineSpec,legacyPublishedArticles} from './article-pipeline-projection.mjs';
+import {traceHeaders, traceText} from './request-trace-projection.mjs';
+import {legacyPublishedArticles} from './article-pipeline-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -12,6 +12,7 @@ import {build} from 'esbuild';
 import current from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {dashboardHeaders, dashboardSpec, DEPRECATION_HEADER} from './dashboard-deprecation-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 const BASE = '307d54f84a7e817955aa5b5f2fb173f4c545cd23';
 const root = new URL('../', import.meta.url);
@@ -56,21 +57,22 @@ function contract(path, result) {
   return {status: result.status, body, headers: dashboardHeaders(path, result.status, traceHeaders(result.headers))};
 }
 test('dashboard deprecation changes only the two OpenAPI additions and one success expression', async () => {
-  const {projectQuietSync} = await import('./oct28-small-fix-projection.mjs');
+  const approved=historicalTree('060b2af771348779aff41a99da0a8deb1fcbb4f4');
   const openapi = new URL('../public/openapi.json', import.meta.url);
-  const live = await readFile(openapi, 'utf8');
-  assert.equal(JSON.parse(live).info.version, '1.2.0');
-  const spec = JSON.parse(projectQuietSync('public/openapi.json', live));
-  const projected = traceDocument(articlePipelineSpec(spec)), operation = projected.paths['/api/v1/dashboard'].get;
+  const live = JSON.parse(await readFile(openapi, 'utf8'));
+  const liveOperation=live.paths['/api/v1/dashboard'].get;
+  assert.equal(liveOperation.deprecated,true);
+  assert.deepEqual(liveOperation.responses['200'].headers.Deprecation,DEPRECATION_HEADER);
+  const spec = JSON.parse(approved.read('public/openapi.json'));
+  const operation = spec.paths['/api/v1/dashboard'].get;
   assert.equal(operation.deprecated, true);
   assert.deepEqual(operation.responses['200'].headers, {Deprecation: DEPRECATION_HEADER});
-  assert.deepEqual(dashboardSpec(projected), JSON.parse(old('public/openapi.json')));
+  assert.deepEqual(dashboardSpec(spec), JSON.parse(old('public/openapi.json')));
   const source = await readFile(new URL('../src/worker.mjs', import.meta.url), 'utf8');
   assert.ok(old('src/worker.mjs').includes(originalLine));
   // Preserve D4's original whole-file proof at its approved checkpoint; E2 now
   // adds only its separately tested wrapper. The current dashboard expression stays exact.
-  const approved = execFileSync('git', ['show', '060b2af771348779aff41a99da0a8deb1fcbb4f4:src/worker.mjs'], {cwd: root, encoding: 'utf8'});
-  assert.equal(approved, old('src/worker.mjs').replace(originalLine, deprecatedLine));
+  assert.equal(approved.read('src/worker.mjs'), old('src/worker.mjs').replace(originalLine, deprecatedLine));
   assert.equal(source.split(deprecatedLine).length, 2);
 });
 test('dashboard success adds exactly Deprecation true while preserving complete bodies and other headers', async t => {

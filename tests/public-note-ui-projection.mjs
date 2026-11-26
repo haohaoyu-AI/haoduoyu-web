@@ -13,9 +13,12 @@ const manifest=JSON.parse(await readFile(new URL('./public-note-ui-delta.json',i
 const hash=value=>createHash('sha256').update(value).digest('hex');
 export async function projectPublicNoteFrontend(file,source) {
   const original=source;
-  source=projectReconciliation(file,source);
-  if(file!=='public/app.js')source=await projectWorkbenchFrontend(file,source);
   const expected=manifest.files[file];
+  // The original public-edit checkpoint precedes the later workbench inverses.
+  if(!expected||hash(source)!==expected.after_sha256) {
+    source=projectReconciliation(file,source);
+    if(file!=='public/app.js')source=await projectWorkbenchFrontend(file,source);
+  }
   if(expected) {
     assert.equal(hash(source),expected.after_sha256,'exact accepted memo module bytes / approved public note UI delta: '+file);
     const before=execFileSync('git',['show',manifest.baseline+':'+file],{cwd:root,encoding:'utf8'});

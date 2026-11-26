@@ -7,6 +7,7 @@ import {projectUnifySwHistory} from './unify-sw-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage2Baseline='72d26abb94d316e08b63cf12924c157f1bc8e3cd';
+export const unifyStage2Patch='d8c0f272ca4576d23142b40a775c0b2252f4c180';
 export const unifyStage2Paths=Object.freeze(['.ci/public-assets.json','public/app.js','public/index.html','public/mobile.css',
   'scripts/build.mjs','web/controller.mjs','web/core/router.mjs','web/events.mjs','web/ui/menu.mjs','web/ui/workbench.mjs']);
 const acceptedDeltaSha256='1aad43926bffe5277a247bdd1bb6ae902865f7247589fc1ffd21c247f7b5c2ed';

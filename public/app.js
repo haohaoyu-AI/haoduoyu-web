@@ -5187,8 +5187,50 @@ async function readCachedOffline(context, path, guard) {
   await context.refresh();
   return data3;
 }
+async function offlineDispatch(context, mutate, path, input = {}, readRetried = false) {
+  const { state: state2, cache: cache2, features } = context;
+  const { offlineGuard: guard = () => {
+  }, requireNetwork = false, ...options3 } = input;
+  guard();
+  const method2 = (options3.method || "GET").toUpperCase(), route2 = writableRoute(path, options3, features);
+  const memo = features.memos && memoRoute(path);
+  const noteRoute = noteMutationRoute(path, options3, features);
+  if (noteRoute) return context.noteMutations.mutate(path, options3, noteRoute, guard);
+  if (path === "/auth/me" && method2 === "GET") return options3.context || options3.signal ? context.authenticate(options3) : context.verify();
+  if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
+    const value = await context.request(path, labelRequestOptions(path, options3, features));
+    await context.invalidate({ forget: true });
+    return value;
+  }
+  if (route2) return mutate(path, options3, route2, guard);
+  if (memo && method2 === "PUT") return mutateMemo(context, path, options3, guard);
+  if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options3, guard);
+  if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
+  try {
+    if (context.online() && state2.identity) await context.verifyScope();
+    guard();
+    const owner2 = state2.scope, generation = context.generation;
+    const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
+    guard();
+    const value = await context.request(path, labelRequestOptions(path, options3, features));
+    guard();
+    if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
+    if (offlineReadRoute(path).kind === "todo") state2.partial = false;
+    if (!state2.scope) return value;
+    const projection = await rememberRead(context, path, value, baseline, memo);
+    return requireNetwork ? value : projection;
+  } catch (error2) {
+    if ([401, 403].includes(error2.status)) {
+      await context.invalidate({ forget: true });
+      throw error2;
+    }
+    if (error2.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return offlineDispatch(context, mutate, path, input, true);
+    if (requireNetwork || !networkFailure(error2)) throw error2;
+    return readCachedOffline(context, path, guard);
+  }
+}
 function mutationActions(context) {
-  const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
+  const { state: state2, cache: cache2, now, uuid: uuid5, outbox } = context;
   async function mutate(path, options3, route2, guard) {
     guard();
     if (!state2.scope || !state2.identity) throw fail4("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
@@ -5244,47 +5286,7 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, input = {}, readRetried = false) {
-    const { offlineGuard: guard = () => {
-    }, requireNetwork = false, ...options3 } = input;
-    guard();
-    const method2 = (options3.method || "GET").toUpperCase(), route2 = writableRoute(path, options3, features);
-    const memo = features.memos && memoRoute(path);
-    const noteRoute = noteMutationRoute(path, options3, features);
-    if (noteRoute) return context.noteMutations.mutate(path, options3, noteRoute, guard);
-    if (path === "/auth/me" && method2 === "GET") return options3.context || options3.signal ? context.authenticate(options3) : context.verify();
-    if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
-      const value = await context.request(path, labelRequestOptions(path, options3, features));
-      await context.invalidate({ forget: true });
-      return value;
-    }
-    if (route2) return mutate(path, options3, route2, guard);
-    if (memo && method2 === "PUT") return mutateMemo(context, path, options3, guard);
-    if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options3, guard);
-    if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
-    try {
-      if (context.online() && state2.identity) await context.verifyScope();
-      guard();
-      const owner2 = state2.scope, generation = context.generation;
-      const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
-      guard();
-      const value = await context.request(path, labelRequestOptions(path, options3, features));
-      guard();
-      if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
-      if (offlineReadRoute(path).kind === "todo") state2.partial = false;
-      if (!state2.scope) return value;
-      const projection = await rememberRead(context, path, value, baseline, memo);
-      return requireNetwork ? value : projection;
-    } catch (error2) {
-      if ([401, 403].includes(error2.status)) {
-        await context.invalidate({ forget: true });
-        throw error2;
-      }
-      if (error2.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
-      if (requireNetwork || !networkFailure(error2)) throw error2;
-      return readCachedOffline(context, path, guard);
-    }
-  }
+  const call = (path, input, readRetried) => offlineDispatch(context, mutate, path, input, readRetried);
   return { call, mutate };
 }
 function lifecycleActions(context) {
@@ -11146,6 +11148,55 @@ var checked3 = (value, date2) => {
     throw new Error("小标题读取结果不完整。");
   return value;
 };
+async function saveDiaryTitle(session) {
+  const day8 = session.date(), p = session.page(day8), who = session.owner(), title = p.draft.trim();
+  if (!session.visible() || session.isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
+  p.saving = true;
+  p.status = "保存中…";
+  session.paint();
+  try {
+    if (p.attempt && p.attempt.title !== title) {
+      const last = p.attempt, live3 = checked3(await session.get(day8), day8);
+      if (!session.active(who, day8, p)) return;
+      p.attempt = null;
+      session.adopt(p, live3);
+      if (live3.version !== last.version && live3.title !== last.title) {
+        p.status = "另一处已更新，输入保留，请核对后再保存";
+        return;
+      }
+    }
+    p.attempt ??= { title, version: p.version, save_id: session.uuid() };
+    const data3 = checked3(await session.request("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
+    if (session.active(who, day8, p)) {
+      p.base = data3.title;
+      p.draft = data3.title;
+      p.version = data3.version;
+      p.attempt = null;
+      p.status = "已保存";
+    }
+  } catch (error2) {
+    if (!session.active(who, day8, p)) return;
+    if (error2.status === 409) {
+      try {
+        const data3 = checked3(await session.get(day8), day8);
+        if (!session.active(who, day8, p)) return;
+        session.adopt(p, data3);
+        p.attempt = null;
+        p.status = "另一处已更新，输入保留，请核对后再保存";
+      } catch {
+        p.status = "暂时无法核对，输入已保留";
+      }
+    } else {
+      if (error2.status >= 400 && error2.status < 500) p.attempt = null;
+      p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
+    }
+  } finally {
+    if (session.active(who, day8, p)) {
+      p.saving = false;
+      session.paint();
+    }
+  }
+}
 function createDiaryTitleController({ identity: identity5, date: date2, visible: visible3, isGuest, root: root3, onLogin, uuid: uuid5 = () => crypto.randomUUID(), request: request2 = apiNetwork }) {
   let owner2, pages = /* @__PURE__ */ new Map();
   function page(day8) {
@@ -11222,54 +11273,9 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     if (p.status === "已保存") p.status = "";
     paint4();
   }
+  const session = { date: date2, page, owner: () => owner2, visible: visible3, isGuest, paint: paint4, active: active5, get, adopt, request: request2, uuid: uuid5 };
   async function save() {
-    const day8 = date2(), p = page(day8), who = owner2, title = p.draft.trim();
-    if (!visible3() || isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
-    p.saving = true;
-    p.status = "保存中…";
-    paint4();
-    try {
-      if (p.attempt && p.attempt.title !== title) {
-        const last = p.attempt, live3 = checked3(await get(day8), day8);
-        if (!active5(who, day8, p)) return;
-        p.attempt = null;
-        adopt(p, live3);
-        if (live3.version !== last.version && live3.title !== last.title) {
-          p.status = "另一处已更新，输入保留，请核对后再保存";
-          return;
-        }
-      }
-      p.attempt ??= { title, version: p.version, save_id: uuid5() };
-      const data3 = checked3(await request2("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
-      if (active5(who, day8, p)) {
-        p.base = data3.title;
-        p.draft = data3.title;
-        p.version = data3.version;
-        p.attempt = null;
-        p.status = "已保存";
-      }
-    } catch (error2) {
-      if (!active5(who, day8, p)) return;
-      if (error2.status === 409) {
-        try {
-          const data3 = checked3(await get(day8), day8);
-          if (!active5(who, day8, p)) return;
-          adopt(p, data3);
-          p.attempt = null;
-          p.status = "另一处已更新，输入保留，请核对后再保存";
-        } catch {
-          p.status = "暂时无法核对，输入已保留";
-        }
-      } else {
-        if (error2.status >= 400 && error2.status < 500) p.attempt = null;
-        p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
-      }
-    } finally {
-      if (active5(who, day8, p)) {
-        p.saving = false;
-        paint4();
-      }
-    }
+    await saveDiaryTitle(session);
   }
   return { paint: paint4, load: load2, edit, save, login: onLogin };
 }
@@ -11339,7 +11345,13 @@ async function loadIdeas(context) {
   view.error = "";
   try {
     const data3 = await api("/ideas", { context });
-    Object.assign(view, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), readOnly: data3.readOnly === true, loaded: true });
+    Object.assign(view, {
+      items: data3.items || [],
+      total: data3.total || 0,
+      truncated: Boolean(data3.truncated),
+      readOnly: data3.readOnly === true,
+      loaded: true
+    });
   } catch (error2) {
     if (error2?.name === "AbortError") throw error2;
     view.error = error2?.message || "想法池没读出来，请稍后再试。";
@@ -12824,6 +12836,55 @@ async function handleNotesClick(event) {
   else if (action === "export-legacy") exportLegacyDraft(store.page(date2), dailyNotesRouteCategory());
   else if (action === "export-drafts") await exportDraftArchive();
 }
+function registerDailyNotesSurfaceEvents() {
+  document.addEventListener("click", (event) => {
+    void handleNotesClick(event);
+  });
+  setNoteSuggestRepaint(() => paintDailyNotesPage());
+  document.addEventListener("click", (event) => {
+    const more = event.target.closest("[data-note-more]");
+    if (more && more.closest("#daily-notes")) {
+      event.preventDefault();
+      openNoteMenu(more);
+      return;
+    }
+    const todo = event.target.closest("[data-note-todo]");
+    if (todo) {
+      event.preventDefault();
+      closePopover({ restoreFocus: false });
+      noteToTodo(todo.dataset.noteId);
+      return;
+    }
+    const target = event.target.closest('[data-note-idea="add"]');
+    if (!target || !(target.dataset.noteId || target.closest("#daily-notes"))) return;
+    event.preventDefault();
+    closePopover({ restoreFocus: false });
+    void putInIdeaPool(target);
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-note-suggest]");
+    if (!target) return;
+    event.preventDefault();
+    const find = (id2) => [...entryStores.values()].map((store) => [store, store.entry(id2)]).find(([, item]) => item) || [];
+    void actOnNoteSuggestion(target, {
+      current: (id2) => find(id2)[1]?.labels,
+      async relabel(id2, labels4) {
+        const [store, item] = find(id2);
+        if (!store || !notesLabelsVerified || !store.relabelDraft(id2, labels4)) return false;
+        await store.save(id2);
+        paintDailyNotesPage();
+        return item.phase === "saved" && !item.dirty;
+      }
+    });
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
+    if (retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown")) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+}
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
@@ -12895,53 +12956,7 @@ function registerDailyNotesEvents() {
       }
     });
   });
-  document.addEventListener("click", (event) => {
-    void handleNotesClick(event);
-  });
-  setNoteSuggestRepaint(() => paintDailyNotesPage());
-  document.addEventListener("click", (event) => {
-    const more = event.target.closest("[data-note-more]");
-    if (more && more.closest("#daily-notes")) {
-      event.preventDefault();
-      openNoteMenu(more);
-      return;
-    }
-    const todo = event.target.closest("[data-note-todo]");
-    if (todo) {
-      event.preventDefault();
-      closePopover({ restoreFocus: false });
-      noteToTodo(todo.dataset.noteId);
-      return;
-    }
-    const target = event.target.closest('[data-note-idea="add"]');
-    if (!target || !(target.dataset.noteId || target.closest("#daily-notes"))) return;
-    event.preventDefault();
-    closePopover({ restoreFocus: false });
-    void putInIdeaPool(target);
-  });
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-note-suggest]");
-    if (!target) return;
-    event.preventDefault();
-    const find = (id2) => [...entryStores.values()].map((store) => [store, store.entry(id2)]).find(([, item]) => item) || [];
-    void actOnNoteSuggestion(target, {
-      current: (id2) => find(id2)[1]?.labels,
-      async relabel(id2, labels4) {
-        const [store, item] = find(id2);
-        if (!store || !notesLabelsVerified || !store.relabelDraft(id2, labels4)) return false;
-        await store.save(id2);
-        paintDailyNotesPage();
-        return item.phase === "saved" && !item.dirty;
-      }
-    });
-  });
-  window.addEventListener("beforeunload", (event) => {
-    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if (retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown")) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
+  registerDailyNotesSurfaceEvents();
 }
 var findNote = (id2) => [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
 function openNoteMenu(trigger) {
@@ -16012,30 +16027,41 @@ function patternValue(tags, id2, dimension) {
   const entry = tags.tags[id2];
   return entry && Object.hasOwn(entry, dimension) && typeof entry[dimension] === "string" ? entry[dimension].trim() : "";
 }
+var PATTERN_ORDER = {
+  title: ["中外交锋", "引用外媒", "身份反差", "细节引大案"],
+  article: ["两方对决", "人物来路", "败局复盘", "预期反转"]
+};
 var PATTERN_PRESENTATION = {
   title: {
-    "谁跟谁较劲": { aliases: ["中外交锋"] },
-    "谁做了什么": { aliases: ["身份反差"] },
-    "一件小事引出大事": { aliases: ["细节引大案"] },
-    "败局揭底": { note: "旧名，按内容归谁跟谁较劲或谁做了什么" }
+    "中外交锋": { aliases: ["谁跟谁较劲"] },
+    "引用外媒": { aliases: ["别人怎么说"] },
+    "身份反差": { aliases: ["谁做了什么"] },
+    "细节引大案": { aliases: ["一件小事引出大事"] }
   },
   article: {
-    "双方怎么争": { aliases: ["历史名场面与暗战纪实", "脑洞怪题与硬核剥笋流"] },
-    "一个人怎么走到这一步": { aliases: ["市井切片与江湖高人传"] },
-    "事情怎么搞砸的": { aliases: ["商业败局与作死复盘流"] },
-    "赛博罪案与猫鼠博弈流": { note: "备用" },
-    "草根江湖与赛博淘金流": { note: "备用" },
-    "隐形冠军与暴利商战流": { note: "备用" }
+    "两方对决": { aliases: ["双方怎么争", "历史名场面与暗战纪实", "脑洞怪题与硬核剥笋流"] },
+    "人物来路": { aliases: ["一个人怎么走到这一步", "市井切片与江湖高人传"] },
+    "败局复盘": { aliases: ["事情怎么搞砸的", "商业败局与作死复盘流"] },
+    "预期反转": { aliases: ["为什么跟想的不一样"] }
   }
 };
+var PATTERN_RETIRED = ["赛博罪案与猫鼠博弈流", "草根江湖与赛博淘金流", "隐形冠军与暴利商战流"];
+var PATTERN_ORPHANS = ["悬念问答", "暴利数字", "败局揭底"];
+var PATTERN_OTHER = "其他";
 var PATTERN_ALIASES = Object.fromEntries(Object.entries(PATTERN_PRESENTATION).map(([kind, entries]) => [kind, new Map(Object.entries(entries).flatMap(([name, { aliases: aliases2 = [] }]) => aliases2.map((alias) => [alias, name])))]));
+var RETIRED_PATTERNS = new Set(PATTERN_RETIRED);
+var ORPHAN_PATTERNS = new Set(PATTERN_ORPHANS);
 function patternKind(tags, dimension) {
   if (!dimension) return "";
   const [title, article] = articlePatternDimensions(tags);
   return dimension === title ? "title" : dimension === article ? "article" : "";
 }
 function displayPattern(kind, name) {
-  return PATTERN_ALIASES[kind]?.get(name) || name;
+  if (!name) return "";
+  const aliased = PATTERN_ALIASES[kind]?.get(name);
+  if (aliased) return aliased;
+  if (RETIRED_PATTERNS.has(name) || ORPHAN_PATTERNS.has(name)) return PATTERN_OTHER;
+  return name;
 }
 function availableDimensions(tags, rows) {
   return articlePatternDimensions(tags).map((dimension) => rows.some((row) => patternValue(tags, row.id, dimension)) ? dimension : "");
@@ -16085,17 +16111,27 @@ function groupBy(rows, keyFor2) {
   }
   return groups;
 }
-var tailRank = (name) => name === "未分类" ? 2 : name === "其他" ? 1 : 0;
+var tailRank = (name) => name === "未分类" ? 2 : name === PATTERN_OTHER ? 1 : 0;
+var byPerformance = (a, b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) || (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name, "zh-CN");
+function patternGroupEntry(name, groupRows, rawNames, kind, observations) {
+  const presentation = PATTERN_PRESENTATION[kind]?.[name] || {};
+  const observed = new Set(groupRows.map((row) => rawNames.get(row)).filter(Boolean));
+  const legacyNames2 = (presentation.aliases || []).filter((alias) => observed.has(alias));
+  if (name === PATTERN_OTHER) {
+    for (const orphan of PATTERN_ORPHANS) if (observed.has(orphan)) legacyNames2.push(orphan);
+  }
+  const retired = name === PATTERN_OTHER ? PATTERN_RETIRED.filter((item) => observed.has(item)) : [];
+  const note = retired.length ? `旧备用名，须重打：${retired.join("、")}` : presentation.note || "";
+  return { name, rows: groupRows, legacyNames: legacyNames2, note, ...summary2(groupRows, observations) };
+}
 function articlePatternGroups(rows, tags, dimension, observations) {
   const kind = patternKind(tags, dimension);
   const rawNames = new Map(rows.map((row) => [row, patternValue(tags, row.id, dimension)]));
-  return [...groupBy(rows, (row) => displayPattern(kind, rawNames.get(row)) || "未分类")].map(([name, rows2]) => {
-    const entry = PATTERN_PRESENTATION[kind];
-    const presentation = entry && Object.hasOwn(entry, name) ? entry[name] : {};
-    const observedNames = new Set(rows2.map((row) => rawNames.get(row)));
-    const legacyNames2 = (presentation.aliases || []).filter((alias) => observedNames.has(alias));
-    return { name, rows: rows2, legacyNames: legacyNames2, note: presentation.note || "", ...summary2(rows2, observations) };
-  }).sort((a, b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) || (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name, "zh-CN"));
+  const grouped = groupBy(rows, (row) => displayPattern(kind, rawNames.get(row)) || "未分类");
+  const listed = new Set(PATTERN_ORDER[kind] || []);
+  const entries = [...listed].map((name) => patternGroupEntry(name, grouped.get(name) || [], rawNames, kind, observations));
+  const rest = [...grouped.entries()].filter(([name, list3]) => !listed.has(name) && list3.length).map(([name, list3]) => patternGroupEntry(name, list3, rawNames, kind, observations)).sort(byPerformance);
+  return [...entries, ...rest];
 }
 function articleWeekGroups(rows, observations) {
   return [...groupBy(rows, (row) => {
@@ -16170,7 +16206,11 @@ function patternButton(tags, row, dimension, kind) {
 }
 function renderDetailPatterns(row, tags) {
   const labels4 = ["标题套路", "文章套路"];
-  return `<dl class="review-detail-patterns">${articlePatternDimensions(tags).map((dimension, index) => `<div><dt>${labels4[index]}</dt><dd>${e(patternValue(tags, row.id, dimension) || "—")}</dd></div>`).join("")}</dl>`;
+  return `<dl class="review-detail-patterns">${articlePatternDimensions(tags).map((dimension, index) => {
+    const raw = patternValue(tags, row.id, dimension);
+    const shown2 = displayPattern(patternKind(tags, dimension), raw) || raw;
+    return `<div><dt>${labels4[index]}</dt><dd>${e(shown2 || "—")}</dd></div>`;
+  }).join("")}</dl>`;
 }
 function verdictChip(row, observation) {
   if (observation.kind === "longtail") return '<span title="发布 72 小时后才有数据" class="review-article-verdict longtail review-tag">长尾</span>';
@@ -16196,7 +16236,9 @@ function metricCell(observation, key) {
   const text = e(formatReviewListMetric({ snapshot: metricSnapshot(observation, key) }, key));
   if (!LATEST_METRICS.has(key) || text === "—" || metricSnapshot(observation, key) === observation?.snapshot) return text;
   const hours = observation?.latest?.hours;
-  return hours === null || hours === void 0 ? text : `<span class="review-latest-value" title="24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集">${text}</span>`;
+  if (hours === null || hours === void 0) return text;
+  const title = `24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集`;
+  return `<span class="review-latest-value" title="${title}">${text}</span>`;
 }
 function rowHtml(row, observation, tags, dimensions, maxLog, cols) {
   const published = articleListDate(row.published_at);
@@ -16228,7 +16270,7 @@ function weekBody(week, lines, cols) {
   return `<tbody><tr class="review-week-summary"><th scope="rowgroup" colspan="${cols.length}"><div><strong class="review-week-label">${date2}</strong><span class="review-week-count">${week.rows.length} 篇</span>${countsHtml(week.counts)}<span class="review-week-stat">阅读中位 <b>${e(medianText(week.reads, "reads"))}</b></span><span class="review-week-stat">点击中位 <b>${e(medianText(week.ctr, "ctr"))}</b></span></div></th></tr>${lines(week.rows)}</tbody>`;
 }
 function patternGroup(group, dimension, headers, lines, density) {
-  const few = group.rows.length < 5 ? '<span class="review-sample-badge" title="少于 5 篇，结论先别当真">样本少</span>' : "";
+  const few = group.rows.length > 0 && group.rows.length < 5 ? '<span class="review-sample-badge" title="少于 5 篇，结论先别当真">样本少</span>' : "";
   const rate3 = group.hitRate === null ? "—" : `${group.hitRate.toFixed(1)}%`;
   const annotations = [
     group.legacyNames.length ? `含旧名：${group.legacyNames.join("、")}` : "",
@@ -16236,7 +16278,7 @@ function patternGroup(group, dimension, headers, lines, density) {
   ].filter(Boolean).map((note) => `<span class="review-group-count">${e(note)}</span>`).join("");
   const figure2 = (label, value, css = "") => `<div${css ? ` class="${css}"` : ""}><dt>${label}</dt><dd>${e(value)}</dd></div>`;
   const full = density === "full" ? figure2("展现中位", medianText(group.impressions, "impressions")) + figure2("粉丝阅读中位", medianText(group.fan_reads, "fan_reads")) + figure2("粉丝展现中位", medianText(group.fan_impressions, "fan_impressions")) : "";
-  return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension, group.name]))}"><summary><span class="review-article-group-name">${e(group.name)}</span>${annotations}<span class="review-group-count">${group.rows.length} 篇</span>${few}<span class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</span><dl class="review-article-group-figures">${figure2("爆率", rate3, group.hitRate > 0 ? "is-hitrate is-positive" : "is-hitrate")}${figure2("阅读中位", medianText(group.reads, "reads"))}${figure2("点击中位", medianText(group.ctr, "ctr"))}${figure2("完读中位", medianText(group.completion_rate, "completion_rate"))}${figure2("时长中位", medianText(group.avg_read_seconds, "avg_read_seconds"))}${full}</dl></summary>${table(headers, `<tbody>${lines(group.rows)}</tbody>`, density)}</details>`;
+  return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension, group.name]))}"><summary><span class="review-article-group-name">${e(group.name)}</span>${annotations}<span class="review-group-count">${group.rows.length} 篇</span>${few}<span class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</span><dl class="review-article-group-figures">${figure2("爆率", rate3, group.hitRate > 0 ? "is-hitrate is-positive" : "is-hitrate")}${figure2("阅读中位", medianText(group.reads, "reads"))}${figure2("点击中位", medianText(group.ctr, "ctr"))}${figure2("完读中位", medianText(group.completion_rate, "completion_rate"))}${figure2("时长中位", medianText(group.avg_read_seconds, "avg_read_seconds"))}${full}</dl></summary>${group.rows.length ? table(headers, `<tbody>${lines(group.rows)}</tbody>`, density) : ""}</details>`;
 }
 function latestObservation(snapshots) {
   let best = null;
@@ -16280,7 +16322,8 @@ function renderArticleList(rows, vm2, snapshots, flagged, tag2) {
   const head = summaryStrip(stats2, ordered2.length, density);
   if (group !== TABLE_VIEW) {
     const groups = articlePatternGroups(ordered2, vm2.tags, group, observations);
-    return top + head + `<div class="review-article-groups">${groups.map((entry) => patternGroup(entry, group, headers, lines, density)).join("")}</div>` + note;
+    const shown2 = filters.pattern ? groups.filter((entry) => entry.rows.length) : groups;
+    return top + head + `<div class="review-article-groups">${shown2.map((entry) => patternGroup(entry, group, headers, lines, density)).join("")}</div>` + note;
   }
   const bodies = filters.sort ? `<tbody>${lines(ordered2)}</tbody>` : articleWeekGroups(ordered2, observations).map((week) => weekBody(week, lines, cols)).join("");
   return top + head + table(headers, bodies, density) + note;
@@ -16569,7 +16612,10 @@ function v13Accounts(data3) {
     ].filter(Boolean).join("");
     const cadence = String(account3.posting_cadence || "").trim();
     const cadenceHtml = cadence ? `<p class="review-account-cadence${/封号|停用/.test(cadence) ? " is-stopped" : ""}">${e(cadence)}</p>` : "";
-    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>${pills ? `<div class="review-account-pills">${pills}</div>` : ""}</div>${cadenceHtml}<div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
+    const link = profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name;
+    const pillRow = pills ? `<div class="review-account-pills">${pills}</div>` : "";
+    const features = details || "<p>暂无特点记录</p>";
+    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${link}</h3>${pillRow}</div>${cadenceHtml}<div class="review-v13-account-features">${features}</div></section>`;
   }).join("");
   return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div><div class="review-benchmark-cards">${cards}</div></div>`;
 }
@@ -17432,7 +17478,7 @@ function renderPageHeader() {
 function mainContent() {
   const settingsChoices = state.me?.publicBusiness ? { todo: settingsTabs.todo, ai: settingsTabs.ai } : settingsTabs;
   const tabs = state.page === "settings" ? segmented("settings-tab", Object.entries(settingsChoices), state.settingsTab, "设置分类", "tab", "page-tabs") : "";
-  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>${state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}`;
+  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>` + (state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : "");
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");

@@ -54,7 +54,11 @@ function renderPageHeader() {
 function mainContent() {
   const settingsChoices = state.me?.publicBusiness ? {todo: settingsTabs.todo, ai: settingsTabs.ai} : settingsTabs;
   const tabs = state.page === "settings" ? segmented("settings-tab", Object.entries(settingsChoices), state.settingsTab, "设置分类", "tab", "page-tabs") : "";
-  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>${state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}`;
+  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}` +
+    `<div id="page-content"></div>` +
+    (state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理">' +
+      '<h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p>' +
+      '<div id="offline-settings-entry"></div></section>' : "");
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");

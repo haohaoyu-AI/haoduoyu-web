@@ -1,11 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {traceHeaders, traceJSON, traceText, traceDocument} from './request-trace-projection.mjs';
-import {articlePipelineSpec} from './article-pipeline-projection.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 test('legacy projection validates and removes only the authorized header and top-level error field', () => {
   const id = randomUUID(), headers = new Headers({'X-Request-Id': id, 'Cache-Control': 'no-store', 'X-Other-Trace': 'keep', 'Content-Type': 'application/json'});
@@ -26,12 +24,13 @@ test('legacy projection validates and removes only the authorized header and top
 });
 
 test('OpenAPI has only the compatible response-header and top-level error-ID additions', async () => {
-  const live = await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8');
-  assert.equal(JSON.parse(live).info.version, '1.2.0');
-  const value = JSON.parse(projectQuietSync('public/openapi.json', live));
-  const previous = JSON.parse(execFileSync('git', ['show', '24b5c5082a115cd9ee78e440c0848245079e6048:public/openapi.json'],
-    {cwd: new URL('../', import.meta.url), encoding: 'utf8'}));
-  assert.deepEqual(traceDocument(articlePipelineSpec(value)), previous);
+  const live = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
+  const value=JSON.parse(historicalTree('6b02e4a56baac4a8c217cdc52ef77e66a1d3c754').read('public/openapi.json'));
+  const previous=JSON.parse(historicalTree('24b5c5082a115cd9ee78e440c0848245079e6048').read('public/openapi.json'));
+  assert.deepEqual(traceDocument(value), previous);
+  assert.deepEqual(live.components.headers.RequestId,value.components.headers.RequestId);
+  const {type,format,readOnly}=live.components.schemas.Error.properties.request_id;
+  assert.deepEqual({type,format,readOnly},{type:'string',format:'uuid',readOnly:true});
   assert.deepEqual(value.components.schemas.Error.required, previous.components.schemas.Error.required);
   assert.deepEqual(value.components.schemas.Error.properties.error, previous.components.schemas.Error.properties.error);
   assert.deepEqual(value.paths['/api/v1/dashboard'].get.responses['200'].headers.Deprecation,

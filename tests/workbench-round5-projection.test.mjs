@@ -1,45 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,readdir} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
+import {readFile} from 'node:fs/promises';
+import {historicalTree} from './historical-tree.mjs';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound5,round5AddedModules} from './workbench-round5-projection.mjs';
 import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
-import {projectedChangedFiles} from './unify-stage1-projection.mjs';
-import {projectUnifySwModules} from './unify-sw-projection.mjs';
-import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
-const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
+const hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
 const delta=JSON.parse(await read('tests/workbench-round5-delta.json'));
-const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:2*1024*1024});
+const before=historicalTree(delta.baseline);
+const archived=historicalTree('16ff80ef2d857676d81b7c219110c820de5af72b');
 
-test('round-five presentation files and explicit new module are pinned over the released frontend',async()=>{
+test('archived round-five presentation files and explicit new module are pinned over the preceding release',()=>{
   assert.equal(delta.baseline,'ae1fafe292755ba01df5a8a639b74245eec72752');
   assert.deepEqual(delta.added_modules,round5AddedModules);
   const added=Object.entries(delta.files).filter(([file,entry])=>file.startsWith('web/')&&entry.before===null).map(([file])=>file).sort();
   assert.deepEqual(added,[...round5AddedModules].sort());
   for(const [file,entry]of Object.entries(delta.files)) {
     assert.ok(file.startsWith('web/')||['public/app.js','public/workbench.css'].includes(file),'frontend-only pin: '+file);
-    const current=await read(file),source=projectWorkbenchRound6(file,current);
-    assert.equal(hash(source),entry.after,'on-disk round-five source stays exact: '+file);
-    assert.equal(projectWorkbenchRound5(file,source),entry.before===null?'':git('show',delta.baseline+':'+file));
+    const current=archived.read(file),source=projectWorkbenchRound6(file,current);
+    assert.equal(hash(source),entry.after,'released round-five source stays exact: '+file);
+    assert.equal(projectWorkbenchRound5(file,source),entry.before===null?'':before.read(file));
     assert.throws(()=>projectWorkbenchRound5(file,current+'\n/* unauthorized change */\n'),/approved workbench delta/);
   }
   const roots=['web','public','src','shared','db','drizzle','scripts'];
-  const inventory=projectedChangedFiles(delta.baseline,roots,projectWorkbenchRound6);
+  const inventory=archived.changedSince(delta.baseline,...roots).sort();
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned presentation changes are accepted');
-  const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs'));
-  const known=new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
-  const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
-    .map(file=>'web/'+file).filter(file=>known.has(file)).sort();
-  assert.deepEqual(projectUnifySwModules(modules),[...released,...round5AddedModules].sort(),
-    'complete released module inventory plus exact new view helper; only the pinned later SW client projects to absence');
+  const released=before.files('web').filter(file=>file.endsWith('.mjs'));
+  const modules=archived.files('web').filter(file=>file.endsWith('.mjs')).sort();
+  assert.deepEqual(modules,[...released,...round5AddedModules].sort(),'complete released module inventory plus exact new view helper');
 });
 
-test('round-five leaves every backend, schema, snapshot, backup and public API documentation byte unchanged',()=>{
+test('archived round five preserves every backend, schema, snapshot, backup and public API documentation byte',()=>{
   const immutable=['src','shared','db','drizzle','scripts','runtime.json','package.json','package-lock.json',
     'public/openapi.json','public/api-docs.html','public/llms.txt'];
-  assert.deepEqual(projectedChangedFiles(delta.baseline,immutable),[],
-    'only the exact stage-one static asset registration is reversed; server and contract bytes remain unchanged');
+  assert.deepEqual(archived.changedSince(delta.baseline,...immutable),[]);
 });

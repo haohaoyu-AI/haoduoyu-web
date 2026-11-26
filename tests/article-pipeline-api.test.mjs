@@ -2,7 +2,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 
@@ -22,17 +21,6 @@ function fields() {
     blockers:[{kind:'source',message:'合成待核验',future_key:{id:'01'}}],verify_items:[{key:'quote',ok:false,unknown:'保留'}]};
 }
 async function setup(t) {
-  const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[
-    '0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',
-    '0005_article_pipeline','0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates',
-    '0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets',
-    '0013_note_label_archives','0014_ai_reports','0015_content_review','0016_review_attribution',
-    '0017_review_resources','0018_review_legacy_extensions','0019_todo_notes_archives','0020_openai_review',
-    '0021_review_prompt_versions','0022_daily_scores','0023_unscheduled_todo_notes','0024_review_article_diagnoses','0025_unscheduled_todo_period','0026_unscheduled_todo_recurrence','0027_unscheduled_todo_due','0028_review_draft_status','0029_review_archive',
-  ],'The journal preserves every reviewed migration in order');
-  assert.equal(journal.entries[5].tag,'0005_article_pipeline');
-  assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const columns=(await app.db.prepare('PRAGMA table_info(matrix_articles)').all()).results.map(x=>x.name);

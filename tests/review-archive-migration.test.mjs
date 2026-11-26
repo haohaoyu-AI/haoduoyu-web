@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {applyLocalSchemaMigrations, reviewArchiveMigrationTag} from '../scripts/migration-contract.mjs';
 import {archiveTables, localDatabase, seedLegacy, stamp} from './review-archive-d1-fixture.mjs';
 
+const throughArchive = 30;
 const archiveIndexes = [
   'event_entity', 'import_source', 'item_legacy', 'item_recent', 'ref_item', 'ref_platform',
   'ref_primary', 'snapshot_item', 'snapshot_source',
@@ -30,13 +31,13 @@ test('0029 rolls back on failed D1 batch, retries once, and preserves the 0028 r
     prepare: sql => db.prepare(sql),
     batch: statements => db.batch([...statements, db.prepare('INSERT INTO matrix_users(id) VALUES(NULL)')]),
   };
-  await assert.rejects(applyLocalSchemaMigrations(failing), /NOT NULL constraint failed/);
+  await assert.rejects(applyLocalSchemaMigrations(failing, {through: throughArchive}), /NOT NULL constraint failed/);
   assert.deepEqual(await catalog(), beforeCatalog);
   assert.deepEqual(await ledger(), beforeLedger);
   assert.deepEqual(await Promise.all(legacyTables.map(name => read(db, `SELECT * FROM matrix_${name}`))), before);
 
-  await applyLocalSchemaMigrations(db);
-  await applyLocalSchemaMigrations(db);
+  await applyLocalSchemaMigrations(db, {through: throughArchive});
+  await applyLocalSchemaMigrations(db, {through: throughArchive});
   const afterCatalog = await catalog();
   assert.deepEqual(afterCatalog.filter(row => !row.tbl_name.startsWith('matrix_review_archive_')), beforeCatalog);
   const added = afterCatalog.filter(row => row.tbl_name.startsWith('matrix_review_archive_'));

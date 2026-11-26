@@ -8,30 +8,30 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import worker from '../dist/server/index.js';
 import {assets} from '../src/assets.generated.mjs';
-import {unifyStage1Baseline,unifyStage1Paths,unifyStage1Styles,unifyStage1Before,unifyStage1Manifest,
+import {unifyStage1Baseline,unifyStage1Patch,unifyStage1Paths,unifyStage1Styles,unifyStage1Before,unifyStage1Manifest,
   validateUnifyStage1Delta,projectUnifyStage1,projectUnifyStage1History,projectedChangedFiles,expandStage1Css,stage1Hash} from './unify-stage1-projection.mjs';
-import {projectUnifyStage2} from './unify-stage2-projection.mjs';
-import {projectOct28History} from './oct28-projection.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
+import {projectUnifyStage2,unifyStage2Patch} from './unify-stage2-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=file=>readFileSync(join(root,file),'utf8');
-const stage1Read=file=>projectUnifyStage2(file,read(file));
+const {read:stage1Read}=historicalTree(unifyStage1Patch);
+const {read:stage2Read}=historicalTree(unifyStage2Patch);
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyStage1Manifest();
 
 test('stage one pins only constant extraction and its asset wiring over the fixed released source',()=>{
   for(const file of unifyStage1Paths) {
     const source=stage1Read(file);
-    assert.equal(stage1Hash(source),delta.files[file].after,'current source must be the reviewed after bytes: '+file);
+    assert.equal(stage1Hash(source),delta.files[file].after,'stage-one source must be the reviewed after bytes: '+file);
     assert.equal(projectUnifyStage1(file,source),unifyStage1Before(file),file);
     assert.equal(projectUnifyStage1(file,unifyStage1Before(file)),unifyStage1Before(file),'exact released input remains valid');
   }
-  for(const file of unifyStage1Styles)assert.equal(expandStage1Css(projectOct28History(file,read(file))),unifyStage1Before(file),file+' complete CSS bytes');
+  for(const file of unifyStage1Styles)assert.equal(expandStage1Css(stage1Read(file)),unifyStage1Before(file),file+' complete CSS bytes');
   const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
-  assert.deepEqual(projectedChangedFiles(unifyStage1Baseline,roots),[],
+  assert.deepEqual(projectedChangedFiles(unifyStage1Baseline,roots,projectUnifyStage1,unifyStage1Patch),[],
     'no application, API, store, schema, policy, deployment or extra asset change is concealed');
-  assert.equal(stage1Read('public/app.js'),git('show',unifyStage1Baseline+':public/app.js'),
+  assert.equal(projectUnifyStage2('public/app.js',stage2Read('public/app.js')),git('show',unifyStage1Baseline+':public/app.js'),
     'the reviewed stage-two inverse restores the unchanged stage-one JavaScript');
 });
 
@@ -43,15 +43,15 @@ test('stage-one manifest cannot authorize a new path, token, digest or baseline'
   const expanded=structuredClone(delta);expanded.files['src/worker.mjs']={...expanded.files['scripts/build.mjs']};variants.push(expanded);
   const missing=structuredClone(delta);delete missing.files['public/tokens.css'];variants.push(missing);
   const moved=structuredClone(delta);moved.baseline='947bc782ea70e7808f6e7de523e5977818b292df';variants.push(moved);
-  const selfAuthorized=structuredClone(delta);selfAuthorized.files['public/tokens.css'].after=stage1Hash(read('public/tokens.css')+'\n');variants.push(selfAuthorized);
+  const selfAuthorized=structuredClone(delta);selfAuthorized.files['public/tokens.css'].after=stage1Hash(stage1Read('public/tokens.css')+'\n');variants.push(selfAuthorized);
   for(const candidate of variants)assert.throws(()=>validateUnifyStage1Delta(candidate),/approved workbench delta/);
 });
 
 test('strict current inverse rejects extra CSS, changed tokens, duplicate links and expanded asset wiring',()=>{
   for(const file of unifyStage1Paths)assert.throws(()=>projectUnifyStage1(file,stage1Read(file)+'\n'),/approved workbench delta/,file);
   const mutations=[
-    ['public/style.css',read('public/style.css').replace('var(--color-base-background)','var(--color-primary)')],
-    ['public/tokens.css',read('public/tokens.css').replace('--color-primary:#a44e38','--color-primary:#000000')],
+    ['public/style.css',stage1Read('public/style.css').replace('var(--color-base-background)','var(--color-primary)')],
+    ['public/tokens.css',stage1Read('public/tokens.css').replace('--color-primary:#a44e38','--color-primary:#000000')],
     ['public/index.html',stage1Read('public/index.html').replace('href="/tokens.css">','href="/tokens.css">\n    <link rel="stylesheet" href="/tokens.css">')],
     ['scripts/build.mjs',stage1Read('scripts/build.mjs').replace("'tokens.css'","'tokens.css','unapproved.css'")],
     ['.ci/public-assets.json',stage1Read('.ci/public-assets.json').replace('legacy-source-pins-and-worker-embedding','unapproved-mode')]
@@ -60,10 +60,10 @@ test('strict current inverse rejects extra CSS, changed tokens, duplicate links 
     assert.notEqual(source,stage1Read(file),'negative fixture changes source: '+file);
     assert.throws(()=>projectUnifyStage1(file,source),/approved workbench delta/);
   }
-  const unrelated=read('src/worker.mjs')+'\n/* unapproved */\n';
+  const unrelated=stage1Read('src/worker.mjs')+'\n/* unapproved */\n';
   assert.throws(()=>projectUnifyStage1('src/worker.mjs',unrelated),/approved workbench delta/,
     'the later narrow SW inverse rejects any unreviewed Worker bytes before historical projection');
-  const business=read('src/records.mjs')+'\n/* unapproved */\n';
+  const business=stage1Read('src/records.mjs')+'\n/* unapproved */\n';
   assert.equal(projectUnifyStage1('src/records.mjs',business),business,'unapproved business edits remain visible to inventory checks');
   assert.equal(projectUnifyStage1('public/../public/style.css','unapproved'),'unapproved','aliases never receive a normalization');
 });
@@ -72,10 +72,10 @@ test('history adapter accepts only fixed checkpoint blobs and never arbitrary le
   const file='public/style.css',old=git('show','37a1e4f2618e1fea6ded05911b2a73572968442a:'+file);
   assert.equal(projectUnifyStage1History(file,old),old);
   assert.throws(()=>projectUnifyStage1History(file,old+'\n/* changed old CSS */\n'),/approved workbench delta/);
-  assert.equal(projectUnifyStage1History(file,read(file)),unifyStage1Before(file));
+  assert.equal(projectUnifyStage1History(file,stage1Read(file)),unifyStage1Before(file));
   const historical=git('ls-tree','-r','--name-only',unifyStage1Baseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
   for(const manifest of historical)assert.equal(read(manifest),git('show',unifyStage1Baseline+':'+manifest),'historical manifest unchanged: '+manifest);
-  assert.equal(projectQuietSync('.github/scripts/release-policy.mjs',read('.github/scripts/release-policy.mjs')),
+  assert.equal(stage1Read('.github/scripts/release-policy.mjs'),
     git('show',unifyStage1Baseline+':.github/scripts/release-policy.mjs'),'production release allowlist unchanged');
 });
 

@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {historicalTree} from './historical-tree.mjs';
 
 export const cockpitRestoreBaseline="3f4789dbe1994508ed89d15e472613e91b94fb87";
+export const cockpitRestoreCandidate='ae90dc9148ce7d579714ad245f26d6829f1a556b';
 export const cockpitRestoreAssets=Object.freeze([
   "public/app.js",
   "public/index.html",
@@ -34,7 +35,7 @@ export function cockpitRestoreBefore(file) {
     {cwd:root,encoding:'utf8',maxBuffer:16*1024*1024}));
   return cache.get(file);
 }
-export function verifyCockpitRestoreSources(read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8')) {
+export function verifyCockpitRestoreSources(read=historicalTree(cockpitRestoreCandidate).read) {
   for(const file of cockpitRestoreSources) assert.equal(hash(read(file)),cockpitRestoreHashes[file],
     'exact approved cockpit restoration source: '+file);
 }

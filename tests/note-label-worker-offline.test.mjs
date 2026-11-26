@@ -27,7 +27,7 @@ async function setup(t) {
     }
     return value.data;
   };
-  const runtime=createOfflineRuntime({db,request,now:()=>state.time,online:()=>state.online});
+  const runtime=createOfflineRuntime({db,request,now:()=>state.time,online:()=>state.online,scopeProbe:true,windowedSnapshot:true});
   t.after(()=>runtime.stop());await runtime.call('/auth/me');
   const date=beijingDay(state.time);await runtime.call('/note-entries?category=life&date='+date);
   return {app,runtime,request,state,calls,date};
@@ -36,8 +36,8 @@ test('real Worker labelled create survives offline and a lost acknowledgement wi
   const f=await setup(t),id=randomUUID(),save_id=randomUUID(),path='/note-entries/'+id;
   f.state.online=false;const local=await f.runtime.call(path,{method:'PUT',body:{category:'life',date:f.date,text:'合成离线记录',version:0,save_id,label:'兴趣'}});
   assert.equal(local.label,'兴趣');assert.equal(local.content_hash,undefined);
-  f.state.online=true;f.state.lost=true;await f.runtime.sync();
-  assert.equal((await f.runtime.queue()).operations[0].status,'unknown');f.state.time+=10000;await f.runtime.sync();
+  f.state.online=true;f.state.lost=true;await f.runtime.sync({rerun:true});
+  assert.equal((await f.runtime.queue()).operations[0].status,'unknown');f.state.time+=10000;await f.runtime.sync({rerun:true});
   assert.equal((await f.runtime.queue()).operations.length,0);
   const remote=await f.request(path,{headers:{'X-Note-Labels-Version':'1'}});
   assert.equal(remote.label,'兴趣');assert.equal(remote.labels_version,1);assert.equal(remote.version,1);
@@ -51,10 +51,10 @@ test('real Worker labeled conflict saves both versions with a fresh UUID and ret
   await f.runtime.call('/note-entries?category=life&date='+f.date);f.state.online=false;
   await f.runtime.call(path,{method:'PUT',body:{category:'life',date:f.date,text:'本机编辑',version:1,save_id:randomUUID()}});
   f.state.online=true;await f.request(path,{method:'PUT',headers,body:{category:'life',date:f.date,text:'线上编辑',version:1,save_id:randomUUID()}});
-  await f.runtime.sync();const conflict=(await f.runtime.queue()).conflicts[0];assert.ok(conflict);
+  await f.runtime.sync({rerun:true});const conflict=(await f.runtime.queue()).conflicts[0];assert.ok(conflict);
   const result=await f.runtime.resolve(conflict.key,'keep-both',{copyConfirmed:true});
   const copy=(await f.runtime.queue()).operations.find(x=>x.resolution_id===result.resolution.id);
   assert.equal(copy.protocol,5);assert.equal(copy.body.label,'兴趣');assert.notEqual(copy.source_id,id);
-  await f.runtime.sync();const original=await f.request(path,{headers}),cloned=await f.request('/note-entries/'+copy.source_id,{headers});
+  await f.runtime.sync({rerun:true});const original=await f.request(path,{headers}),cloned=await f.request('/note-entries/'+copy.source_id,{headers});
   assert.equal(original.text,'线上编辑');assert.equal(cloned.text,'本机编辑');assert.equal(cloned.label,'兴趣');
 });

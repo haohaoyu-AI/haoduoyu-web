@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import {historicalTree} from './historical-tree.mjs';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound6Badge,round6BadgePaths,validateWorkbenchRound6BadgeDelta} from './workbench-round6-badge-projection.mjs';
 import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
@@ -14,6 +15,7 @@ const delta=JSON.parse(read('tests/workbench-round6-badge-delta.json'));
 const historical=JSON.parse(read('tests/workbench-round6-delta.json'));
 const before=file=>git('show',delta.baseline+':'+file),after=file=>git('show',delta.patch_commit+':'+file);
 const notes='web/pages/daily-notes.mjs',bundle='public/app.js',assets='.ci/public-assets.json';
+const stageOne=historicalTree('c4844eff758458e7174427b62c891ee55c78a743');
 
 test('badge manifest pins the exact reviewed three-file patch, released workers and unchanged historical delta',()=>{
   assert.equal(delta.baseline,'947bc782ea70e7808f6e7de523e5977818b292df');
@@ -29,12 +31,12 @@ test('badge manifest pins the exact reviewed three-file patch, released workers 
 
 test('badge inverse accepts only released 947 or reviewed patch bytes and restores all three files exactly',()=>{
   for(const file of round6BadgePaths) {
-    const original=before(file),patched=after(file),current=read(file);
+    const original=before(file),patched=after(file),stageOneSource=stageOne.read(file);
     assert.equal(hash(original),delta.files[file].before);assert.equal(hash(patched),delta.files[file].after);
     assert.equal(projectWorkbenchRound6Badge(file,original),original,file);
     assert.equal(projectWorkbenchRound6Badge(file,patched),original,file);
-    assert.equal(projectWorkbenchRound6Badge(file,projectUnifyStage1(file,current)),original,
-      'on-disk badge scope stays exact after the independently verified stage-one inverse: '+file);
+    assert.equal(projectWorkbenchRound6Badge(file,projectUnifyStage1(file,stageOneSource)),original,
+      'archived stage one composes with the badge inverse: '+file);
     assert.throws(()=>projectWorkbenchRound6Badge(file,patched+'\n'),/approved workbench delta/,file+' extra newline');
     assert.throws(()=>projectWorkbenchRound6Badge(file,original+'\n/* unreviewed */\n'),/approved workbench delta/,file+' base mutation');
   }

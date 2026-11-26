@@ -17,7 +17,7 @@ function networkClient(fetchImpl) {
     querySelectorAll:()=>[],addEventListener(){}};
   const context=vm.createContext({document,location:{href:'http://localhost/',search:''},
     history:{pushState(){},replaceState(){}},localStorage:{getItem(){return null;},setItem(){}},
-    window:{addEventListener(){},scrollTo(){}},fetch:fetchImpl,
+    window:{addEventListener(){},scrollTo(){},setInterval:()=>1,clearInterval(){}},fetch:fetchImpl,
     Response,Headers,AbortController,AbortSignal,DOMException,URL,URLSearchParams,Intl,console,structuredClone,
     crypto:{randomUUID},setTimeout,clearTimeout,requestAnimationFrame(){}});
   new vm.Script(source).runInContext(context);

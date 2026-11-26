@@ -46,11 +46,12 @@ function card(item, readOnly) {
 <header class="idea-card-head"><span class="idea-status idea-status-${e(item.status)}">${e(item.label)}</span>${stars}
 <time datetime="${e(item.created_at)}">${e(day(item.date))}</time>${landed}</header>
 <h3 class="idea-title">${item.status === "landed" ? '<span class="idea-done-mark" aria-label="已落地">✅</span> ' : ""}${e(ideaTitle(item.text))}</h3>
-${body ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body)}</p>${long ? `<button class="btn text small" type="button" data-action="idea-expand" data-id="${
-  e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
+${body ? `<p class="idea-body${long && !open ? " clamped" : ""}">${e(body)}</p>${long ? `<button class="btn text small" type="button" ` +
+  `data-action="idea-expand" data-id="${e(item.id)}">${open ? "收起" : "展开"}</button>` : ""}` : ""}
 ${item.todos.length ? `<ul class="idea-todos" aria-label="关联的待办">${item.todos.map(todoLine).join("")}</ul>` : ""}
-${readOnly ? "" : `<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${
-  e(item.date)}" data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
+${readOnly ? "" : `<footer class="idea-card-foot"><a class="btn text small" href="/?page=notes&date=${e(item.date)}` +
+  `${item.category === "work" ? "&notes_category=work" : ""}" data-nav="notes" data-notes-date="${e(item.date)}" ` +
+  `data-notes-category="${item.category === "work" ? "work" : "life"}">在碎碎念里看</a>
 ${item.status === "landed" ? "" : `<button class="btn small primary" type="button" data-action="idea-todo" data-id="${e(item.id)}">转成待办</button>`}</footer>`}
 </article>`;
 }
@@ -78,7 +79,8 @@ export async function loadIdeas(context) {
   view.error = "";
   try {
     const data = await api("/ideas", { context });
-    Object.assign(view, { items: data.items || [], total: data.total || 0, truncated: Boolean(data.truncated), readOnly: data.readOnly === true, loaded: true });
+    Object.assign(view, {items: data.items || [], total: data.total || 0, truncated: Boolean(data.truncated),
+      readOnly: data.readOnly === true, loaded: true});
   } catch (error) {
     if (error?.name === "AbortError") throw error;
     view.error = error?.message || "想法池没读出来，请稍后再试。";

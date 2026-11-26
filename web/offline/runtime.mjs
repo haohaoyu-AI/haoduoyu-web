@@ -466,8 +466,47 @@ async function readCachedOffline(context, path, guard) {
       {entries: cached.data.entries.map(entry => ({...entry, can_edit: false}))} : {})} : cached.data;
   await context.refresh(); return data;
 }
+async function offlineDispatch(context, mutate, path, input = {}, readRetried = false) {
+  const {state, cache, features} = context;
+  const {offlineGuard: guard = () => {}, requireNetwork = false, ...options} = input;
+  guard();
+  const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
+  const memo = features.memos && memoRoute(path);
+  const noteRoute = noteMutationRoute(path, options, features);
+  if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
+  if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
+  if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
+    const value = await context.request(path, labelRequestOptions(path, options, features));
+    await context.invalidate({forget: true});
+    return value;
+  }
+  if (route) return mutate(path, options, route, guard);
+  if (memo && method === 'PUT') return mutateMemo(context, path, options, guard);
+  if (method !== 'GET' || !offlineReadRoute(path)) return unmanaged(context, path, options, guard);
+  if (offlineReadRoute(path).kind === 'todo') context.lastTodoPath = path;
+  try {
+    if (context.online() && state.identity) await context.verifyScope();
+    guard();
+    const owner = state.scope, generation = context.generation;
+    const baseline = owner ? await (memo ? context.memos.fence(path) : cache.fence(path)) : undefined;
+    guard();
+    const value = await context.request(path, labelRequestOptions(path, options, features));
+    guard();
+    if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
+    if (offlineReadRoute(path).kind === 'todo') state.partial = false;
+    if (!state.scope) return value;
+    const projection = await rememberRead(context, path, value, baseline, memo);
+    // Note CAS must compare against the actual server row, even if another tab has queued a local edit.
+    return requireNetwork ? value : projection;
+  } catch (error) {
+    if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
+    if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return offlineDispatch(context, mutate, path, input, true);
+    if (requireNetwork || !networkFailure(error)) throw error;
+    return readCachedOffline(context, path, guard);
+  }
+}
 function mutationActions(context) {
-  const {state, cache, now, uuid, outbox, features} = context;
+  const {state, cache, now, uuid, outbox} = context;
   async function mutate(path, options, route, guard) {
     guard();
     if (!state.scope || !state.identity) throw fail('请先联网读取此工作台，再保存离线内容。', 'OFFLINE_SCOPE_REQUIRED');
@@ -509,42 +548,7 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, input = {}, readRetried = false) {
-    const {offlineGuard: guard = () => {}, requireNetwork = false, ...options} = input;
-    guard();
-    const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
-    const memo = features.memos && memoRoute(path);
-    const noteRoute = noteMutationRoute(path, options, features);
-    if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
-    if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
-    if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
-      const value = await context.request(path, labelRequestOptions(path, options, features)); await context.invalidate({forget: true}); return value;
-    }
-    if (route) return mutate(path, options, route, guard);
-    if (memo && method === 'PUT') return mutateMemo(context, path, options, guard);
-    if (method !== 'GET' || !offlineReadRoute(path)) return unmanaged(context, path, options, guard);
-    if (offlineReadRoute(path).kind === 'todo') context.lastTodoPath = path;
-    try {
-      if (context.online() && state.identity) await context.verifyScope();
-      guard();
-      const owner = state.scope, generation = context.generation;
-      const baseline = owner ? await (memo ? context.memos.fence(path) : cache.fence(path)) : undefined;
-      guard();
-      const value = await context.request(path, labelRequestOptions(path, options, features));
-      guard();
-      if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
-      if (offlineReadRoute(path).kind === 'todo') state.partial = false;
-      if (!state.scope) return value;
-      const projection = await rememberRead(context, path, value, baseline, memo);
-      // Note CAS must compare against the actual server row, even if another tab has queued a local edit.
-      return requireNetwork ? value : projection;
-    } catch (error) {
-      if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
-      if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return call(path, input, true);
-      if (requireNetwork || !networkFailure(error)) throw error;
-      return readCachedOffline(context, path, guard);
-    }
-  }
+  const call = (path, input, readRetried) => offlineDispatch(context, mutate, path, input, readRetried);
   return {call, mutate};
 }
 function lifecycleActions(context) {

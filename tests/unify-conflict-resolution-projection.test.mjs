@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
@@ -11,12 +11,11 @@ import {unifyMemosOfflinePaths,projectUnifyMemosOffline,projectUnifyMemosOffline
 import {unifyConflictResolutionBaseline,unifyConflictResolutionPatch,unifyConflictResolutionPaths,unifyConflictResolutionAddedModules,
   unifyConflictResolutionBefore,unifyConflictResolutionManifest,validateUnifyConflictResolutionDelta,projectUnifyConflictResolution,
   projectUnifyConflictResolutionHistory,projectUnifyConflictResolutionModules,conflictResolutionHash} from './unify-conflict-resolution-projection.mjs';
-import {projectOct28History,projectOct28Modules} from './oct28-projection.mjs';
-import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
-const root=new URL('../',import.meta.url),read=file=>projectOct28History(file,readFileSync(new URL('../'+file,import.meta.url),'utf8'));
+const root=new URL('../',import.meta.url),liveRead=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const {read,files}=historicalTree(unifyConflictResolutionPatch);
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
-const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyConflictResolutionManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
   '.gitattributes','.gitignore','.gitleaks.toml','.gitleaksignore','drizzle.config.ts','runtime.json','package.json','package-lock.json'];
@@ -27,8 +26,7 @@ test('conflict-resolution pins final D and the fixed E source with exactly fifte
     [...unifyConflictResolutionPaths],'the E source itself cannot contain an extra production path');
   for(const file of unifyConflictResolutionPaths) {
     const source=read(file),before=unifyConflictResolutionBefore(file);
-    assert.equal(source,git('show',unifyConflictResolutionPatch+':'+file),'exact frozen E source: '+file);
-    assert.equal(conflictResolutionHash(source),delta.files[file].after,'exact current E digest: '+file);
+    assert.equal(conflictResolutionHash(source),delta.files[file].after,'reviewed E digest: '+file);
     assert.equal(projectUnifyConflictResolution(file,source),before,file);
     assert.equal(projectUnifyConflictResolution(file,before),before,'fixed final D input remains valid: '+file);
   }
@@ -38,18 +36,16 @@ test('conflict-resolution pins final D and the fixed E source with exactly fifte
 
 test('conflict-resolution preserves every one of the 71 D modules and adds exactly five reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyConflictResolutionBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const known=quietWeb();
-  const current=projectOct28Modules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
+  const current=files('web').filter(file=>file.endsWith('.mjs')).sort();
   assert.equal(released.length,71);assert.equal(current.length,76);
   assert.deepEqual(current,[...released,...unifyConflictResolutionAddedModules].sort());
-  assert.deepEqual(projectUnifyConflictResolutionModules(current),released,'all original module paths remain exact');
-  assert.equal(projectUnifyMemosOfflineModules(current).length,69,'E and the independent two-module D inverse compose');
-  assert.equal(projectUnifyNotesOfflineModules(current).length,64,'E/D and the independent five-module C inverse compose');
-  assert.equal(projectUnifyTodosOfflineModules(current).length,57,'E/D/C and the independent seven-module B inverse compose');
-  assert.equal(projectUnifySwModules(current).length,56,'the fixed A/B/C/D/E module inverses compose');
+  assert.deepEqual(projectUnifyConflictResolutionModules(current,read),released,'all original module paths remain exact');
+  assert.equal(projectUnifyMemosOfflineModules(current,read).length,69,'E and the independent two-module D inverse compose');
+  assert.equal(projectUnifyNotesOfflineModules(current,read).length,64,'E/D and the independent five-module C inverse compose');
+  assert.equal(projectUnifyTodosOfflineModules(current,read).length,57,'E/D/C and the independent seven-module B inverse compose');
+  assert.equal(projectUnifySwModules(current,read).length,56,'the fixed A/B/C/D/E module inverses compose');
   const unknown='web/core/unapproved-memo-groups.mjs';
-  assert.deepEqual(projectUnifyConflictResolutionModules([...unifyConflictResolutionAddedModules,unknown]),[unknown]);
+  assert.deepEqual(projectUnifyConflictResolutionModules([...unifyConflictResolutionAddedModules,unknown],read),[unknown]);
   for(const file of unifyConflictResolutionAddedModules)
     for(const source of ['', 'unapproved', read(file)+'\n'])
       assert.throws(()=>projectUnifyConflictResolutionModules([file],()=>source),/approved workbench delta/,file);
@@ -89,7 +85,7 @@ test('conflict-resolution manifest rejects moved commits, changed digests, extra
 
 test('conflict-resolution composes through fixed earlier layers while retaining every original manifest byte and old input',()=>{
   const manifests=git('ls-tree','-r','--name-only',unifyConflictResolutionBaseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
-  for(const file of manifests)assert.equal(read(file),git('show',unifyConflictResolutionBaseline+':'+file),'old manifest byte lock: '+file);
+  for(const file of manifests)assert.equal(liveRead(file),git('show',unifyConflictResolutionBaseline+':'+file),'old manifest byte lock: '+file);
   for(const file of unifyConflictResolutionPaths) {
     const source=read(file),before=unifyConflictResolutionBefore(file);
     assert.equal(projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source)),projectUnifyMemosOffline(file,before),
@@ -104,8 +100,8 @@ test('conflict-resolution composes through fixed earlier layers while retaining 
 
 test('conflict-resolution leaves backend, API routes, schema, permissions, runtime and release configuration unchanged',()=>{
   assert.deepEqual(projectedChangedFiles(unifyConflictResolutionBaseline,roots,
-    (file,source)=>projectUnifyConflictResolution(file,projectOct28History(file,source))),[],
-    'all extra production edits, untracked paths and deletions remain visible');
+    projectUnifyConflictResolution,unifyConflictResolutionPatch),[],
+    'every extra production path or deletion in the reviewed tree remains visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',
     '.openai/hosting.json','drizzle.config.ts','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs',

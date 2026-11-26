@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {cockpitRestoreAssets,cockpitRestoreFixtures,cockpitRestoreSources,cockpitRestoreHashes,cockpitRestoreBefore,
-  verifyCockpitRestoreSources,projectCockpitRestore} from './cockpit-trends-projection.mjs';
+  cockpitRestoreCandidate,verifyCockpitRestoreSources,projectCockpitRestore} from './cockpit-trends-projection.mjs';
 import {projectQuietSync} from './oct28-small-fix-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
-const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const {read}=historicalTree(cockpitRestoreCandidate);
 const hash=value=>createHash('sha256').update(value).digest('hex');
 test('cockpit inverse accepts only four exact generated assets and composes to the existing historical boundary',()=>{
   assert.deepEqual(cockpitRestoreAssets,['public/app.js','public/index.html','public/sw.js','.ci/public-assets.json']);
@@ -32,8 +32,7 @@ test('cockpit inverse rejects drift in either source and never projects sources 
     assert.equal(projectCockpitRestore(file,read('public/app.js')),read('public/app.js'));
 });
 test('cockpit source delta preserves six cards and date controls; shared plot only changes its aria table note',()=>{
-  // Later releases edit other parts of this page (the weekly tab arrived on 2026-11-12), so the page is
-  // checked for the restoration's two substitutions instead of whole-file equality.
+  // Verify the restoration where those two substitutions were introduced.
   const file='web/pages/content-review.mjs',page=read(file);
   assert.ok(cockpitRestoreBefore(file).includes('${renderCockpitCharts(current.series)}'));
   assert.ok(page.includes("import {renderCockpitTrends} from './review-trends.mjs';"));

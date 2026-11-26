@@ -1,16 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {execFileSync} from 'node:child_process';
-import {reconciliationDocumentSpec,snapshotDocumentSpec,snapshotDocumentDocs,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
+import {snapshotDocumentSpec,snapshotDocumentDocs,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 const baseline='fe8efa479c0c2865970b43053db4deb62a3380c9';
-const old=file=>execFileSync('git',['show',baseline+':'+file],{cwd:new URL('../',import.meta.url),encoding:'utf8'});
+const old=historicalTree(baseline).read;
+const candidate=historicalTree('a1f23331025fd2d24142569c095be9154f27fd3f');
 const previousSpec=JSON.parse(old('public/openapi.json')),previousDocs=old('public/api-docs.html');
-const spec=reconciliationDocumentSpec(JSON.parse(projectQuietSync('public/openapi.json',
-  readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8'))));
-const docs=projectQuietSync('public/api-docs.html',readFileSync(new URL('../public/api-docs.html',import.meta.url),'utf8'));
+const spec=JSON.parse(candidate.read('public/openapi.json')),docs=candidate.read('public/api-docs.html');
 const delta=JSON.parse(readFileSync(new URL('./fixtures/snapshot-document-delta.json',import.meta.url),'utf8'));
 const paths=['/api/v1/snapshot','/api/v1/snapshot/index'];
 const {start,end}=delta.docs.section;

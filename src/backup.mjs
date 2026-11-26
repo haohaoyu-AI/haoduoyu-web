@@ -445,24 +445,27 @@ function validateDailyScores(tables) {
     seen.add(key);
   }
 }
-export async function exportBackup(db,{todoUserId}={}) {
-  const data=await consistentRead(db,async(store,sourceRevision)=>{
-    const hasDiaryTitles=Boolean(await store.get("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_diary_titles'"));
-    const tables={};
-    for(const [name,fields] of Object.entries(hasDiaryTitles?columns:v19Columns)) {
-      if(name==='idempotency'&&todoUserId!==undefined) {
-        const prefix='review-publication:';
-        tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)} WHERE substr(actor,1,?)<>? OR actor=? ORDER BY rowid`,
-          prefix.length,prefix,prefix+todoUserId);
-        continue;
-      }
-      const scoped=privateTables.has(name)&&todoUserId!==undefined;
-      tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
-        ...(scoped?[todoUserId]:[]));
+// The caller must enclose this read in its consistency check.
+export async function exportBackupFromRead(store,sourceRevision,{todoUserId}={}) {
+  const hasDiaryTitles=Boolean(await store.get("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_diary_titles'"));
+  const tables={};
+  for(const [name,fields] of Object.entries(hasDiaryTitles?columns:v19Columns)) {
+    if(name==='idempotency'&&todoUserId!==undefined) {
+      const prefix='review-publication:';
+      tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)} WHERE substr(actor,1,?)<>? OR actor=? ORDER BY rowid`,
+        prefix.length,prefix,prefix+todoUserId);
+      continue;
     }
-    return {format:hasDiaryTitles?diaryBackupFormat:archiveBackupFormat,source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
-  });
+    const scoped=privateTables.has(name)&&todoUserId!==undefined;
+    tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
+      ...(scoped?[todoUserId]:[]));
+  }
+  const data={format:hasDiaryTitles?diaryBackupFormat:archiveBackupFormat,source_revision:sourceRevision,
+    exported_at:new Date().toISOString(),tables};
   return {data,sha256:digest(JSON.stringify(stable(data)))};
+}
+export function exportBackup(db,options) {
+  return consistentRead(db,(store,sourceRevision)=>exportBackupFromRead(store,sourceRevision,options));
 }
 export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=false}={}) {
   // Operator-only utility, deliberately not exposed as a Worker HTTP route.

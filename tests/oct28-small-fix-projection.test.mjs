@@ -1,14 +1,14 @@
-import {projectCockpitRestore} from './cockpit-trends-projection.mjs';
+import {cockpitRestoreCandidate,projectCockpitRestore} from './cockpit-trends-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {smallFixBaseline,smallFixProduct,smallFixHashes,projectSmallFix,projectQuietSync,quietSyncHashes} from './oct28-small-fix-projection.mjs';
+import {smallFixBaseline,smallFixProduct,smallFixHashes,projectSmallFix,projectQuietSync,quietSyncCandidate,quietSyncHashes} from './oct28-small-fix-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 const root=new URL('../',import.meta.url);
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024});
 const hash=s=>createHash('sha256').update(s).digest('hex');
-const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+const {read}=historicalTree(cockpitRestoreCandidate);
 test('small fix is exactly the pinned closed set and each inverse rejects altered bytes',()=>{
   const files=Object.keys(smallFixHashes);
   assert.deepEqual(git('diff','--name-only',smallFixBaseline,smallFixProduct).trim().split('\n'),files);
@@ -24,9 +24,10 @@ test('small fix is exactly the pinned closed set and each inverse rejects altere
   assert.equal(projectSmallFix('public/../public/app.js','changed'),'changed');
 });
 
-test('quiet sync pins restored live product bytes and leaves other digests for later layers',()=>{
+test('quiet sync pins the approved restoration and leaves other digests for later layers',()=>{
   for(const file of Object.keys(quietSyncHashes)) {
     const prior=git('show',smallFixProduct+':'+file), current=read(file);
+    assert.equal(projectCockpitRestore(file,current),historicalTree(quietSyncCandidate).read(file),file+' cockpit inverse');
     assert.equal(hash(projectCockpitRestore(file,current)),quietSyncHashes[file],file+' pinned quiet-sync product');
     assert.equal(projectQuietSync(file,current),prior,file+' quiet-sync inverse');
     assert.equal(projectQuietSync(file,prior),prior,file+' quiet-sync prior');

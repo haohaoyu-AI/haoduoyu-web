@@ -64,12 +64,12 @@ function browser({width=390,search='?page=todos',shell=true}={}) {
     back(){assert.ok(index>0);locate(entries[--index]);},forward(){assert.ok(index+1<entries.length);locate(entries[++index]);}};
 }
 
-test('phone bottom navigation includes AI reports separately from the settings menu',()=>{
+test('phone bottom navigation includes ideas and AI reports separately from the settings menu',()=>{
   const app=browser(),html=app.run('mobileNavigation()');
-  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['review','todos','notes','ai-reports']);
+  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['review','todos','notes','ideas','ai-reports']);
   assert.doesNotMatch(html,/<details|data-nav="settings"|data-nav="articles"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-nav="settings"/);
-  assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="ai-reports"/);
+  assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="(?:ideas|ai-reports)"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-action="logout"/);
   app.run('state.me.publicBusiness=true');assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-action="logout"/);
   assert.match(app.run('sidebarNavigation()'),/data-nav="review"/);
