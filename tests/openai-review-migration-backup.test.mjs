@@ -53,7 +53,7 @@ test('v17 retains every review table and full run source, scopes both owners, an
   await insert(src.db,'matrix_review_account_health',{user_id:user,id:randomUUID(),account:'V字',platform:'toutiao',observed_on:'2026-11-07',created_at:stamp,updated_at:stamp});
  }
  const full=await exportBackup(src.db),scoped=await exportBackup(src.db,{todoUserId:owner});
- assert.equal(full.data.format,'haoduoyu-matrix-d1-v19');assert.equal(Object.keys(full.data.tables).length,45);
+ assert.equal(full.data.format,'haoduoyu-matrix-d1-v20');assert.equal(Object.keys(full.data.tables).length,46);
  assert.deepEqual(full.data.tables.review_article_diagnoses,[]);
  const archiveNames=archiveTables.map(name=>'review_archive_'+name);
  for(const name of archiveNames) {
@@ -69,7 +69,7 @@ test('v17 retains every review table and full run source, scopes both owners, an
  assert.ok(!Object.keys(full.data.tables.openai_review_config[0]).some(key=>/secret|token|api_key/.test(key)));
  const target=await fixture(t,{bootstrap:false}),inventory=await createSourceInventory(src.db);
  await restoreIntoEmptyDatabase(target.db,full,{allowEmptyRestore:true});
- assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:45,reset_tables:3});
+ assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:46,reset_tables:3});
 });
 test('v15 backups remain restorable without inventing review history or losing todo fields',async t=>{
  const src=await fixture(t),backup=await exportBackup(src.db);

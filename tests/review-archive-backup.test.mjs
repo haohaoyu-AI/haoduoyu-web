@@ -41,7 +41,7 @@ async function seedArchive(db, owner, legacyId) {
   return {alias, item, ref, snapshot, event, run};
 }
 
-test('v19 operator backup restores archive references, merge alias, history, checkpoint, and 0028 draft fields', async t => {
+test('v20 operator backup restores archive references, merge alias, history, checkpoint, and 0028 draft fields', async t => {
   const source = await localDatabase(t);
   const target = await localDatabase(t);
   const owner = randomUUID();
@@ -61,7 +61,7 @@ test('v19 operator backup restores archive references, merge alias, history, che
 
   const full = await exportBackup(source);
   const scoped = await exportBackup(source, {todoUserId: owner});
-  assert.equal(full.data.format, 'haoduoyu-matrix-d1-v19');
+  assert.equal(full.data.format, 'haoduoyu-matrix-d1-v20');
   assert.equal(scoped.data.format, full.data.format);
   for (const name of archiveNames) {
     assert.ok(full.data.tables[name].some(row => row.user_id === other), name);
@@ -86,7 +86,7 @@ test('v19 operator backup restores archive references, merge alias, history, che
   }
 
   const inventory = await createSourceInventory(source);
-  const expected = {verified: true, restored_tables: 45, reset_tables: 3};
+  const expected = {verified: true, restored_tables: 46, reset_tables: 3};
   assert.deepEqual(verifyBackupInventory(full, inventory), expected);
   assert.throws(() => verifyBackupInventory(scoped, inventory), /MIGRATION_INVENTORY_MISMATCH/);
   await restoreIntoEmptyDatabase(target, full, {allowEmptyRestore: true});

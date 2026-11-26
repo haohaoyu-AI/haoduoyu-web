@@ -199,6 +199,7 @@ async function callTool(name,args,dispatch) {
     const normalized=new URL('/api/v1'+path,'https://internal.invalid').pathname;
     if(!normalized.startsWith('/api/v1/')||BLOCKED.test(normalized.slice('/api/v1'.length)))
       throw new Error('这个接口不对连接器开放：'+path.split('?')[0]);
+    if(normalized.startsWith('/api/v1/diary-titles/')&&method!=='GET')throw new Error('日记小标题请由本人在网站手动保存');
     const extra=Object.fromEntries(Object.entries(args.headers||{}).filter(([name])=>HEADERS.includes(name.toLowerCase())).map(([n,v])=>[n,String(v)]));
     if(!dispatch.owner)throw new Error('还不知道网站主人是谁，请重新连接一次');
     return dispatch.owner(path,method,method==='GET'||method==='DELETE'&&!args.body?null:args.body||{},extra);

@@ -1,3 +1,4 @@
+import {createDiaryTitleController} from './diary-title-controller.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {state, runtime} from './core/state.mjs';
 import {updateRoute} from './core/router.mjs';
@@ -37,6 +38,10 @@ export function observeFloatingNotes(callback) {
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
 const notesVisible = () => state.page === 'notes' && notesIdentity === notesIdentityNow();
+const diaryTitle = createDiaryTitleController({identity:notesIdentityNow,date:dailyNotesRouteDate,
+  visible:()=>notesVisible()&&!notesRefreshPaused,isGuest:()=>!state.me||state.me.publicBusiness===true,
+  root:()=>document.querySelector('#diary-title-form'),onLogin:()=>renderLogin()});
+
 const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labels', 'labelKnown', 'createdAt', 'updatedAt', 'dirty',
   'phase', 'pending', 'remote', 'deleted', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const hydratedDrafts = new WeakMap();
@@ -423,7 +428,7 @@ async function readMixedNotes(date) {
   ensureDailyNotesStore();
   for (const category of ['life', 'work']) ensureDailyNotesStore(category, false);
   const pairs = ['life', 'work'].map(category => ({category, legacy: notesStores.get(category), entries: entryStores.get(category)}));
-  await Promise.all([...pairs.flatMap(({legacy, entries}) => [legacy.read(date), entries.read(date)]), readDailyScore(date, expected)]);
+  await Promise.all([...pairs.flatMap(({legacy, entries}) => [legacy.read(date), entries.read(date)]), readDailyScore(date, expected), diaryTitle.load(date)]);
   if (expected !== notesIdentityNow()) return;
   await Promise.all(pairs.map(({category, legacy, entries}) => hydrateNotesDrafts(legacy, entries, category)));
   if (expected === notesIdentityNow() && date === dailyNotesRouteDate()) paintDailyNotesPage();
@@ -446,7 +451,7 @@ export function joinNotesErrors(values) {
 }
 export function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
-  paintDailyScore();
+  paintDailyScore(); diaryTitle.paint();
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   if (!root || !notesStore || !entryStore) return;
@@ -952,6 +957,14 @@ async function handleNotesClick(event) {
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true; registerNotesInputEvents();
+  document.addEventListener('input',event=>{if(event.target.id==='diary-title-input')diaryTitle.edit(event.target.value);});
+  document.addEventListener('submit',event=>{
+    if(event.target.id!=='diary-title-form')return;
+    event.preventDefault();void diaryTitle.save();
+  });
+  document.addEventListener('click',event=>{
+    if(notesVisible()&&!notesRefreshPaused&&event.target.closest('[data-diary-title-login]'))diaryTitle.login();
+  });
   registerConflictDraftGuard(createNoteConflictDraftGuard({getStores: () => entryStores, getIdentity: notesIdentityNow,
     getComposing: id => floatingComposingId === id ||
       document.querySelector('[data-note-entry-editor="' + id + '"]')?.dataset.composing === 'true'}));
