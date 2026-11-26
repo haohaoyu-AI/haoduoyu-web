@@ -9010,10 +9010,12 @@ async function loadTodoMonth2(month) {
   await snapshot.promise;
 }
 function todoDateControls(date2) {
-  return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
-<label for="todo-date" class="sr-only">选择计划日期</label><input class="input" id="todo-date" type="date" value="${e(date2)}">
-<button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
-<button class="btn small" data-action="todo-today">今天</button></div>`;
+  return `<div id="todo-date-bar" ${state.todoPanel ? "hidden" : ""}>
+<div class="daily-todo-dates" role="group" aria-label="待办日期">
+<button class="btn" type="button" data-action="todo-prev" aria-label="前一天">‹</button>
+<label for="todo-date" class="sr-only">选择待办日期</label><input class="input" id="todo-date" type="date" value="${e(date2)}">
+<button class="btn" type="button" data-action="todo-next" aria-label="后一天">›</button>
+<button class="btn text" type="button" data-action="todo-today">今天</button></div></div>`;
 }
 function todoCountButton(item, day8, pending) {
   const count3 = todoCount(item.note);
@@ -9071,6 +9073,8 @@ function paintTodoPanels(root3) {
     const node3 = $("#" + id2, root3);
     if (node3) node3.hidden = id2 === "todo-main" ? ["templates", "future"].includes(panel2) : panel2 !== value;
   }
+  const dateBar = $("#todo-date-bar", root3);
+  if (dateBar) dateBar.hidden = Boolean(panel2);
   root3?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
     button2.setAttribute("aria-current", button2.dataset.panel === panel2 ? "page" : "false");
   });
@@ -9130,7 +9134,7 @@ function renderTodos() {
   const day8 = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day8.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day8)}</div>
-${renderTodoHistory(day8)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day8)}${renderInlineTodoTemplates()}
+${renderTodoHistory(day8)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoDateControls(day8.date)}<div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day8)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day8)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day8)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day8)}</div>
@@ -9178,7 +9182,11 @@ function paintTodoDom() {
   }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
   if (root3.dataset.date !== day8.date) {
+    const active5 = document.activeElement;
+    const action = active5?.dataset?.action;
+    const refocus = active5?.closest?.("#todo-date-bar") ? active5.id === "todo-date" ? "#todo-date" : ["todo-prev", "todo-next", "todo-today"].includes(action) ? `#todo-date-bar [data-action="${action}"]` : "" : "";
     root3.outerHTML = renderTodos();
+    if (refocus) $(refocus)?.focus({ preventScroll: true });
     paintTodoTemplates();
     return;
   }
