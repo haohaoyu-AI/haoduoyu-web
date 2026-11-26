@@ -118,10 +118,14 @@ function v13Accounts(data) {
   const topAccount = accounts.map(account => ({name: account.name || '未命名账号', count: imitatedByAccount.get(String(account.id)) || 0}))
     .filter(item => item.count > 0).sort((a, b) => b.count - a.count)[0] || null;
   const kpis = [
-    `<article class="review-sub-kpi"><span>对标账号</span><strong>${e(reviewNumber(accounts.length))} 个</strong><small>当前账号参考库</small></article>`,
-    `<article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(reviewNumber(totalImitations))} 篇</strong><small>已关联样本引用</small></article>`,
-    topAccount ? `<article class="review-sub-kpi"><span>主力对标</span><strong>${e(topAccount.name)}</strong><small>仿写 ${e(reviewNumber(topAccount.count))} 篇</small></article>` : '',
-    benchmarkArticles.length ? `<article class="review-sub-kpi"><span>已建档样本</span><strong>${e(reviewNumber(benchmarkArticles.length))} 篇</strong><small>爆文库可复用样本</small></article>` : ''
+    `<article class="review-sub-kpi"><span>对标账号</span><strong>${e(reviewNumber(accounts.length))} 个</strong>` +
+      `<small>当前账号参考库</small></article>`,
+    `<article class="review-sub-kpi"><span>已仿写篇数</span><strong>${e(reviewNumber(totalImitations))} 篇</strong>` +
+      `<small>已关联样本引用</small></article>`,
+    topAccount ? `<article class="review-sub-kpi"><span>主力对标</span><strong>${e(topAccount.name)}</strong>` +
+      `<small>仿写 ${e(reviewNumber(topAccount.count))} 篇</small></article>` : '',
+    benchmarkArticles.length ? `<article class="review-sub-kpi"><span>已建档样本</span>` +
+      `<strong>${e(reviewNumber(benchmarkArticles.length))} 篇</strong><small>爆文库可复用样本</small></article>` : ''
   ].filter(Boolean).join('');
   const cards = accounts.map(account => {
     const topic = String(account.topic_focus || '').trim();
@@ -148,12 +152,14 @@ function v13Accounts(data) {
     ].filter(Boolean).join('');
     const cadence = String(account.posting_cadence || '').trim();
     const cadenceHtml = cadence ? `<p class="review-account-cadence${/封号|停用/.test(cadence) ? ' is-stopped' : ''}">${e(cadence)}</p>` : '';
-    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" ` +
-      `href="${e(profile)}" ` +
-      `target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>${pills ? `<div class="review-account-pills">${pills}</div>` : ''}</div>${cadenceHtml}<div class="review-v13-account-features">${details || 
-        '<p>暂无特点记录</p>'}</div></section>`;
+    const link = profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name;
+    const pillRow = pills ? `<div class="review-account-pills">${pills}</div>` : '';
+    const features = details || '<p>暂无特点记录</p>';
+    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${link}</h3>${pillRow}</div>` +
+      `${cadenceHtml}<div class="review-v13-account-features">${features}</div></section>`;
   }).join('');
-  return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div><div class="review-benchmark-cards">${cards}</div></div>`;
+  return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div>` +
+    `<div class="review-benchmark-cards">${cards}</div></div>`;
 }
 function sectionBody(selected,data,vm,rows) {
   if (selected === 'articles') return articleListPanel(rows,vm,data);

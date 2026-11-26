@@ -73,8 +73,10 @@ function card(title, note, time, content, action, key = '') {
     `${updated ? `最后更新 ${e(updated)}` : ''} · 北京时间</p>` : '';
   const [badgeText, tone] = promptBadge(title, key);
   const chars = charCountLabel(content);
-  return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading"><div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2>` +
-    `<span class="review-note">${e(note)}</span>${chars ? `<span class="review-prompt-chars">${e(chars)}</span>` : ''}</div>${when}</div><div class="review-prompt-copy-actions">${action}` +
+  return `<article class="review-prompt-card"><div class="review-prompt-head"><div class="review-prompt-heading">` +
+    `<div class="review-v13-rule-meta"><span class="review-prompt-badge ${tone}">${e(badgeText)}</span><h2>${e(title)}</h2>` +
+    `<span class="review-note">${e(note)}</span>${chars ? `<span class="review-prompt-chars">${e(chars)}</span>` : ''}</div>` +
+    `${when}</div><div class="review-prompt-copy-actions">${action}` +
     `<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div></div>` +
     `<pre class="review-prompt-source${long ? ' is-folded' : ''}">${e(content)}</pre>` +
     // Folding only limits what is shown; the element still holds the whole prompt for copying.
@@ -102,12 +104,14 @@ export function renderPromptPage(data, vm) {
   const {prompts,extras} = displayedPrompts(data);
   const cards = prompts.map(prompt => card(labels[prompt.prompt_key] || prompt.title || prompt.prompt_key,
     [prompt.title, 'v' + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(' · '),
-    [reviewDateTime(prompt.created_at) || '未记录', reviewDateTime(prompt.updated_at)], prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
+    [reviewDateTime(prompt.created_at) || '未记录', reviewDateTime(prompt.updated_at)],
+    prompt.content_md || '', copyButton('copy-prompt', prompt.id), prompt.prompt_key));
   for (const block of extras) cards.push(card(block.title, '规则手册中的提示词', '', block.content, copyButton('copy-prompt-block')));
   const parts = [
     prompts.length ? `独立版本 ${prompts.length} 份` : '',
     extras.length ? `规则手册内置 ${extras.length} 份` : ''
   ].filter(Boolean).join(' · ');
-  const summaryBar = `<div class="review-prompt-summary"><span>共 <strong>${cards.length}</strong> 份提示词</span><span class="review-note">${e(parts)}</span></div>`;
+  const summaryBar = `<div class="review-prompt-summary"><span>共 <strong>${cards.length}</strong> 份提示词</span>` +
+    `<span class="review-note">${e(parts)}</span></div>`;
   return `<div class="review-prompt-page">${summaryBar}${cards.join('')}</div>`;
 }

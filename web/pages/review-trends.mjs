@@ -143,22 +143,27 @@ function quadrantFigure(result) {
   const hitY = known(hitThreshold) ? y(hitThreshold) : null;
   const ctrPct = known(ctrLine) ? Math.min(100, Math.max(0, ctrLine / ctrMax * 100)) : null;
   const zones = hitY !== null && ctrPct !== null
-    ? `<rect class="review-quad-zone is-hot" x="${ctrPct.toFixed(2)}%" y="${top}" width="${(100 - ctrPct).toFixed(2)}%" height="${Math.max(0, hitY - top).toFixed(2)}"/>
-       <rect class="review-quad-zone is-cold" x="0%" y="${hitY.toFixed(2)}" width="${ctrPct.toFixed(2)}%" height="${Math.max(0, bottom - hitY).toFixed(2)}"/>`
+    ? `<rect class="review-quad-zone is-hot" x="${ctrPct.toFixed(2)}%" y="${top}" ` +
+      `width="${(100 - ctrPct).toFixed(2)}%" height="${Math.max(0, hitY - top).toFixed(2)}"/>\n` +
+      `       <rect class="review-quad-zone is-cold" x="0%" y="${hitY.toFixed(2)}" ` +
+      `width="${ctrPct.toFixed(2)}%" height="${Math.max(0, bottom - hitY).toFixed(2)}"/>`
     : '';
   const hitLine = hitY !== null ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${hitY.toFixed(2)}" y2="${hitY.toFixed(2)}"/>` : '';
   const hitLabelAbove = hitY !== null && hitY - top >= 26;
   const hitLabelY = hitY !== null ? (hitLabelAbove ? hitY - 6 : hitY + 14) : top;
-  const hitLabel = hitY !== null ? `<text class="review-trend-threshold-label" x="100%" y="${hitLabelY.toFixed(2)}" text-anchor="end">爆款线 ${e(reads(hitThreshold))}</text>` : '';
+  const hitLabel = hitY !== null ? `<text class="review-trend-threshold-label" x="100%" y="${hitLabelY.toFixed(2)}" ` +
+    `text-anchor="end">爆款线 ${e(reads(hitThreshold))}</text>` : '';
   const vLine = ctrPct !== null ? `<line class="review-quad-ctr-line" x1="${ctrPct.toFixed(2)}%" x2="${ctrPct.toFixed(2)}%" y1="${top}" y2="${bottom}"/>` : '';
   const vLabelAnchor = ctrPct !== null && ctrPct > 72 ? 'end' : 'start';
   const vLabelX = ctrPct !== null ? (ctrPct > 72 ? Math.max(8, ctrPct - 1.2) : Math.min(92, ctrPct + 1.2)) : 0;
-  const vLabel = ctrPct !== null ? `<text class="review-quad-ctr-label" x="${vLabelX.toFixed(2)}%" y="${top + 12}" text-anchor="${vLabelAnchor}">${e(ctrLineLabel)}</text>` : '';
+  const vLabel = ctrPct !== null ? `<text class="review-quad-ctr-label" x="${vLabelX.toFixed(2)}%" y="${top + 12}" ` +
+    `text-anchor="${vLabelAnchor}">${e(ctrLineLabel)}</text>` : '';
   const hotLabelY = hitY !== null ? (hitLabelAbove && hitY - top < 48 ? top + 12 : Math.min(hitY - 22, top + 28)) : top + 28;
   const showHotCorner = hitY !== null && hitY - top >= 24 && ctrPct !== null && ctrPct <= 84;
   const quadLabels = hitY !== null && ctrPct !== null
-    ? `${showHotCorner ? `<text class="review-quad-label is-hot" x="99%" y="${Math.max(top + 12, hotLabelY).toFixed(2)}" text-anchor="end">标题好 · 推得动</text>` : ''}
-       <text class="review-quad-label is-cold" x="1%" y="${bottom - 8}">标题没人点</text>
+    ? `${showHotCorner ? `<text class="review-quad-label is-hot" x="99%" y="${Math.max(top + 12, hotLabelY).toFixed(2)}" ` +
+      `text-anchor="end">标题好 · 推得动</text>` : ''}\n` +
+      `       <text class="review-quad-label is-cold" x="1%" y="${bottom - 8}">标题没人点</text>
        <text class="review-quad-label" x="99%" y="${bottom - 8}" text-anchor="end">有人点 · 没推起来</text>`
     : '';
   const order = {爆:2,扑:1};
@@ -203,7 +208,10 @@ function rankedList(result) {
       <span class="review-rank-num">${index + 1}</span>
       <span class="review-rank-chip ${verdictKey}">${e(verdictLabel)}</span>
       <button type="button" class="review-rank-title" data-review-article="${e(item.id)}" title="${e(item.title || '未命名')}">${e(item.title || '未命名')}</button>
-      <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="8" rx="4"/><rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? ' provisional' : ''}" width="${pct}" height="8" rx="4"/></svg>
+      <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">` +
+      `<rect class="review-rank-bar-track" width="100" height="8" rx="4"/>` +
+      `<rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? ' provisional' : ''}" ` +
+      `width="${pct}" height="8" rx="4"/></svg>
       <span class="review-rank-reads"><small class="review-rank-metric-label">阅读 </small>${e(reads(item.reads))}</span>
       <span class="review-rank-ctr"><small class="review-rank-metric-label">点击 </small>${e(percent(item.ctr))}</span>
       <span class="review-rank-meta">${e(when)}${item.provisional ? ' · 不满 24h 暂定' : ''}</span>

@@ -14,7 +14,8 @@ import { keyModal } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate, archiveTodoTemplate } from "./pages/todo-templates.mjs";
 import { openIdeaTodo, reloadIdeas, setIdeasFilter, toggleIdea } from "./pages/ideas.mjs";
-import { changeTodoCount, changeTodoTemplate, deleteTodo, openTodoCount, openTodoMenu, openTodoNote, openTodoText, restoreTodo } from "./pages/todo-actions.mjs";
+import { changeTodoCount, changeTodoTemplate, deleteTodo, openTodoCount,
+  openTodoMenu, openTodoNote, openTodoText, restoreTodo } from "./pages/todo-actions.mjs";
 import { formEnd } from "./ui/components.mjs";
 import { setMenu } from "./ui/menu.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";

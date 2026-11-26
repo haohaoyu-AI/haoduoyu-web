@@ -954,6 +954,42 @@ async function handleNotesClick(event) {
   else if (action === 'export-legacy') exportLegacyDraft(store.page(date), dailyNotesRouteCategory());
   else if (action === 'export-drafts') await exportDraftArchive();
 }
+function registerDailyNotesSurfaceEvents() {
+  document.addEventListener('click', event => { void handleNotesClick(event); });
+  setNoteSuggestRepaint(() => paintDailyNotesPage());
+  document.addEventListener('click', event => {
+    const more = event.target.closest('[data-note-more]');
+    if (more && more.closest('#daily-notes')) { event.preventDefault(); openNoteMenu(more); return; }
+    const todo = event.target.closest('[data-note-todo]');
+    if (todo) { event.preventDefault(); closePopover({restoreFocus:false}); noteToTodo(todo.dataset.noteId); return; }
+    const target = event.target.closest('[data-note-idea="add"]');
+    if (!target || !(target.dataset.noteId || target.closest('#daily-notes'))) return;
+    event.preventDefault();
+    closePopover({restoreFocus:false});
+    void putInIdeaPool(target);
+  });
+  document.addEventListener('click', event => {
+    const target = event.target.closest('[data-note-suggest]');
+    if (!target) return;
+    event.preventDefault();
+    const find = id => [...entryStores.values()].map(store => [store, store.entry(id)]).find(([, item]) => item) || [];
+    void actOnNoteSuggestion(target, {
+      current: id => find(id)[1]?.labels,
+      async relabel(id, labels) {
+        const [store, item] = find(id);
+        if (!store || !notesLabelsVerified || !store.relabelDraft(id, labels)) return false;
+        await store.save(id); paintDailyNotesPage();
+        return item.phase === 'saved' && !item.dirty;
+      },
+    });
+  });
+  window.addEventListener('beforeunload', event => {
+    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
+    if (retainedDrafts().some(item => item.dirty || item.pending || item.phase === 'unknown')) {
+      event.preventDefault(); event.returnValue = '';
+    }
+  });
+}
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true; registerNotesInputEvents();
@@ -1012,40 +1048,7 @@ function registerDailyNotesEvents() {
         if (hydrationReady.has(entries)) void entries.read(dailyNotesRouteDate(), {localOnly: true});
     });
   });
-  document.addEventListener('click', event => { void handleNotesClick(event); });
-  setNoteSuggestRepaint(() => paintDailyNotesPage());
-  document.addEventListener('click', event => {
-    const more = event.target.closest('[data-note-more]');
-    if (more && more.closest('#daily-notes')) { event.preventDefault(); openNoteMenu(more); return; }
-    const todo = event.target.closest('[data-note-todo]');
-    if (todo) { event.preventDefault(); closePopover({restoreFocus:false}); noteToTodo(todo.dataset.noteId); return; }
-    const target = event.target.closest('[data-note-idea="add"]');
-    if (!target || !(target.dataset.noteId || target.closest('#daily-notes'))) return;
-    event.preventDefault();
-    closePopover({restoreFocus:false});
-    void putInIdeaPool(target);
-  });
-  document.addEventListener('click', event => {
-    const target = event.target.closest('[data-note-suggest]');
-    if (!target) return;
-    event.preventDefault();
-    const find = id => [...entryStores.values()].map(store => [store, store.entry(id)]).find(([, item]) => item) || [];
-    void actOnNoteSuggestion(target, {
-      current: id => find(id)[1]?.labels,
-      async relabel(id, labels) {
-        const [store, item] = find(id);
-        if (!store || !notesLabelsVerified || !store.relabelDraft(id, labels)) return false;
-        await store.save(id); paintDailyNotesPage();
-        return item.phase === 'saved' && !item.dirty;
-      },
-    });
-  });
-  window.addEventListener('beforeunload', event => {
-    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if (retainedDrafts().some(item => item.dirty || item.pending || item.phase === 'unknown')) {
-      event.preventDefault(); event.returnValue = '';
-    }
-  });
+  registerDailyNotesSurfaceEvents();
 }
 const findNote = id => [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
 // ⋯ under a saved 碎碎念: 放进想法池 (unless it is in already) and 转成待办.

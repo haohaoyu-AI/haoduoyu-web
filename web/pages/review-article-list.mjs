@@ -323,7 +323,9 @@ function metricCell(observation,key) {
   const text = e(formatReviewListMetric({snapshot:metricSnapshot(observation,key)},key));
   if (!LATEST_METRICS.has(key) || text === '—' || metricSnapshot(observation,key) === observation?.snapshot) return text;
   const hours = observation?.latest?.hours;
-  return hours === null || hours === undefined ? text : `<span class="review-latest-value" title="24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集">${text}</span>`;
+  if (hours === null || hours === undefined) return text;
+  const title = `24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集`;
+  return `<span class="review-latest-value" title="${title}">${text}</span>`;
 }
 
 function rowHtml(row,observation,tags,dimensions,maxLog,cols) {

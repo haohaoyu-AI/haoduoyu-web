@@ -6,6 +6,41 @@ const checked=(value,date)=>{
   return value;
 };
 
+async function saveDiaryTitle(session) {
+  const day=session.date(),p=session.page(day),who=session.owner(),title=p.draft.trim();
+  if(!session.visible()||session.isGuest()||p.denied||!p.loaded||p.loading||p.saving||title===p.base)return;
+  p.saving=true;p.status='保存中…';session.paint();
+  try {
+    if(p.attempt&&p.attempt.title!==title) {
+      const last=p.attempt,live=checked(await session.get(day),day);
+      if(!session.active(who,day,p))return;
+      p.attempt=null;session.adopt(p,live);
+      if(live.version!==last.version&&live.title!==last.title) {
+        p.status='另一处已更新，输入保留，请核对后再保存';return;
+      }
+    }
+    p.attempt??={title,version:p.version,save_id:session.uuid()};
+    const data=checked(await session.request('/diary-titles/'+day,{method:'PUT',body:p.attempt,suppressAuthRedirect:true}),day);
+    if(session.active(who,day,p)) {
+      p.base=data.title;p.draft=data.title;p.version=data.version;p.attempt=null;p.status='已保存';
+    }
+  } catch(error) {
+    if(!session.active(who,day,p))return;
+    if(error.status===409) {
+      try {
+        const data=checked(await session.get(day),day);
+        if(!session.active(who,day,p))return;
+        session.adopt(p,data);p.attempt=null;p.status='另一处已更新，输入保留，请核对后再保存';
+      } catch {
+        p.status='暂时无法核对，输入已保留';
+      }
+    } else {
+      if(error.status>=400&&error.status<500)p.attempt=null;
+      p.status=error.status>=400&&error.status<500?(error.message||'没有保存，输入已保留'):'保存结果待核对，输入已保留';
+    }
+  } finally {if(session.active(who,day,p)){p.saving=false;session.paint();}}
+}
+
 // Drafts are scoped to the current login, kept per day, and never written to shared browser storage.
 export function createDiaryTitleController({identity,date,visible,isGuest,root,onLogin,uuid=()=>crypto.randomUUID(),request=apiNetwork}) {
   let owner, pages=new Map();
@@ -68,39 +103,7 @@ export function createDiaryTitleController({identity,date,visible,isGuest,root,o
     if(p.status==='已保存')p.status='';
     paint();
   }
-  async function save() {
-    const day=date(),p=page(day),who=owner,title=p.draft.trim();
-    if(!visible()||isGuest()||p.denied||!p.loaded||p.loading||p.saving||title===p.base)return;
-    p.saving=true;p.status='保存中…';paint();
-    try {
-      if(p.attempt&&p.attempt.title!==title) {
-        const last=p.attempt,live=checked(await get(day),day);
-        if(!active(who,day,p))return;
-        p.attempt=null;adopt(p,live);
-        if(live.version!==last.version&&live.title!==last.title) {
-          p.status='另一处已更新，输入保留，请核对后再保存';return;
-        }
-      }
-      p.attempt??={title,version:p.version,save_id:uuid()};
-      const data=checked(await request('/diary-titles/'+day,{method:'PUT',body:p.attempt,suppressAuthRedirect:true}),day);
-      if(active(who,day,p)) {
-        p.base=data.title;p.draft=data.title;p.version=data.version;p.attempt=null;p.status='已保存';
-      }
-    } catch(error) {
-      if(!active(who,day,p))return;
-      if(error.status===409) {
-        try {
-          const data=checked(await get(day),day);
-          if(!active(who,day,p))return;
-          adopt(p,data);p.attempt=null;p.status='另一处已更新，输入保留，请核对后再保存';
-        } catch {
-          p.status='暂时无法核对，输入已保留';
-        }
-      } else {
-        if(error.status>=400&&error.status<500)p.attempt=null;
-        p.status=error.status>=400&&error.status<500?(error.message||'没有保存，输入已保留'):'保存结果待核对，输入已保留';
-      }
-    } finally {if(active(who,day,p)){p.saving=false;paint();}}
-  }
+  const session={date,page,owner:()=>owner,visible,isGuest,paint,active,get,adopt,request,uuid};
+  async function save() { await saveDiaryTitle(session); }
   return {paint,load,edit,save,login:onLogin};
 }

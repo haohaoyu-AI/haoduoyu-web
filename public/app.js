@@ -5187,8 +5187,50 @@ async function readCachedOffline(context, path, guard) {
   await context.refresh();
   return data3;
 }
+async function offlineDispatch(context, mutate, path, input = {}, readRetried = false) {
+  const { state: state2, cache: cache2, features } = context;
+  const { offlineGuard: guard = () => {
+  }, requireNetwork = false, ...options3 } = input;
+  guard();
+  const method2 = (options3.method || "GET").toUpperCase(), route2 = writableRoute(path, options3, features);
+  const memo = features.memos && memoRoute(path);
+  const noteRoute = noteMutationRoute(path, options3, features);
+  if (noteRoute) return context.noteMutations.mutate(path, options3, noteRoute, guard);
+  if (path === "/auth/me" && method2 === "GET") return options3.context || options3.signal ? context.authenticate(options3) : context.verify();
+  if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
+    const value = await context.request(path, labelRequestOptions(path, options3, features));
+    await context.invalidate({ forget: true });
+    return value;
+  }
+  if (route2) return mutate(path, options3, route2, guard);
+  if (memo && method2 === "PUT") return mutateMemo(context, path, options3, guard);
+  if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options3, guard);
+  if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
+  try {
+    if (context.online() && state2.identity) await context.verifyScope();
+    guard();
+    const owner2 = state2.scope, generation = context.generation;
+    const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
+    guard();
+    const value = await context.request(path, labelRequestOptions(path, options3, features));
+    guard();
+    if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
+    if (offlineReadRoute(path).kind === "todo") state2.partial = false;
+    if (!state2.scope) return value;
+    const projection = await rememberRead(context, path, value, baseline, memo);
+    return requireNetwork ? value : projection;
+  } catch (error2) {
+    if ([401, 403].includes(error2.status)) {
+      await context.invalidate({ forget: true });
+      throw error2;
+    }
+    if (error2.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return offlineDispatch(context, mutate, path, input, true);
+    if (requireNetwork || !networkFailure(error2)) throw error2;
+    return readCachedOffline(context, path, guard);
+  }
+}
 function mutationActions(context) {
-  const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
+  const { state: state2, cache: cache2, now, uuid: uuid5, outbox } = context;
   async function mutate(path, options3, route2, guard) {
     guard();
     if (!state2.scope || !state2.identity) throw fail4("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
@@ -5244,47 +5286,7 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, input = {}, readRetried = false) {
-    const { offlineGuard: guard = () => {
-    }, requireNetwork = false, ...options3 } = input;
-    guard();
-    const method2 = (options3.method || "GET").toUpperCase(), route2 = writableRoute(path, options3, features);
-    const memo = features.memos && memoRoute(path);
-    const noteRoute = noteMutationRoute(path, options3, features);
-    if (noteRoute) return context.noteMutations.mutate(path, options3, noteRoute, guard);
-    if (path === "/auth/me" && method2 === "GET") return options3.context || options3.signal ? context.authenticate(options3) : context.verify();
-    if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
-      const value = await context.request(path, labelRequestOptions(path, options3, features));
-      await context.invalidate({ forget: true });
-      return value;
-    }
-    if (route2) return mutate(path, options3, route2, guard);
-    if (memo && method2 === "PUT") return mutateMemo(context, path, options3, guard);
-    if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options3, guard);
-    if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
-    try {
-      if (context.online() && state2.identity) await context.verifyScope();
-      guard();
-      const owner2 = state2.scope, generation = context.generation;
-      const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
-      guard();
-      const value = await context.request(path, labelRequestOptions(path, options3, features));
-      guard();
-      if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
-      if (offlineReadRoute(path).kind === "todo") state2.partial = false;
-      if (!state2.scope) return value;
-      const projection = await rememberRead(context, path, value, baseline, memo);
-      return requireNetwork ? value : projection;
-    } catch (error2) {
-      if ([401, 403].includes(error2.status)) {
-        await context.invalidate({ forget: true });
-        throw error2;
-      }
-      if (error2.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
-      if (requireNetwork || !networkFailure(error2)) throw error2;
-      return readCachedOffline(context, path, guard);
-    }
-  }
+  const call = (path, input, readRetried) => offlineDispatch(context, mutate, path, input, readRetried);
   return { call, mutate };
 }
 function lifecycleActions(context) {
@@ -11146,6 +11148,55 @@ var checked3 = (value, date2) => {
     throw new Error("小标题读取结果不完整。");
   return value;
 };
+async function saveDiaryTitle(session) {
+  const day8 = session.date(), p = session.page(day8), who = session.owner(), title = p.draft.trim();
+  if (!session.visible() || session.isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
+  p.saving = true;
+  p.status = "保存中…";
+  session.paint();
+  try {
+    if (p.attempt && p.attempt.title !== title) {
+      const last = p.attempt, live3 = checked3(await session.get(day8), day8);
+      if (!session.active(who, day8, p)) return;
+      p.attempt = null;
+      session.adopt(p, live3);
+      if (live3.version !== last.version && live3.title !== last.title) {
+        p.status = "另一处已更新，输入保留，请核对后再保存";
+        return;
+      }
+    }
+    p.attempt ??= { title, version: p.version, save_id: session.uuid() };
+    const data3 = checked3(await session.request("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
+    if (session.active(who, day8, p)) {
+      p.base = data3.title;
+      p.draft = data3.title;
+      p.version = data3.version;
+      p.attempt = null;
+      p.status = "已保存";
+    }
+  } catch (error2) {
+    if (!session.active(who, day8, p)) return;
+    if (error2.status === 409) {
+      try {
+        const data3 = checked3(await session.get(day8), day8);
+        if (!session.active(who, day8, p)) return;
+        session.adopt(p, data3);
+        p.attempt = null;
+        p.status = "另一处已更新，输入保留，请核对后再保存";
+      } catch {
+        p.status = "暂时无法核对，输入已保留";
+      }
+    } else {
+      if (error2.status >= 400 && error2.status < 500) p.attempt = null;
+      p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
+    }
+  } finally {
+    if (session.active(who, day8, p)) {
+      p.saving = false;
+      session.paint();
+    }
+  }
+}
 function createDiaryTitleController({ identity: identity5, date: date2, visible: visible3, isGuest, root: root3, onLogin, uuid: uuid5 = () => crypto.randomUUID(), request: request2 = apiNetwork }) {
   let owner2, pages = /* @__PURE__ */ new Map();
   function page(day8) {
@@ -11222,54 +11273,9 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     if (p.status === "已保存") p.status = "";
     paint4();
   }
+  const session = { date: date2, page, owner: () => owner2, visible: visible3, isGuest, paint: paint4, active: active5, get, adopt, request: request2, uuid: uuid5 };
   async function save() {
-    const day8 = date2(), p = page(day8), who = owner2, title = p.draft.trim();
-    if (!visible3() || isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
-    p.saving = true;
-    p.status = "保存中…";
-    paint4();
-    try {
-      if (p.attempt && p.attempt.title !== title) {
-        const last = p.attempt, live3 = checked3(await get(day8), day8);
-        if (!active5(who, day8, p)) return;
-        p.attempt = null;
-        adopt(p, live3);
-        if (live3.version !== last.version && live3.title !== last.title) {
-          p.status = "另一处已更新，输入保留，请核对后再保存";
-          return;
-        }
-      }
-      p.attempt ??= { title, version: p.version, save_id: uuid5() };
-      const data3 = checked3(await request2("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
-      if (active5(who, day8, p)) {
-        p.base = data3.title;
-        p.draft = data3.title;
-        p.version = data3.version;
-        p.attempt = null;
-        p.status = "已保存";
-      }
-    } catch (error2) {
-      if (!active5(who, day8, p)) return;
-      if (error2.status === 409) {
-        try {
-          const data3 = checked3(await get(day8), day8);
-          if (!active5(who, day8, p)) return;
-          adopt(p, data3);
-          p.attempt = null;
-          p.status = "另一处已更新，输入保留，请核对后再保存";
-        } catch {
-          p.status = "暂时无法核对，输入已保留";
-        }
-      } else {
-        if (error2.status >= 400 && error2.status < 500) p.attempt = null;
-        p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
-      }
-    } finally {
-      if (active5(who, day8, p)) {
-        p.saving = false;
-        paint4();
-      }
-    }
+    await saveDiaryTitle(session);
   }
   return { paint: paint4, load: load2, edit, save, login: onLogin };
 }
@@ -11339,7 +11345,13 @@ async function loadIdeas(context) {
   view.error = "";
   try {
     const data3 = await api("/ideas", { context });
-    Object.assign(view, { items: data3.items || [], total: data3.total || 0, truncated: Boolean(data3.truncated), readOnly: data3.readOnly === true, loaded: true });
+    Object.assign(view, {
+      items: data3.items || [],
+      total: data3.total || 0,
+      truncated: Boolean(data3.truncated),
+      readOnly: data3.readOnly === true,
+      loaded: true
+    });
   } catch (error2) {
     if (error2?.name === "AbortError") throw error2;
     view.error = error2?.message || "想法池没读出来，请稍后再试。";
@@ -12824,6 +12836,55 @@ async function handleNotesClick(event) {
   else if (action === "export-legacy") exportLegacyDraft(store.page(date2), dailyNotesRouteCategory());
   else if (action === "export-drafts") await exportDraftArchive();
 }
+function registerDailyNotesSurfaceEvents() {
+  document.addEventListener("click", (event) => {
+    void handleNotesClick(event);
+  });
+  setNoteSuggestRepaint(() => paintDailyNotesPage());
+  document.addEventListener("click", (event) => {
+    const more = event.target.closest("[data-note-more]");
+    if (more && more.closest("#daily-notes")) {
+      event.preventDefault();
+      openNoteMenu(more);
+      return;
+    }
+    const todo = event.target.closest("[data-note-todo]");
+    if (todo) {
+      event.preventDefault();
+      closePopover({ restoreFocus: false });
+      noteToTodo(todo.dataset.noteId);
+      return;
+    }
+    const target = event.target.closest('[data-note-idea="add"]');
+    if (!target || !(target.dataset.noteId || target.closest("#daily-notes"))) return;
+    event.preventDefault();
+    closePopover({ restoreFocus: false });
+    void putInIdeaPool(target);
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-note-suggest]");
+    if (!target) return;
+    event.preventDefault();
+    const find = (id2) => [...entryStores.values()].map((store) => [store, store.entry(id2)]).find(([, item]) => item) || [];
+    void actOnNoteSuggestion(target, {
+      current: (id2) => find(id2)[1]?.labels,
+      async relabel(id2, labels4) {
+        const [store, item] = find(id2);
+        if (!store || !notesLabelsVerified || !store.relabelDraft(id2, labels4)) return false;
+        await store.save(id2);
+        paintDailyNotesPage();
+        return item.phase === "saved" && !item.dirty;
+      }
+    });
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
+    if (retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown")) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+}
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
@@ -12895,53 +12956,7 @@ function registerDailyNotesEvents() {
       }
     });
   });
-  document.addEventListener("click", (event) => {
-    void handleNotesClick(event);
-  });
-  setNoteSuggestRepaint(() => paintDailyNotesPage());
-  document.addEventListener("click", (event) => {
-    const more = event.target.closest("[data-note-more]");
-    if (more && more.closest("#daily-notes")) {
-      event.preventDefault();
-      openNoteMenu(more);
-      return;
-    }
-    const todo = event.target.closest("[data-note-todo]");
-    if (todo) {
-      event.preventDefault();
-      closePopover({ restoreFocus: false });
-      noteToTodo(todo.dataset.noteId);
-      return;
-    }
-    const target = event.target.closest('[data-note-idea="add"]');
-    if (!target || !(target.dataset.noteId || target.closest("#daily-notes"))) return;
-    event.preventDefault();
-    closePopover({ restoreFocus: false });
-    void putInIdeaPool(target);
-  });
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-note-suggest]");
-    if (!target) return;
-    event.preventDefault();
-    const find = (id2) => [...entryStores.values()].map((store) => [store, store.entry(id2)]).find(([, item]) => item) || [];
-    void actOnNoteSuggestion(target, {
-      current: (id2) => find(id2)[1]?.labels,
-      async relabel(id2, labels4) {
-        const [store, item] = find(id2);
-        if (!store || !notesLabelsVerified || !store.relabelDraft(id2, labels4)) return false;
-        await store.save(id2);
-        paintDailyNotesPage();
-        return item.phase === "saved" && !item.dirty;
-      }
-    });
-  });
-  window.addEventListener("beforeunload", (event) => {
-    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if (retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown")) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
+  registerDailyNotesSurfaceEvents();
 }
 var findNote = (id2) => [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
 function openNoteMenu(trigger) {
@@ -16221,7 +16236,9 @@ function metricCell(observation, key) {
   const text = e(formatReviewListMetric({ snapshot: metricSnapshot(observation, key) }, key));
   if (!LATEST_METRICS.has(key) || text === "—" || metricSnapshot(observation, key) === observation?.snapshot) return text;
   const hours = observation?.latest?.hours;
-  return hours === null || hours === void 0 ? text : `<span class="review-latest-value" title="24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集">${text}</span>`;
+  if (hours === null || hours === void 0) return text;
+  const title = `24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集`;
+  return `<span class="review-latest-value" title="${title}">${text}</span>`;
 }
 function rowHtml(row, observation, tags, dimensions, maxLog, cols) {
   const published = articleListDate(row.published_at);
@@ -16595,7 +16612,10 @@ function v13Accounts(data3) {
     ].filter(Boolean).join("");
     const cadence = String(account3.posting_cadence || "").trim();
     const cadenceHtml = cadence ? `<p class="review-account-cadence${/封号|停用/.test(cadence) ? " is-stopped" : ""}">${e(cadence)}</p>` : "";
-    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>${pills ? `<div class="review-account-pills">${pills}</div>` : ""}</div>${cadenceHtml}<div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
+    const link = profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name;
+    const pillRow = pills ? `<div class="review-account-pills">${pills}</div>` : "";
+    const features = details || "<p>暂无特点记录</p>";
+    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${link}</h3>${pillRow}</div>${cadenceHtml}<div class="review-v13-account-features">${features}</div></section>`;
   }).join("");
   return `<div class="review-benchmarks-panel"><div class="review-sub-kpis review-benchmarks-kpis">${kpis}</div><div class="review-benchmark-cards">${cards}</div></div>`;
 }
@@ -17458,7 +17478,7 @@ function renderPageHeader() {
 function mainContent() {
   const settingsChoices = state.me?.publicBusiness ? { todo: settingsTabs.todo, ai: settingsTabs.ai } : settingsTabs;
   const tabs = state.page === "settings" ? segmented("settings-tab", Object.entries(settingsChoices), state.settingsTab, "设置分类", "tab", "page-tabs") : "";
-  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>${state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}`;
+  return `<div id="page-header" class="page-head">${renderPageHeader()}</div>${tabs}<div id="page-content"></div>` + (state.page === "settings" ? '<section class="card panel settings-offline-card" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : "");
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
