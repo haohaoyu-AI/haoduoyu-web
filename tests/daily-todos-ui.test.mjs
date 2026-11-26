@@ -24,6 +24,28 @@ test('calendar presents selected-day plans and completed rows without changing t
   assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
 });
 
+test('daily todo shortcut shows previous, next and today with the selected date',()=>{
+  const c=client({search:'?page=todos&date=2026-10-31'});
+  c.run("readRoute();paintTodos=()=>{};loadTodos=()=>{}");
+  const html=c.run('renderTodos()');
+  assert.match(html, /id="todo-date-bar" >/);
+  assert.match(html, /id="todo-date" type="date" value="2026-10-31"/);
+  assert.match(html, /data-action="todo-prev".*aria-label="前一天"/);
+  assert.match(html, /data-action="todo-next".*aria-label="后一天"/);
+  assert.match(html, /data-action="todo-today">今天/);
+  c.run('moveTodoDate(1)');
+  assert.equal(c.run('todoDate()'),'2026-11-01');
+  assert.match(c.run('renderTodos()'),/<form id="todo-form"[^>]*data-date="2026-11-01"/);
+  c.run('moveTodoDate(-1)');
+  assert.equal(c.run('todoDate()'),'2026-10-31');
+  c.run('selectTodoDate(bjtDate())');
+  assert.equal(c.run('todoDate()'),'2026-10-23');
+  for (const panel of ['history','future','templates']) {
+    c.run(`state.todoPanel='${panel}'`);
+    assert.match(c.run('renderTodos()'), /id="todo-date-bar" hidden/);
+  }
+});
+
 test('a direct future view starts without showing the dated todo editor',()=>{
   const c=client({search:'?page=todos&todo_panel=future'});c.run('readRoute()');
   assert.equal(c.run('state.todoPanel'),'future');const html=c.run('renderTodos()');

@@ -217,6 +217,7 @@ textarea.input { min-height:96px; resize:vertical; padding:var(--s2); }
 .daily-todo-status { margin-top:var(--s3); color:var(--ink-2); font-size:var(--fs-xs); }
 .daily-todo-status:empty { margin:0; }
 .daily-todo-dates { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); }
+#todo-date-bar { margin-bottom:var(--s3); }
 .daily-todo-dates .input { width:auto; max-width:160px; }
 .todo-list-options { display:flex; align-items:center; justify-content:flex-end; gap:var(--s2); margin-top:var(--s2); color:var(--ink-2); font-size:var(--fs-xs); }
 .todo-list-options .input { width:auto; min-height:var(--size-control); color:var(--ink-2); }
