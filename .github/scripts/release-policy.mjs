@@ -703,6 +703,13 @@ export const publicAuditReadQuotaRelease=Object.freeze({
   baseline:'66823137-a718-4035-bfbb-2dc0c8a03631',
   bytes:3323802,sha256:'fbb561e8a5cf8882d7c02e4f986f52e6cda6a99ef5cf24a6ece5c3dc9c7e6e32',
   label:'production-public-audit-read-quota'});
+// Fixed review pattern groups and the backup read budget. No database migration.
+export const reviewPatternRosterRelease=Object.freeze({
+  commit:'1d8450642e955e5027dea01268409dccb4a78a88',
+  tree:'ea7b01a651284054f6f7b24a7e475f50c69dd891',
+  baseline:'9e6e56c0-87e2-4615-9816-2732a61a3526',
+  bytes:3340690,sha256:'7ad0a3491b4ffc756118de3f0ef064b880845202b7c674a2f23de290284f0711',
+  label:'production-review-pattern-roster'});
 // Date shortcuts for the daily todo list. No data, schema or API changes.
 export const diaryTitleRelease=Object.freeze({
   commit:'e01410c1374a714959523f0ca1c9e47d97eaa88a',
@@ -716,7 +723,8 @@ export const todoDateShortcutsRelease=Object.freeze({
   baseline:'0a613d36-7366-4189-90a2-d1e44ee161a9',
   bytes:3324494,sha256:'799483d0c8a6e7254c52caafaf302d6ef752237bfbdec8440f45a8927e8b6bec',
   label:'production-todo-date-shortcuts'});
-const acceptedRelease=commit=>commit===diaryTitleRelease.commit?diaryTitleRelease:
+const acceptedRelease=commit=>commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
+  commit===diaryTitleRelease.commit?diaryTitleRelease:
   commit===todoDateShortcutsRelease.commit?todoDateShortcutsRelease:
   commit===publicAuditReadQuotaRelease.commit?publicAuditReadQuotaRelease:
   commit===reviewBenchmarkPresentationRelease.commit?reviewBenchmarkPresentationRelease:
