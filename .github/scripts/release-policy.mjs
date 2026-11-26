@@ -703,6 +703,13 @@ export const publicAuditReadQuotaRelease=Object.freeze({
   baseline:'66823137-a718-4035-bfbb-2dc0c8a03631',
   bytes:3323802,sha256:'fbb561e8a5cf8882d7c02e4f986f52e6cda6a99ef5cf24a6ece5c3dc9c7e6e32',
   label:'production-public-audit-read-quota'});
+// Signed read-only archive access for yesterday's diary subtitle. No database migration.
+export const diaryTitleArchiveReadRelease=Object.freeze({
+  commit:'3583926d000d92984787edd78cd9272228216feb',
+  tree:'4d8e35edba1315b5615c5517f41cbb0a342ff4f3',
+  baseline:'64ef0f2e-91b6-4fc6-8970-d3ef0ba1a61b',
+  bytes:3346553,sha256:'8a26b091c100db08cb16ca8b64633ca640e9ae8a3236d9f97cd13f11ced6e7c0',
+  label:'production-diary-title-archive-read'});
 // Fixed review pattern groups and the backup read budget. No database migration.
 export const reviewPatternRosterRelease=Object.freeze({
   commit:'1d8450642e955e5027dea01268409dccb4a78a88',
@@ -723,7 +730,8 @@ export const todoDateShortcutsRelease=Object.freeze({
   baseline:'0a613d36-7366-4189-90a2-d1e44ee161a9',
   bytes:3324494,sha256:'799483d0c8a6e7254c52caafaf302d6ef752237bfbdec8440f45a8927e8b6bec',
   label:'production-todo-date-shortcuts'});
-const acceptedRelease=commit=>commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
+const acceptedRelease=commit=>commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
+  commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
   commit===diaryTitleRelease.commit?diaryTitleRelease:
   commit===todoDateShortcutsRelease.commit?todoDateShortcutsRelease:
   commit===publicAuditReadQuotaRelease.commit?publicAuditReadQuotaRelease:
