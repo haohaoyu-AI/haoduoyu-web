@@ -15857,30 +15857,41 @@ function patternValue(tags, id2, dimension) {
   const entry = tags.tags[id2];
   return entry && Object.hasOwn(entry, dimension) && typeof entry[dimension] === "string" ? entry[dimension].trim() : "";
 }
+var PATTERN_ORDER = {
+  title: ["中外交锋", "引用外媒", "身份反差", "细节引大案"],
+  article: ["两方对决", "人物来路", "败局复盘", "预期反转"]
+};
 var PATTERN_PRESENTATION = {
   title: {
-    "谁跟谁较劲": { aliases: ["中外交锋"] },
-    "谁做了什么": { aliases: ["身份反差"] },
-    "一件小事引出大事": { aliases: ["细节引大案"] },
-    "败局揭底": { note: "旧名，按内容归谁跟谁较劲或谁做了什么" }
+    "中外交锋": { aliases: ["谁跟谁较劲"] },
+    "引用外媒": { aliases: ["别人怎么说"] },
+    "身份反差": { aliases: ["谁做了什么"] },
+    "细节引大案": { aliases: ["一件小事引出大事"] }
   },
   article: {
-    "双方怎么争": { aliases: ["历史名场面与暗战纪实", "脑洞怪题与硬核剥笋流"] },
-    "一个人怎么走到这一步": { aliases: ["市井切片与江湖高人传"] },
-    "事情怎么搞砸的": { aliases: ["商业败局与作死复盘流"] },
-    "赛博罪案与猫鼠博弈流": { note: "备用" },
-    "草根江湖与赛博淘金流": { note: "备用" },
-    "隐形冠军与暴利商战流": { note: "备用" }
+    "两方对决": { aliases: ["双方怎么争", "历史名场面与暗战纪实", "脑洞怪题与硬核剥笋流"] },
+    "人物来路": { aliases: ["一个人怎么走到这一步", "市井切片与江湖高人传"] },
+    "败局复盘": { aliases: ["事情怎么搞砸的", "商业败局与作死复盘流"] },
+    "预期反转": { aliases: ["为什么跟想的不一样"] }
   }
 };
+var PATTERN_RETIRED = ["赛博罪案与猫鼠博弈流", "草根江湖与赛博淘金流", "隐形冠军与暴利商战流"];
+var PATTERN_ORPHANS = ["悬念问答", "暴利数字", "败局揭底"];
+var PATTERN_OTHER = "其他";
 var PATTERN_ALIASES = Object.fromEntries(Object.entries(PATTERN_PRESENTATION).map(([kind, entries]) => [kind, new Map(Object.entries(entries).flatMap(([name, { aliases: aliases2 = [] }]) => aliases2.map((alias) => [alias, name])))]));
+var RETIRED_PATTERNS = new Set(PATTERN_RETIRED);
+var ORPHAN_PATTERNS = new Set(PATTERN_ORPHANS);
 function patternKind(tags, dimension) {
   if (!dimension) return "";
   const [title, article] = articlePatternDimensions(tags);
   return dimension === title ? "title" : dimension === article ? "article" : "";
 }
 function displayPattern(kind, name) {
-  return PATTERN_ALIASES[kind]?.get(name) || name;
+  if (!name) return "";
+  const aliased = PATTERN_ALIASES[kind]?.get(name);
+  if (aliased) return aliased;
+  if (RETIRED_PATTERNS.has(name) || ORPHAN_PATTERNS.has(name)) return PATTERN_OTHER;
+  return name;
 }
 function availableDimensions(tags, rows) {
   return articlePatternDimensions(tags).map((dimension) => rows.some((row) => patternValue(tags, row.id, dimension)) ? dimension : "");
@@ -15930,17 +15941,27 @@ function groupBy(rows, keyFor2) {
   }
   return groups;
 }
-var tailRank = (name) => name === "未分类" ? 2 : name === "其他" ? 1 : 0;
+var tailRank = (name) => name === "未分类" ? 2 : name === PATTERN_OTHER ? 1 : 0;
+var byPerformance = (a, b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) || (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name, "zh-CN");
+function patternGroupEntry(name, groupRows, rawNames, kind, observations) {
+  const presentation = PATTERN_PRESENTATION[kind]?.[name] || {};
+  const observed = new Set(groupRows.map((row) => rawNames.get(row)).filter(Boolean));
+  const legacyNames2 = (presentation.aliases || []).filter((alias) => observed.has(alias));
+  if (name === PATTERN_OTHER) {
+    for (const orphan of PATTERN_ORPHANS) if (observed.has(orphan)) legacyNames2.push(orphan);
+  }
+  const retired = name === PATTERN_OTHER ? PATTERN_RETIRED.filter((item) => observed.has(item)) : [];
+  const note = retired.length ? `旧备用名，须重打：${retired.join("、")}` : presentation.note || "";
+  return { name, rows: groupRows, legacyNames: legacyNames2, note, ...summary2(groupRows, observations) };
+}
 function articlePatternGroups(rows, tags, dimension, observations) {
   const kind = patternKind(tags, dimension);
   const rawNames = new Map(rows.map((row) => [row, patternValue(tags, row.id, dimension)]));
-  return [...groupBy(rows, (row) => displayPattern(kind, rawNames.get(row)) || "未分类")].map(([name, rows2]) => {
-    const entry = PATTERN_PRESENTATION[kind];
-    const presentation = entry && Object.hasOwn(entry, name) ? entry[name] : {};
-    const observedNames = new Set(rows2.map((row) => rawNames.get(row)));
-    const legacyNames2 = (presentation.aliases || []).filter((alias) => observedNames.has(alias));
-    return { name, rows: rows2, legacyNames: legacyNames2, note: presentation.note || "", ...summary2(rows2, observations) };
-  }).sort((a, b) => tailRank(a.name) - tailRank(b.name) || (a.rows.length < 5) - (b.rows.length < 5) || (b.hitRate ?? -1) - (a.hitRate ?? -1) || (b.reads ?? -1) - (a.reads ?? -1) || a.name.localeCompare(b.name, "zh-CN"));
+  const grouped = groupBy(rows, (row) => displayPattern(kind, rawNames.get(row)) || "未分类");
+  const listed = new Set(PATTERN_ORDER[kind] || []);
+  const entries = [...listed].map((name) => patternGroupEntry(name, grouped.get(name) || [], rawNames, kind, observations));
+  const rest = [...grouped.entries()].filter(([name, list3]) => !listed.has(name) && list3.length).map(([name, list3]) => patternGroupEntry(name, list3, rawNames, kind, observations)).sort(byPerformance);
+  return [...entries, ...rest];
 }
 function articleWeekGroups(rows, observations) {
   return [...groupBy(rows, (row) => {
@@ -16015,7 +16036,11 @@ function patternButton(tags, row, dimension, kind) {
 }
 function renderDetailPatterns(row, tags) {
   const labels4 = ["标题套路", "文章套路"];
-  return `<dl class="review-detail-patterns">${articlePatternDimensions(tags).map((dimension, index) => `<div><dt>${labels4[index]}</dt><dd>${e(patternValue(tags, row.id, dimension) || "—")}</dd></div>`).join("")}</dl>`;
+  return `<dl class="review-detail-patterns">${articlePatternDimensions(tags).map((dimension, index) => {
+    const raw = patternValue(tags, row.id, dimension);
+    const shown2 = displayPattern(patternKind(tags, dimension), raw) || raw;
+    return `<div><dt>${labels4[index]}</dt><dd>${e(shown2 || "—")}</dd></div>`;
+  }).join("")}</dl>`;
 }
 function verdictChip(row, observation) {
   if (observation.kind === "longtail") return '<span title="发布 72 小时后才有数据" class="review-article-verdict longtail review-tag">长尾</span>';
@@ -16073,7 +16098,7 @@ function weekBody(week, lines, cols) {
   return `<tbody><tr class="review-week-summary"><th scope="rowgroup" colspan="${cols.length}"><div><strong class="review-week-label">${date2}</strong><span class="review-week-count">${week.rows.length} 篇</span>${countsHtml(week.counts)}<span class="review-week-stat">阅读中位 <b>${e(medianText(week.reads, "reads"))}</b></span><span class="review-week-stat">点击中位 <b>${e(medianText(week.ctr, "ctr"))}</b></span></div></th></tr>${lines(week.rows)}</tbody>`;
 }
 function patternGroup(group, dimension, headers, lines, density) {
-  const few = group.rows.length < 5 ? '<span class="review-sample-badge" title="少于 5 篇，结论先别当真">样本少</span>' : "";
+  const few = group.rows.length > 0 && group.rows.length < 5 ? '<span class="review-sample-badge" title="少于 5 篇，结论先别当真">样本少</span>' : "";
   const rate3 = group.hitRate === null ? "—" : `${group.hitRate.toFixed(1)}%`;
   const annotations = [
     group.legacyNames.length ? `含旧名：${group.legacyNames.join("、")}` : "",
@@ -16081,7 +16106,7 @@ function patternGroup(group, dimension, headers, lines, density) {
   ].filter(Boolean).map((note) => `<span class="review-group-count">${e(note)}</span>`).join("");
   const figure2 = (label, value, css = "") => `<div${css ? ` class="${css}"` : ""}><dt>${label}</dt><dd>${e(value)}</dd></div>`;
   const full = density === "full" ? figure2("展现中位", medianText(group.impressions, "impressions")) + figure2("粉丝阅读中位", medianText(group.fan_reads, "fan_reads")) + figure2("粉丝展现中位", medianText(group.fan_impressions, "fan_impressions")) : "";
-  return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension, group.name]))}"><summary><span class="review-article-group-name">${e(group.name)}</span>${annotations}<span class="review-group-count">${group.rows.length} 篇</span>${few}<span class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</span><dl class="review-article-group-figures">${figure2("爆率", rate3, group.hitRate > 0 ? "is-hitrate is-positive" : "is-hitrate")}${figure2("阅读中位", medianText(group.reads, "reads"))}${figure2("点击中位", medianText(group.ctr, "ctr"))}${figure2("完读中位", medianText(group.completion_rate, "completion_rate"))}${figure2("时长中位", medianText(group.avg_read_seconds, "avg_read_seconds"))}${full}</dl></summary>${table(headers, `<tbody>${lines(group.rows)}</tbody>`, density)}</details>`;
+  return `<details class="review-article-group" data-review-keep-open="${e(JSON.stringify([dimension, group.name]))}"><summary><span class="review-article-group-name">${e(group.name)}</span>${annotations}<span class="review-group-count">${group.rows.length} 篇</span>${few}<span class="review-group-mix">${verdictMixBar(group.counts)}${countsHtml(group.counts)}</span><dl class="review-article-group-figures">${figure2("爆率", rate3, group.hitRate > 0 ? "is-hitrate is-positive" : "is-hitrate")}${figure2("阅读中位", medianText(group.reads, "reads"))}${figure2("点击中位", medianText(group.ctr, "ctr"))}${figure2("完读中位", medianText(group.completion_rate, "completion_rate"))}${figure2("时长中位", medianText(group.avg_read_seconds, "avg_read_seconds"))}${full}</dl></summary>${group.rows.length ? table(headers, `<tbody>${lines(group.rows)}</tbody>`, density) : ""}</details>`;
 }
 function latestObservation(snapshots) {
   let best = null;
@@ -16125,7 +16150,8 @@ function renderArticleList(rows, vm2, snapshots, flagged, tag2) {
   const head = summaryStrip(stats2, ordered2.length, density);
   if (group !== TABLE_VIEW) {
     const groups = articlePatternGroups(ordered2, vm2.tags, group, observations);
-    return top + head + `<div class="review-article-groups">${groups.map((entry) => patternGroup(entry, group, headers, lines, density)).join("")}</div>` + note;
+    const shown2 = filters.pattern ? groups.filter((entry) => entry.rows.length) : groups;
+    return top + head + `<div class="review-article-groups">${shown2.map((entry) => patternGroup(entry, group, headers, lines, density)).join("")}</div>` + note;
   }
   const bodies = filters.sort ? `<tbody>${lines(ordered2)}</tbody>` : articleWeekGroups(ordered2, observations).map((week) => weekBody(week, lines, cols)).join("");
   return top + head + table(headers, bodies, density) + note;
