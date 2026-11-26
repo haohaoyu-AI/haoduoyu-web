@@ -72,6 +72,12 @@ export function renderDailyNotes() {
     [1,2,3,4,5,6,7,8,9,10].map(score => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + '</button>').join('') +
     '</div><span class="daily-score-end" aria-hidden="true">很好</span></div>' +
     '<span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section>' +
+    '<form id="diary-title-form" class="diary-title-card" aria-label="日记小标题">' +
+    '<div class="diary-title-fields"><label for="diary-title-input">日记小标题</label>' +
+    '<input class="input" id="diary-title-input" type="text" maxlength="40" placeholder="写四五个字，可留空" autocomplete="off" disabled>' +
+    '<button class="btn" type="submit" disabled>保存</button></div>' +
+    '<button class="btn text" type="button" data-diary-title-login hidden>登录填写小标题</button>' +
+    '<span class="notes-status" role="status" aria-live="polite"></span></form>' +
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
     '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +

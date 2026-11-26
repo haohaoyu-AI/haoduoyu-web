@@ -20,14 +20,15 @@ const v16RestoredTables = Object.freeze([...reviewRestoredTables,'openai_review_
 const v17RestoredTables = Object.freeze([...v16RestoredTables,'review_prompt_versions']);
 const scoreRestoredTables = Object.freeze([...v17RestoredTables,'daily_scores']);
 const v18RestoredTables = Object.freeze([...scoreRestoredTables,'review_article_diagnoses']);
-export const restoredTables = Object.freeze([...v18RestoredTables,
+const v19RestoredTables = Object.freeze([...v18RestoredTables,
   'review_archive_items','review_archive_refs','review_archive_snapshots','review_archive_events',
   'review_archive_imports','review_archive_import_pages']);
+export const restoredTables=Object.freeze([...v19RestoredTables,'diary_titles']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
 const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables],
   ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
   ['haoduoyu-matrix-d1-v10', v10RestoredTables], ['haoduoyu-matrix-d1-v11', v11RestoredTables],
-  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', v16RestoredTables], ['haoduoyu-matrix-d1-v17', v17RestoredTables], ['haoduoyu-matrix-d1-v18', v18RestoredTables], ['haoduoyu-matrix-d1-v19', restoredTables]]);
+  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', v16RestoredTables], ['haoduoyu-matrix-d1-v17', v17RestoredTables], ['haoduoyu-matrix-d1-v18', v18RestoredTables], ['haoduoyu-matrix-d1-v19', v19RestoredTables], ['haoduoyu-matrix-d1-v20', restoredTables]]);
 /** Format-scoped restore inventory; live HEAD may expose later tables via restoredTables. */
 export function restoredTablesForFormat(format) {
   const tables = tableSets.get(format);
@@ -42,7 +43,8 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_review_archive_items') ? restoredTables :
+    const restored = schema.some(row => row.name === 'matrix_diary_titles') ? restoredTables :
+      schema.some(row => row.name === 'matrix_review_archive_items') ? v19RestoredTables :
       schema.some(row => row.name === 'matrix_review_article_diagnoses') ? v18RestoredTables :
       schema.some(row => row.name === 'matrix_daily_scores') ? scoreRestoredTables :
       schema.some(row => row.name === 'matrix_review_prompt_versions') ? v17RestoredTables :
