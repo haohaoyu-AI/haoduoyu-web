@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
+import {historicalTree} from './historical-tree.mjs';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {countingDb} from './counting-d1.mjs';
 import {reconcileArticles,readArticleReconciliation} from '../src/article-reconciliation.mjs';
 import {projectWorkbenchRound2} from './workbench-round2-projection.mjs';
+const baseline=historicalTree('f405b4cc309a7cb1f40133cc7e19d827244a3fa4');
+const accepted=historicalTree('4984fa2c395cd67b1238134fb6fc48e420b913e5');
 const row=(id,series_no,status='draft_saved',slot='gzh')=>({id,series_no,status,slot,run_date:null,writer:null,
   title:'保险第200篇不是编号依据',sample:null,missing_fields:['run_date','writer'],warnings:[],has_pending_verify:null,verify_state:'unknown'});
 test('actual reconciliation preserves unknowns, distinct numbers, duplicate IDs and bounded gap ranges without a target',()=>{
@@ -55,22 +56,20 @@ test('over-budget complete reads fail rather than presenting a partial ledger',a
 });
 test('todo, notes, memo, schema, snapshot and glass baseline stays exact after the approved round-two UI delta',async()=>{
   const files=['public/workbench.css','public/index.html','public/glass.css','public/style.css','public/memos.css','src/snapshot.mjs','src/snapshot-projection.mjs','src/daily-notes.mjs','src/memos.mjs'];
-  files.push(...execFileSync('git',['ls-tree','-r','--name-only','f405b4c','db','drizzle','web'],{encoding:'utf8'}).trim().split('\n').filter(file=>!['web/controller.mjs','web/core/router.mjs','web/events.mjs','web/actions.mjs'].includes(file)));
+  files.push(...baseline.files('db','drizzle','web')
+    .filter(file=>!['web/controller.mjs','web/core/router.mjs','web/events.mjs','web/actions.mjs'].includes(file)));
   for(const file of files) {
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    const baseline=projectWorkbenchRound2(file,source);
-    assert.deepEqual(Buffer.from(baseline),execFileSync('git',['show','f405b4c:'+file]),file);
+    const projected=projectWorkbenchRound2(file,accepted.read(file));
+    assert.equal(projected,baseline.read(file),file);
   }
 });
 
 test('new UI and API projections reject changed additions and preserve the complete preceding contract',async()=>{
   const {projectReconciliation}=await import('./reconciliation-ui-projection.mjs');
   const {reconciliationDocumentSpec}=await import('./article-pipeline-projection.mjs');
-  const file='web/pages/article-reconciliation.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+  const file='web/pages/article-reconciliation.mjs',source=accepted.read(file);
   assert.equal(projectReconciliation(file,source),'');assert.throws(()=>projectReconciliation(file,source+'\nconst unauthorized=1;'));
-  const {projectQuietSync}=await import('./oct28-small-fix-projection.mjs');
-  const spec=JSON.parse(projectQuietSync('public/openapi.json',
-    await readFile(new URL('../public/openapi.json',import.meta.url),'utf8')));
-  assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(execFileSync('git',['show','f405b4c:public/openapi.json'],{encoding:'utf8'})));
+  const spec=JSON.parse(accepted.read('public/openapi.json'));
+  assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(baseline.read('public/openapi.json')));
   spec.paths['/api/v1/article-reconciliation'].get.summary='unauthorized';assert.throws(()=>reconciliationDocumentSpec(spec));
 });

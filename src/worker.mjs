@@ -6,7 +6,7 @@ import { createRecords } from './records.mjs';
 import { ensureControl,storeFor,mutate,consistentRead,statement } from './storage.mjs';
 import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,recordLoginFailure,stable } from './security.mjs';
 import { assets } from './assets.generated.mjs';
-import { exportBackup } from './backup.mjs';
+import { exportBackupFromRead } from './backup.mjs';
 import { matchesIfNoneMatch } from './lib/http.mjs';
 import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
@@ -145,7 +145,7 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
     if(route==='/audit') {requireAdmin(actor);return json((await store.all("SELECT log.*,article.title AS entity_label FROM audit AS log LEFT JOIN articles AS article ON article.id=log.entity_id AND (log.action IN ('POST /articles','PATCH /articles','article.create','article.update') OR log.action='PUT /articles/'||article.id) ORDER BY log.created_at DESC,log.rowid DESC LIMIT 200")).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
     if(route==='/backup') {
       requireAdmin(actor);
-      const backup=await exportBackup(db,{todoUserId:actor.id});
+      const backup=await exportBackupFromRead(store,before,{todoUserId:actor.id});
       return json(backup,200,{'Content-Disposition':'attachment; filename="haoduoyu-matrix-backup.json"'});
     }
     if(route==='/export') {

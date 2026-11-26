@@ -1,4 +1,4 @@
-title = "Default rules with three reviewed daily-todo checksum exceptions"
+title = "Default rules with exact public artifact checksum exceptions"
 
 [extend]
 useDefault = true
@@ -16,3 +16,12 @@ regexes = [
   '''^4d94d10cf50ded0a7f26230daa3253415b495d0dd3ccc36cf9fa22cdda5baa25$''',
   '''^02d875ec592080e3040e94b5032141916a6fecca4da562076855ac7b115c112d$''',
 ]
+
+# SHA-256 of the public tokens.css built for PR #196.
+[[allowlists]]
+description = "Public tokens.css artifact checksum"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = ['''^07ac57a959eacb5195775cdb8572da56f4fb1a58ef7ae9e717e89d5de7204885$''']

@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
-import {readFileSync} from 'node:fs';
-import {execFileSync} from 'node:child_process';
+import {historicalTree} from './historical-tree.mjs';
+
+const baseline=historicalTree('fc38d66704c86de8f255751795125bfa71fc7bc7');
+const phase4=historicalTree('a0393d03c2d342406984fa57e663a5d2d2239385');
 
 const defaults={status:'published',slot:null,run_dir:null,run_date:null,series_no:null,
   writer:null,illustrator:null,char_count:null,subheading_count:null,image_count:null,cover_desc:null};
@@ -50,14 +51,10 @@ test('legacy article verification projection permits only the exact unknown pair
   }
 });
 test('article document projection restores only the pinned lifecycle delta and rejects drift inside additions',()=>{
-  const baseline='fc38d66704c86de8f255751795125bfa71fc7bc7';
-  const old=file=>execFileSync('git',['show',baseline+':'+file],{cwd:new URL('../',import.meta.url),encoding:'utf8'});
-  const spec=JSON.parse(projectQuietSync('public/openapi.json',
-    readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8')));
-  const docs=projectQuietSync('public/api-docs.html',
-    readFileSync(new URL('../public/api-docs.html',import.meta.url),'utf8'));
-  assert.deepEqual(articlePipelineSpec(spec),JSON.parse(old('public/openapi.json')));
-  assert.equal(articlePipelineDocs(docs),old('public/api-docs.html'));
+  const spec=JSON.parse(phase4.read('public/openapi.json'));
+  const docs=phase4.read('public/api-docs.html');
+  assert.deepEqual(articlePipelineSpec(spec),JSON.parse(baseline.read('public/openapi.json')));
+  assert.equal(articlePipelineDocs(docs),baseline.read('public/api-docs.html'));
   const changed=structuredClone(spec);changed.components.schemas.ArticleCreate.properties.status.description+='unexpected';
   assert.throws(()=>articlePipelineSpec(changed),assert.AssertionError);
   if(spec.paths['/api/v1/articles'].patch) {
@@ -70,5 +67,5 @@ test('article document projection restores only the pinned lifecycle delta and r
   const unrelated=structuredClone(spec);unrelated.info.title='Synthetic retained change';
   assert.equal(articlePipelineSpec(unrelated).info.title,'Synthetic retained change','unrelated fields are never projected away');
   assert.throws(()=>articlePipelineDocs(docs.replace('64KiB','32KiB')),assert.AssertionError);
-  assert.equal(articlePipelineDocs(docs+'<!-- retained -->'),old('public/api-docs.html')+'<!-- retained -->');
+  assert.equal(articlePipelineDocs(docs+'<!-- retained -->'),baseline.read('public/api-docs.html')+'<!-- retained -->');
 });

@@ -4,15 +4,15 @@ import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {round5AddedModules,projectWorkbenchRound5} from './workbench-round5-projection.mjs';
 import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
-import {projectUnifySwModules} from './unify-sw-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 import {execFileSync} from 'node:child_process';
-import {readFile, readdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {frontendBundle} from '../scripts/frontend-build.mjs';
 import {parseWeb, visitWeb} from '../scripts/check-web.mjs';
 
 export const MEMO_PRODUCTION_BASE='fe8efa479c0c2865970b43053db4deb62a3380c9';
 export const MEMO_SOURCE_BASE='0bff743cc6951a6fb51ffa47dd8cdcc4c55bcbb6';
+export const memoFrontendRelease=historicalTree('947bc782ea70e7808f6e7de523e5977818b292df');
 export const memoAddedModules=['web/core/memos-state.mjs','web/memos-controller.mjs','web/memos-recovery.mjs','web/pages/memos.mjs'];
 export const memoSharedFiles=['web/core/constants.mjs','web/ui/components.mjs','web/controller.mjs'];
 const root=new URL('../',import.meta.url),cache=new Map();
@@ -101,20 +101,16 @@ export async function projectMemoFrontend(file,source) {
   return source;
 }
 export async function verifyMemoFrontendBoundary() {
-  const {quietSyncBaseline}=await import('./oct28-small-fix-projection.mjs');
-  const production=execFileSync('git',['ls-tree','-r','--name-only',MEMO_PRODUCTION_BASE,'web'],{cwd:root,encoding:'utf8'})
-    .trim().split('\n').filter(file=>file.endsWith('.mjs'));
-  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],{cwd:root,encoding:'utf8'})
-    .trim().split('\n').filter(file=>file.endsWith('.mjs')));
-  const files=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
-    .map(file=>'web/'+file).filter(file=>quietKnown.has(file)).sort();
-  for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const existing=projectUnifySwModules(files).filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
+  const modules=tree=>tree.files('web').filter(file=>file.endsWith('.mjs'));
+  const production=modules(historicalTree(MEMO_PRODUCTION_BASE));
+  const read=memoFrontendRelease.read;
+  for(const file of reconciliationModules)assert.equal(projectReconciliation(file,read(file)),'');
+  for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,read(file)),'');
+  for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,read(file)),'');
+  const existing=modules(memoFrontendRelease).filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
   assert.deepEqual(existing,[...production,...memoAddedModules,...workbenchAddedModules].sort(),'released modules plus reviewed memo and workbench modules');
   for(const file of existing) {
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    const source=read(file);
     if(workbenchAddedModules.includes(file)){assert.equal(await projectPublicNoteFrontend(file,source),'');continue;}
     if(memoAddedModules.includes(file)||memoSharedFiles.includes(file))await projectMemoFrontend(file,source);
     else assert.equal(await projectPublicNoteFrontend(file,source),memoBaseline(file),'every other released frontend source byte remains unchanged: '+file);

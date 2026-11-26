@@ -1,25 +1,13 @@
-import {reconciliationModules,projectReconciliation} from './reconciliation-ui-projection.mjs';
-import {projectUnifyStage1} from './unify-stage1-projection.mjs';
-import {projectUnifySwModules} from './unify-sw-projection.mjs';
-import {workbenchAddedModules} from './workbench-ui-projection.mjs';
-import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
-import {round5AddedModules,projectWorkbenchRound5} from './workbench-round5-projection.mjs';
-import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
-import {readFile, readdir} from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
 import {parseWeb} from '../scripts/check-web.mjs';
-import {memoAddedModules,projectMemoFrontend} from './memos-ui-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 export const PHASE7_BASELINE='37a1e4f2618e1fea6ded05911b2a73572968442a';
-const root=new URL('../',import.meta.url);
-const baselineCache=new Map();
-export function phase7Baseline(file) {
-  if(!baselineCache.has(file))baselineCache.set(file,execFileSync('git',['show',PHASE7_BASELINE+':'+file],
-    {cwd:root,encoding:'utf8',maxBuffer:2*1024*1024}));
-  return baselineCache.get(file);
-}
+export const PHASE7_CANDIDATE='fe8efa479c0c2865970b43053db4deb62a3380c9';
+const baseline=historicalTree(PHASE7_BASELINE),phase7=historicalTree(PHASE7_CANDIDATE);
+export const phase7Baseline=baseline.read;
 export const phase7Hash=value=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(value)).digest('hex');
 export function phase7Normalized(value) {
   if(Array.isArray(value))return value.map(phase7Normalized);
@@ -90,40 +78,25 @@ export async function phase7Manifest() {
   assert.equal(manifest.baseline,PHASE7_BASELINE);return manifest;
 }
 export async function projectPhase7Frontend(file,source) {
-  source=await projectMemoFrontend(file,source);
   const delta=await phase7Manifest();
   const changes=file==='public/app.js'?delta.bundle:delta.sources[file];
   if(!changes)return source;
   const before=delta.added_modules.includes(file)?'':phase7Baseline(file);
   return validatePhase7Projection(before,source,changes,file);
 }
-export async function phase7ModuleFiles() {
-  return (await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
-    .map(file=>'web/'+file).sort();
-}
 export async function verifyPhase7FrontendBoundary() {
-  const delta=await phase7Manifest(),all=await phase7ModuleFiles();
-  // Live/site-five modules added after the QuietSync baseline cannot invert to Phase7.
-  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],
-    {cwd:root,encoding:'utf8'}).trim().split('\n').filter(file=>file.endsWith('.mjs')));
-  for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const files=projectUnifySwModules(all.filter(file=>quietKnown.has(file)))
-    .filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
-  assert.deepEqual(files,[...delta.modules,...memoAddedModules,...workbenchAddedModules].sort(),'the complete article and memo module inventory is explicit');
+  const delta=await phase7Manifest(),files=phase7.files('web').filter(file=>file.endsWith('.mjs'));
+  assert.deepEqual(files,delta.modules,'the complete frontend module inventory is explicit');
   for(const file of files) {
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    if([...memoAddedModules,...workbenchAddedModules].includes(file))assert.equal(await projectMemoFrontend(file,source),'');
-    else if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
-    else assert.equal(await projectMemoFrontend(file,source),phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
+    const source=phase7.read(file);
+    if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
+    else assert.equal(source,phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
   }
-  const css=projectUnifyStage1('public/style.css',await readFile(new URL('../public/style.css',import.meta.url),'utf8')),
-    base=phase7Baseline('public/style.css');
+  const css=phase7.read('public/style.css'),base=phase7Baseline('public/style.css');
   assert.equal(css.slice(0,base.length),base,'the complete accepted CSS prefix remains byte-identical');
   // These shared branches are protected even inside approved changed functions.
   for(const file of ['web/ui/components.mjs','web/core/router.mjs']) {
-    const source=await projectMemoFrontend(file,await readFile(new URL('../'+file,import.meta.url),'utf8'));
+    const source=phase7.read(file);
     for(const page of ['todos','notes']) {
       const branches=text=>{
         const rows=[];

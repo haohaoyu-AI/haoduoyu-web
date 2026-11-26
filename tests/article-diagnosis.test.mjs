@@ -62,19 +62,24 @@ test('facts use this article and the average of the latest 30 peers', () => {
   assert.equal(facts.metrics.impressions.samples, 30);
   assert.equal(facts.metrics.reads.samples, 30);
 });
-test('prompt page shows the default diagnosis prompt and the article button does not call by itself', () => {
+test('review pages omit retired diagnosis controls even when diagnosis data exists', () => {
   const data = normalizeReviewData({articles:[{id:'a',account:'V字',title:'示例',published_at:'2026-11-11'}],
-    prompts:[{id:'write',prompt_key:'longform_write',scope:'vzi',version:2,status:'active',title:'写',content_md:'完整写文章提示词',updated_at:'2026-11-10T04:00:00Z'}]});
+    prompts:[
+      {id:'write',prompt_key:'longform_write',scope:'vzi',version:2,status:'active',title:'写',
+        content_md:'完整写文章提示词',updated_at:'2026-11-10T04:00:00Z'},
+      {id:'diagnosis',prompt_key:'article_diagnosis',scope:'vzi',version:1,status:'active',title:'诊断',
+        content_md:ARTICLE_DIAGNOSIS_PROMPT,updated_at:'2026-11-10T04:00:00Z'},
+    ]});
   const page = renderContentReviewContent(data,{account:'V字',secondary:'prompts',filters:{},article:''});
   assert.match(page, /完整写文章提示词/);
-  assert.ok(page.includes(ARTICLE_DIAGNOSIS_PROMPT));
-  assert.match(page, /data-review-action="copy-diagnosis-prompt"/);
-  const detail = renderContentReviewContent(data,{account:'V字',secondary:'articles',filters:{},article:'a'});
-  assert.match(detail, /data-review-action="diagnose-article"/);
-  assert.doesNotMatch(detail, /正在诊断/);
-  const saved = renderContentReviewContent(data,{account:'V字',secondary:'articles',filters:{},article:'a',diagnoses:{a:{text:'好。\n差。\n改标题。',status:'saved'}}});
-  assert.match(saved, /好。\n差。\n改标题。/);
-  assert.doesNotMatch(saved, /data-review-action="diagnose-article"/);
+  assert.ok(!page.includes(promptLines[0]));
+  assert.doesNotMatch(page, /data-review-action="copy-diagnosis-prompt"/);
+  const articleView={account:'V字',secondary:'articles',filters:{},article:'a'};
+  for(const diagnoses of [{},{a:{text:'诊断旧记录',status:'saved'}}]) {
+    const detail=renderContentReviewContent(data,{...articleView,diagnoses});
+    assert.match(detail, /<h2 id="review-detail-title">示例<\/h2>/);
+    assert.doesNotMatch(detail, /data-review-action="diagnose-article"|正在诊断|诊断旧记录/);
+  }
 });
 test('a stored diagnosis is returned without another model call', async t => {
   const app = fixture(t), id = randomUUID();

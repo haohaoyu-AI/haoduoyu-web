@@ -38,7 +38,8 @@ async function setup(t) {
     return source.afterResponse ? source.afterResponse(path, options || {}, result) : result;
   }
   async function runtime() {
-    const result = createOfflineRuntime({db, request, now: () => clock.value, online: () => source.online});
+    const result = createOfflineRuntime({db, request, now: () => clock.value, online: () => source.online,
+      scopeProbe: true, windowedSnapshot: true});
     runtimes.push(result); await result.call('/auth/me'); return result;
   }
   return {db, calls, clock, source, live, runtime, date: beijingDay(clock.value)};
@@ -48,7 +49,7 @@ async function setup(t) {
 // persisted retry deadline and require the same durable operation to be reconciled.
 async function syncUntil(f, runtime, predicate) {
   for (let attempt = 0; attempt < 5; attempt++) {
-    await runtime.sync();
+    await runtime.sync({rerun: true});
     const queue = await runtime.queue();
     if (await predicate(queue)) return;
     const retry = queue.operations.filter(row => row.status === 'unknown' || row.status === 'retry');
@@ -191,7 +192,7 @@ test('a real deleted memo parent produces a new fallback parent and dependent co
   await runtime.call(memoPath(entry.id), {method: 'PUT', body: memoBody(entry.group, '【自动测试】删除分组后仍保留正文', 1)});
   await f.live('/memos/groups/' + entry.group, {method: 'DELETE', body: {version: 1, save_id: randomUUID(),
     confirm_title: '【自动测试】原分组', confirm_note_count: 1}});
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await runtime.sync({rerun: true});
   const conflict = (await runtime.queue()).conflicts.find(row => row.entity_id === 'memo-note:' + entry.id);
   assert.ok(conflict); const {operations, result} = await choose(f, runtime, conflict, 'keep-both');
   assert.equal(operations.length, 2); assert.deepEqual(operations.map(row => row.entity_type), ['memo_group', 'memo_note']);
@@ -222,7 +223,7 @@ test('two tabs and a reopen retain one copy intent; a lost real committed respon
     }
     return value;
   };
-  f.source.online = true; await first.sync();
+  f.source.online = true; await first.sync({rerun: true});
   const unknown = (await first.queue()).operations.find(row => row.source_id === copy);
   assert.equal(unknown.status, 'unknown'); assert.equal(unknown.save_id, saveId);
   assert.equal((await read(f.db, 'conflicts', conflict.key)).resolved_at, null);

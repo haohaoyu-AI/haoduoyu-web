@@ -251,7 +251,12 @@ test('anonymous unchanged PATCH remains under the existing free write limiter an
   const originalNow=Date.now,fixed=Date.now();Date.now=()=>fixed;t.after(()=>{Date.now=originalNow;});
   const options={anonymous:true,settings:publicEnv,headers:{'X-Public-Business':'1'}},body=draft();
   const created=await app.patch(body,options);good(created,201);const before=await state(app);
-  for(let i=0;i<19;i++){const response=await app.patch({...body,version:1},options);good(response,200);assert.equal(response.data.upsert_action,'unchanged');}
+  // The public write budget is 60 per minute, including the initial create.
+  for(let i=0;i<59;i++) {
+    const response=await app.patch({...body,version:1},options);
+    good(response,200);
+    assert.equal(response.data.upsert_action,'unchanged');
+  }
   const limited=await app.patch({...body,version:1},options);good(limited,429);assert.ok(limited.headers.get('Retry-After'));
   assert.deepEqual(await state(app),before);
 });

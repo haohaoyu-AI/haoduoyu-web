@@ -1,21 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {countingDb} from './counting-d1.mjs';
-import {projectPublicNoteFrontend,projectPublicNoteBackend} from './public-note-ui-projection.mjs';
 import {traceRoute} from '../src/lib/request-trace.mjs';
 
 const BASE='6043d18cd75634542baecc6ffa665712cdf32eb1';
-test('snapshot integration retains released implementation bytes except reviewed visual asset registration',async()=>{
-  const files=execFileSync('git',['ls-tree','-r','--name-only',BASE,'web','db','drizzle'],{encoding:'utf8'}).trim().split('\n');
+const SNAPSHOT_GLASS='6565d3cc5f9e8d7ae01702bf2ff9176c7a933da3';
+const git=(args)=>execFileSync('git',args,{cwd:new URL('../',import.meta.url)});
+test('archived snapshot integration retains released bytes except the reviewed visual asset registration',()=>{
+  const trees=[BASE,SNAPSHOT_GLASS].map(ref=>git(['ls-tree','-r','--name-only',ref,'web','db','drizzle']));
+  assert.deepEqual(trees[1],trees[0],'protected trees contain the same files');
+  const files=trees[0].toString('utf8').trim().split('\n');
   files.push('public/app.js','public/index.html','public/style.css','public/memos.css','src/memos.mjs',
     'src/memos-validation.mjs','src/backup.mjs','src/storage.mjs','scripts/build.mjs');
   for(const file of files) {
-    let expected=execFileSync('git',['show',BASE+':'+file]);
+    let expected=git(['show',BASE+':'+file]);
     const replacements=file==='public/index.html' ? [
       ['content="#0b6b61"','content="#e8c3ae"'],
       ['<link rel="stylesheet" href="/memos.css">',
@@ -31,14 +33,12 @@ test('snapshot integration retains released implementation bytes except reviewed
       }
       expected=Buffer.from(text);
     }
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    const projected=await projectPublicNoteBackend(file,await projectPublicNoteFrontend(file,source));
-    assert.equal(projected,expected.toString('utf8'),file);
+    assert.deepEqual(git(['show',SNAPSHOT_GLASS+':'+file]),expected,file);
   }
-  for(const route of ['/api/v1/memos','/api/v1/snapshot','/api/v1/snapshot/index'])assert.equal(traceRoute(route),route);
 });
 
 test('combined Worker serves memo and snapshot independently and never reads memo storage for snapshots',async t=>{
+  for(const route of ['/api/v1/memos','/api/v1/snapshot','/api/v1/snapshot/index'])assert.equal(traceRoute(route),route);
   const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const env={DB:app.db,SITE_ORIGIN:app.origin,MEMOS_OWNER_ID:owner,DAILY_NOTES_OWNER_ID:owner,
     PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'};

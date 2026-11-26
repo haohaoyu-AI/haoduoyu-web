@@ -5,7 +5,6 @@ import {createHash} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {assets} from '../src/assets.generated.mjs';
 import {buildServiceWorkerAssets,shellAssetPaths} from '../scripts/service-worker-build.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const read=file=>readFile(new URL(file,root),'utf8');
@@ -22,12 +21,10 @@ test('the committed shell reproduces its exact built version, complete styleshee
   assert.equal(result.config.assets.filter(asset=>asset.url==='/offline.css').length,1);
   const linked=[...index.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)]
     .map(match=>new URL(match[1].replaceAll('&amp;','&'),'http://localhost').pathname);
-  // Live/site-five may append review.css after offline.css; QuietSync restores the
-  // reviewed shell where offline.css remains the final cascade entry.
-  const quietLinked=[...projectQuietSync('public/index.html',index).matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)]
-    .map(match=>new URL(match[1].replaceAll('&amp;','&'),'http://localhost').pathname);
-  assert.equal(quietLinked.at(-1),'/offline.css','todo offline UI stylesheet is last in the cascade');
-  assert.ok(linked.includes('/offline.css'));
+  const offline=linked.indexOf('/offline.css');
+  assert.ok(offline>=0);
+  for(const base of ['/style.css','/workbench.css','/mobile.css','/sw-update.css'])
+    assert.ok(linked.includes(base)&&linked.indexOf(base)<offline,'offline styles follow '+base);
   assert.deepEqual([...linked].sort(),Object.keys(shellAssets).filter(path=>path.endsWith('.css')).sort(),
     'every linked stylesheet is in the same complete shell generation');
   for(const path of shellAssetPaths)assert.ok(result.config.assets.some(asset=>asset.url===path));

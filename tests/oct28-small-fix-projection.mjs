@@ -1,4 +1,4 @@
-import {projectCockpitRestore} from './cockpit-trends-projection.mjs';
+import {cockpitRestoreBaseline,projectCockpitRestore} from './cockpit-trends-projection.mjs';
 // Independent, closed inverse for the two reviewed UI refinements,
 // plus the QuietSync layer that maps the restored live/site-five/night
 // product bytes back to the small-fix product before the older inverses run.
@@ -21,6 +21,7 @@ export const smallFixHashes=Object.freeze({
 });
 /** Live-site restore + site-five + night-review product, inverted to smallFixProduct. */
 export const quietSyncBaseline=smallFixProduct;
+export const quietSyncCandidate=cockpitRestoreBaseline;
 export const quietSyncHashes=Object.freeze({
   ".ci/public-assets.json":"b39fb3211dbc10d4e829cab8d6e06c40753b5e9d8e678ffbedb380ec40b6a759",
   ".github/scripts/cloudflare-publish.mjs":"a65a15fa31c89048c8b5c6eb455f0ea70b32d9adcdda048d3640cb5c088002ec",

@@ -6,9 +6,11 @@ import {projectUnifyStage2History} from './unify-stage2-projection.mjs';
 import {projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
 import {projectOct28History} from './oct28-projection.mjs';
 import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage1Baseline='6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c';
+export const unifyStage1Patch='c4844eff758458e7174427b62c891ee55c78a743';
 export const unifyStage1Paths=Object.freeze(['.ci/public-assets.json','public/glass.css','public/index.html',
   'public/memos.css','public/style.css','public/tokens.css','public/workbench.css','scripts/build.mjs']);
 export const unifyStage1Styles=Object.freeze(['public/style.css','public/memos.css','public/glass.css','public/workbench.css']);
@@ -52,7 +54,10 @@ export function stage1Tokens(source) {
   }
   return tokens;
 }
-export function expandStage1Css(source,tokenSource=read('public/tokens.css')) {
+let historicalTokenSource;
+export function expandStage1Css(source,tokenSource) {
+  historicalTokenSource??=git('show',unifyStage1Patch+':public/tokens.css');
+  tokenSource??=historicalTokenSource;
   const tokens=stage1Tokens(tokenSource);
   const expand=(value,seen=new Set())=>value.replace(/var\((--[a-z0-9-]+)\)/g,(whole,name)=>{
     if(!tokens.has(name))return whole;
@@ -86,7 +91,7 @@ export function projectUnifyStage1(file,source) {
 
 // Lower guards sometimes revisit an already-restored source. Only exact blobs
 // from the historical checkpoints recorded in the fixed 6e tree may pass here.
-// Current on-disk after digests are checked independently by the stage-one test.
+// The stage-one test checks the exact reviewed after digests independently.
 const historicalManifests=['article-pipeline-ui-delta.json','public-note-ui-delta.json','workbench-ui-delta.json',
   'reconciliation-ui-delta.json','workbench-round2-delta.json','workbench-round3-delta.json',
   'workbench-round4-delta.json','workbench-round5-delta.json','workbench-round6-delta.json','workbench-round6-badge-delta.json'];
@@ -121,7 +126,16 @@ export function projectUnifyStage1History(file,source) {
 // Deletions and untracked additions remain visible to the historical inventory.
 // Live-site modules added after the QuietSync baseline cannot invert to an older
 // blob, so they stay outside this concealment check (covered by product tests).
-export function projectedChangedFiles(baseline,roots,project=projectUnifyStage1) {
+export function projectedChangedFiles(baseline,roots,project=projectUnifyStage1,candidate) {
+  if(candidate) {
+    const earlier=historicalTree(baseline),later=historicalTree(candidate);
+    const beforeFiles=new Set(earlier.files(...roots)),afterFiles=new Set(later.files(...roots));
+    return later.changedSince(baseline,...roots).filter(file=>{
+      const before=beforeFiles.has(file)?earlier.read(file):'';
+      const after=afterFiles.has(file)?later.read(file):'';
+      return project(file,after)!==before;
+    }).sort();
+  }
   const tracked=git('diff','--name-only',baseline,'--',...roots),untracked=git('ls-files','--others','--exclude-standard','--',...roots);
   const released=new Set(git('ls-tree','-r','--name-only',baseline,'--',...roots).trim().split('\n').filter(Boolean));
   const quietKnown=new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'--',...roots).trim().split('\n').filter(Boolean));

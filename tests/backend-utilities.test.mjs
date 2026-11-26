@@ -1,24 +1,19 @@
-import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
-import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
-import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
-import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
-import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {isDeepStrictEqual} from 'node:util';
 import {execFileSync} from 'node:child_process';
-import {readFile, mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
+import {readFile, mkdtemp, rm, symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
-import {build} from 'esbuild';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {parseWeb, visitWeb} from '../scripts/check-web.mjs';
 import {fixture} from './harness.mjs';
 import {seedBenchmark} from './bench-fixture.mjs';
 
 const BASE = 'dc598ac1c1b53303500e2313965c3f980d94d0ad';
 const root = new URL('../', import.meta.url);
+const REVIEWED_5A = 'deb0c6009ab53a22385be247d43ff5a2e189f618';
 const fixed = Date.parse('2026-10-22T08:00:00.000Z');
 const old = file => execFileSync('git', ['show', BASE + ':' + file], {cwd: root, encoding: 'utf8'});
 const source = file => readFile(new URL(file, root), 'utf8');
@@ -130,22 +125,27 @@ test('dead auth exports are removed while every live declaration and safety opti
   assert.match(await source('src/records.mjs'), /function coverageForDay\(/);
 });
 
-async function previousWorker(t) {
-  const dir = await mkdtemp(join(tmpdir(), 'synthetic-5a-reference-'));t.after(() => rm(dir, {recursive: true, force: true}));
-  const files = execFileSync('git', ['ls-tree', '-r', '--name-only', BASE, 'src', 'shared'], {cwd: root, encoding: 'utf8'}).trim().split('\n');
-  for (const file of files) {const path = join(dir, file);await mkdir(join(path, '..'), {recursive: true});await writeFile(path, old(file));}
-  // New todo frontend/schema additions are intentional. Keep deployment settings
-  // and the applied original migration immutable; new behavior is tested separately.
-  for(const file of ['runtime.json','.openai/hosting.json','drizzle/0000_lively_stellaris.sql','drizzle/meta/0000_snapshot.json'])
-    assert.equal(await source(file),old(file),file+' remains unchanged');
-  assert.deepEqual(dashboardSpec(traceDocument(articlePipelineSpec(JSON.parse(projectQuietSync('public/openapi.json', await source('public/openapi.json')))))), JSON.parse(old('public/openapi.json')));
-  await writeFile(join(dir, 'src/assets.generated.mjs'), await source('src/assets.generated.mjs'));
-  await build({entryPoints: [join(dir, 'src/worker.mjs')], outfile: join(dir, 'worker.mjs'), bundle: true, format: 'esm', platform: 'node', target: 'es2022'});
-  return (await import(pathToFileURL(join(dir, 'worker.mjs')).href)).default;
+async function archivedWorker(t, ref) {
+  const dir = await mkdtemp(join(tmpdir(), 'synthetic-5a-'));
+  t.after(() => rm(dir, {recursive: true, force: true}));
+  const inputs = ['public', 'web', 'shared', 'src', 'scripts', 'db', 'drizzle', '.openai',
+    'runtime.json', 'package.json', 'package-lock.json'];
+  const archive = execFileSync('git', ['archive', '--format=tar', ref, '--', ...inputs],
+    {cwd: root, maxBuffer: 10 * 1024 * 1024});
+  execFileSync('tar', ['-x', '-C', dir], {input: archive});
+  const archivedLock = await readFile(join(dir, 'package-lock.json'));
+  assert.ok(archivedLock.equals(await readFile(new URL('package-lock.json', root))),
+    'the archived build uses the current locked dependencies');
+  await symlink(join(fileURLToPath(root), 'node_modules'), join(dir, 'node_modules'), 'dir');
+  execFileSync(process.execPath, [join(dir, 'scripts/build.mjs')], {cwd: dir});
+  return (await import(pathToFileURL(join(dir, 'dist/server/index.js')).href)).default;
 }
-test('pre-5a and candidate HTTP reads retain complete bodies, statuses and headers', async t => {
-  const baseline = await previousWorker(t), candidate = (await import('../dist/server/index.js')).default;
-  const app = await fixture(t), session = await app.login();
+test('archived pre-5a and reviewed 5a HTTP reads retain complete bodies, statuses and headers', async t => {
+  const protectedPaths = ['public', 'web', 'runtime.json', '.openai', 'db', 'drizzle'];
+  assert.equal(execFileSync('git', ['diff', BASE, REVIEWED_5A, '--name-only', '--', ...protectedPaths],
+    {cwd: root, encoding: 'utf8'}), '');
+  const baseline = await archivedWorker(t, BASE), candidate = await archivedWorker(t, REVIEWED_5A);
+  const app = await fixture(t, {migrationCount: 1}), session = await app.login();
   const accounts = (await app.db.prepare('SELECT id FROM matrix_accounts ORDER BY id').all()).results;
   await seedBenchmark(app.db, accounts.map(row => row.id), {articles: 18});
   const NativeDate = globalThis.Date;globalThis.Date = FrozenDate;
@@ -162,15 +162,10 @@ test('pre-5a and candidate HTTP reads retain complete bodies, statuses and heade
     const responses = [];
     for (const worker of [baseline, candidate]) {
       const response = await worker.fetch(new Request(app.origin + path, {headers: cookie ? {Cookie: cookie} : {}}), {DB: app.db, SITE_ORIGIN: app.origin});
-      let body=traceText(await response.text(),response.status,response.headers);
-      if(path==='/api/v1/backup'&&response.status===200) body=JSON.stringify(legacyBackupEnvelope(JSON.parse(body)));
-      else if(response.headers.get('content-type')?.includes('application/json')&&path!=='/openapi.json')body=JSON.stringify(legacyPublishedArticles(JSON.parse(body)));
-      if(path==='/openapi.json')body=JSON.stringify(articlePipelineSpec(JSON.parse(projectQuietSync('public/openapi.json', body))));
-      if(path==='/api-docs')body=articlePipelineDocs(projectQuietSync('public/api-docs.html', body));
-      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, traceHeaders(response.headers)),body});
+      responses.push({status: response.status, headers: [...response.headers], body: await response.text()});
     }
     // Backup contains ephemeral synthetic authentication hashes: never print bodies on failure.
     assert.ok(isDeepStrictEqual(responses[1], responses[0]), path + (cookie ? ' session' : ' anonymous'));compared++;
   }
-  t.diagnostic(compared + ' full-body/status comparisons; only exact dashboard/trace metadata and verified empty todo backup extension projected; unchanged legacy bodies retained');
+  t.diagnostic(compared + ' full-body/header/status comparisons across the reviewed 5a change');
 });

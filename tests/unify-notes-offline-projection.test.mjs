@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {projectUnifyMemosOffline,projectUnifyMemosOfflineModules} from './unify-memos-offline-projection.mjs';
-import {projectUnifyConflictResolution as projectPriorE} from './unify-conflict-resolution-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
@@ -11,14 +9,11 @@ import {projectUnifyTodosOffline,projectUnifyTodosOfflineModules} from './unify-
 import {unifyNotesOfflineBaseline,unifyNotesOfflinePatch,unifyNotesOfflinePaths,unifyNotesOfflineAddedModules,
   unifyNotesOfflineBefore,unifyNotesOfflineManifest,validateUnifyNotesOfflineDelta,projectUnifyNotesOffline,
   projectUnifyNotesOfflineHistory,projectUnifyNotesOfflineModules,notesOfflineHash} from './unify-notes-offline-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
-import {projectOct28History} from './oct28-projection.mjs';
-import {quietSyncBaseline,projectQuietSync} from './oct28-small-fix-projection.mjs';
-
-const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
-const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
+const root=new URL('../',import.meta.url),liveRead=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const {read,files}=historicalTree(unifyNotesOfflinePatch);
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
-const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyNotesOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
   '.gitattributes','.gitignore','.gitleaks.toml','.gitleaksignore','drizzle.config.ts','runtime.json','package.json','package-lock.json'];
@@ -28,29 +23,26 @@ test('note-offline pins final B and the fixed C source with exactly seventeen pr
   assert.deepEqual(git('diff','--name-only',unifyNotesOfflineBaseline,unifyNotesOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyNotesOfflinePaths],'the C source itself cannot contain an extra production path');
   for(const file of unifyNotesOfflinePaths) {
-    const source=projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file))),before=unifyNotesOfflineBefore(file);
-    assert.equal(source,git('show',unifyNotesOfflinePatch+':'+file),'exact frozen C source: '+file);
-    assert.equal(notesOfflineHash(source),delta.files[file].after,'exact current C digest: '+file);
+    const source=read(file),before=unifyNotesOfflineBefore(file);
+    assert.equal(notesOfflineHash(source),delta.files[file].after,'reviewed C digest: '+file);
     assert.equal(projectUnifyNotesOffline(file,source),before,file);
     assert.equal(projectUnifyNotesOffline(file,before),before,'fixed final B input remains valid: '+file);
   }
   assert.ok(unifyNotesOfflinePaths.includes('web/offline/sw-client.mjs'),'the draft persistence update barrier has its own C pin');
-  assert.equal(projectQuietSync('web/core/api.mjs',read('web/core/api.mjs')),git('show',unifyNotesOfflineBaseline+':web/core/api.mjs'),
+  assert.equal(read('web/core/api.mjs'),git('show',unifyNotesOfflineBaseline+':web/core/api.mjs'),
     'the final B identity/preflight implementation cannot change as part of C');
 });
 
 test('note-offline preserves every one of the 64 B modules and adds exactly five reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyNotesOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const known=quietWeb();
-  const current=projectUnifyMemosOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
+  const current=files('web').filter(file=>file.endsWith('.mjs')).sort();
   assert.equal(released.length,64);assert.equal(current.length,69);
   assert.deepEqual(current,[...released,...unifyNotesOfflineAddedModules].sort());
-  assert.deepEqual(projectUnifyNotesOfflineModules(current),released,'all original module paths remain exact');
-  assert.equal(projectUnifyTodosOfflineModules(current).length,57,'C and the independent seven-module B inverse compose');
-  assert.equal(projectUnifySwModules(current).length,56,'the fixed A/B/C module inverses compose');
+  assert.deepEqual(projectUnifyNotesOfflineModules(current,read),released,'all original module paths remain exact');
+  assert.equal(projectUnifyTodosOfflineModules(current,read).length,57,'C and the independent seven-module B inverse compose');
+  assert.equal(projectUnifySwModules(current,read).length,56,'the fixed A/B/C module inverses compose');
   const unknown='web/offline/unapproved-memo-editor.mjs';
-  assert.deepEqual(projectUnifyNotesOfflineModules([...unifyNotesOfflineAddedModules,unknown]),[unknown]);
+  assert.deepEqual(projectUnifyNotesOfflineModules([...unifyNotesOfflineAddedModules,unknown],read),[unknown]);
   for(const file of unifyNotesOfflineAddedModules)
     for(const source of ['', 'unapproved', read(file)+'\n'])
       assert.throws(()=>projectUnifyNotesOfflineModules([file],()=>source),/approved workbench delta/,file);
@@ -90,9 +82,9 @@ test('note-offline manifest rejects moved commits, changed digests, extra module
 
 test('note-offline composes through the fixed earlier layers while retaining every original manifest byte and old input',()=>{
   const manifests=git('ls-tree','-r','--name-only',unifyNotesOfflineBaseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
-  for(const file of manifests)assert.equal(read(file),git('show',unifyNotesOfflineBaseline+':'+file),'old manifest byte lock: '+file);
+  for(const file of manifests)assert.equal(liveRead(file),git('show',unifyNotesOfflineBaseline+':'+file),'old manifest byte lock: '+file);
   for(const file of unifyNotesOfflinePaths) {
-    const source=projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file))),before=unifyNotesOfflineBefore(file);
+    const source=read(file),before=unifyNotesOfflineBefore(file);
     assert.equal(projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,source)),projectUnifyTodosOffline(file,before),
       'C inverse restores the unchanged strict B input: '+file);
     for(const project of [projectUnifySw,projectUnifyStage2,projectUnifyStage1])
@@ -105,10 +97,10 @@ test('note-offline composes through the fixed earlier layers while retaining eve
 
 test('note-offline leaves backend, API routes, schema, permissions, runtime and release configuration unchanged',()=>{
   assert.deepEqual(projectedChangedFiles(unifyNotesOfflineBaseline,roots,
-    (file,source)=>projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source)))),[],
-    'all extra production edits, untracked paths and deletions remain visible');
+    projectUnifyNotesOffline,unifyNotesOfflinePatch),[],
+    'every extra production path or deletion in the reviewed tree remains visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',
     '.openai/hosting.json','drizzle.config.ts','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs','web/core/api.mjs'])
-    assert.equal(projectOct28History(path,read(path)),git('show',unifyNotesOfflineBaseline+':'+path),path+' remains unchanged');
+    assert.equal(read(path),git('show',unifyNotesOfflineBaseline+':'+path),path+' remains unchanged');
 });

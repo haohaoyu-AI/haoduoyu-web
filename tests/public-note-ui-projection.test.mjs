@@ -1,12 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {historicalTree} from './historical-tree.mjs';
 import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
+
+const publicEdit=historicalTree('2677c8259e08871b03ea42b8e162b0dad63cb8c3');
+const beforePublicEdit=historicalTree('701db4febbdb17b098d8734b22d94f1a813d7616');
 test('public edit UI delta rejects an unrelated declaration or removed CSRF-independent capability check',async()=>{
-  for(const file of ['web/core/memos-state.mjs','web/core/daily-notes-state.mjs']) {
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    await projectPublicNoteFrontend(file,source);
-    await assert.rejects(projectPublicNoteFrontend(file,source+'\nconst unauthorized=true;\n'),/approved public note UI delta|approved workbench delta/);
+  const capabilityChecks=[
+    ['web/core/memos-state.mjs','state.canEdit && idPattern.test(context.ownerId)','idPattern.test(context.ownerId)'],
+    ['web/core/daily-notes-state.mjs','!item.canEdit || ',''],
+  ];
+  for(const [file,capabilityCheck,replacement] of capabilityChecks) {
+    const source=publicEdit.read(file);
+    assert.equal(await projectPublicNoteFrontend(file,source),beforePublicEdit.read(file));
+    const withoutCapabilityCheck=source.replace(capabilityCheck,replacement);
+    assert.notEqual(withoutCapabilityCheck,source);
+    for(const mutation of [source+'\nconst unauthorized=true;\n',withoutCapabilityCheck]) {
+      await assert.rejects(projectPublicNoteFrontend(file,mutation),/approved public note UI delta|approved workbench delta/);
+    }
   }
 });
 

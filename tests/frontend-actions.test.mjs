@@ -10,7 +10,6 @@ import {unifyConflictResolutionAddedModules} from './unify-conflict-resolution-p
 import {addedModules as oct28AddedModules} from './oct28-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
 import {readFile, readdir, mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -18,16 +17,17 @@ import {transform} from 'esbuild';
 import {checkFrontend} from '../scripts/frontend-build.mjs';
 import {fileURLToPath} from 'node:url';
 import {parseWeb, visitWeb, webStyle} from '../scripts/check-web.mjs';
-import {phase7Manifest, projectPhase7Frontend} from './article-pipeline-ui-projection.mjs';
+import {PHASE7_CANDIDATE, phase7Manifest, projectPhase7Frontend} from './article-pipeline-ui-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 import {memoAddedModules, memoSharedFiles, memoBaseline, projectMemoFrontend} from './memos-ui-projection.mjs';
 import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
-const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
-const old=path=>execFileSync('git',['show',CHECKPOINT+':'+path],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});
-// Validate every explicitly approved Phase7 declaration/property hash before
-// replaying the existing historical checks against the accepted 37a frontend.
-const current=async path=>projectPhase7Frontend(path,await readFile(new URL(path,root),'utf8'));
+const checkpoint=historicalTree('2e12147b700ac604d7cccf8e034374644ac99a03');
+const phase7=historicalTree(PHASE7_CANDIDATE);
+const quietSync=historicalTree(quietSyncBaseline);
+// Validate the approved Phase7 hashes before comparing the archived action registry and templates.
+const reviewedFrontend=path=>projectPhase7Frontend(path,phase7.read(path));
 // Routing and page lifecycle intentionally changed; their behavior is covered by
 // the daily-todo UI/browser tests. Other modules retain their historical checks
 // after projecting only the exact added field, branch or dashboard wrapper.
@@ -168,7 +168,7 @@ function normalizedEntry(ast) {
 function declarations(ast) {
   return ast.body.filter(node=>['FunctionDeclaration','VariableDeclaration'].includes(node.type));
 }
-const oldEvents=parseWeb(old('web/events.mjs'));
+const oldEvents=parseWeb(checkpoint.read('web/events.mjs'));
 const register=oldEvents.body.find(node=>node.type==='FunctionDeclaration');
 const callbacks=register.body.body.map(node=>node.expression.arguments[1]);
 function switchCases(callback) {
@@ -182,7 +182,7 @@ function switchCases(callback) {
   return result;
 }
 async function registry(path,name) {
-  const ast=parseWeb(await current(path));
+  const ast=parseWeb(await reviewedFrontend(path));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const declaration=ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
   const additions=new Set(['todo-menu','todo-delete','todo-restore','todo-make-template','todo-remove-template','todo-template-use','todo-template-edit','todo-template-delete','todo-template-cancel',
@@ -195,7 +195,7 @@ async function registry(path,name) {
   return new Map(declaration.init.properties.filter(item=>!additions.has(item.key.value))
     .map(item=>[item.key.value,normalized(functions.get(item.value.name).body.body)]));
 }
-test('all original action/form case bodies are preserved in their named registry handlers',async()=>{
+test('the archived action registry preserves all original action and form case bodies',async()=>{
   const actions=await registry('web/actions.mjs','actions'),forms=await registry('web/forms.mjs','forms');
   const oldActions=switchCases(callbacks[0]);
   const filtered=actions.get('article-filter');
@@ -205,52 +205,56 @@ test('all original action/form case bodies are preserved in their named registry
   assert.deepEqual(forms,switchCases(callbacks[6]));
   assert.equal(actions.has('toString'),false);
 });
-test('formatting preserves declarations in otherwise unchanged modules and every cooked template string',async()=>{
-  const files=execFileSync('git',['ls-tree','-r','--name-only',CHECKPOINT,'web'],{cwd:root,encoding:'utf8'}).trim().split('\n');
+test('archived formatting preserves declarations and cooked template whitespace',async()=>{
+  const files=checkpoint.files('web');
   const changed=new Set(['controller.mjs','events.mjs','core/api.mjs','core/article-index.mjs',
     'core/modal-request.mjs','core/session-index-state.mjs','pages/articles.mjs','pages/detail.mjs','pages/reviews.mjs','ui/modal.mjs']);
   for(const file of files.filter(file=>!changed.has(file.slice(4))&&!todoIntegration.has(file.slice(4)))) {
     const canonical=async source=>(await transform(source,{format:'esm',charset:'utf8',target:'esnext',minify:false,treeShaking:false})).code;
-    let candidate=projectArticleUpsertAuditLabel(projectTodoIntegration(parseWeb(await canonical(await current(file))),file),file);
+    let candidate=projectArticleUpsertAuditLabel(projectTodoIntegration(parseWeb(await canonical(await reviewedFrontend(file))),file),file);
     if(file==='web/ui/entry.mjs')candidate=normalizedEntry(candidate);
     const changed=normalizeChartMarkup(candidate);
     assert.equal(changed,file==='web/pages/dashboard.mjs'?2:0);
     assert.deepEqual(normalized(declarations(candidate)),
-      normalized(declarations(parseWeb(await canonical(old(file))))),file);
+      normalized(declarations(parseWeb(await canonical(checkpoint.read(file))))),file);
   }
   const collect=(source,file,project=false)=>{const rows=[],ast=project?projectTodoIntegration(parseWeb(source),file):parseWeb(source);normalizeChartMarkup(ast);
     ast.body=ast.body.filter(node=>!(node.type==='FunctionDeclaration'&&node.id.name==='applyChartStyles'));
     visitWeb(ast,node=>{if(node.type==='TemplateLiteral')rows.push(node.quasis.map(q=>q.value.cooked));});return rows;};
-  const integrationBase='89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222';
-  const templateFiles=execFileSync('git',['ls-tree','-r','--name-only',integrationBase,'web'],{cwd:root,encoding:'utf8'})
-    .trim().split('\n').filter(file=>!todoIntegration.has(file.slice(4)));
-  const previous=templateFiles.flatMap(file=>collect(execFileSync('git',['show',integrationBase+':'+file],{cwd:root,encoding:'utf8'}),file));
-  const next=(await Promise.all(templateFiles.map(async file=>collect(await current(file),file,true)))).flat();
+  const integrationBase=historicalTree('89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222');
+  const templateFiles=integrationBase.files('web').filter(file=>!todoIntegration.has(file.slice(4)));
+  const previous=templateFiles.flatMap(file=>collect(integrationBase.read(file),file));
+  const next=(await Promise.all(templateFiles.map(async file=>collect(await reviewedFrontend(file),file,true)))).flat();
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
   assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
 });
-test('the generated frontend retains the PATCH-label byte lock after exact memo and Phase7 projections',async()=>{
-  const checkpoint='88685601f40ae9b4c28799d42be6240f1dbe7ea6';
-  const previous=execFileSync('git',['show',checkpoint+':public/app.js'],{cwd:root,encoding:'utf8'});
-  const reviewed=await current('public/app.js');
+test('the historical PATCH label projection remains exact and the current bundle matches its source',async()=>{
+  const previous=historicalTree('88685601f40ae9b4c28799d42be6240f1dbe7ea6').read('public/app.js');
+  const reviewed=await reviewedFrontend('public/app.js');
   const addition='    ["合并存稿", "PATCH /articles"],\n';
   assert.equal(reviewed.split(addition).length,2,'exactly one reviewed generated action label');
   assert.equal(reviewed.replace(addition,''),previous,'all other pre-memo generated bytes remain unchanged');
+  const bundle=await readFile(new URL('public/app.js',root),'utf8');
+  assert.equal([...bundle.matchAll(/\[\s*"合并存稿"\s*,\s*"PATCH \/articles"\s*\]/g)].length,1,
+    'current audit labels include exactly one PATCH action label');
   await checkFrontend(fileURLToPath(root));
 });
 test('memo shared-module projection preserves the released article frontend and rejects unapproved changes',async()=>{
   for(const file of memoSharedFiles) {
-    const source=await readFile(new URL(file,root),'utf8');
+    const source=quietSync.read(file);
     assert.equal(await projectMemoFrontend(file,source),memoBaseline(file),file+' retains every other released AST node');
   }
-  const nav=await readFile(new URL('web/core/constants.mjs',root),'utf8');
-  // Review-first nav dropped the memo item; mutate a still-present label instead.
-  await assert.rejects(projectMemoFrontend('web/core/constants.mjs',nav.replace('label: "碎碎念"','label: "unapproved"')));
-  const controller=await readFile(new URL('web/controller.mjs',root),'utf8');
-  await assert.rejects(projectMemoFrontend('web/controller.mjs',controller.replace('await loadMemos();','await loadDailyNotes();')));
+  for(const [file,text,replacement] of [
+    ['web/core/constants.mjs','label: "碎碎念"','label: "unapproved"'],
+    ['web/controller.mjs','await loadMemos();','await loadDailyNotes();'],
+  ]) {
+    const source=quietSync.read(file),changed=source.replace(text,replacement);
+    assert.notEqual(changed,source,'mutation must change the archived source: '+file);
+    await assert.rejects(projectMemoFrontend(file,changed),/approved workbench delta|exact memo additions/);
+  }
 });
-test('event bindings retain all nine original positions and capture options',async()=>{
-  const ast=parseWeb(await current('web/events.mjs'));
+test('archived event bindings retain all nine original positions and capture options',async()=>{
+  const ast=parseWeb(await reviewedFrontend('web/events.mjs'));
   const next=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='registerEvents');
   const hook=next.body.body.filter(statement=>statement.expression?.callee?.name==='registerTodosClock');
   assert.deepEqual(normalized(hook),normalized(snippet('function register(){registerTodosClock();}').body.body));
@@ -264,13 +268,12 @@ test('event bindings retain all nine original positions and capture options',asy
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
   const report=await webStyle();assert.deepEqual(report.violations,[]);
-  assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules,...unifyNotesOfflineAddedModules,...unifyMemosOfflineAddedModules,...unifyConflictResolutionAddedModules]),[],
+  assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules,...unifyNotesOfflineAddedModules,...unifyMemosOfflineAddedModules,...unifyConflictResolutionAddedModules],quietSync.read),[],
     'every exact SW, todo-offline, note-offline, memo-offline and resolution module hash is checked before counting it');
   const historical=40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length+unifyMemosOfflineAddedModules.length+unifyConflictResolutionAddedModules.length+oct28AddedModules.length;
-  const quietKnown=new Set(execFileSync('git',['ls-tree','-r','--name-only',quietSyncBaseline,'web'],{cwd:root,encoding:'utf8'})
-    .trim().split('\n').filter(file=>file.endsWith('.mjs')));
+  const quietKnown=quietSync.files('web').filter(file=>file.endsWith('.mjs'));
   const all=(await readdir(new URL('web/',root),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file);
-  assert.equal(quietKnown.size,historical,'QuietSync baseline module inventory stays exact');
+  assert.equal(quietKnown.length,historical,'QuietSync baseline module inventory stays exact');
   assert.equal(report.files,all.length,'style check covers every current web module including live-only additions');
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
@@ -283,8 +286,8 @@ test('web style checks every function type and rejects long fixture lines/functi
     assert.ok((await webStyle(directory)).violations.some(row=>row.rule==='word-continuation'));
   }finally {await rm(directory,{recursive:true,force:true});}
 });
-test('the click prelude and remaining event callback bodies keep their original order and semantics',async()=>{
-  const ast=parseWeb(await current('web/events.mjs'));
+test('archived click and event callback bodies keep their original order and semantics',async()=>{
+  const ast=parseWeb(await reviewedFrontend('web/events.mjs'));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const beforeTry=body=>body.slice(0,body.findIndex(node=>node.type==='TryStatement'));
   const click=structuredClone(functions.get('handleClick').body),navCalls=[];

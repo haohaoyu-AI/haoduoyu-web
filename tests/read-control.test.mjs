@@ -56,7 +56,7 @@ test('C1 request counters separate control writes, metadata writes, matched rows
   for (const row of rows) t.diagnostic(JSON.stringify(row));
   for (const row of rows.filter(row => row.case.startsWith('session'))) {
     assert.equal(row.write_statements, 0, row.case + ': even a zero-row control write is forbidden');
-    assert.equal(row.control, row.case.endsWith('/backup') ? 4 : 2, row.case + ': backup has its own nested consistency read');
+    assert.equal(row.control, 2, row.case + ': one consistency boundary');
     assert.equal(row.d1_rows_written, 0);
   }
   for (const row of rows.filter(row => row.case.startsWith('bearer'))) {
@@ -105,6 +105,23 @@ test('a write after the first before forces a fresh before and reauthentication 
   assert.equal(result.status, 200);assert.ok(result.json.data.some(row => row.id === added.id));
   t.diagnostic('concurrent-write retry: control=' + result.metrics.control + '; auth=' + authenticationQueries(result));
   assert.equal(authenticationQueries(result), 2);assert.equal(result.metrics.control, 4);
+});
+
+test('backup retries authentication and returns a complete export from the new revision', async t => {
+  const app = await setup(t);
+  let added;
+  const result = await read(app, '/backup', {hooks: {async after(sql) {
+    if (!added && dataQuery(sql)) added = await concurrentAccount(app);
+  }}});
+  assert.equal(result.status, 200);
+  const backup = result.json.data.data;
+  const current = await app.db.prepare('SELECT revision FROM matrix_control WHERE id=1').first();
+  assert.equal(backup.source_revision, current.revision);
+  assert.ok(backup.tables.accounts.some(row => row.id === added.id));
+  const sessionLookups = result.db.entries.filter(row => /FROM matrix_sessions\b/.test(row.sql));
+  assert.equal(sessionLookups.length, 2);
+  assert.equal(result.metrics.control, 4);
+  assert.equal(result.metrics.write_statements, 0);
 });
 
 test('retry reauthenticates a revoked key or an expired session instead of returning the first result', async t => {

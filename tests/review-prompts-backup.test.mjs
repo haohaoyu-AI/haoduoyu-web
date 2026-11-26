@@ -22,16 +22,19 @@ test('v17 exact prompt history round trip, user-scoped export and independent al
  assert.deepEqual(await verifyRestoredInventory(target.db,full,inventory),{verified:true,restored_tables:46,reset_tables:3});
  assert.deepEqual((await exportBackup(target.db)).data.tables,full.data.tables);
 });
-test('exact v16 restores into v17 with an empty prompt table and preserves review history',async t=>{
+test('exact v16 restores into the current schema with an empty prompt table and preserves review history',async t=>{
  const src=await fixture(t,{migrationCount:21});
- // The historical source lacks only the additive prompt table. Derive its exact
- // v16 export from the current source after applying the new migration separately.
+ // Compare the restored data to an inventory taken before any newer migrations.
+ // Synthesize the v16 envelope from current export columns on that same source.
  const owner=(await src.db.prepare('SELECT id FROM matrix_users').first()).id;
  await src.db.prepare('INSERT INTO matrix_review_articles(user_id,id,title,created_at,updated_at) VALUES(?,?,?,?,?)').bind(owner,randomUUID(),'retained v16 article',stamp,stamp).run();
  const inventory=await createSourceInventory(src.db);
  const {applyLocalSchemaMigrations}=await import('../scripts/migration-contract.mjs');await applyLocalSchemaMigrations(src.db);
  const data=stripEmptyReviewArchive((await exportBackup(src.db)).data);
- delete data.tables.review_prompt_versions;delete data.tables.daily_scores;delete data.tables.review_article_diagnoses;
+ for(const name of ['review_prompt_versions','daily_scores','review_article_diagnoses','diary_titles']) {
+  assert.deepEqual(data.tables[name],[],'historical fixture cannot hide newer data: '+name);
+  delete data.tables[name];
+ }
  data.format='haoduoyu-matrix-d1-v16';
  const backup=sign(data),target=await fixture(t,{bootstrap:false});
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});

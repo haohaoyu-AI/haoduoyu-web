@@ -14,7 +14,7 @@ test('representative synthetic requests stay within 50 D1 statements; edge CPU a
     const response = await worker.fetch(new Request(app.origin + '/api/v1' + path, options), {DB: db, SITE_ORIGIN: app.origin});
     assert.equal(response.status, 200, path);await response.arrayBuffer();
     const {sql, d1_rows_read, d1_rows_written} = db.totals();
-    assert.ok(sql <= 50, path + ': free D1 invocation query budget');
+    assert.ok(sql <= 50, path + ': ' + sql + ' queries exceed the free D1 invocation budget of 50');
     measurements.push({route: path, statements: sql, rows_read: d1_rows_read, rows_written: d1_rows_written});
   }
   t.diagnostic(JSON.stringify({scope: 'small synthetic local workerd fixture; not edge CPU, quota enforcement or production load', measurements}));

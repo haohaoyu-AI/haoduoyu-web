@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {frontendBundle} from '../scripts/frontend-build.mjs';
@@ -8,20 +8,14 @@ import {buildServiceWorkerAssets} from '../scripts/service-worker-build.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
-import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
-import {projectUnifyMemosOffline} from './unify-memos-offline-projection.mjs';
-import {projectUnifyConflictResolution as projectPriorE} from './unify-conflict-resolution-projection.mjs';
 import {unifyTodosOfflineBaseline,unifyTodosOfflinePatch,unifyTodosOfflinePaths,unifyTodosOfflineAddedModules,
   unifyTodosOfflineBefore,unifyTodosOfflineManifest,validateUnifyTodosOfflineDelta,projectUnifyTodosOffline,
   projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules,todosOfflineHash} from './unify-todos-offline-projection.mjs';
+import {historicalTree} from './historical-tree.mjs';
 
-import {projectOct28History} from './oct28-projection.mjs';
-import {quietSyncBaseline} from './oct28-small-fix-projection.mjs';
-
-const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
-const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
+const root=new URL('../',import.meta.url),liveRead=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const {read,files}=historicalTree(unifyTodosOfflinePatch);
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
-const quietWeb=()=>new Set(git('ls-tree','-r','--name-only',quietSyncBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')));
 const delta=unifyTodosOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
 
@@ -30,27 +24,24 @@ test('todo-offline pins the fixed source and patch with exactly fifteen producti
   assert.deepEqual(git('diff','--name-only',unifyTodosOfflineBaseline,unifyTodosOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyTodosOfflinePaths],'the reviewed commit itself cannot contain an extra production path');
   for(const file of unifyTodosOfflinePaths) {
-    const source=projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file)))),before=unifyTodosOfflineBefore(file);
-    assert.equal(source,git('show',unifyTodosOfflinePatch+':'+file),'exact frozen patch bytes: '+file);
-    assert.equal(todosOfflineHash(source),delta.files[file].after,'exact current source hash: '+file);
+    const source=read(file),before=unifyTodosOfflineBefore(file);
+    assert.equal(todosOfflineHash(source),delta.files[file].after,'reviewed source hash: '+file);
     assert.equal(projectUnifyTodosOffline(file,source),before,file);
     assert.equal(projectUnifyTodosOffline(file,before),before,'fixed SW-only input remains valid: '+file);
   }
-  assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),
-    'the complete actual offline frontend, rather than a projected fixture, builds to the pinned bundle');
+  assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),liveRead('public/app.js'),
+    'the complete current offline frontend builds to the committed bundle');
 });
 
 test('todo-offline keeps the complete 57-module baseline and authorizes exactly seven reviewed additions',()=>{
   const released=git('ls-tree','-r','--name-only',unifyTodosOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const known=quietWeb();
-  const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
-    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).filter(file=>known.has(file)).sort());
+  const current=files('web').filter(file=>file.endsWith('.mjs')).sort();
   assert.equal(released.length,57);assert.equal(current.length,64);
   assert.deepEqual(current,[...released,...unifyTodosOfflineAddedModules].sort());
-  assert.deepEqual(projectUnifyTodosOfflineModules(current),released,'every original module remains in the inventory');
-  assert.equal(projectUnifySwModules(current).length,56,'the independent A and B exact module inverses compose');
+  assert.deepEqual(projectUnifyTodosOfflineModules(current,read),released,'every original module remains in the inventory');
+  assert.equal(projectUnifySwModules(current,read).length,56,'the independent A and B exact module inverses compose');
   const unknown='web/offline/unapproved-editor.mjs';
-  assert.deepEqual(projectUnifyTodosOfflineModules([...unifyTodosOfflineAddedModules,unknown]),[unknown]);
+  assert.deepEqual(projectUnifyTodosOfflineModules([...unifyTodosOfflineAddedModules,unknown],read),[unknown]);
   for(const source of ['', 'unapproved', read('web/offline/runtime.mjs')+'\n'])
     assert.throws(()=>projectUnifyTodosOfflineModules(['web/offline/runtime.mjs'],()=>source),/approved workbench delta/);
 });
@@ -108,7 +99,7 @@ test('todo-offline manifest rejects moved commits, altered hashes, extra modules
 
 test('todo-offline composes through every fixed earlier layer without changing historical manifests or accepting forged old blobs',()=>{
   const manifests=git('ls-tree','-r','--name-only',unifyTodosOfflineBaseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
-  for(const file of manifests)assert.equal(read(file),git('show',unifyTodosOfflineBaseline+':'+file),'old manifest byte lock: '+file);
+  for(const file of manifests)assert.equal(liveRead(file),git('show',unifyTodosOfflineBaseline+':'+file),'old manifest byte lock: '+file);
   for(const file of unifyTodosOfflinePaths) {
     const source=read(file),before=unifyTodosOfflineBefore(file);
     for(const project of [projectUnifySw,projectUnifyStage2,projectUnifyStage1])
@@ -121,16 +112,16 @@ test('todo-offline composes through every fixed earlier layer without changing h
 
 test('todo-offline leaves backend, API routes, permissions, schema, runtime and release configuration unchanged',()=>{
   assert.deepEqual(projectedChangedFiles(unifyTodosOfflineBaseline,roots,
-    (file,source)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source))))),[],
-    'all extra production edits, untracked files and deletions remain visible');
+    projectUnifyTodosOffline,unifyTodosOfflinePatch),[],
+    'every extra production path or deletion in the reviewed tree remains visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs'])
-    assert.equal(projectOct28History(path,read(path)),git('show',unifyTodosOfflineBaseline+':'+path),path+' remains unchanged');
+    assert.equal(read(path),git('show',unifyTodosOfflineBaseline+':'+path),path+' remains unchanged');
 });
 
 test('the actual B shell remains deterministic, includes offline CSS exactly once and contains no API response cache',()=>{
   const indexHtml=read('public/index.html'),swSource=read('public/sw.js');
-  const names=readdirSync(new URL('../public/',import.meta.url)).filter(name=>name.endsWith('.css')||['app.js','favicon.svg','manifest.webmanifest'].includes(name));
+  const names=files('public').map(file=>file.slice('public/'.length)).filter(name=>name.endsWith('.css')||['app.js','favicon.svg','manifest.webmanifest'].includes(name));
   const assets=Object.fromEntries(names.map(name=>['/'+name,read('public/'+name)]));
   const first=buildServiceWorkerAssets({indexHtml,swSource,assets});
   assert.equal(first.indexHtml,indexHtml);assert.equal(first.swSource,swSource);

@@ -18,7 +18,7 @@ function client() {
     querySelector:key=>nodes.get(key)||null,querySelectorAll:()=>[],addEventListener(){}};
   const location={href:'http://localhost/?page=review',search:'?page=review'};
   const context=vm.createContext({document,location,history:{pushState(){},replaceState(){}},
-    localStorage:{getItem(){return null;},setItem(){}},window:{addEventListener(){},scrollTo(){}},
+    localStorage:{getItem(){return null;},setItem(){}},window:{addEventListener(){},scrollTo(){},setInterval:()=>1,clearInterval(){}},
     fetch:async()=>{throw new Error('unexpected real transport');},Response,Headers,AbortController,AbortSignal,
     DOMException,URL,URLSearchParams,Intl,console,structuredClone,crypto:{randomUUID:()=> 'synthetic-id'},
     setTimeout(){return 1;},clearTimeout(){},requestAnimationFrame(){}});
@@ -62,13 +62,13 @@ test('actual 401 remains a login boundary; other errors remain retryable',async(
   }
 });
 
-test('a public identity with an unauthorized snapshot index shows retry, not login; retry revalidates identity',async t=>{
-  const app=client(), calls=[];let rejectIndex=true, login=0, shell=0;
+test('a public identity with an unauthorized scope probe shows retry, not login; retry revalidates identity',async t=>{
+  const app=client(), calls=[];let rejectScope=true, login=0, shell=0;
   app.context.fetch=async (url,options={})=>{
     const path=new URL(url,'http://localhost').pathname;calls.push(path);
     if(path==='/api/v1/auth/me')return Response.json({data:{id:'public',username:'public',publicBusiness:true}});
-    if(path==='/api/v1/workbench-snapshot/index') {
-      if(rejectIndex)return Response.json({error:{code:'UNAUTHORIZED',message:'index unavailable'}},{status:401});
+    if(path==='/api/v1/workbench-snapshot/scope') {
+      if(rejectScope)return Response.json({error:{code:'UNAUTHORIZED',message:'scope unavailable'}},{status:401});
       return Response.json({data:{scope_id:'a'.repeat(64),complete:true,projection:'current'}});
     }
     if(path==='/api/v1/accounts')return Response.json({data:[]});
@@ -76,17 +76,17 @@ test('a public identity with an unauthorized snapshot index shows retry, not log
   };
   app.context.fakeLogin=()=>login++;app.context.fakeShell=()=>shell++;
   app.run('renderLogin=fakeLogin;renderShell=fakeShell;stopPageEntry=()=>{};closePopover=()=>{};closeModal=()=>{}');
-  const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),online:()=>true});
+  const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),scopeProbe:true,online:()=>true});
   t.after(()=>offline.stop());app.context.offlineCall=(path,options)=>offline.call(path,options);
   app.run('api=offlineCall');
   await app.run('init()');
   assert.equal(login,0);assert.equal(shell,0);assert.equal(offline.state.verifiedScope,null);
   assert.match(app.nodes.get('#app').innerHTML,/id="init-retry"/);
-  rejectIndex=false;app.nodes.get('#init-retry').events.click();
+  rejectScope=false;app.nodes.get('#init-retry').events.click();
   for(let i=0;i<20&&shell===0;i++)await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(shell,1);assert.equal(login,0);assert.equal(offline.state.verifiedScope,'a'.repeat(64));
-  assert.deepEqual(calls,['/api/v1/auth/me','/api/v1/workbench-snapshot/index',
-    '/api/v1/auth/me','/api/v1/workbench-snapshot/index','/api/v1/workbench-snapshot/index','/api/v1/accounts']);
+  assert.deepEqual(calls,['/api/v1/auth/me','/api/v1/workbench-snapshot/scope',
+    '/api/v1/auth/me','/api/v1/workbench-snapshot/scope','/api/v1/workbench-snapshot/scope','/api/v1/accounts']);
 });
 
 test('a genuine auth/me 401 invokes the login boundary through the real transport',async t=>{
@@ -94,27 +94,27 @@ test('a genuine auth/me 401 invokes the login boundary through the real transpor
   app.context.fetch=async ()=>Response.json({error:{code:'UNAUTHORIZED',message:'login required'}},{status:401});
   app.context.fakeLogin=()=>login++;
   app.run('renderLogin=fakeLogin;closeModal=()=>{}');
-  const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),online:()=>true});
+  const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),scopeProbe:true,online:()=>true});
   t.after(()=>offline.stop());app.context.offlineCall=(path,options)=>offline.call(path,options);app.run('api=offlineCall');
   await app.run('init()');assert.ok(login>=1);assert.equal(offline.state.verifiedScope,null);
   assert.doesNotMatch(app.nodes.get('#app').innerHTML,/id="init-retry"/);
 });
 
 test('public 429 during initialization preserves the rate-limit message without a login or automatic retry',async t=>{
-  for (const limitedPath of ['/auth/me','/workbench-snapshot/index','/accounts']) {
+  for (const limitedPath of ['/auth/me','/workbench-snapshot/scope','/accounts']) {
     const app=client(), calls=[];let limited=true, login=0, shell=0, clock=1700000000000;
     app.context.Date=class extends Date {static now(){return clock;}};
     app.context.fetch=async url=>{
       const path=new URL(url,'http://localhost').pathname.replace('/api/v1','');calls.push(path);
       if(path===limitedPath&&limited)return Response.json({error:{code:'RATE_LIMITED',message:'公开操作较多，请稍后重试'}},{status:429,headers:{'Retry-After':'900'}});
       if(path==='/auth/me')return Response.json({data:{id:'public',username:'public',publicBusiness:true}});
-      if(path==='/workbench-snapshot/index')return Response.json({data:{scope_id:'a'.repeat(64),complete:true,projection:'current'}});
+      if(path==='/workbench-snapshot/scope')return Response.json({data:{scope_id:'a'.repeat(64),complete:true,projection:'current'}});
       if(path==='/accounts')return Response.json({data:[]});
       throw new Error('unexpected request '+path);
     };
     app.context.fakeLogin=()=>login++;app.context.fakeShell=()=>shell++;
     app.run('renderLogin=fakeLogin;renderShell=fakeShell;stopPageEntry=()=>{};closePopover=()=>{};closeModal=()=>{}');
-    const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),online:()=>true,now:()=>clock});
+    const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),scopeProbe:true,online:()=>true,now:()=>clock});
     t.after(()=>offline.stop());app.context.offlineCall=(path,options)=>offline.call(path,options);app.run('api=offlineCall');
     await app.run('init()');
     assert.equal(login,0,limitedPath);assert.equal(shell,0,limitedPath);
@@ -132,22 +132,22 @@ test('public 429 during initialization preserves the rate-limit message without 
   }
 });
 
-test('an index authorization failure does not erase queued offline work',async t=>{
-  const app=client(), db=createMemoryDB();let online=true,rejectIndex=false,login=0;
+test('a scope authorization failure does not erase queued offline work',async t=>{
+  const app=client(), db=createMemoryDB();let online=true,rejectScope=false,login=0;
   app.context.fetch=async url=>{
     const path=new URL(url,'http://localhost').pathname;
     if(path==='/api/v1/auth/me')return Response.json({data:{id:'public',username:'public',publicBusiness:true}});
-    if(path==='/api/v1/workbench-snapshot/index')return rejectIndex
-      ? Response.json({error:{code:'UNAUTHORIZED',message:'index unavailable'}},{status:401})
+    if(path==='/api/v1/workbench-snapshot/scope')return rejectScope
+      ? Response.json({error:{code:'UNAUTHORIZED',message:'scope unavailable'}},{status:401})
       : Response.json({data:{scope_id:'a'.repeat(64),complete:true,projection:'current'}});
     throw new Error('unexpected request '+path);
   };
   app.context.fakeLogin=()=>login++;app.run('renderLogin=fakeLogin;closeModal=()=>{}');
-  const offline=createOfflineRuntime({db,request:app.run('apiNetwork'),online:()=>online});t.after(()=>offline.stop());
+  const offline=createOfflineRuntime({db,request:app.run('apiNetwork'),scopeProbe:true,online:()=>online});t.after(()=>offline.stop());
   await offline.call('/auth/me');online=false;
   const id='12345678-1234-4234-8234-123456789abc';
   await offline.call('/todos',{method:'POST',body:{id,date:'2026-11-04',text:'Synthetic retained work'}});
-  online=true;rejectIndex=true;
+  online=true;rejectScope=true;
   await assert.rejects(offline.call('/auth/me'),error=>error.status===401&&error.offlineScopeFailure===true);
   const queued=await db.transaction(['outbox'],'readonly',tx=>tx.getAll('outbox'));
   assert.equal(login,0);assert.equal(offline.state.verifiedScope,null);assert.equal(queued.length,1);

@@ -89,7 +89,7 @@ test('0004 is additive on an existing database and leaves every todo row/schema 
   for(const [name,value] of Object.entries(old.tables))assert.deepEqual(current.tables[name],value,name);
 });
 
-test('v7 scopes daily notes to the user while full operator backup preserves all users and tombstones',async t=>{
+test('current backup scopes daily notes to the user while full operator backup preserves all users and tombstones',async t=>{
   const db=await database(t),{owner}=await seed(db);
   await db.batch([
     db.prepare('UPDATE matrix_control SET revision=99 WHERE id=1'),
@@ -105,7 +105,8 @@ test('v7 scopes daily notes to the user while full operator backup preserves all
   assert.ok(scoped.data.tables.daily_notes[0].deleted_at);
   assert.equal(full.data.tables.daily_notes.length,2);
   const inventory=await createSourceInventory(db);
-  assert.equal(Object.keys(inventory.tables).length,48);
+  assert.equal(Object.keys(inventory.tables).length,49);
+  assert.deepEqual(full.data.tables.diary_titles,[]);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
   assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:46,reset_tables:3});
   const target=await database(t);

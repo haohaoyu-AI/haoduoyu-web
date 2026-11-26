@@ -73,7 +73,7 @@ test('v17 retains every review table and full run source, scopes both owners, an
 });
 test('v15 backups remain restorable without inventing review history or losing todo fields',async t=>{
  const src=await fixture(t),backup=await exportBackup(src.db);
- for(const name of Object.keys(backup.data.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_')||name==='daily_scores')) {assert.deepEqual(backup.data.tables[name],[]);delete backup.data.tables[name];}
+ for(const name of Object.keys(backup.data.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_')||name==='daily_scores'||name==='diary_titles')) {assert.deepEqual(backup.data.tables[name],[]);delete backup.data.tables[name];}
  backup.data.format='haoduoyu-matrix-d1-v15';backup.sha256=digest(JSON.stringify(stable(backup.data)));
  const target=await fixture(t,{bootstrap:false});
  const result=await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});

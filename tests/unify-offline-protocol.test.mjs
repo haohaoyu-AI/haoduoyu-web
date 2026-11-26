@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
-import {beijingDay} from '../src/lib/time.mjs';
+import {beijingDay, shiftDay} from '../src/lib/time.mjs';
 import {createMemoryDB, entityKey} from '../web/offline/db.mjs';
 import {createOutbox} from '../web/offline/outbox.mjs';
 
@@ -24,7 +24,7 @@ async function setup(t) {
       {status: response.status, code: payload.error.code});
     return payload.data;
   }
-  const scope = (await live('/workbench-snapshot/index')).scope_id;
+  const scope = (await live('/workbench-snapshot/scope')).scope_id;
   function queue(request = live, options = {}) {
     return createOutbox({db, request, getScope: () => scope, now: () => clock.value, ...options});
   }
@@ -33,6 +33,32 @@ async function setup(t) {
 const read = (app, id) => app.db.transaction(['entities'], 'readonly', tx => tx.get('entities', entityKey(app.scope, id)));
 const writes = (app, path) => app.calls.filter(call => call.path === path && call.method !== 'GET');
 const noteBody = (date, text, version = 0) => ({category: 'life', date, text, version});
+
+test('real Worker/D1 uses a recent window and rejects the retired snapshot protocols', async t => {
+  const app = await setup(t);
+  const recentId = randomUUID(), olderId = randomUUID();
+  const recentDate = shiftDay(app.date, -1), olderDate = shiftDay(app.date, -61);
+  for (const [id, date] of [[recentId, recentDate], [olderId, olderDate]]) {
+    await app.live('/todos', {method: 'POST', body: {id, date, text: '【自动测试】快照窗口事项'}});
+  }
+  const before = beijingDay(Date.now());
+  const recent = await app.live('/workbench-snapshot?window=recent&version=2');
+  const after = beijingDay(Date.now());
+  assert.equal(recent.batch_format, 'haoduoyu-workbench-window-v1');
+  assert.equal(recent.index.snapshot_format, 'haoduoyu-workbench-snapshot-v2');
+  assert.equal(recent.index.scope_id, app.scope);
+  assert.equal(recent.index.complete, true);
+  assert.ok([before, after].includes(recent.coverage.to), 'the window ends on the current Beijing date');
+  assert.equal(recent.coverage.from, shiftDay(recent.coverage.to, -59));
+  assert.deepEqual(recent.data.todos.map(row => row.source_id), [recentId]);
+  const older = await app.live('/workbench-snapshot?window=date&date=' + olderDate + '&version=2');
+  assert.deepEqual(older.coverage, {from: olderDate, to: olderDate});
+  assert.deepEqual(older.data.todos.map(row => row.source_id), [olderId]);
+  for (const path of ['/workbench-snapshot/index', '/workbench-snapshot/index?version=2',
+    '/workbench-snapshot?date=' + olderDate + '&version=2']) {
+    await assert.rejects(app.live(path), {status: 426, code: 'SNAPSHOT_UPGRADE_REQUIRED'});
+  }
+});
 
 test('real Worker/D1 todo UUID and template survive lost-create response then ordered check/delete/undo', async t => {
   const app = await setup(t), id = randomUUID(), template = randomUUID();
