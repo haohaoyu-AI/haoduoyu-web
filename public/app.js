@@ -2720,12 +2720,12 @@ function processingMethods(context) {
           throw Object.assign(new Error("本机选择凭据不完整，原请求已保留。"), { status: 422, code: "OFFLINE_DECISION_EVIDENCE_MISSING" });
       }
       if (["unknown", "sending"].includes(operation2.status)) {
-        const checked3 = await reconcile(claimed);
-        if (checked3.result === "ack") return await acknowledge(claimed, checked3.remote);
-        if (checked3.result === "conflict") return conflicts.record({
+        const checked4 = await reconcile(claimed);
+        if (checked4.result === "ack") return await acknowledge(claimed, checked4.remote);
+        if (checked4.result === "conflict") return conflicts.record({
           operation: claimed,
-          remote: checked3.remote,
-          reason: deleted(checked3.remote) ? "deleted" : "version"
+          remote: checked4.remote,
+          reason: deleted(checked4.remote) ? "deleted" : "version"
         });
       }
       const sending = await update(claimed, { status: "sending" });
@@ -10844,7 +10844,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><form id="diary-title-form" class="diary-title-card" aria-label="日记小标题"><div class="diary-title-fields"><label for="diary-title-input">日记小标题</label><input class="input" id="diary-title-input" type="text" maxlength="40" placeholder="写四五个字，可留空" autocomplete="off" disabled><button class="btn" type="submit" disabled>保存</button></div><button class="btn text" type="button" data-diary-title-login hidden>登录填写小标题</button><span class="notes-status" role="status" aria-live="polite"></span></form><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -11137,6 +11137,141 @@ function paintNoteEntries(root3, store, current2, legacy2, {
   status.textContent = !current2.loaded && current2.loading ? "" : current2.error ? "读取失败" : unresolved2 ? "有未发送内容" : canEdit ? "" : current2.loaded ? "公开只读" : "";
   status.hidden = canEdit && !current2.error && !unresolved2;
   paintRetainedDrafts(root3, current2, drafts);
+}
+
+// web/diary-title-controller.mjs
+init_api();
+var checked3 = (value, date2) => {
+  if (value?.date !== date2 || typeof value.title !== "string" || !Number.isSafeInteger(value.version) || value.version < 0)
+    throw new Error("小标题读取结果不完整。");
+  return value;
+};
+function createDiaryTitleController({ identity: identity5, date: date2, visible: visible3, isGuest, root: root3, onLogin, uuid: uuid5 = () => crypto.randomUUID(), request: request2 = apiNetwork }) {
+  let owner2, pages = /* @__PURE__ */ new Map();
+  function page(day8) {
+    const current2 = identity5();
+    if (current2 !== owner2) {
+      owner2 = current2;
+      pages = /* @__PURE__ */ new Map();
+    }
+    if (!pages.has(day8)) pages.set(day8, { base: "", draft: "", version: 0, loaded: false, loading: false, saving: false, attempt: null, status: "", denied: false });
+    return pages.get(day8);
+  }
+  function paint4() {
+    if (!visible3()) return;
+    const node3 = root3();
+    if (!node3) return;
+    const value = page(date2()), guest = isGuest(), locked = guest || value.denied;
+    const editor = node3.querySelector(".diary-title-fields"), login = node3.querySelector("[data-diary-title-login]");
+    editor.hidden = locked;
+    login.hidden = !guest;
+    const field2 = node3.querySelector("input"), button2 = node3.querySelector("[type=submit]");
+    if (field2.value !== value.draft) field2.value = value.draft;
+    field2.disabled = !value.loaded || value.saving || locked;
+    button2.disabled = field2.disabled || value.draft.trim() === value.base;
+    const status = node3.querySelector("[role=status]");
+    const message = guest ? "" : value.denied ? "仅网站所有者可填写" : value.status || (!value.loaded && value.loading ? "正在读取…" : "");
+    if (status.textContent !== message) status.textContent = message;
+  }
+  const get = (day8) => request2("/diary-titles/" + day8, { suppressAuthRedirect: true });
+  const active5 = (who, day8, p) => identity5() === who && owner2 === who && pages.get(day8) === p;
+  function adopt(p, value) {
+    const changed2 = p.draft !== p.base;
+    p.base = value.title;
+    p.version = value.version;
+    p.loaded = true;
+    if (!changed2) p.draft = p.base;
+  }
+  async function load2(day8) {
+    const p = page(day8), who = owner2;
+    if (isGuest() || p.loading || p.saving) {
+      paint4();
+      return;
+    }
+    p.loading = true;
+    paint4();
+    try {
+      const data3 = checked3(await get(day8), day8);
+      if (active5(who, day8, p)) {
+        if (p.attempt && data3.title === p.attempt.title && data3.version >= p.attempt.version) {
+          p.attempt = null;
+          p.status = "已保存";
+        } else if (p.attempt && data3.version !== p.attempt.version) {
+          p.attempt = null;
+          p.status = "另一处已更新，输入保留，请核对后再保存";
+        }
+        adopt(p, data3);
+        p.denied = false;
+      }
+    } catch (error2) {
+      if (active5(who, day8, p)) {
+        p.denied = [401, 403].includes(error2.status);
+        p.status = p.denied ? "" : "小标题未读到，可切换日期后重试";
+      }
+    } finally {
+      if (active5(who, day8, p)) {
+        p.loading = false;
+        paint4();
+      }
+    }
+  }
+  function edit(value) {
+    const p = page(date2());
+    if (!p.loaded || p.saving || isGuest()) return;
+    p.draft = value;
+    if (p.status === "已保存") p.status = "";
+    paint4();
+  }
+  async function save() {
+    const day8 = date2(), p = page(day8), who = owner2, title = p.draft.trim();
+    if (!visible3() || isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
+    p.saving = true;
+    p.status = "保存中…";
+    paint4();
+    try {
+      if (p.attempt && p.attempt.title !== title) {
+        const last = p.attempt, live3 = checked3(await get(day8), day8);
+        if (!active5(who, day8, p)) return;
+        p.attempt = null;
+        adopt(p, live3);
+        if (live3.version !== last.version && live3.title !== last.title) {
+          p.status = "另一处已更新，输入保留，请核对后再保存";
+          return;
+        }
+      }
+      p.attempt ??= { title, version: p.version, save_id: uuid5() };
+      const data3 = checked3(await request2("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
+      if (active5(who, day8, p)) {
+        p.base = data3.title;
+        p.draft = data3.title;
+        p.version = data3.version;
+        p.attempt = null;
+        p.status = "已保存";
+      }
+    } catch (error2) {
+      if (!active5(who, day8, p)) return;
+      if (error2.status === 409) {
+        try {
+          const data3 = checked3(await get(day8), day8);
+          if (!active5(who, day8, p)) return;
+          adopt(p, data3);
+          p.attempt = null;
+          p.status = "另一处已更新，输入保留，请核对后再保存";
+        } catch {
+          p.status = "暂时无法核对，输入已保留";
+        }
+      } else {
+        if (error2.status >= 400 && error2.status < 500) p.attempt = null;
+        p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
+      }
+    } finally {
+      if (active5(who, day8, p)) {
+        p.saving = false;
+        paint4();
+      }
+    }
+  }
+  return { paint: paint4, load: load2, edit, save, login: onLogin };
 }
 
 // web/pages/ideas.mjs
@@ -11512,6 +11647,14 @@ var notesIdentityNow = () => JSON.stringify([
   getOfflineRuntime()?.state.scope || ""
 ]);
 var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
+var diaryTitle = createDiaryTitleController({
+  identity: notesIdentityNow,
+  date: dailyNotesRouteDate,
+  visible: () => notesVisible() && !notesRefreshPaused,
+  isGuest: () => !state.me || state.me.publicBusiness === true,
+  root: () => document.querySelector("#diary-title-form"),
+  onLogin: () => renderLogin()
+});
 var draftFields = [
   "id",
   "date",
@@ -12065,7 +12208,7 @@ async function readMixedNotes(date2) {
   ensureDailyNotesStore();
   for (const category of ["life", "work"]) ensureDailyNotesStore(category, false);
   const pairs = ["life", "work"].map((category) => ({ category, legacy: notesStores.get(category), entries: entryStores.get(category) }));
-  await Promise.all([...pairs.flatMap(({ legacy: legacy2, entries }) => [legacy2.read(date2), entries.read(date2)]), readDailyScore(date2, expected)]);
+  await Promise.all([...pairs.flatMap(({ legacy: legacy2, entries }) => [legacy2.read(date2), entries.read(date2)]), readDailyScore(date2, expected), diaryTitle.load(date2)]);
   if (expected !== notesIdentityNow()) return;
   await Promise.all(pairs.map(({ category, legacy: legacy2, entries }) => hydrateNotesDrafts(legacy2, entries, category)));
   if (expected === notesIdentityNow() && date2 === dailyNotesRouteDate()) paintDailyNotesPage();
@@ -12087,6 +12230,7 @@ function joinNotesErrors(values) {
 function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
   paintDailyScore();
+  diaryTitle.paint();
   if (!notesVisible() || notesRefreshPaused) return;
   const root3 = document.querySelector("#daily-notes");
   if (!root3 || !notesStore || !entryStore) return;
@@ -12684,6 +12828,17 @@ function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
   registerNotesInputEvents();
+  document.addEventListener("input", (event) => {
+    if (event.target.id === "diary-title-input") diaryTitle.edit(event.target.value);
+  });
+  document.addEventListener("submit", (event) => {
+    if (event.target.id !== "diary-title-form") return;
+    event.preventDefault();
+    void diaryTitle.save();
+  });
+  document.addEventListener("click", (event) => {
+    if (notesVisible() && !notesRefreshPaused && event.target.closest("[data-diary-title-login]")) diaryTitle.login();
+  });
   registerConflictDraftGuard(createNoteConflictDraftGuard({
     getStores: () => entryStores,
     getIdentity: notesIdentityNow,

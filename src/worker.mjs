@@ -26,6 +26,7 @@ import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes,dailyNotesOwner} from './daily-notes.mjs';
 import {handleDailyScores} from './daily-scores.mjs';
+import {handleDiaryTitles} from './diary-titles.mjs';
 import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
@@ -291,6 +292,7 @@ async function handle(request,env,trace) {
       return handleDailyNotes(db,request,route,env,origin,state.revision);
     if(route==='/daily-scores'||route.startsWith('/daily-scores/'))
       return handleDailyScores(db,request,route,env,origin,state.revision);
+    if(route.startsWith('/diary-titles/'))return handleDiaryTitles(db,request,route,env,origin,state.revision);
     if(BODY_SUMMARY_ROUTES.includes(route))return handleBodySummary(db,request,route,dailyNotesOwner(env),env,origin);
     if(route==='/note-entries'||route.startsWith('/note-entries/'))
       return handleNoteEntries(db,request,route,env,origin,state.revision);

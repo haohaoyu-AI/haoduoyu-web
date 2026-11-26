@@ -418,3 +418,17 @@ export const matrixReviewArchiveImportPages=sqliteTable('matrix_review_archive_i
   check('matrix_review_archive_import_page',sql`typeof(${t.page})='integer' AND ${t.page} BETWEEN 0 AND 9007199254740991`),
   check('matrix_review_archive_import_page_result',sql`CASE WHEN json_valid(${t.result_json}) THEN json_type(${t.result_json})='object' ELSE 0 END`),
 ]);
+
+export const matrixDiaryTitles=sqliteTable('matrix_diary_titles',{
+  userId:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),
+  date:text('date').notNull(),
+  title:text('title').notNull(),
+  version:integer('version').notNull(),
+  createdAt:text('created_at').notNull(),
+  updatedAt:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.userId,t.date]}),
+  check('matrix_diary_titles_title',sql`length(${t.title}) <= 40`),
+  check('matrix_diary_titles_version',sql`typeof(${t.version})='integer' AND ${t.version} >= 1`),
+  check('matrix_diary_titles_date',sql`${t.date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.date},'+0 days') IS NOT NULL AND date(${t.date},'+0 days') = ${t.date}`),
+]);
