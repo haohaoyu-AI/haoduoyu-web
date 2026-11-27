@@ -17,6 +17,7 @@ import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
 import {actOnNoteSuggestion, setNoteSuggestRepaint, suggestForNote} from './pages/note-suggest.mjs';
+import {actOnLabelBackfill, findOldNotes, paintLabelBackfill, setLabelBackfillRepaint} from './pages/label-backfill.mjs';
 import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, matchesDeletedEntry, createLegacyRecoveryGuard, 
   createEntryRecoveryGuard} 
   from './offline/retained-drafts.mjs';
@@ -472,10 +473,19 @@ export function paintDailyNotesPage() {
       button.dataset.notesAction = action; button.dataset.labelName = name; button.textContent = buttonText;
       button.setAttribute('aria-label', buttonText + '标签 ' + name);
       button.disabled = notesLabelBusy || !notesLabelsVerified;
-      item.append(text, button); return item;
+      item.append(text);
+      // 找旧的: AI looks for older 碎碎念 that should carry this label (built-in 生活/工作 are categories, not labels).
+      if (name !== '生活' && name !== '工作') {
+        const find = document.createElement('button');
+        find.type = 'button'; find.className = 'btn text notes-label-find'; find.dataset.notesAction = 'find-label';
+        find.dataset.labelName = name; find.textContent = '找旧的'; find.setAttribute('aria-label', '让 AI 找以前该贴「' + name + '」的碎碎念');
+        find.disabled = !notesLabelsVerified; item.append(find);
+      }
+      item.append(button); return item;
     }));
   };
   paintLabels('#notes-label-list', activeLabels, 'delete-label', '删除');
+  paintLabelBackfill(root);
   root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === 'life' ? 'work' : 'life';
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
@@ -580,6 +590,7 @@ async function createNoteLabel(root) {
     if (saved?.labels_version !== 2 || saved.name !== label) throw new Error('标签保存结果尚未核实，请重试原请求。');
     notesLabels = [...new Set([...notesLabels, label])]; notesLabelIntent = null;
     notesLabelMessage = ''; input.value = '';
+    void findOldNotes(label);
   } catch (error) {
     if (expected === notesIdentityNow()) notesLabelMessage = '添加失败，输入已保留，可重试：' + (error.message || '请联网后重试。');
   } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
@@ -943,6 +954,7 @@ async function handleNotesClick(event) {
   if (action === 'new') {
     const item = entries.start(date); if (item) openEditor(item.id); }
   else if (action === 'create-label') await createNoteLabel(root);
+  else if (action === 'find-label' && target.dataset.labelName) await findOldNotes(target.dataset.labelName);
   else if (action === 'delete-label' && confirmLabelDeletion(target.dataset.labelName)) await deleteNoteLabel(target.dataset.labelName);
   else if (action === 'edit-legacy') openEditor('legacy');
   else if (action === 'collapse') {
@@ -957,6 +969,13 @@ async function handleNotesClick(event) {
 function registerDailyNotesSurfaceEvents() {
   document.addEventListener('click', event => { void handleNotesClick(event); });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
+  setLabelBackfillRepaint(() => paintDailyNotesPage());
+  document.addEventListener('click', event => {
+    const target = event.target.closest('[data-label-backfill]');
+    if (!target || !target.closest('#daily-notes')) return;
+    event.preventDefault();
+    void actOnLabelBackfill(target, {addLabel: addLabelToOldNote});
+  });
   document.addEventListener('click', event => {
     const more = event.target.closest('[data-note-more]');
     if (more && more.closest('#daily-notes')) { event.preventDefault(); openNoteMenu(more); return; }
@@ -1064,6 +1083,18 @@ function noteToTodo(id) {
   if (item) openNoteTodo(String(item.serverText ?? item.draft ?? ''));
 }
 // 放进想法池: adds the 想法池 label through the same offline-safe save as 编辑 and AI 贴上.
+// 给旧碎碎念补标签: loads that day into the same entry store, then saves through the ordinary relabel path.
+async function addLabelToOldNote(row, label) {
+  const store = entryStores.get(row.category);
+  if (!store || !notesLabelsVerified) return false;
+  if (!store.entry(row.id)) await store.read(row.date);
+  const item = store.entry(row.id);
+  if (!item || item.deleted) return false;
+  if ((item.labels || []).includes(label)) return true;
+  if (!store.relabelDraft(row.id, [...new Set([...(item.labels || []), label])])) return false;
+  await store.save(row.id);
+  return !item.dirty && ['saved', 'queued', 'cached'].includes(item.phase);
+}
 async function putInIdeaPool(target) {
   const id = target.dataset.noteId || target.closest('[data-note-entry]')?.dataset.noteEntry;
   const [store, item] = [...entryStores.values()].map(source => [source, source.entry(id)]).find(([, row]) => row) || [];
