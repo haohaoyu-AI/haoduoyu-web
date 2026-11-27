@@ -12,7 +12,7 @@ const { default: worker } = await import(new URL('dist/server/index.js', root));
 for (const [name, expected] of Object.entries(pins.files)) {
   const content = await readFile(new URL('public/' + name, root));
   assert.equal(createHash('sha256').update(content).digest('hex'), expected, name + ': reviewed source pin differs');
-  const key = name === 'api-docs.html' ? 'api-docs' : name;
+  const key = name === 'api-docs.html' || name === 'privacy.html' ? name.slice(0, -5) : name;
   assert.equal(assets[key].content, content.toString('utf8'), name + ': generated asset differs');
   assert.equal(assets[key].etag, '\"' + expected + '\"', name + ': generated validator differs');
   assert.equal(assets[key].length, content.length, name + ': generated length differs');

@@ -5,6 +5,7 @@ User-agent: Claude-SearchBot
 Disallow: /api/
 Allow: /
 
-# Preserve the existing policy for other crawlers, including training bots.
+# Other crawlers can read only the standalone privacy policy.
 User-agent: *
 Disallow: /
+Allow: /privacy$
