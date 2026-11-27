@@ -54,7 +54,8 @@ export function renderDailyNotes() {
     '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" ' +
       'placeholder="新标签"></label>' +
     '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div>' +
-    '<p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section>' +
+    '<p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul>' +
+    '<section id="notes-label-backfill" class="notes-backfill" hidden aria-live="polite" aria-label="给旧碎碎念补标签"></section></section>' +
     '<div id="notes-today">' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +

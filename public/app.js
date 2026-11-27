@@ -273,11 +273,11 @@ var init_format = __esm({
       month: "2-digit",
       day: "2-digit"
     }).format(new Date(value));
-    time = (value, short2 = false) => {
+    time = (value, short3 = false) => {
       if (!value) return "未记录";
       const d = new Date(value);
       if (Number.isNaN(d.getTime())) return "未记录";
-      return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short2 ? {} : {
+      return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short3 ? {} : {
         year: "numeric",
         second: "2-digit"
       }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
@@ -375,13 +375,13 @@ function syncTodoDay(now = Date.now()) {
 function todoSessionActive(owner2) {
   return Boolean(state.me) && owner2 === todoOwner() && owner2 === todosState.owner;
 }
-function mergeTodo(day8, item) {
-  const index = day8.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day8.items.push(item);
-  else if (day8.items[index].version <= item.version) day8.items[index] = item;
+function mergeTodo(day9, item) {
+  const index = day9.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day9.items.push(item);
+  else if (day9.items[index].version <= item.version) day9.items[index] = item;
 }
-function todoTemplateAdded(day8, id2) {
-  return day8.items.some((item) => item.date === day8.date && item.template_id === id2 && !item.deleted_at);
+function todoTemplateAdded(day9, id2) {
+  return day9.items.some((item) => item.date === day9.date && item.template_id === id2 && !item.deleted_at);
 }
 var todosState;
 var init_todos_state = __esm({
@@ -1592,10 +1592,10 @@ var init_resolution_ledger = __esm({
 function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
   async function record({ operation: operation2, remote = null, reason = "version" }) {
     return db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
-      const current2 = await tx.get("outbox", operation2.key);
-      if (!current2 || current2.scope !== operation2.scope) throw new Error("Offline operation is no longer current");
-      if (!canDispatch(operation2) || !canDispatch(current2)) return null;
-      if (current2.claim_owner !== operation2.claim_owner || ["archived", "conflict"].includes(current2.status)) {
+      const current3 = await tx.get("outbox", operation2.key);
+      if (!current3 || current3.scope !== operation2.scope) throw new Error("Offline operation is no longer current");
+      if (!canDispatch(operation2) || !canDispatch(current3)) return null;
+      if (current3.claim_owner !== operation2.claim_owner || ["archived", "conflict"].includes(current3.status)) {
         throw new Error("Offline conflict claim changed");
       }
       const entity = await tx.get("entities", entityKey(operation2.scope, operation2.entity_id));
@@ -1604,16 +1604,16 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
         key,
         scope: operation2.scope,
         entity_id: operation2.entity_id,
-        operation: current2,
+        operation: current3,
         local: entity?.local || operation2.local,
         remote,
         reason,
         created_at: now(),
         resolved_at: null
       };
-      conflict = await recordResolutionConflict(tx, current2, conflict);
+      conflict = await recordResolutionConflict(tx, current3, conflict);
       await tx.put("conflicts", conflict);
-      await tx.put("outbox", { ...current2, status: "conflict", error: reason });
+      await tx.put("outbox", { ...current3, status: "conflict", error: reason });
       if (entity) await tx.put("entities", { ...entity, conflict: key, dirty: true });
       return conflict;
     });
@@ -2502,8 +2502,8 @@ async function acknowledgeOperation(context, operation2, remote) {
   checkScope(operation2.scope);
   await db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
     checkScope(operation2.scope);
-    const current2 = await tx.get("outbox", operation2.key);
-    if (!context.canDispatch(current2) || current2.claim_owner !== owner2 || !["sending", "unknown"].includes(current2.status)) {
+    const current3 = await tx.get("outbox", operation2.key);
+    if (!context.canDispatch(current3) || current3.claim_owner !== owner2 || !["sending", "unknown"].includes(current3.status)) {
       throw new Error("Offline operation claim changed");
     }
     const key = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key);
@@ -2519,7 +2519,7 @@ async function acknowledgeOperation(context, operation2, remote) {
       dirty: remaining,
       conflict: null
     });
-    await recordResolutionAck(tx, current2, confirmed2, now());
+    await recordResolutionAck(tx, current3, confirmed2, now());
   });
 }
 function storageMethods(context) {
@@ -2580,11 +2580,11 @@ function storageMethods(context) {
   async function update(operation2, fields4, { rateLimitedUntil } = {}) {
     if (!context.canDispatch(operation2)) return null;
     return db.transaction(["outbox", "meta", "conflicts"], "readwrite", async (tx) => {
-      const current2 = await tx.get("outbox", operation2.key);
+      const current3 = await tx.get("outbox", operation2.key);
       const held = await tx.get("meta", context.leaseKey(operation2.scope));
-      if (!context.canDispatch(current2) || held?.owner !== owner2 || !["queued", "unknown", "sending"].includes(current2.status)) return null;
-      if (!Object.hasOwn(fields4, "claim_owner") && current2.claim_owner !== owner2) return null;
-      const result = { ...current2, ...fields4 };
+      if (!context.canDispatch(current3) || held?.owner !== owner2 || !["queued", "unknown", "sending"].includes(current3.status)) return null;
+      if (!Object.hasOwn(fields4, "claim_owner") && current3.claim_owner !== owner2) return null;
+      const result = { ...current3, ...fields4 };
       await tx.put("outbox", result);
       if (Number.isSafeInteger(rateLimitedUntil)) {
         const key = context.rateLimitKey(operation2.scope), old = await tx.get("meta", key);
@@ -2621,10 +2621,10 @@ function remoteMethods(context) {
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
     const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
-    const day8 = operation2.body.date || operation2.base?.date || operation2.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?window=date&date=" + day8 + "&version=2");
+    const day9 = operation2.body.date || operation2.base?.date || operation2.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?window=date&date=" + day9 + "&version=2");
     const head = snapshot?.batch_format === "haoduoyu-workbench-window-v1" ? snapshot.index : snapshot;
-    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) || snapshot.coverage && (snapshot.coverage.from !== day8 || snapshot.coverage.to !== day8)) {
+    if (head?.complete !== true || head.scope_id !== scope || !Array.isArray(snapshot.data?.todos) || snapshot.coverage && (snapshot.coverage.from !== day9 || snapshot.coverage.to !== day9)) {
       throw new Error("Todo absence could not be verified completely");
     }
     return snapshot.data.todos.find((value) => value.source_id === operation2.source_id) ? { ...snapshot.data.todos.find((value) => value.source_id === operation2.source_id), id: operation2.source_id } : null;
@@ -2683,8 +2683,8 @@ function processingMethods(context) {
   }
   async function fail6(operation2, error2) {
     if ([409, 410, 404].includes(error2.status)) {
-      const current2 = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation2.key));
-      if (!context.canDispatch(current2)) return;
+      const current3 = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation2.key));
+      if (!context.canDispatch(current3)) return;
       let remote = null;
       try {
         remote = await readRemote(operation2);
@@ -3056,8 +3056,8 @@ async function applySnapshot({
 }) {
   await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
     identity3(scope, getScope);
-    const current2 = await tx.get("meta", key);
-    if (!equal(current2 ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
+    const current3 = await tx.get("meta", key);
+    if (!equal(current3 ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
     if (progressKey && !equal(await tx.get("meta", progressKey) ?? null, initial.progress ?? null))
       fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新同步进度，请重新核对。");
     if (otherKey && !equal(await tx.get("meta", otherKey) ?? null, initial.otherMeta ?? null))
@@ -3421,11 +3421,11 @@ function serverRow(old, record, time3) {
 }
 async function archiveProofs(tx, scope, initial) {
   for (const [i, name] of legacy.entries()) {
-    const key = entityKey(scope, name), current2 = await tx.get("meta", key);
-    if (!same(current2, initial.proofs[i])) throw error("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新快照，请稍后重试。");
-    if (current2) {
+    const key = entityKey(scope, name), current3 = await tx.get("meta", key);
+    if (!same(current3, initial.proofs[i])) throw error("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新快照，请稍后重试。");
+    if (current3) {
       const archive = entityKey(scope, name + "-archive"), previous = await tx.get("meta", archive);
-      if ((current2.value?.verified_at || 0) >= (previous?.value?.verified_at || 0)) await tx.put("meta", { ...current2, key: archive });
+      if ((current3.value?.verified_at || 0) >= (previous?.value?.verified_at || 0)) await tx.put("meta", { ...current3, key: archive });
       await tx.delete("meta", key);
     }
   }
@@ -3873,8 +3873,8 @@ function checked(body4, method2, labelsV1) {
       if (body4.category !== "life" || typeof label !== "string" || !label.isWellFormed() || !label.trim() || [...label.trim()].length > 32 || /[\u0000-\u001f\u007f]/.test(label) || ["生活", "工作"].includes(label.trim().normalize("NFC"))) throw failure2("标签无效，草稿已保留。");
       body4 = { ...body4, label: label.trim().normalize("NFC") };
     }
-    const day8 = /* @__PURE__ */ new Date(body4.date + "T00:00:00Z");
-    if (!["life", "work"].includes(body4.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(day8.getTime()) || day8.toISOString().slice(0, 10) !== body4.date || typeof body4.text !== "string" || !body4.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body4.text) || new TextEncoder().encode(body4.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+    const day9 = /* @__PURE__ */ new Date(body4.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body4.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body4.date) || !Number.isFinite(day9.getTime()) || day9.toISOString().slice(0, 10) !== body4.date || typeof body4.text !== "string" || !body4.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body4.text) || new TextEncoder().encode(body4.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
       throw failure2("分类、日期或正文无效，草稿已保留。");
   }
   return structuredClone(body4);
@@ -3979,8 +3979,8 @@ function createDraftRevisionTracker() {
     return revision2;
   };
 }
-function unchangedEntrySinceSnapshot(epochs, id2, current2, snapshotRevision, currentRevision) {
-  return epochs.has(id2) === Boolean(current2) && (!current2 || current2.writeEpoch === epochs.get(id2) && (snapshotRevision === void 0 || snapshotRevision === currentRevision));
+function unchangedEntrySinceSnapshot(epochs, id2, current3, snapshotRevision, currentRevision) {
+  return epochs.has(id2) === Boolean(current3) && (!current3 || current3.writeEpoch === epochs.get(id2) && (snapshotRevision === void 0 || snapshotRevision === currentRevision));
 }
 function uniqueRetainedDrafts(rows) {
   const seen = /* @__PURE__ */ new Set();
@@ -4098,12 +4098,12 @@ async function purgeVerifiedDrafts({ db, getScope, getGeneration }, snapshots, t
     active5();
     for (const { snapshot, value, digest: digest2 } of candidates) {
       active5();
-      const current2 = await tx.get("meta", snapshot.key);
-      if (!current2 || current2.scope !== owner2 || current2.draft_kind !== "note_entry" || JSON.stringify(current2) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current2.data, value)) continue;
+      const current3 = await tx.get("meta", snapshot.key);
+      if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
       const key = entityKey(owner2, "deleted-note-proof:" + digest2);
       const previous = await tx.get("meta", key);
       await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
-      await tx.delete("meta", current2.key);
+      await tx.delete("meta", current3.key);
     }
     active5();
   });
@@ -4122,9 +4122,9 @@ async function purgeUserDeletedDrafts({ db, getScope, getGeneration }, raw, snap
     for (const snapshot of snapshots) {
       const row = snapshot.data;
       if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
-      const current2 = await tx.get("meta", snapshot.key);
-      if (current2 && JSON.stringify(current2) === JSON.stringify(snapshot)) {
-        await tx.delete("meta", current2.key);
+      const current3 = await tx.get("meta", snapshot.key);
+      if (current3 && JSON.stringify(current3) === JSON.stringify(snapshot)) {
+        await tx.delete("meta", current3.key);
         removed4 = true;
       }
     }
@@ -4163,8 +4163,8 @@ async function discardSelectedDraft({ db, getScope, getGeneration, pending }, sn
   await Promise.all([...pending]);
   return db.transaction(["meta"], "readwrite", async (tx) => {
     if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-    const current2 = await tx.get("meta", snapshot.key);
-    if (!current2 || current2.scope !== owner2 || current2.draft_kind !== snapshot.draft_kind || JSON.stringify(current2) !== JSON.stringify(snapshot))
+    const current3 = await tx.get("meta", snapshot.key);
+    if (!current3 || current3.scope !== owner2 || current3.draft_kind !== snapshot.draft_kind || JSON.stringify(current3) !== JSON.stringify(snapshot))
       throw new Error("草稿已变化，请重新查看后再删除。");
     await tx.delete("meta", snapshot.key);
     if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
@@ -4367,9 +4367,9 @@ function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = (
     });
     const initial = snapshot(initialStores);
     return () => {
-      const current2 = find();
-      if (identity5 !== getIdentity() || current2.length !== initialStores.length || current2.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
-      if (snapshot(current2) !== initial) changed();
+      const current3 = find();
+      if (identity5 !== getIdentity() || current3.length !== initialStores.length || current3.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
+      if (snapshot(current3) !== initial) changed();
     };
   };
 }
@@ -5413,9 +5413,9 @@ async function acceptMovedTodo(context, { source, todo }, token) {
       });
     }
     if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    const day8 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+    const day9 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
     if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    return Array.isArray(day8?.data?.items) ? "saved" : "refresh";
+    return Array.isArray(day9?.data?.items) ? "saved" : "refresh";
   });
 }
 async function acceptTodoNote(context, type, row, token) {
@@ -5644,8 +5644,8 @@ async function apiTransport(path, opts) {
   };
 }
 function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect = false) {
-  const current2 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current2 && !suppressAuthRedirect) {
+  const current3 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
+  if (response.status === 401 && path !== "/auth/login" && current3 && !suppressAuthRedirect) {
     state.me = null;
     closeModal();
     renderLogin();
@@ -5660,7 +5660,7 @@ function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedir
     const serverTime = Date.parse(response.serverDate);
     error2.retryAfterMs = retryAfterDelay(parseRetryAfter(response.retryAfter, Number.isFinite(serverTime) ? serverTime : Date.now()));
   }
-  if (response.status === 401 && !current2) error2.staleSession = true;
+  if (response.status === 401 && !current3) error2.staleSession = true;
   return error2;
 }
 async function apiNetwork(path, options3 = {}) {
@@ -5799,8 +5799,8 @@ var daysUntil = (due, today2) => Math.round((parse(due) - parse(today2)) / DAY);
 var DUE_LEAD = 3;
 var dueSoon = (due, today2) => typeof due === "string" && daysUntil(due, today2) <= DUE_LEAD;
 function dueLabel(due, today2) {
-  const days = daysUntil(due, today2), day8 = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
-  return days > 0 ? `${day8} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day8} 截止 · 已过期 ${-days} 天`;
+  const days = daysUntil(due, today2), day9 = `${Number(due.slice(5, 7))}/${Number(due.slice(8))}`;
+  return days > 0 ? `${day9} 截止 · 还剩 ${days} 天` : days === 0 ? `今天截止` : `${day9} 截止 · 已过期 ${-days} 天`;
 }
 function dueGroup(due, today2) {
   const choices = periodChoices(today2), week = weekOf(due);
@@ -5934,14 +5934,14 @@ function clearSmartTodo() {
   smart.sequence++;
   Object.assign(smart, { sentence: "", date: "", status: "", proposal: null, error: "", busy: false, rows: null, done: null });
 }
-async function startSmartTodo(day8, sentence, given) {
+async function startSmartTodo(day9, sentence, given) {
   hooks = given;
   const sequence5 = ++smart.sequence;
-  Object.assign(smart, { sentence, date: day8.date, status: "reading", proposal: null, error: "", busy: false });
+  Object.assign(smart, { sentence, date: day9.date, status: "reading", proposal: null, error: "", busy: false });
   hooks.repaint();
   try {
     if (TODO_COMMAND_HINT.test(sentence) && hooks.commandItems) {
-      const { rows, items } = await commandCandidates(hooks.commandItems(day8));
+      const { rows, items } = await commandCandidates(hooks.commandItems(day9));
       const reading = items.length ? await api("/todo-command", { method: "POST", body: { text: sentence, items } }) : null;
       if (sequence5 !== smart.sequence) return;
       if (reading?.needs_model && reading.action !== "none") {
@@ -5952,17 +5952,17 @@ async function startSmartTodo(day8, sentence, given) {
       if (!TODO_PARSE_HINT.test(sentence)) {
         clearSmartTodo();
         hooks.repaint();
-        await hooks.plain(day8, sentence);
+        await hooks.plain(day9, sentence);
         return;
       }
     }
-    const context = day8.date === FUTURE_SCOPE ? "future" : "today";
+    const context = day9.date === FUTURE_SCOPE ? "future" : "today";
     const data3 = await api("/todo-parse", { method: "POST", body: { text: sentence, context } });
     if (sequence5 !== smart.sequence) return;
     if (!data3.needs_model) {
       clearSmartTodo();
       hooks.repaint();
-      await hooks.plain(day8, sentence, data3);
+      await hooks.plain(day9, sentence, data3);
       return;
     }
     smart.status = "ready";
@@ -5974,22 +5974,22 @@ async function startSmartTodo(day8, sentence, given) {
   }
   hooks.repaint();
 }
-async function confirmSmartTodo(day8) {
+async function confirmSmartTodo(day9) {
   const proposal = smart.proposal;
-  if (!proposal || smart.busy || !hooks || smart.date !== day8.date) return;
+  if (!proposal || smart.busy || !hooks || smart.date !== day9.date) return;
   smart.busy = true;
   smart.error = "";
   hooks.repaint();
-  if (proposal.kind === "command") return confirmCommand(day8, proposal);
-  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence, target = smartTarget(proposal, day8.date);
+  if (proposal.kind === "command") return confirmCommand(day9, proposal);
+  const text = smartTodoText(proposal), note = smartTodoNote(proposal), sequence5 = smart.sequence, target = smartTarget(proposal, day9.date);
   try {
-    if (target === "daily") await hooks.saveDaily(day8, text, note);
+    if (target === "daily") await hooks.saveDaily(day9, text, note);
     else if (target === "today") {
-      const date2 = day8.date === FUTURE_SCOPE ? bjtDate() : day8.date;
-      if (day8.date === FUTURE_SCOPE) await hooks.saveElsewhere(day8, { id: crypto.randomUUID(), date: date2, text }, "今天", note);
-      else await hooks.save(day8, { id: crypto.randomUUID(), date: date2, text }, note);
-    } else if (target === "day") await hooks.saveElsewhere(day8, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
-    else await hooks.saveFuture(day8, proposal, smartPlace(proposal, day8.date).replace(/^加到 /, ""));
+      const date2 = day9.date === FUTURE_SCOPE ? bjtDate() : day9.date;
+      if (day9.date === FUTURE_SCOPE) await hooks.saveElsewhere(day9, { id: crypto.randomUUID(), date: date2, text }, "今天", note);
+      else await hooks.save(day9, { id: crypto.randomUUID(), date: date2, text }, note);
+    } else if (target === "day") await hooks.saveElsewhere(day9, { id: crypto.randomUUID(), date: proposal.date, text }, smartDayLabel(proposal.date), note);
+    else await hooks.saveFuture(day9, proposal, smartPlace(proposal, day9.date).replace(/^加到 /, ""));
     if (sequence5 === smart.sequence) clearSmartTodo();
   } catch (error2) {
     if (sequence5 === smart.sequence) {
@@ -5999,12 +5999,12 @@ async function confirmSmartTodo(day8) {
   }
   hooks.repaint();
 }
-async function confirmCommand(day8, proposal) {
+async function confirmCommand(day9, proposal) {
   const sequence5 = smart.sequence;
   try {
     const result = await runTodoCommand(proposal, smart.rows);
     if (sequence5 !== smart.sequence) return;
-    hooks.consume?.(day8, smart.sentence);
+    hooks.consume?.(day9, smart.sentence);
     Object.assign(smart, { status: "done", busy: false, proposal: null, rows: null, done: result });
     hooks.refresh?.();
     const shown2 = smart.sequence;
@@ -6048,11 +6048,11 @@ function commandSummary(proposal) {
   const target = proposal.action !== "reschedule" ? "" : proposal.date ? smartDayLabel(proposal.date, today2) : PERIOD_NAME(proposal.period, today2);
   return [[`${COMMAND_VERB[proposal.action]}${target ? " " + target : ""}`, "todo-smart-day"], [`${place} · ${proposal.text}`, "todo-smart-text"]];
 }
-async function plainSmartTodo(day8) {
+async function plainSmartTodo(day9) {
   const sentence = smart.sentence;
   clearSmartTodo();
   hooks.repaint();
-  await hooks.plain(day8, sentence);
+  await hooks.plain(day9, sentence);
 }
 function summary(proposal, scope) {
   const text = smartTodoText(proposal), count3 = countLabel(proposal);
@@ -6068,11 +6068,11 @@ function hint(proposal, scope) {
   if (proposal.recurrence) return `做完后会自动出现${proposal.recurrence === "week" ? "下周" : "下个月"}的一条。`;
   return "";
 }
-function paintSmartTodo(root3, day8) {
-  const future = day8.date === FUTURE_SCOPE, id2 = future ? "todo-smart-future" : "todo-smart";
+function paintSmartTodo(root3, day9) {
+  const future = day9.date === FUTURE_SCOPE, id2 = future ? "todo-smart-future" : "todo-smart";
   const form = root3.querySelector(future ? "#todo-future-form" : "#todo-form");
   let row = root3.querySelector("#" + id2);
-  if (!smart.status || smart.date !== day8.date || !form) {
+  if (!smart.status || smart.date !== day9.date || !form) {
     row?.remove();
     return;
   }
@@ -6091,10 +6091,10 @@ function paintSmartTodo(root3, day8) {
   else if (smart.status === "ready") {
     parts2.push(el("span", "todo-smart-kicker", smart.proposal.kind === "command" ? "AI 理解为：处理已有的待办" : "AI 理解为"));
     const line = el("p", "todo-smart-line");
-    const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day8.date);
+    const pieces = smart.proposal.kind === "command" ? commandSummary(smart.proposal) : summary(smart.proposal, day9.date);
     for (const [text, className] of pieces) line.append(el("span", className, text));
     parts2.push(line);
-    const tip = hint(smart.proposal, day8.date);
+    const tip = hint(smart.proposal, day9.date);
     if (tip) parts2.push(el("p", "todo-smart-hint", tip));
   } else parts2.push(el("p", "todo-smart-error", `${smart.error}，可以按原文添加。`));
   if (smart.error && smart.status === "ready") parts2.push(el("p", "todo-smart-error", smart.error));
@@ -6116,8 +6116,8 @@ function paintSmartTodo(root3, day8) {
     row.replaceChildren(...parts2);
     return;
   }
-  if (smart.status === "ready") button2(smart.busy ? command ? "正在处理…" : "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day8));
-  if (smart.status !== "reading") button2("按原文添加", "btn text", () => void plainSmartTodo(day8));
+  if (smart.status === "ready") button2(smart.busy ? command ? "正在处理…" : "正在添加…" : "确认", "btn primary", () => void confirmSmartTodo(day9));
+  if (smart.status !== "reading") button2("按原文添加", "btn text", () => void plainSmartTodo(day9));
   button2("取消", "btn text", () => {
     clearSmartTodo();
     hooks?.repaint();
@@ -6574,12 +6574,12 @@ async function verifyFutureMove(row, date2, { readSource, readDay, guard = () =>
   try {
     const source = await readSource(row.id);
     guard();
-    const day8 = await readDay(date2);
+    const day9 = await readDay(date2);
     guard();
-    const todo = Array.isArray(day8?.items) ? day8.items.find((item) => item.id === row.id) : null;
+    const todo = Array.isArray(day9?.items) ? day9.items.find((item) => item.id === row.id) : null;
     if (moved(row, date2, source, todo, complete)) return { state: "confirmed", source, todo };
     const compatible = !todo || todo.date === date2 && todo.text === row.text && (complete || todo.completed === row.completed) && todo.deleted_at === null && !todo.template_id;
-    return unchanged(row, source) && day8?.date === date2 && Array.isArray(day8.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
+    return unchanged(row, source) && day9?.date === date2 && Array.isArray(day9.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
   } catch {
     return { state: "unknown" };
   }
@@ -6627,8 +6627,8 @@ function timedNetwork(path, options3 = {}) {
   return apiNetwork(path, { ...options3, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 function formatMovedDate(date2) {
-  const [, month, day8] = date2.split("-");
-  return `${Number(month)}月${Number(day8)}日`;
+  const [, month, day9] = date2.split("-");
+  return `${Number(month)}月${Number(day9)}日`;
 }
 async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   if (!onTodos()) return;
@@ -6652,7 +6652,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
       throw Object.assign(new Error("账号或数据范围已变化"), { staleSession: true });
   };
   const readSource = (sourceId) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId));
-  const readDay = (day8) => timedNetwork("/todos?date=" + encodeURIComponent(day8));
+  const readDay = (day9) => timedNetwork("/todos?date=" + encodeURIComponent(day9));
   const services = {
     guard,
     readSource,
@@ -6705,10 +6705,10 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
         return;
       }
       if (cacheStatus === "saved" && todosState.owner === todoOwner()) {
-        const day8 = todosState.days.get(date2);
-        if (day8) {
-          mergeTodo(day8, result.todo);
-          day8.revision++;
+        const day9 = todosState.days.get(date2);
+        if (day9) {
+          mergeTodo(day9, result.todo);
+          day9.revision++;
         }
       }
       const note = cacheStatus === "pending" ? "；本地仍有待处理内容，请在设置中处理" : cacheStatus === "saved" ? "" : "；本地缓存待刷新";
@@ -6752,24 +6752,24 @@ var done = (v, typed, message) => {
 };
 var futureHooks = {
   repaint: () => paintUnscheduledTodos(),
-  plain: (day8, text) => addTyped(text, "none"),
+  plain: (day9, text) => addTyped(text, "none"),
   commandItems: () => bridge?.todayItems?.() || [],
-  consume: (day8, sentence) => done(current(), sentence),
+  consume: (day9, sentence) => done(current(), sentence),
   refresh: () => {
     refreshFutureTodos();
     bridge?.refreshToday?.();
   },
-  async saveElsewhere(day8, request2, label, note) {
+  async saveElsewhere(day9, request2, label, note) {
     const v = current();
     await bridge.toDay(request2, note);
     done(v, smartSentence(v), `已添加到 ${label}`);
   },
-  async saveDaily(day8, text, note) {
+  async saveDaily(day9, text, note) {
     const v = current();
     await bridge.daily(text, note);
     done(v, smartSentence(v), "已存为常用并加到今天");
   },
-  async saveFuture(day8, proposal, label) {
+  async saveFuture(day9, proposal, label) {
     const v = current();
     await addFutureTodo(proposal);
     done(v, smartSentence(v), `已加到 ${label}`);
@@ -7464,10 +7464,10 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label) last.rows.push(row);
     else groups.push({ day: day22, actor: row.actor, label, rows: [row] });
   }
-  let day8 = "";
+  let day9 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
-    const heading = day8 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day8 = g.day;
+    const heading = day9 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day9 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><span class="article-title">${e(article.entity_label)}</span>` : ""}</li>`;
@@ -7517,25 +7517,25 @@ function keyModal() {
 
 // web/core/todo-note-drafts.mjs
 init_state();
-function draftKey(day8, id2) {
-  return state.me?.id ? `haoduoyu:todo-note:${JSON.stringify([state.me.id, day8.date, id2])}` : "";
+function draftKey(day9, id2) {
+  return state.me?.id ? `haoduoyu:todo-note:${JSON.stringify([state.me.id, day9.date, id2])}` : "";
 }
-function dailyTodoDraft(day8, id2) {
-  if (day8.noteDrafts.has(id2)) return day8.noteDrafts.get(id2);
-  const key = draftKey(day8, id2);
+function dailyTodoDraft(day9, id2) {
+  if (day9.noteDrafts.has(id2)) return day9.noteDrafts.get(id2);
+  const key = draftKey(day9, id2);
   try {
     const stored = key && JSON.parse(sessionStorage.getItem(key));
     if (stored && typeof stored.text === "string" && typeof stored.base === "string" && (stored.text !== stored.base || stored.check === true)) {
       const draft = { id: id2, text: stored.text, base: stored.base, check: stored.check === true };
-      day8.noteDrafts.set(id2, draft);
+      day9.noteDrafts.set(id2, draft);
       return draft;
     }
   } catch {
   }
   return null;
 }
-function persistDailyTodoDraft(day8, draft) {
-  const key = draftKey(day8, draft.id);
+function persistDailyTodoDraft(day9, draft) {
+  const key = draftKey(day9, draft.id);
   if (!key) return;
   try {
     if (!draft.check && draft.text === draft.base) sessionStorage.removeItem(key);
@@ -7566,17 +7566,17 @@ function todoCountNote(done3, target, rest = "") {
   return `${done3}/${target ?? "∞"} 次${rest ? ` · ${rest}` : ""}`;
 }
 function todoCountChange(note, action, target = 0) {
-  const current2 = todoCount(note), text = String(note ?? "").trim();
+  const current3 = todoCount(note), text = String(note ?? "").trim();
   if (action === "set") {
     if (target !== null && (!Number.isInteger(target) || target < 1 || target > TODO_COUNT_MAX)) return null;
-    const done3 = current2?.done ?? 0;
-    return todoCountNote(target === null ? done3 : Math.min(done3, target), target, current2 ? current2.rest : text);
+    const done3 = current3?.done ?? 0;
+    return todoCountNote(target === null ? done3 : Math.min(done3, target), target, current3 ? current3.rest : text);
   }
-  if (!current2) return null;
-  if (action === "clear") return current2.rest;
-  const limit = current2.target ?? TODO_COUNT_OPEN_MAX;
-  if (action === "add") return current2.done < limit ? todoCountNote(current2.done + 1, current2.target, current2.rest) : null;
-  if (action === "undo") return current2.done > 0 ? todoCountNote(current2.done - 1, current2.target, current2.rest) : null;
+  if (!current3) return null;
+  if (action === "clear") return current3.rest;
+  const limit = current3.target ?? TODO_COUNT_OPEN_MAX;
+  if (action === "add") return current3.done < limit ? todoCountNote(current3.done + 1, current3.target, current3.rest) : null;
+  if (action === "undo") return current3.done > 0 ? todoCountNote(current3.done - 1, current3.target, current3.rest) : null;
   return null;
 }
 
@@ -7591,13 +7591,13 @@ function watchVisibleTodoDay({ window: window2, document: document2, selection, 
   };
   async function refresh() {
     if (running || composing || stopped || now() < after || document2.visibilityState !== "visible" || window2.navigator.onLine === false) return;
-    const current2 = selection();
-    if (!current2) return;
+    const current3 = selection();
+    if (!current3) return;
     running = true;
     after = now() + 5e3;
     try {
-      const data3 = await read2(current2.date);
-      if (!stopped && !composing && document2.visibilityState === "visible" && selection()?.key === current2.key) apply(current2, data3);
+      const data3 = await read2(current3.date);
+      if (!stopped && !composing && document2.visibilityState === "visible" && selection()?.key === current3.key) apply(current3, data3);
     } catch (error2) {
       after = now() + Math.max(2e4, Number(error2?.retryAfterMs) || 0);
     } finally {
@@ -7638,8 +7638,8 @@ function todoMonthSeed(month, snapshot, loaded) {
       days[date2] = snapshot.days[date2] || [];
     }
   }
-  for (const day8 of loaded) {
-    if (!snapshot?.days || day8.pending || day8.readAt > snapshot.verified_at) days[day8.date] = day8.items;
+  for (const day9 of loaded) {
+    if (!snapshot?.days || day9.pending || day9.readAt > snapshot.verified_at) days[day9.date] = day9.items;
   }
   return days;
 }
@@ -7704,7 +7704,7 @@ async function loadTodoMonth(snapshot, controller, expired, deps) {
 }
 function createTodoMonthLoader({ read: read2, seed, active: active5, changed: changed2 = () => {
 }, now = Date.now }) {
-  let owner2 = "", current2 = null;
+  let owner2 = "", current3 = null;
   const limits = { cooldown: 0 };
   const monthDays = (month) => {
     const end = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
@@ -7721,19 +7721,19 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
   }
   function open(month, nextOwner) {
     if (owner2 !== nextOwner) {
-      cancel(current2);
+      cancel(current3);
       months.clear();
       owner2 = nextOwner;
-      current2 = null;
+      current3 = null;
       limits.cooldown = 0;
     }
-    if (current2?.month !== month) cancel(current2);
+    if (current3?.month !== month) cancel(current3);
     let snapshot = months.get(month);
     if (!snapshot) {
       snapshot = { month, owner: owner2, days: /* @__PURE__ */ new Map(), fresh: /* @__PURE__ */ new Set(), revisions: /* @__PURE__ */ new Map(), expiresAt: 0, loading: false, error: "", retryAt: 0 };
       months.set(month, snapshot);
     }
-    current2 = snapshot;
+    current3 = snapshot;
     const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, limits.cooldown);
     if (snapshot.fresh.size === count3 && now() < snapshot.expiresAt) snapshot.error = "";
     const expired = snapshot.fresh.size === count3 && now() >= snapshot.expiresAt;
@@ -7753,7 +7753,7 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
         now,
         limits,
         changed: changed2,
-        isCurrent: (value) => current2 === value
+        isCurrent: (value) => current3 === value
       });
     }
     return snapshot;
@@ -7766,7 +7766,7 @@ function createTodoMonthLoader({ read: read2, seed, active: active5, changed: ch
     snapshot.revisions.set(date2, (snapshot.revisions.get(date2) || 0) + 1);
     return true;
   }
-  return { open, update, cancel: () => cancel(current2) };
+  return { open, update, cancel: () => cancel(current3) };
 }
 
 // web/core/todo-templates-state.mjs
@@ -7812,18 +7812,18 @@ init_requests();
 init_format();
 init_state();
 init_todos_state();
-function templateUnavailable(store, day8, id2) {
-  return !store.loaded || !day8.loaded || day8.loading || day8.adding || store.pending.has(id2) || todoTemplateAdded(day8, id2) || [...day8.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
+function templateUnavailable(store, day9, id2) {
+  return !store.loaded || !day9.loaded || day9.loading || day9.adding || store.pending.has(id2) || todoTemplateAdded(day9, id2) || [...day9.removals.values()].some((ticket2) => ticket2.phase === "restoring" && ticket2.item.template_id === id2);
 }
 function inlineTodoTemplateContent(store) {
-  const day8 = todoDay(), label = day8.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day9 = todoDay(), label = day9.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = "";
   const error2 = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error2 + store.items.map((item) => {
-    const added = todoTemplateAdded(day8, item.id);
+    const added = todoTemplateAdded(day9, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label : "添加：" + item.text)}" ${templateUnavailable(store, day8, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label : "添加：" + item.text)}" ${templateUnavailable(store, day9, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label}</span>` : ""}</button>`;
   }).join("");
 }
@@ -7844,12 +7844,12 @@ function paintInlineTodoTemplates(store) {
   root3.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day8 = todoDay();
-  const added = (id2) => todoTemplateAdded(day8, id2);
-  const addedLabel = day8.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day9 = todoDay();
+  const added = (id2) => todoTemplateAdded(day9, id2);
+  const addedLabel = day9.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day8, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day9, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-archive" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>归档</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
@@ -8110,13 +8110,13 @@ init_todos_state();
 init_popover();
 init_runtime();
 init_modal();
-function todoBusy(day8, id2) {
-  return day8.updates.has(id2) || day8.noteCompletions.has(id2) || day8.removals.has(id2) || day8.templateWrites.has(id2);
+function todoBusy(day9, id2) {
+  return day9.updates.has(id2) || day9.noteCompletions.has(id2) || day9.removals.has(id2) || day9.templateWrites.has(id2);
 }
 function todoActionContext({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date2) || date2 !== todoDate() || !todoSessionActive(owner2)) return null;
-  const day8 = todoDay(date2), item = day8.items.find((row) => row.id === id2);
-  return item ? { day: day8, item, owner: owner2 } : null;
+  const day9 = todoDay(date2), item = day9.items.find((row) => row.id === id2);
+  return item ? { day: day9, item, owner: owner2 } : null;
 }
 function canOpenTodoMenu({ id: id2, date: date2, anchor }) {
   const context = todoActionContext({ id: id2, date: date2 });
@@ -8144,20 +8144,20 @@ ${counting}<button data-action="${commonAction}" ${attributes}>${commonLabel}</b
 async function changeTodoCount(options3, action, target = 0) {
   const context = todoActionContext({ ...options3, owner: options3.owner || todoOwner() });
   if (!context || todoBusy(context.day, context.item.id) || context.day.countWrites?.has(context.item.id)) return false;
-  const { day: day8, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
+  const { day: day9, item, owner: owner2 } = context, note = todoCountChange(item.note, action, target);
   if (note === null) return false;
-  (day8.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
+  (day9.countWrites ||= /* @__PURE__ */ new Set()).add(item.id);
   try {
     const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note, version: item.version } });
     if (!todoSessionActive(owner2)) return false;
-    mergeTodo(day8, saved);
+    mergeTodo(day9, saved);
     return true;
   } catch (error2) {
     if (isRequestAbort(error2) || !todoSessionActive(owner2)) return false;
-    setTodoNotice(day8, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
+    setTodoNotice(day9, error2.status === 404 ? "这项待办可能仍在同步，请稍后再记。" : error2.message || "没有记上，请重试");
     return false;
   } finally {
-    day8.countWrites.delete(item.id);
+    day9.countWrites.delete(item.id);
     if (todoSessionActive(owner2)) paintTodos();
   }
 }
@@ -8225,13 +8225,13 @@ function rememberNote(node3) {
     if (view3.noteEdit?.id === node3.dataset.id) view3.noteEdit.text = text;
     return;
   }
-  const day8 = todoDay(node3.dataset.date);
-  const draft = day8.noteEdit;
+  const day9 = todoDay(node3.dataset.date);
+  const draft = day9.noteEdit;
   if (draft?.id !== node3.dataset.id || draft.text === text) return;
   draft.text = text;
   draft.error = "";
   if (draft.save) draft.check = true;
-  persistDailyTodoDraft(day8, draft);
+  persistDailyTodoDraft(day9, draft);
 }
 function watchTodoNotes() {
   if (watchTodoNotes.ready || typeof document === "undefined") return;
@@ -8286,10 +8286,10 @@ function openTodoNote(options3) {
   if (options3.target?.dataset.future === "1") return openFutureNote(options3);
   const context = todoActionContext({ ...options3, date: options3.date || options3.target?.dataset.date, owner: options3.owner || options3.target?.dataset.owner });
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { item, day: day8 } = context;
-  const draft = dailyTodoDraft(day8, item.id) || { id: item.id, text: item.note || "", base: item.note || "" };
-  day8.noteDrafts.set(item.id, draft);
-  day8.noteEdit = draft;
+  const { item, day: day9 } = context;
+  const draft = dailyTodoDraft(day9, item.id) || { id: item.id, text: item.note || "", base: item.note || "" };
+  day9.noteDrafts.set(item.id, draft);
+  day9.noteEdit = draft;
   paintTodos();
   placeNoteCaret(document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`));
 }
@@ -8409,11 +8409,11 @@ async function commitFutureNote(input) {
   paintUnscheduledTodos();
   if (view3.noteEdit?.id === item.id) document.querySelector(`#todo-future [data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
 }
-function finishDailyTodoNote(day8, draft) {
-  if (day8.noteEdit === draft) day8.noteEdit = null;
-  day8.noteDrafts.delete(draft.id);
+function finishDailyTodoNote(day9, draft) {
+  if (day9.noteEdit === draft) day9.noteEdit = null;
+  day9.noteDrafts.delete(draft.id);
 }
-async function storeDailyTodoNote(day8, item, owner2, draft, text) {
+async function storeDailyTodoNote(day9, item, owner2, draft, text) {
   const active5 = () => todoSessionActive(owner2);
   try {
     const saved = await saveNoteFresh({
@@ -8423,13 +8423,13 @@ async function storeDailyTodoNote(day8, item, owner2, draft, text) {
       version: item.version,
       active: active5,
       latest: async () => {
-        const data3 = await api(`/todos?date=${encodeURIComponent(day8.date)}`, { requireNetwork: true });
+        const data3 = await api(`/todos?date=${encodeURIComponent(day9.date)}`, { requireNetwork: true });
         return data3?.items?.find((row) => row.id === item.id);
       }
     });
     if (!active5()) return false;
-    mergeTodo(day8, saved.changedElsewhere ? saved.fresh : saved);
-    day8.revision++;
+    mergeTodo(day9, saved.changedElsewhere ? saved.fresh : saved);
+    day9.revision++;
     if (saved.changedElsewhere) {
       const note = saved.fresh.note;
       draft.error = note ? `另一设备已保存「${note}」。你的草稿仍在，请先核对两个版本。` : "另一设备已清空备注。你的草稿仍在，请先核对。";
@@ -8437,9 +8437,9 @@ async function storeDailyTodoNote(day8, item, owner2, draft, text) {
     }
     draft.base = text;
     draft.check = false;
-    persistDailyTodoDraft(day8, draft);
+    persistDailyTodoDraft(day9, draft);
     if (draft.text !== text) return false;
-    finishDailyTodoNote(day8, draft);
+    finishDailyTodoNote(day9, draft);
     return true;
   } catch (error2) {
     if (active5()) draft.error = `备注未保存，草稿已保留。按回车可重试。${error2?.message ? " " + error2.message : ""}`;
@@ -8449,16 +8449,16 @@ async function storeDailyTodoNote(day8, item, owner2, draft, text) {
     if (active5()) paintTodos();
   }
 }
-function saveDailyTodoNote(day8, item, owner2) {
-  const draft = dailyTodoDraft(day8, item.id);
+function saveDailyTodoNote(day9, item, owner2) {
+  const draft = dailyTodoDraft(day9, item.id);
   if (!draft) return true;
   if (draft.save) return draft.save;
   if (!draft.check && draft.text === draft.base) {
-    finishDailyTodoNote(day8, draft);
+    finishDailyTodoNote(day9, draft);
     return true;
   }
   draft.error = "";
-  draft.save = storeDailyTodoNote(day8, item, owner2, draft, draft.text);
+  draft.save = storeDailyTodoNote(day9, item, owner2, draft, draft.text);
   return draft.save;
 }
 async function commitTodoNote(input, { retry = false } = {}) {
@@ -8466,10 +8466,10 @@ async function commitTodoNote(input, { retry = false } = {}) {
   if (todoRepainting()) return;
   const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
   if (!context || context.day.noteEdit?.id !== context.item.id) return;
-  const { day: day8, item, owner: owner2 } = context;
+  const { day: day9, item, owner: owner2 } = context;
   rememberNote(input);
-  if (day8.noteEdit.error && !retry) return;
-  if (await saveDailyTodoNote(day8, item, owner2) && todoSessionActive(owner2)) paintTodos();
+  if (day9.noteEdit.error && !retry) return;
+  if (await saveDailyTodoNote(day9, item, owner2) && todoSessionActive(owner2)) paintTodos();
 }
 async function submitTodoNote({ form, data: data3 }) {
   const context = todoActionContext({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner });
@@ -8594,69 +8594,69 @@ async function submitTodoText({ form, data: data3 }) {
     button2.disabled = false;
   }
 }
-function renderTodoUndo(day8) {
-  return [...day8.removals.entries()].map(([id2, ticket2]) => {
+function renderTodoUndo(day9) {
+  return [...day9.removals.entries()].map(([id2, ticket2]) => {
     const label = ticket2.phase === "deleting" ? "删除中…" : ticket2.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label}：${e(ticket2.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day8.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id2)}" data-date="${e(day9.date)}"
 data-owner="${e(todoOwner())}" ${ticket2.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day8, id2, ticket2, owner2) {
+function expireTodoUndo(day9, id2, ticket2, owner2) {
   clearTimeout(ticket2.timer);
   ticket2.timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day8.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
-    day8.removals.delete(id2);
+    if (!todoSessionActive(owner2) || day9.removals.get(id2) !== ticket2 || ticket2.phase !== "ready") return;
+    day9.removals.delete(id2);
     paintTodos();
   }, 8e3);
   ticket2.timer?.unref?.();
 }
-async function todoActionFailure(day8, error2, owner2) {
+async function todoActionFailure(day9, error2, owner2) {
   if (!todoSessionActive(owner2) || isRequestAbort(error2) || error2.staleSession) return;
-  day8.error = error2.message;
-  if ([404, 409].includes(error2.status) && day8.date === todoDate()) {
-    day8.error = "这项计划已更新，请核对最新内容后再操作。";
+  day9.error = error2.message;
+  if ([404, 409].includes(error2.status) && day9.date === todoDate()) {
+    day9.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
 async function deleteTodo(options3) {
   const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day8, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
-  day8.removals.set(item.id, ticket2);
-  day8.error = "";
-  day8.notice = "";
-  day8.revision++;
+  const { day: day9, item, owner: owner2 } = context, ticket2 = { item, phase: "deleting", timer: null };
+  day9.removals.set(item.id, ticket2);
+  day9.error = "";
+  day9.notice = "";
+  day9.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day8.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day9.date, version: item.version } });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day8, saved);
+    mergeTodo(day9, saved);
     ticket2.item = saved;
     ticket2.phase = "ready";
-    expireTodoUndo(day8, item.id, ticket2, owner2);
+    expireTodoUndo(day9, item.id, ticket2, owner2);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day8.removals.delete(item.id);
-    await todoActionFailure(day8, error2, owner2);
+    day9.removals.delete(item.id);
+    await todoActionFailure(day9, error2, owner2);
     if (todoSessionActive(owner2) && item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day8.revision++;
+      day9.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date2 !== todoDate() || !todoSessionActive(owner2)) return;
-  const day8 = todoDay(date2), ticket2 = day8.removals.get(id2);
+  const day9 = todoDay(date2), ticket2 = day9.removals.get(id2);
   if (!ticket2 || ticket2.phase !== "ready") return;
   clearTimeout(ticket2.timer);
   ticket2.phase = "restoring";
-  mergeTodo(day8, ticket2.item);
-  day8.error = "";
-  day8.revision++;
+  mergeTodo(day9, ticket2.item);
+  day9.error = "";
+  day9.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id2)}/restore`, {
@@ -8664,73 +8664,73 @@ async function restoreTodo({ id: id2, date: date2, owner: owner2 = todoOwner() }
       body: { date: date2, version: ticket2.item.version }
     });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day8, saved);
-    day8.removals.delete(id2);
-    setTodoNotice(day8, "已恢复");
+    mergeTodo(day9, saved);
+    day9.removals.delete(id2);
+    setTodoNotice(day9, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    if (error2.status === 409) day8.removals.delete(id2);
+    if (error2.status === 409) day9.removals.delete(id2);
     else {
       ticket2.phase = "ready";
-      expireTodoUndo(day8, id2, ticket2, owner2);
+      expireTodoUndo(day9, id2, ticket2, owner2);
     }
-    await todoActionFailure(day8, error2, owner2);
+    await todoActionFailure(day9, error2, owner2);
     if (todoSessionActive(owner2) && ticket2.item.template_id && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day8.revision++;
+      day9.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day8, item) {
-  let request2 = day8.templateLinks.get(item.id);
+function todoTemplateRequest(day9, item) {
+  let request2 = day9.templateLinks.get(item.id);
   if (!request2 || request2.version !== item.version || request2.template_version !== (item.template_version || 0)) {
     request2 = {
-      date: day8.date,
+      date: day9.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day8.templateLinks.set(item.id, request2);
+    day9.templateLinks.set(item.id, request2);
   }
   return request2;
 }
 async function changeTodoTemplate(options3, remove = false) {
   const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day8, item, owner: owner2 } = context;
+  const { day: day9, item, owner: owner2 } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day8.templateWrites.add(item.id);
-  day8.error = "";
-  day8.notice = "";
-  day8.revision++;
+  day9.templateWrites.add(item.id);
+  day9.error = "";
+  day9.notice = "";
+  day9.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day8, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day9, item)
     });
     if (!todoSessionActive(owner2)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day8, saved.todo);
+      mergeTodo(day9, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day8.templateLinks.delete(item.id);
-    setTodoNotice(day8, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day9.templateLinks.delete(item.id);
+    setTodoNotice(day9, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day8.date === todoDate()) await loadTodos();
+    if (remove && day9.date === todoDate()) await loadTodos();
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      await todoActionFailure(day8, error2, owner2);
+      await todoActionFailure(day9, error2, owner2);
       if (todoSessionActive(owner2) && [404, 409].includes(error2.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day8.templateWrites.delete(item.id);
-      day8.revision++;
+      day9.templateWrites.delete(item.id);
+      day9.revision++;
       paintTodos();
     }
   }
@@ -8849,10 +8849,10 @@ var monthLoader = createTodoMonthLoader({
   active: (owner2) => owner2 === monthOwner() && todoSessionActive(todoOwner()),
   async seed(month, owner2, { refresh = false } = {}) {
     const loaded = [];
-    if (todosState.owner === todoOwner()) for (const [date2, day8] of todosState.days) {
-      const stamp4 = monthDayOwners.get(day8);
-      if (date2.startsWith(month + "-") && day8.loaded && stamp4?.owner === owner2 && (!refresh || todoPending(day8))) {
-        loaded.push({ date: date2, items: monthDayItems(day8), readAt: stamp4.at, pending: todoPending(day8) });
+    if (todosState.owner === todoOwner()) for (const [date2, day9] of todosState.days) {
+      const stamp4 = monthDayOwners.get(day9);
+      if (date2.startsWith(month + "-") && day9.loaded && stamp4?.owner === owner2 && (!refresh || todoPending(day9))) {
+        loaded.push({ date: date2, items: monthDayItems(day9), readAt: stamp4.at, pending: todoPending(day9) });
       }
     }
     const offline = getOfflineRuntime(), scope = offline?.state.scope;
@@ -8927,15 +8927,15 @@ function todoCalendar(date2) {
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
 <div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats2}
 <div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day8) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day8}</span>`).join("")}
-${visible3.map((day8) => day8 ? todoCalendarDay(day8, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day9) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day9}</span>`).join("")}
+${visible3.map((day9) => day9 ? todoCalendarDay(day9, date2) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day8 = todoDay(), month = todoCalendarMonth(day8.date);
+  const day9 = todoDay(), month = todoCalendarMonth(day9.date);
   if (todosState.calendarView === "week") {
-    const anchor = day8.date.startsWith(month) ? day8.date : `${month}-01`;
+    const anchor = day9.date.startsWith(month) ? day9.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
     weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
     const next = weekDate.toISOString().slice(0, 10);
@@ -8949,7 +8949,7 @@ function moveTodoMonth(offset) {
   todosState.calendarMonth = nextMonth2;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day8.date);
+  paintTodoCalendar(day9.date);
   void loadTodoMonth2(nextMonth2);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
@@ -9019,55 +9019,55 @@ function todoDateControls(date2) {
 <button class="btn" type="button" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn text" type="button" data-action="todo-today">今天</button></div></div>`;
 }
-function todoCountButton(item, day8, pending) {
+function todoCountButton(item, day9, pending) {
   const count3 = todoCount(item.note);
-  if (!count3 || day8.noteEdit?.id === item.id) return "";
+  if (!count3 || day9.noteEdit?.id === item.id) return "";
   const full = count3.target !== null && count3.done >= count3.target;
   const so = count3.target === null ? `${count3.done} 次` : `${count3.done}/${count3.target} 次`;
-  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day8.date)}"
+  return `<button class="todo-count-add btn small" type="button" data-action="todo-count-add" data-id="${e(item.id)}" data-date="${e(day9.date)}"
 aria-label="${full ? `已记满 ${count3.target} 次` : `记一次，目前 ${so}`}" ${pending || full ? "disabled" : ""}>${full ? "已满" : "+1"}</button>`;
 }
-function todoRow(item, day8) {
-  const pending = todoBusy(day8, item.id);
-  const completed = day8.updates.has(item.id) ? day8.updates.get(item.id) : item.completed;
-  const removal = day8.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day9) {
+  const pending = todoBusy(day9, item.id);
+  const completed = day9.updates.has(item.id) ? day9.updates.get(item.id) : item.completed;
+  const removal = day9.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2) return "";
-  const draft = dailyTodoDraft(day8, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
+  const draft = dailyTodoDraft(day9, item.id), hasDraft = draft && (draft.save || draft.check || draft.text !== draft.base);
   if (completed && !hasDraft && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
-  const note = todoNoteField(item, { date: day8.date, pending, editing: day8.noteEdit, error: draft?.error, hasDraft });
+  const note = todoNoteField(item, { date: day9.date, pending, editing: day9.noteEdit, error: draft?.error, hasDraft });
   const check2 = `todo-check-${e(item.id)}`;
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day8.date)}">
-<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day8.date)}"
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day9.date)}">
+<label class="daily-todo-check" for="${check2}"><input id="${check2}" type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day9.date)}"
 ${completed ? "checked" : ""} aria-disabled="${pending}"></label>
 <div class="daily-todo-main"><label class="daily-todo-text" for="${check2}">${e(item.text)}</label>
-${note}</div>${todoCountButton(item, day8, pending)}
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day8.date)}"
+${note}</div>${todoCountButton(item, day9, pending)}
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day9.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day8) {
-  const label = day8.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day8.date)}" aria-label="添加 ${e(day8.date)} 的计划">
+function todoForm(day9) {
+  const label = day9.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day9.date)}" aria-label="添加 ${e(day9.date)} 的计划">
 <label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label}" value="${e(day8.draft)}" >
-<button class="btn primary" type="submit" ${day8.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label}" value="${e(day9.draft)}" >
+<button class="btn primary" type="submit" ${day9.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day8) {
-  const today2 = day8.date === bjtDate();
-  return `<time datetime="${e(day8.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day8.date)}</time>`;
+function todoCaption(day9) {
+  const today2 = day9.date === bjtDate();
+  return `<time datetime="${e(day9.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day9.date)}</time>`;
 }
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
-function todoHeading(day8) {
+function todoHeading(day9) {
   const selected = state.todoPanel || "today";
-  return `<span id="todo-caption" hidden>${todoCaption(day8)}</span><nav class="todo-page-tabs" aria-label="待办页面">
+  return `<span id="todo-caption" hidden>${todoCaption(day9)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["templates", "常用"]].map(([panel2, label]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
   aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label}</button>`).join("")}</nav>`;
 }
-function renderTodoHistory(day8) {
+function renderTodoHistory(day9) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day8.date)}" data-today="${bjtDate()}">
-${todoCalendar(day8.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day8.date))}</h3></section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day9.date)}" data-today="${bjtDate()}">
+${todoCalendar(day9.date)}</div><h3 class="notes-read-title todo-day-title">${e(todoDayTitle(day9.date))}</h3></section>`;
 }
 function paintTodoPanels(root3) {
   const panel2 = state.todoPanel || "";
@@ -9097,62 +9097,62 @@ async function setTodoPanel(panel2) {
   const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day8) {
-  return Boolean(day8.adding || day8.updates.size || day8.noteCompletions.size || day8.templateWrites.size || [...day8.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
+function todoPending(day9) {
+  return Boolean(day9.adding || day9.updates.size || day9.noteCompletions.size || day9.templateWrites.size || [...day9.removals.values()].some((ticket2) => ticket2.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day8) {
-  if (todoPending(day8) || day8.error || todoPreferences().error) return "";
-  return day8.loading && !day8.loaded ? "" : day8.notice;
+function todoStatus(day9) {
+  if (todoPending(day9) || day9.error || todoPreferences().error) return "";
+  return day9.loading && !day9.loaded ? "" : day9.notice;
 }
-function paintTodoSaving(root3, day8) {
-  const busy2 = todoPending(day8);
+function paintTodoSaving(root3, day9) {
+  const busy2 = todoPending(day9);
   root3.setAttribute("aria-busy", String(busy2));
   if (!busy2) {
-    clearTimeout(savingTimers.get(day8));
-    savingTimers.delete(day8);
-    savingTimes.delete(day8);
+    clearTimeout(savingTimers.get(day9));
+    savingTimers.delete(day9);
+    savingTimes.delete(day9);
     return;
   }
-  if (!savingTimes.has(day8)) {
-    savingTimes.set(day8, Date.now());
-    savingTimers.set(day8, setTimeout(() => {
-      if (todosVisible() && todoDay() === day8) paintTodos();
+  if (!savingTimes.has(day9)) {
+    savingTimes.set(day9, Date.now());
+    savingTimers.set(day9, setTimeout(() => {
+      if (todosVisible() && todoDay() === day9) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day8) >= 900) $("#todo-status", root3).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day9) >= 900) $("#todo-status", root3).textContent = "正在同步…";
 }
-function pendingTodo(day8) {
-  return day8.adding && day8.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day8.submitting.text)}</span></li>` : "";
+function pendingTodo(day9) {
+  return day9.adding && day9.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day9.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day8) {
-  const error2 = [day8.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error2 ? `${e(error2)} ${day8.failedCreate ? `<span>「${e(day8.failedCreate.text)}」</span>
+function todoFeedback(day9) {
+  const error2 = [day9.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error2 ? `${e(error2)} ${day9.failedCreate ? `<span>「${e(day9.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day8) {
-  return state.todoPanel === "history" && day8.loaded && !day8.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day9) {
+  return state.todoPanel === "history" && day9.loaded && !day9.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day8 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day8.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day8)}</div>
-${renderTodoHistory(day8)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoDateControls(day8.date)}<div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day8)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day8)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day8)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day8)}</div>
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day8)}</p>
+  const day9 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day9.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day9)}</div>
+${renderTodoHistory(day9)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoDateControls(day9.date)}<div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day9)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day9)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day9)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day9)}</div>
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day9)}</p>
 <ul id="todo-due" class="daily-todo-items todo-due-items" aria-label="快到期的未来待办" hidden></ul>
-<ul id="todo-items" class="daily-todo-items">${day8.items.map((item) => todoRow(item, day8)).join("")}${pendingTodo(day8)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day8) : ""}</div>
+<ul id="todo-items" class="daily-todo-items">${day9.items.map((item) => todoRow(item, day9)).join("")}${pendingTodo(day9)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day9) : ""}</div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
-function monthDayItems(day8) {
-  return day8.items.filter((item) => {
-    const removal = day8.removals.get(item.id);
+function monthDayItems(day9) {
+  return day9.items.filter((item) => {
+    const removal = day9.removals.get(item.id);
     return !removal || removal.phase === "restoring";
-  }).map((item) => day8.updates.has(item.id) ? { ...item, completed: day8.updates.get(item.id) } : item);
+  }).map((item) => day9.updates.has(item.id) ? { ...item, completed: day9.updates.get(item.id) } : item);
 }
 var repaintingTodos = false;
 function todoRepainting() {
@@ -9170,20 +9170,20 @@ function paintTodoDom() {
   notifyTodoChanges();
   const root3 = $("#daily-todos");
   if (!root3 || !todosVisible()) return;
-  const day8 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
-  const stamp4 = monthDayOwners.get(day8);
-  if (day8.loaded && stamp4?.owner === monthOwner()) {
-    if (stamp4.revision !== day8.revision) {
+  const day9 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const stamp4 = monthDayOwners.get(day9);
+  if (day9.loaded && stamp4?.owner === monthOwner()) {
+    if (stamp4.revision !== day9.revision) {
       stamp4.at = Date.now();
-      stamp4.revision = day8.revision;
+      stamp4.revision = day9.revision;
     }
-    if (monthLoader.update(monthOwner(), day8.date, monthDayItems(day8))) {
+    if (monthLoader.update(monthOwner(), day9.date, monthDayItems(day9))) {
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
   }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root3.dataset.date !== day8.date) {
+  if (root3.dataset.date !== day9.date) {
     const active5 = document.activeElement;
     const action = active5?.dataset?.action;
     const refocus = active5?.closest?.("#todo-date-bar") ? active5.id === "todo-date" ? "#todo-date" : ["todo-prev", "todo-next", "todo-today"].includes(action) ? `#todo-date-bar [data-action="${action}"]` : "" : "";
@@ -9195,44 +9195,44 @@ function paintTodoDom() {
   const form = $("#todo-form", root3), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root3);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
   const liveNote = document.activeElement?.matches?.("[data-todo-note-input]:not([data-future])") ? document.activeElement : null;
-  const keepNote = liveNote?.isConnected && day8.noteEdit?.id === liveNote.dataset.id;
+  const keepNote = liveNote?.isConnected && day9.noteEdit?.id === liveNote.dataset.id;
   const parts2 = {
-    "todo-caption": todoCaption(day8),
-    "todo-status": todoStatus(day8),
-    "todo-undo": renderTodoUndo(day8),
-    "todo-items": day8.items.map((item) => todoRow(item, day8)).join("") + pendingTodo(day8),
-    "todo-feedback": todoFeedback(day8),
-    "todo-history-empty": todoHistoryEmpty(day8)
+    "todo-caption": todoCaption(day9),
+    "todo-status": todoStatus(day9),
+    "todo-undo": renderTodoUndo(day9),
+    "todo-items": day9.items.map((item) => todoRow(item, day9)).join("") + pendingTodo(day9),
+    "todo-feedback": todoFeedback(day9),
+    "todo-history-empty": todoHistoryEmpty(day9)
   };
   for (const [id2, html] of Object.entries(parts2)) {
     if (id2 === "todo-items" && keepNote) continue;
     const node3 = $("#" + id2, root3);
     if (node3 && node3.innerHTML !== html) node3.innerHTML = html;
   }
-  paintTodoCalendar(day8.date);
+  paintTodoCalendar(day9.date);
   const input = $("#todo-text", root3), button2 = $("#todo-form button[type=submit]", root3);
-  const prompt = day8.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label = $('label[for="todo-text"]', root3);
-  if (input && input.value !== day8.draft) input.value = day8.draft;
+  const prompt = day9.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label = $('label[for="todo-text"]', root3);
+  if (input && input.value !== day9.draft) input.value = day9.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label) label.textContent = prompt;
   if (button2) {
-    button2.disabled = day8.adding;
+    button2.disabled = day9.adding;
     button2.textContent = "添加";
-    button2.setAttribute("aria-busy", String(day8.adding));
+    button2.setAttribute("aria-busy", String(day9.adding));
   }
-  paintTodoSaving(root3, day8);
+  paintTodoSaving(root3, day9);
   paintTodoPanels(root3);
   paintUnscheduledTodos();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root3) || $("[data-todo-id]", root3) || $("#todo-text", root3))?.focus();
   paintTodoTemplates();
-  paintSmartTodo(root3, day8);
+  paintSmartTodo(root3, day9);
 }
-function todoReadActive(owner2, version2, date2, day8, sequence5) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day8.sequence === sequence5 && todosVisible();
+function todoReadActive(owner2, version2, date2, day9, sequence5) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date2 && day9.sequence === sequence5 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -9245,20 +9245,20 @@ async function loadTodos(context) {
   }
   void loadTodoTemplates({ ensure: true });
   void loadDueTodos();
-  const day8 = todoDay(), date2 = day8.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
-  const sequence5 = ++day8.sequence, revision2 = day8.revision;
-  day8.loading = true;
-  day8.error = "";
+  const day9 = todoDay(), date2 = day9.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
+  const sequence5 = ++day9.sequence, revision2 = day9.revision;
+  day9.loading = true;
+  day9.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`, { context });
-    if (!todoReadActive(owner2, version2, date2, day8, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
-    if (day8.revision !== revision2) return loadTodos(context);
+    if (!todoReadActive(owner2, version2, date2, day9, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
+    if (day9.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day8.items = data3.items;
-    day8.loaded = true;
-    monthDayOwners.set(day8, { owner: monthOwner(), at: Date.now(), revision: day8.revision });
-    if (date2 === bjtDate()) void carryUnfinishedTodos(day8, owner2);
+    day9.items = data3.items;
+    day9.loaded = true;
+    monthDayOwners.set(day9, { owner: monthOwner(), at: Date.now(), revision: day9.revision });
+    if (date2 === bjtDate()) void carryUnfinishedTodos(day9, owner2);
     if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date2, data3.items);
       const calendar = $("#todo-calendar");
@@ -9266,11 +9266,11 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error2) {
-    if (todoReadActive(owner2, version2, date2, day8, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day8.error = error2.message;
+    if (todoReadActive(owner2, version2, date2, day9, sequence5) && !isRequestAbort(error2) && !error2.staleSession) day9.error = error2.message;
   } finally {
-    if (todoSessionActive(owner2) && day8.sequence === sequence5) {
-      const visible3 = todoReadActive(owner2, version2, date2, day8, sequence5);
-      day8.loading = false;
+    if (todoSessionActive(owner2) && day9.sequence === sequence5) {
+      const visible3 = todoReadActive(owner2, version2, date2, day9, sequence5);
+      day9.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth2(todoCalendarMonth(date2));
       if (!visible3 && todoObservers.size && date2 === bjtDate()) void loadFloatingToday();
@@ -9278,17 +9278,17 @@ async function loadTodos(context) {
   }
 }
 var carriedDays = /* @__PURE__ */ new Map();
-async function carryUnfinishedTodos(day8, owner2) {
-  if (carriedDays.get(owner2) === day8.date) return;
-  carriedDays.set(owner2, day8.date);
+async function carryUnfinishedTodos(day9, owner2) {
+  if (carriedDays.get(owner2) === day9.date) return;
+  carriedDays.set(owner2, day9.date);
   try {
     const result = await apiNetwork("/todo-carry", { method: "POST", body: {} });
-    if (!todoSessionActive(owner2) || !result?.carried?.length || day8.date !== bjtDate()) return;
-    day8.revision++;
-    setTodoNotice(day8, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
+    if (!todoSessionActive(owner2) || !result?.carried?.length || day9.date !== bjtDate()) return;
+    day9.revision++;
+    setTodoNotice(day9, `已把前几天没做完的 ${result.carried.length} 项移到今天`);
     void loadTodos();
   } catch (error2) {
-    if (carriedDays.get(owner2) === day8.date && !error2?.staleSession) carriedDays.delete(owner2);
+    if (carriedDays.get(owner2) === day9.date && !error2?.staleSession) carriedDays.delete(owner2);
   }
 }
 function inputTodo(target) {
@@ -9298,97 +9298,97 @@ function inputTodo(target) {
     notifyTodoChanges();
   }
 }
-function showTodoFailure(day8, error2) {
+function showTodoFailure(day9, error2) {
   if (isRequestAbort(error2) || error2.staleSession) return;
-  day8.error = /preceding local version/.test(error2.message || "") ? "这项待办上一步还在同步，请等几秒再点一次。" : error2.message;
+  day9.error = /preceding local version/.test(error2.message || "") ? "这项待办上一步还在同步，请等几秒再点一次。" : error2.message;
 }
-function setTodoNotice(day8, text) {
-  const owner2 = todoOwner(), version2 = ++day8.noticeVersion;
-  day8.notice = text;
+function setTodoNotice(day9, text) {
+  const owner2 = todoOwner(), version2 = ++day9.noticeVersion;
+  day9.notice = text;
   const timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day8.noticeVersion !== version2) return;
-    day8.notice = "";
-    if (day8.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner2) || day9.noticeVersion !== version2) return;
+    day9.notice = "";
+    if (day9.date === todoDate()) paintTodos();
   }, 2500);
   timer?.unref?.();
 }
-async function saveTodo(day8, request2, templateId = "") {
-  const owner2 = todoOwner(), submittedDraft = day8.draft;
-  day8.adding = true;
-  day8.submitting = request2;
-  day8.failedCreate = null;
-  day8.error = "";
-  day8.notice = "";
-  day8.revision++;
+async function saveTodo(day9, request2, templateId = "") {
+  const owner2 = todoOwner(), submittedDraft = day9.draft;
+  day9.adding = true;
+  day9.submitting = request2;
+  day9.failedCreate = null;
+  day9.error = "";
+  day9.notice = "";
+  day9.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request2 });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day8, item);
-    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day8.date.slice(0, 7)) {
-      monthSnapshot.days.set(day8.date, [...day8.items]);
+    mergeTodo(day9, item);
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day9.date.slice(0, 7)) {
+      monthSnapshot.days.set(day9.date, [...day9.items]);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
-    if (templateId) day8.templateCreates.delete(templateId);
+    if (templateId) day9.templateCreates.delete(templateId);
     else {
-      if (day8.draft === submittedDraft && submittedDraft.trim() === request2.text) day8.draft = "";
-      day8.create = null;
+      if (day9.draft === submittedDraft && submittedDraft.trim() === request2.text) day9.draft = "";
+      day9.create = null;
     }
-    setTodoNotice(day8, "已添加");
+    setTodoNotice(day9, "已添加");
   } catch (error2) {
     if (todoSessionActive(owner2)) {
-      day8.failedCreate = request2;
-      showTodoFailure(day8, error2);
+      day9.failedCreate = request2;
+      showTodoFailure(day9, error2);
       if (error2.status === 410) {
-        if (templateId) day8.templateCreates.delete(templateId);
-        else day8.create = null;
-        day8.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day9.templateCreates.delete(templateId);
+        else day9.create = null;
+        day9.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day8.adding = false;
-      day8.submitting = null;
-      day8.revision++;
+      day9.adding = false;
+      day9.submitting = null;
+      day9.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day8 = todoDay();
-  if (todosVisible() && day8.failedCreate && !day8.adding)
-    await saveTodo(day8, day8.failedCreate, day8.failedCreate.template_id || "");
+  const day9 = todoDay();
+  if (todosVisible() && day9.failedCreate && !day9.adding)
+    await saveTodo(day9, day9.failedCreate, day9.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data: data3 }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day8 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
-  if (day8.adding) return;
-  day8.draft = String(data3.text || "");
-  if (day8.date !== todoDate()) {
+  const day9 = todoDay(form.dataset.date), text = String(data3.text || "").trim();
+  if (day9.adding) return;
+  day9.draft = String(data3.text || "");
+  if (day9.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day8.error = "请填写 1–500 字的计划。";
+    day9.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (smartTodoReady(text)) return confirmSmartTodo(day8);
-  if (smartTodoWanted(text)) return startSmartTodo(day8, text, smartHooks);
-  await addTypedTodo(day8, text);
+  if (smartTodoReady(text)) return confirmSmartTodo(day9);
+  if (smartTodoWanted(text)) return startSmartTodo(day9, text, smartHooks);
+  await addTypedTodo(day9, text);
 }
-async function addTypedTodo(day8, text) {
-  if (!day8.create || day8.create.text !== text) day8.create = { id: crypto.randomUUID(), date: day8.date, text };
-  await saveTodo(day8, day8.create);
+async function addTypedTodo(day9, text) {
+  if (!day9.create || day9.create.text !== text) day9.create = { id: crypto.randomUUID(), date: day9.date, text };
+  await saveTodo(day9, day9.create);
 }
 var smartHooks = {
   repaint: () => paintTodos(),
-  plain: (day8, text) => addTypedTodo(day8, text),
+  plain: (day9, text) => addTypedTodo(day9, text),
   // "删掉每周看电影" handles an existing to-do: the shown day's rows plus 未来待办.
-  commandItems: (day8) => day8.items,
-  consume: (day8, sentence) => {
-    if (day8.draft.trim() === sentence) day8.draft = "";
+  commandItems: (day9) => day9.items,
+  consume: (day9, sentence) => {
+    if (day9.draft.trim() === sentence) day9.draft = "";
     const input = $("#todo-text");
     if (input && input.value.trim() === sentence) input.value = "";
   },
@@ -9396,34 +9396,34 @@ var smartHooks = {
     void loadTodos();
     refreshFutureTodos();
   },
-  async save(day8, request2, note) {
-    await saveTodo(day8, request2);
-    if (day8.failedCreate === request2) {
-      day8.failedCreate = null;
-      throw new Error(day8.error || "添加失败，请稍后再试");
+  async save(day9, request2, note) {
+    await saveTodo(day9, request2);
+    if (day9.failedCreate === request2) {
+      day9.failedCreate = null;
+      throw new Error(day9.error || "添加失败，请稍后再试");
     }
-    day8.draft = "";
-    day8.error = "";
-    await startCount(day8, day8.items.find((row) => row.id === request2.id), note);
+    day9.draft = "";
+    day9.error = "";
+    await startCount(day9, day9.items.find((row) => row.id === request2.id), note);
     paintTodos();
   },
-  async saveElsewhere(day8, request2, label, note) {
+  async saveElsewhere(day9, request2, label, note) {
     await addToOtherDay(request2, note);
-    day8.draft = "";
-    setTodoNotice(day8, `已添加到 ${label}`);
+    day9.draft = "";
+    setTodoNotice(day9, `已添加到 ${label}`);
   },
-  async saveFuture(day8, proposal, label) {
+  async saveFuture(day9, proposal, label) {
     await addFutureTodo(proposal);
-    day8.draft = "";
-    setTodoNotice(day8, `已加到未来待办 · ${label}`);
+    day9.draft = "";
+    setTodoNotice(day9, `已加到未来待办 · ${label}`);
   },
-  async saveDaily(day8, text, note) {
+  async saveDaily(day9, text, note) {
     const template = await api("/todo-templates", { method: "POST", body: { id: crypto.randomUUID(), text } });
     refreshOpenTodoTemplates();
-    day8.draft = "";
+    day9.draft = "";
     await submitTodoTemplate(template);
-    if (day8.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
-    await startCount(day8, day8.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
+    if (day9.failedCreate?.template_id === template.id) throw new Error("已存为常用，但没能加到今天，可以在常用里点一下");
+    await startCount(day9, day9.items.find((row) => row.template_id === template.id && !row.deleted_at), note);
     paintTodos();
   }
 };
@@ -9451,13 +9451,13 @@ setFutureBridge({
   toDay: (request2, note) => addToOtherDay(request2, note),
   daily: (text, note) => smartHooks.saveDaily(todoDay(bjtDate()), text, note)
 });
-async function startCount(day8, item, note) {
+async function startCount(day9, item, note) {
   if (!note || !item) return;
   try {
-    mergeTodo(day8, await countNote(item, note));
-    day8.revision++;
+    mergeTodo(day9, await countNote(item, note));
+    day9.revision++;
   } catch {
-    setTodoNotice(day8, "已添加，但计数没设上，可以在“⋯”里设置次数");
+    setTodoNotice(day9, "已添加，但计数没设上，可以在“⋯”里设置次数");
   }
 }
 async function countNote(item, note, tries = 8) {
@@ -9472,99 +9472,99 @@ async function countNote(item, note, tries = 8) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day8 = todoDay();
-  if (day8.adding || todoTemplateAdded(day8, template.id)) return;
-  let request2 = day8.templateCreates.get(template.id);
+  const day9 = todoDay();
+  if (day9.adding || todoTemplateAdded(day9, template.id)) return;
+  let request2 = day9.templateCreates.get(template.id);
   if (!request2 || request2.text !== template.text) {
-    request2 = { id: crypto.randomUUID(), date: day8.date, text: template.text, template_id: template.id };
-    day8.templateCreates.set(template.id, request2);
+    request2 = { id: crypto.randomUUID(), date: day9.date, text: template.text, template_id: template.id };
+    day9.templateCreates.set(template.id, request2);
   }
-  await saveTodo(day8, request2, template.id);
+  await saveTodo(day9, request2, template.id);
 }
 async function toggleTodo(target, { floating = false } = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
-  const day8 = todoDay(target.dataset.date), owner2 = todoOwner();
+  const day9 = todoDay(target.dataset.date), owner2 = todoOwner();
   const id2 = target.dataset.todoId;
-  let item = day8.items.find((row) => row.id === id2);
-  if (!item || item.deleted_at || day8.date !== (floating ? bjtDate() : todoDate())) return;
-  if (todoBusy(day8, item.id)) {
-    target.checked = day8.updates.has(item.id) ? day8.updates.get(item.id) : item.completed;
+  let item = day9.items.find((row) => row.id === id2);
+  if (!item || item.deleted_at || day9.date !== (floating ? bjtDate() : todoDate())) return;
+  if (todoBusy(day9, item.id)) {
+    target.checked = day9.updates.has(item.id) ? day9.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  const note = saveDailyTodoNote(day8, item, owner2);
+  const note = saveDailyTodoNote(day9, item, owner2);
   if (note !== true) {
-    day8.noteCompletions.add(id2);
+    day9.noteCompletions.add(id2);
     target.checked = item.completed;
     paintTodos();
     const saved = await note;
     if (!todoSessionActive(owner2)) return;
-    day8.noteCompletions.delete(id2);
+    day9.noteCompletions.delete(id2);
     if (!saved) {
-      day8.error = "备注还未存好，本次操作未提交。草稿已保留。";
+      day9.error = "备注还未存好，本次操作未提交。草稿已保留。";
       paintTodos();
       return;
     }
-    item = day8.items.find((row) => row.id === id2);
-    if (!item || item.deleted_at || day8.date !== (floating ? bjtDate() : todoDate())) {
+    item = day9.items.find((row) => row.id === id2);
+    if (!item || item.deleted_at || day9.date !== (floating ? bjtDate() : todoDate())) {
       paintTodos();
       return;
     }
   }
-  day8.updates.set(item.id, completed);
-  day8.error = "";
-  day8.notice = "";
-  day8.revision++;
+  day9.updates.set(item.id, completed);
+  day9.error = "";
+  day9.notice = "";
+  day9.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner2)) {
-      mergeTodo(day8, updated);
+      mergeTodo(day9, updated);
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error2) {
     if (!todoSessionActive(owner2)) return;
-    day8.updates.set(item.id, item.completed);
-    showTodoFailure(day8, error2);
-    if (error2.status === 409 && (floating || day8.date === todoDate())) {
+    day9.updates.set(item.id, item.completed);
+    showTodoFailure(day9, error2);
+    if (error2.status === 409 && (floating || day9.date === todoDate())) {
       if (floating) await loadFloatingToday();
       else await loadTodos();
       if (todoSessionActive(owner2)) {
-        day8.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
+        day9.error ||= "这项计划已更新，已重新读取，请核对后再操作。";
         if (item.template_id) refreshOpenTodoTemplates();
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day8.updates.delete(item.id);
-      day8.revision++;
+      day9.updates.delete(item.id);
+      day9.revision++;
       paintTodos();
     }
   }
 }
 async function loadFloatingToday() {
   if (!state.me) return;
-  const date2 = bjtDate(), day8 = todoDay(date2), owner2 = todoOwner();
-  const sequence5 = ++day8.sequence, revision2 = day8.revision;
-  const current2 = () => todoSessionActive(owner2) && date2 === bjtDate() && day8.sequence === sequence5;
-  day8.loading = true;
-  day8.error = "";
+  const date2 = bjtDate(), day9 = todoDay(date2), owner2 = todoOwner();
+  const sequence5 = ++day9.sequence, revision2 = day9.revision;
+  const current3 = () => todoSessionActive(owner2) && date2 === bjtDate() && day9.sequence === sequence5;
+  day9.loading = true;
+  day9.error = "";
   paintTodos();
   try {
     const data3 = await api(`/todos?date=${encodeURIComponent(date2)}`);
-    if (!current2()) return;
-    if (day8.revision !== revision2) {
+    if (!current3()) return;
+    if (day9.revision !== revision2) {
       void loadFloatingToday();
       return;
     }
     receiveTodoPreferences(data3.completed_mode, data3.preferences_version);
-    day8.items = data3.items;
-    day8.loaded = true;
+    day9.items = data3.items;
+    day9.loaded = true;
   } catch (error2) {
-    if (current2() && !isRequestAbort(error2) && !error2.staleSession) day8.error = error2.message;
+    if (current3() && !isRequestAbort(error2) && !error2.staleSession) day9.error = error2.message;
   } finally {
-    if (current2()) {
-      day8.loading = false;
+    if (current3()) {
+      day9.loading = false;
       paintTodos();
     }
   }
@@ -9610,16 +9610,16 @@ function registerTodosClock() {
     document,
     selection() {
       if (!state.me || state.page !== "todos" || ["future", "templates"].includes(state.todoPanel) || document.activeElement?.matches?.("[data-todo-note-input]") || document.querySelector("#overlay > *, .popover")) return null;
-      const day8 = todoDay(), offline = getOfflineRuntime()?.state;
-      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day8.draft) return null;
-      if (!day8.loaded || day8.loading || day8.noteEdit || todoPending(day8) || offline?.pending || offline?.conflicts) return null;
-      return { date: day8.date, day: day8, key: JSON.stringify([monthOwner(), runtime.renderVersion, day8.date, day8.sequence, day8.revision]) };
+      const day9 = todoDay(), offline = getOfflineRuntime()?.state;
+      if (document.activeElement?.id === "todo-text" && document.activeElement.value !== day9.draft) return null;
+      if (!day9.loaded || day9.loading || day9.noteEdit || todoPending(day9) || offline?.pending || offline?.conflicts) return null;
+      return { date: day9.date, day: day9, key: JSON.stringify([monthOwner(), runtime.renderVersion, day9.date, day9.sequence, day9.revision]) };
     },
     read: (date2) => api("/todos?date=" + encodeURIComponent(date2)),
-    apply({ date: date2, day: day8 }, data3) {
-      if (!Array.isArray(data3?.items) || JSON.stringify(day8.items) === JSON.stringify(data3.items)) return;
-      day8.items = data3.items;
-      monthDayOwners.set(day8, { owner: monthOwner(), at: Date.now(), revision: day8.revision });
+    apply({ date: date2, day: day9 }, data3) {
+      if (!Array.isArray(data3?.items) || JSON.stringify(day9.items) === JSON.stringify(data3.items)) return;
+      day9.items = data3.items;
+      monthDayOwners.set(day9, { owner: monthOwner(), at: Date.now(), revision: day9.revision });
       if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date2.slice(0, 7)) monthSnapshot.days.set(date2, data3.items);
       paintTodos();
     }
@@ -9712,18 +9712,25 @@ function whenLabel(todo, today2 = bjtDate()) {
 async function suggestForNote(item, labels4) {
   const text = String(item?.serverText ?? item?.draft ?? "").trim(), key = `${item?.id}:${item?.version}`;
   if (!item?.id || [...text].length < 4 || readings.get(item.id)?.key === key) return;
-  const reading = { key, status: "reading", todo: null, labels: [], done: {}, error: "" };
+  const reading = { key, status: "reading", todo: null, todos: [], picked: [], labels: [], done: {}, error: "" };
   readings.set(item.id, reading);
   repaint();
   try {
     const data3 = await api("/note-suggest", { method: "POST", body: { text, labels: labels4, current: item.labels || [] } });
     if (readings.get(item.id) !== reading) return;
-    if (!data3.needs_model || !data3.todo && !data3.labels?.length) {
+    const todos = Array.isArray(data3.todos) ? data3.todos.filter((todo) => todo?.text) : data3.todo ? [data3.todo] : [];
+    if (!data3.needs_model || !todos.length && !data3.labels?.length) {
       readings.delete(item.id);
       repaint();
       return;
     }
-    Object.assign(reading, { status: "ready", todo: data3.todo, labels: data3.labels || [] });
+    Object.assign(reading, {
+      status: "ready",
+      todo: todos.length === 1 ? todos[0] : null,
+      todos: todos.length > 1 ? todos : [],
+      picked: todos.map(() => true),
+      labels: data3.labels || []
+    });
   } catch {
     readings.delete(item.id);
   }
@@ -9742,7 +9749,7 @@ function paintNoteSuggestion(node3, item) {
     box.setAttribute("role", "status");
     node3.append(box);
   }
-  const key = JSON.stringify([reading.status, reading.done, reading.error, reading.busy]);
+  const key = JSON.stringify([reading.status, reading.done, reading.error, reading.busy, reading.picked]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   const make = (tag2, className, text) => {
@@ -9783,16 +9790,67 @@ function paintNoteSuggestion(node3, item) {
       const when = reading.todo.inferred && reading.todo.when === "none" ? "" : whenLabel(reading.todo);
       row(reading.todo.inferred ? "灵感" : "待办", text, when, "todo", "加到待办", reading.done.todo ? `✓ 已加到 ${reading.done.todo}` : "");
     }
+    if (reading.todos.length) {
+      const list3 = make("div", "note-suggest-list");
+      reading.todos.forEach((todo, index) => {
+        const line = make("div", "note-suggest-item note-suggest-pick");
+        const on = reading.picked[index] !== false, added = reading.done.todos?.[index];
+        if (added) line.append(make("span", "note-suggest-done", "✓"));
+        else {
+          const pick = make("button", "note-suggest-check", on ? "☑" : "☐");
+          pick.type = "button";
+          pick.disabled = Boolean(reading.busy || reading.done.todos);
+          pick.setAttribute("aria-pressed", String(on));
+          pick.setAttribute("aria-label", (on ? "不要 " : "要 ") + todo.text);
+          pick.dataset.noteSuggest = "pick";
+          pick.dataset.noteSuggestId = item.id;
+          pick.dataset.noteSuggestIndex = String(index);
+          line.append(pick);
+        }
+        const body4 = make("span", "note-suggest-text", todo.text);
+        body4.append(make("em", "", whenLabel(todo)));
+        line.append(body4);
+        list3.append(line);
+      });
+      const head2 = make("div", "note-suggest-item");
+      head2.append(make("span", "note-suggest-tag", "待办"), make("span", "note-suggest-text", `这段话里有 ${reading.todos.length} 件事`));
+      const count3 = reading.picked.filter(Boolean).length;
+      if (reading.done.todos) head2.append(make("span", "note-suggest-done", `✓ 已加 ${Object.keys(reading.done.todos).length} 件`));
+      else {
+        const button2 = make("button", "note-suggest-btn", count3 ? `加 ${count3} 件到待办` : "先勾要哪几件");
+        button2.type = "button";
+        button2.disabled = Boolean(reading.busy) || !count3;
+        button2.dataset.noteSuggest = "todos";
+        button2.dataset.noteSuggestId = item.id;
+        head2.append(button2);
+      }
+      parts2.push(head2, list3);
+    }
     if (reading.labels.length) row("标签", reading.labels.join("、"), "", "labels", "贴上", reading.done.labels ? "✓ 已贴上" : "");
     if (reading.error) parts2.push(make("p", "note-suggest-error", reading.error));
   }
   box.replaceChildren(...parts2);
 }
-async function actOnNoteSuggestion(target, { relabel, current: current2 }) {
+async function addTodo(todo) {
+  if (FUTURE[todo.when] || todo.when === "deadline") await addFutureTodo(todo);
+  else {
+    const date2 = todo.when === "day" && todo.date ? todo.date : bjtDate();
+    await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: date2, text: todo.text } });
+  }
+  return FUTURE[todo.when] || todo.when === "deadline" ? `未来 · ${whenLabel(todo)}` : whenLabel(todo);
+}
+async function actOnNoteSuggestion(target, { relabel, current: current3 }) {
   const id2 = target.dataset.noteSuggestId, reading = readings.get(id2), action = target.dataset.noteSuggest;
   if (!reading || reading.busy) return;
   if (action === "dismiss") {
     readings.delete(id2);
+    repaint();
+    return;
+  }
+  if (action === "pick") {
+    const index = Number(target.dataset.noteSuggestIndex);
+    if (reading.done.todos || !Number.isInteger(index) || !reading.todos[index]) return;
+    reading.picked = reading.picked.map((on, at) => at === index ? !on : on);
     repaint();
     return;
   }
@@ -9801,15 +9859,18 @@ async function actOnNoteSuggestion(target, { relabel, current: current2 }) {
   repaint();
   try {
     if (action === "todo" && reading.todo) {
-      const todo = reading.todo, today2 = bjtDate();
-      if (FUTURE[todo.when] || todo.when === "deadline") await addFutureTodo(todo);
-      else {
-        const date2 = todo.when === "day" && todo.date ? todo.date : today2;
-        await api("/todos", { method: "POST", body: { id: crypto.randomUUID(), date: date2, text: todo.text } });
+      reading.done = { ...reading.done, todo: await addTodo(reading.todo) };
+    } else if (action === "todos" && reading.todos.length) {
+      const added = { ...reading.addedTodos || {} };
+      try {
+        for (const [index, todo] of reading.todos.entries())
+          if (reading.picked[index] !== false && !added[index]) added[index] = await addTodo(todo);
+      } finally {
+        reading.addedTodos = added;
       }
-      reading.done = { ...reading.done, todo: FUTURE[todo.when] || todo.when === "deadline" ? `未来 · ${whenLabel(todo)}` : whenLabel(todo) };
+      reading.done = { ...reading.done, todos: added };
     } else if (action === "labels") {
-      const merged = [.../* @__PURE__ */ new Set([...current2(id2) || [], ...reading.labels])];
+      const merged = [.../* @__PURE__ */ new Set([...current3(id2) || [], ...reading.labels])];
       if (!await relabel(id2, merged)) throw new Error("标签没贴上，可以点「编辑」手动选");
       reading.done = { ...reading.done, labels: true };
     }
@@ -10090,16 +10151,16 @@ function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit: emit2, adopt, merge, schedule, makeEntry } = context;
   const { load: load2, loadEntry } = context.options;
   async function read2(date2, options3 = {}) {
-    const current2 = page(date2), sequence5 = ++current2.sequence;
-    const epochs = new Map(current2.ids.map((id2) => [id2, entry(id2)?.writeEpoch]));
-    current2.loading = true;
-    current2.error = "";
+    const current3 = page(date2), sequence5 = ++current3.sequence;
+    const epochs = new Map(current3.ids.map((id2) => [id2, entry(id2)?.writeEpoch]));
+    current3.loading = true;
+    current3.error = "";
     emit2();
     try {
       const value = checkedCollection(await load2(date2, options3), category, date2);
-      if (context.disposed || sequence5 !== current2.sequence) return;
-      current2.canEdit = value.can_edit;
-      current2.labelsComplete = [2, 3].includes(value.labels_version);
+      if (context.disposed || sequence5 !== current3.sequence) return;
+      current3.canEdit = value.can_edit;
+      current3.labelsComplete = [2, 3].includes(value.labels_version);
       const found = /* @__PURE__ */ new Set();
       for (const raw of value.entries) {
         const visible3 = noteValue(raw);
@@ -10112,20 +10173,20 @@ function createEntryReadingActions(context) {
           if (!isLocalDocument(raw)) item.phase = "saved";
         } else if (!item.pending && item.writeEpoch === epochs.get(item.id)) merge(item, raw);
       }
-      const retained = current2.ids.filter((id2) => {
+      const retained = current3.ids.filter((id2) => {
         const item = entry(id2);
         return found.has(id2) || item.version === 0 || item.dirty || item.pending || item.deleted || item.localBacked || blocked(item) || item.writeEpoch !== epochs.get(id2);
       });
-      current2.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((raw) => noteValue(raw).id)])];
-      current2.loaded = true;
-      await Promise.all(current2.ids.filter((id2) => !found.has(id2) && persistedVersion(entry(id2)) > 0 && (entry(id2).dirty || entry(id2).localBacked) && !entry(id2).pending).map((id2) => readOne(id2, options3)));
+      current3.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((raw) => noteValue(raw).id)])];
+      current3.loaded = true;
+      await Promise.all(current3.ids.filter((id2) => !found.has(id2) && persistedVersion(entry(id2)) > 0 && (entry(id2).dirty || entry(id2).localBacked) && !entry(id2).pending).map((id2) => readOne(id2, options3)));
     } catch (error2) {
-      if (!context.disposed && sequence5 === current2.sequence) current2.error = error2.message;
+      if (!context.disposed && sequence5 === current3.sequence) current3.error = error2.message;
     } finally {
-      if (!context.disposed && sequence5 === current2.sequence) {
-        current2.loading = false;
+      if (!context.disposed && sequence5 === current3.sequence) {
+        current3.loading = false;
         emit2();
-        for (const id2 of current2.ids) schedule(entry(id2));
+        for (const id2 of current3.ids) schedule(entry(id2));
       }
     }
   }
@@ -10157,21 +10218,21 @@ function createEntryEditingActions(context) {
   const { page, entry, entries, emit: emit2, stopTimer, schedule, makeEntry } = context;
   const { uuid: uuid5 } = context.options;
   function start(date2, { label = "", labels: labels4 = label ? [label] : [] } = {}) {
-    const current2 = page(date2);
+    const current3 = page(date2);
     if (!validLabels(labels4, context.category)) throw new Error("标签无效。");
-    if (context.disposed || !current2.loaded || !current2.canEdit || date2 !== dailyNotesToday()) return;
-    const existing = entry(current2.composerId);
+    if (context.disposed || !current3.loaded || !current3.canEdit || date2 !== dailyNotesToday()) return;
+    const existing = entry(current3.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label) return existing;
     const id2 = uuid5();
     if (!uuidPattern6.test(id2) || entries.has(id2)) throw new Error("暂时无法新建记录，请重试。");
-    const item = makeEntry(id2, date2, current2.canEdit);
+    const item = makeEntry(id2, date2, current3.canEdit);
     item.labels = [...labels4];
     item.label = item.labels[0] || "";
     item.labelKnown = true;
     item.labelComplete = true;
     entries.set(id2, item);
-    current2.ids.push(id2);
-    current2.composerId = id2;
+    current3.ids.push(id2);
+    current3.composerId = id2;
     emit2();
     return item;
   }
@@ -10209,22 +10270,22 @@ function createEntryRecoveryActions(context) {
   const { category, page, entry, entries, makeEntry, stopTimer, emit: emit2 } = context;
   function restoreDraft(raw) {
     if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern6.test(raw.id) || raw.label && !validNoteLabel(raw.label) || typeof raw.draft !== "string" || raw.draft.length > 262144 || context.disposed) return;
-    const current2 = page(raw.date);
+    const current3 = page(raw.date);
     let item = entry(raw.id);
     if (item?.deleted || item && (item.pending || item.composing || item.dirty)) return item;
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
     if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || pendingDurable)) return item;
     if (!item) {
-      item = makeEntry(raw.id, raw.date, current2.canEdit);
+      item = makeEntry(raw.id, raw.date, current3.canEdit);
       entries.set(item.id, item);
     }
     if (!persistedVersion(item)) {
       item.labels = validLabels(raw.labels, category) ? raw.labels : raw.label ? [raw.label] : [];
       item.label = item.labels[0] || "";
       item.labelKnown = raw.labelKnown === true;
-      item.labelComplete = current2.labelsComplete === true;
+      item.labelComplete = current3.labelsComplete === true;
     }
-    if (!current2.ids.includes(item.id)) current2.ids.push(item.id);
+    if (!current3.ids.includes(item.id)) current3.ids.push(item.id);
     stopTimer(item);
     item.writeEpoch++;
     item.draft = raw.draft;
@@ -10282,8 +10343,8 @@ function createEntryRecoveryActions(context) {
       item.phase = savedPhase(item);
     } else {
       entries.delete(item.id);
-      const current2 = page(item.date);
-      current2.ids = current2.ids.filter((value) => value !== item.id);
+      const current3 = page(item.date);
+      current3.ids = current3.ids.filter((value) => value !== item.id);
     }
     emit2();
     return true;
@@ -10375,10 +10436,10 @@ function createEntryPersistActions(context) {
         return;
       }
       if (context.disposed || entry(id2) !== item) return;
-      const current2 = page(item.date);
-      current2.ids = current2.ids.filter((value) => value !== id2);
+      const current3 = page(item.date);
+      current3.ids = current3.ids.filter((value) => value !== id2);
       entries.delete(id2);
-      if (current2.composerId === id2) current2.composerId = "";
+      if (current3.composerId === id2) current3.composerId = "";
       emit2();
       return;
     }
@@ -10663,9 +10724,9 @@ init_daily_notes_state();
 function validNoteMonth(month) {
   return typeof month === "string" && /^\d{4}-\d{2}$/.test(month) && validDailyNotesDate(month + "-01");
 }
-function coalesceNoteMonthFlight(current2, next) {
-  if (!current2 || current2.root !== next.root || current2.target !== next.target || current2.expected !== next.expected || current2.sequence !== next.sequence) return false;
-  if (next.chosenDate) current2.chosenDate = next.chosenDate;
+function coalesceNoteMonthFlight(current3, next) {
+  if (!current3 || current3.root !== next.root || current3.target !== next.target || current3.expected !== next.expected || current3.sequence !== next.sequence) return false;
+  if (next.chosenDate) current3.chosenDate = next.chosenDate;
   return true;
 }
 function shiftNoteMonth(month, delta2) {
@@ -10683,8 +10744,8 @@ function noteMonthWeeks(month) {
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
   const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
-  for (let day8 = 1; day8 <= last.getUTCDate(); day8++)
-    weeks[Math.floor((offset + day8 - 1) / 7)][(offset + day8 - 1) % 7] = month + "-" + String(day8).padStart(2, "0");
+  for (let day9 = 1; day9 <= last.getUTCDate(); day9++)
+    weeks[Math.floor((offset + day9 - 1) / 7)][(offset + day9 - 1) % 7] = month + "-" + String(day9).padStart(2, "0");
   return weeks;
 }
 function checkedNoteMonth(data3, month) {
@@ -10694,16 +10755,16 @@ function checkedNoteMonth(data3, month) {
   if (!validNoteMonth(month) || !data3 || data3.month !== month || data3.complete !== true || ![1, 2, 3].includes(data3.labels_version) || !Array.isArray(data3.days) || data3.days.length > 31) fail6();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
-  for (const day8 of data3.days) {
-    if (!day8 || !validDailyNotesDate(day8.date) || !day8.date.startsWith(month + "-") || result.has(day8.date) || !Array.isArray(day8.items)) fail6();
-    const items = day8.items.map((item) => {
+  for (const day9 of data3.days) {
+    if (!day9 || !validDailyNotesDate(day9.date) || !day9.date.startsWith(month + "-") || result.has(day9.date) || !Array.isArray(day9.items)) fail6();
+    const items = day9.items.map((item) => {
       if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data3.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data3.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label) => data3.labels_version === 3 ? !validNoteLabel(label) : item.category !== "life" || !validCustomNoteLabel(label)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
       ids.add(item.entity_id);
       total++;
       const displayLabels = data3.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
       return { ...item, displayLabels, displayLabel: displayLabels.join("、") };
     });
-    result.set(day8.date, items);
+    result.set(day9.date, items);
   }
   if (total > 2e3) fail6();
   return result;
@@ -10771,7 +10832,7 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
   }
   async function load2(force = false) {
     if (!active5() || !panel2.open || !validNoteMonth(month) || !force && loaded === month) return;
-    const current2 = ++sequence5, target = month;
+    const current3 = ++sequence5, target = month;
     loaded = "";
     days = /* @__PURE__ */ new Map();
     find("#notes-month-grid").replaceChildren();
@@ -10780,14 +10841,14 @@ function mountNotesMonth(root3, { request: request2, selectDate, identity: ident
     find("#notes-month-status").textContent = "";
     try {
       const data3 = await request2("/note-entries/month?month=" + target);
-      if (!active5() || current2 !== sequence5 || target !== month) return;
+      if (!active5() || current3 !== sequence5 || target !== month) return;
       days = checkedNoteMonth(data3, target);
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
       paint4();
     } catch (error2) {
-      if (!active5() || current2 !== sequence5) return;
+      if (!active5() || current3 !== sequence5) return;
       find("#notes-month-status").textContent = error2.message || "月记录读取失败，请重试。";
     }
   }
@@ -10846,7 +10907,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><form id="diary-title-form" class="diary-title-card" aria-label="日记小标题"><div class="diary-title-fields"><label for="diary-title-input">日记小标题</label><input class="input" id="diary-title-input" type="text" maxlength="40" placeholder="写四五个字，可留空" autocomplete="off" disabled><button class="btn" type="submit" disabled>保存</button></div><button class="btn text" type="button" data-diary-title-login hidden>登录填写小标题</button><span class="notes-status" role="status" aria-live="polite"></span></form><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">时间轴</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念时间轴"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><div class="notes-month-row"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">‹</button><label class="notes-month-field"><span class="sr-only">月份</span><input type="month" id="notes-history-month" class="input"></label><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">›</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label class="notes-label-field"><span class="sr-only">标签</span><select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序">↓ 新到旧</button></aside><div class="notes-calendar-main"><section id="body-summary" class="body-summary" hidden aria-label="大小便周小结" aria-live="polite"></section><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul><section id="notes-label-backfill" class="notes-backfill" hidden aria-live="polite" aria-label="给旧碎碎念补标签"></section></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><section id="daily-score" class="daily-score is-open" aria-label="今日打分"><button id="daily-score-chip" class="daily-score-chip" type="button" data-daily-score-toggle aria-expanded="false" hidden></button><span id="daily-score-trend" class="daily-score-trend"></span><div class="daily-score-picker"><span class="daily-score-label" id="daily-score-label">今日打分</span><span class="daily-score-end" aria-hidden="true">很糟</span><div class="daily-score-scale" role="group" aria-label="1 到 10 分，1 很糟，10 很好">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => '<button type="button" data-daily-score="' + score + '" aria-pressed="false">' + score + "</button>").join("") + '</div><span class="daily-score-end" aria-hidden="true">很好</span></div><span id="daily-score-status" class="notes-status" role="status" aria-live="polite"></span></section><form id="diary-title-form" class="diary-title-card" aria-label="日记小标题"><div class="diary-title-fields"><label for="diary-title-input">日记小标题</label><input class="input" id="diary-title-input" type="text" maxlength="40" placeholder="写四五个字，可留空" autocomplete="off" disabled><button class="btn" type="submit" disabled>保存</button></div><button class="btn text" type="button" data-diary-title-login hidden>登录填写小标题</button><span class="notes-status" role="status" aria-live="polite"></span></form><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -11052,9 +11113,9 @@ function paintLegacySummary(root3, legacy2, active5) {
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
   node3.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
-function paintRetainedDrafts(root3, current2, drafts) {
+function paintRetainedDrafts(root3, current3, drafts) {
   const box = root3.querySelector("#notes-drafts");
-  const retained = [...new Set(drafts.filter((value) => value.date !== current2.date || value.category !== current2.category).map((value) => value.category + ":" + value.date))];
+  const retained = [...new Set(drafts.filter((value) => value.date !== current3.date || value.category !== current3.category).map((value) => value.category + ":" + value.date))];
   box.hidden = !retained.length;
   box.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
     const [category, date2] = key.split(":");
@@ -11087,7 +11148,7 @@ function paintOtherLegacy(root3, list3, legacy2, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root3, store, current2, legacy2, {
+function paintNoteEntries(root3, store, current3, legacy2, {
   drafts = [],
   confirmId = "",
   active: active5 = "",
@@ -11097,16 +11158,16 @@ function paintNoteEntries(root3, store, current2, legacy2, {
   labelsVerified = true
 } = {}) {
   const find = (selector) => root3.querySelector(selector), list3 = find("#notes-entry-list");
-  root3.dataset.date = current2.date;
+  root3.dataset.date = current3.date;
   const dateInput = find("#notes-date");
-  if (dateInput.value !== current2.date) dateInput.value = current2.date;
-  find('[data-notes-action="next"]').disabled = current2.date >= dailyNotesToday();
-  const canEdit = current2.loaded && current2.canEdit;
+  if (dateInput.value !== current3.date) dateInput.value = current3.date;
+  find('[data-notes-action="next"]').disabled = current3.date >= dailyNotesToday();
+  const canEdit = current3.loaded && current3.canEdit;
   find('[data-notes-action="new"]').hidden = !canEdit;
-  find('[data-notes-action="login"]').hidden = !current2.loaded || current2.canEdit;
-  find("#notes-entry-message").textContent = current2.error;
-  find("#notes-entry-message").hidden = !current2.error;
-  const items = current2.ids.map((id2) => store.entry(id2)).filter(Boolean);
+  find('[data-notes-action="login"]').hidden = !current3.loaded || current3.canEdit;
+  find("#notes-entry-message").textContent = current3.error;
+  find("#notes-entry-message").hidden = !current3.error;
+  const items = current3.ids.map((id2) => store.entry(id2)).filter(Boolean);
   const saved = items.filter((item) => !item.deleted && item.id !== active5 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished2 = find("#notes-unpublished");
   const nodes = new Map([...list3.children, ...unpublished2.children].filter((node3) => node3.dataset.noteEntry).map((node3) => [node3.dataset.noteEntry, node3])), wanted = new Set(saved.map((item) => item.id));
@@ -11129,16 +11190,16 @@ function paintNoteEntries(root3, store, current2, legacy2, {
   composer.dataset.active = active5;
   find(".notes-published").hidden = Boolean(activeItem);
   unpublished2.hidden = Boolean(activeItem);
-  find('[data-notes-action="new"]').hidden = !canEdit || current2.date !== dailyNotesToday() || Boolean(activeItem);
+  find('[data-notes-action="new"]').hidden = !canEdit || current3.date !== dailyNotesToday() || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
   const ordered2 = [...list3.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
   list3.append(...ordered2);
-  find("#notes-entry-empty").hidden = !(current2.allLoaded ?? current2.loaded) || Boolean(activeItem) || saved.length > 0 || legacy2.version > 0 || noteDraftNeedsAttention(legacy2) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
+  find("#notes-entry-empty").hidden = !(current3.allLoaded ?? current3.loaded) || Boolean(activeItem) || saved.length > 0 || legacy2.version > 0 || noteDraftNeedsAttention(legacy2) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy2);
   const status = find("#notes-status");
-  status.textContent = !current2.loaded && current2.loading ? "" : current2.error ? "读取失败" : unresolved2 ? "有未发送内容" : canEdit ? "" : current2.loaded ? "公开只读" : "";
-  status.hidden = canEdit && !current2.error && !unresolved2;
-  paintRetainedDrafts(root3, current2, drafts);
+  status.textContent = !current3.loaded && current3.loading ? "" : current3.error ? "读取失败" : unresolved2 ? "有未发送内容" : canEdit ? "" : current3.loaded ? "公开只读" : "";
+  status.hidden = canEdit && !current3.error && !unresolved2;
+  paintRetainedDrafts(root3, current3, drafts);
 }
 
 // web/diary-title-controller.mjs
@@ -11149,15 +11210,15 @@ var checked3 = (value, date2) => {
   return value;
 };
 async function saveDiaryTitle(session) {
-  const day8 = session.date(), p = session.page(day8), who = session.owner(), title = p.draft.trim();
+  const day9 = session.date(), p = session.page(day9), who = session.owner(), title = p.draft.trim();
   if (!session.visible() || session.isGuest() || p.denied || !p.loaded || p.loading || p.saving || title === p.base) return;
   p.saving = true;
   p.status = "保存中…";
   session.paint();
   try {
     if (p.attempt && p.attempt.title !== title) {
-      const last = p.attempt, live3 = checked3(await session.get(day8), day8);
-      if (!session.active(who, day8, p)) return;
+      const last = p.attempt, live3 = checked3(await session.get(day9), day9);
+      if (!session.active(who, day9, p)) return;
       p.attempt = null;
       session.adopt(p, live3);
       if (live3.version !== last.version && live3.title !== last.title) {
@@ -11166,8 +11227,8 @@ async function saveDiaryTitle(session) {
       }
     }
     p.attempt ??= { title, version: p.version, save_id: session.uuid() };
-    const data3 = checked3(await session.request("/diary-titles/" + day8, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day8);
-    if (session.active(who, day8, p)) {
+    const data3 = checked3(await session.request("/diary-titles/" + day9, { method: "PUT", body: p.attempt, suppressAuthRedirect: true }), day9);
+    if (session.active(who, day9, p)) {
       p.base = data3.title;
       p.draft = data3.title;
       p.version = data3.version;
@@ -11175,11 +11236,11 @@ async function saveDiaryTitle(session) {
       p.status = "已保存";
     }
   } catch (error2) {
-    if (!session.active(who, day8, p)) return;
+    if (!session.active(who, day9, p)) return;
     if (error2.status === 409) {
       try {
-        const data3 = checked3(await session.get(day8), day8);
-        if (!session.active(who, day8, p)) return;
+        const data3 = checked3(await session.get(day9), day9);
+        if (!session.active(who, day9, p)) return;
         session.adopt(p, data3);
         p.attempt = null;
         p.status = "另一处已更新，输入保留，请核对后再保存";
@@ -11191,7 +11252,7 @@ async function saveDiaryTitle(session) {
       p.status = error2.status >= 400 && error2.status < 500 ? error2.message || "没有保存，输入已保留" : "保存结果待核对，输入已保留";
     }
   } finally {
-    if (session.active(who, day8, p)) {
+    if (session.active(who, day9, p)) {
       p.saving = false;
       session.paint();
     }
@@ -11199,14 +11260,14 @@ async function saveDiaryTitle(session) {
 }
 function createDiaryTitleController({ identity: identity5, date: date2, visible: visible3, isGuest, root: root3, onLogin, uuid: uuid5 = () => crypto.randomUUID(), request: request2 = apiNetwork }) {
   let owner2, pages = /* @__PURE__ */ new Map();
-  function page(day8) {
-    const current2 = identity5();
-    if (current2 !== owner2) {
-      owner2 = current2;
+  function page(day9) {
+    const current3 = identity5();
+    if (current3 !== owner2) {
+      owner2 = current3;
       pages = /* @__PURE__ */ new Map();
     }
-    if (!pages.has(day8)) pages.set(day8, { base: "", draft: "", version: 0, loaded: false, loading: false, saving: false, attempt: null, status: "", denied: false });
-    return pages.get(day8);
+    if (!pages.has(day9)) pages.set(day9, { base: "", draft: "", version: 0, loaded: false, loading: false, saving: false, attempt: null, status: "", denied: false });
+    return pages.get(day9);
   }
   function paint4() {
     if (!visible3()) return;
@@ -11224,8 +11285,8 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     const message = guest ? "" : value.denied ? "仅网站所有者可填写" : value.status || (!value.loaded && value.loading ? "正在读取…" : "");
     if (status.textContent !== message) status.textContent = message;
   }
-  const get = (day8) => request2("/diary-titles/" + day8, { suppressAuthRedirect: true });
-  const active5 = (who, day8, p) => identity5() === who && owner2 === who && pages.get(day8) === p;
+  const get = (day9) => request2("/diary-titles/" + day9, { suppressAuthRedirect: true });
+  const active5 = (who, day9, p) => identity5() === who && owner2 === who && pages.get(day9) === p;
   function adopt(p, value) {
     const changed2 = p.draft !== p.base;
     p.base = value.title;
@@ -11233,8 +11294,8 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     p.loaded = true;
     if (!changed2) p.draft = p.base;
   }
-  async function load2(day8) {
-    const p = page(day8), who = owner2;
+  async function load2(day9) {
+    const p = page(day9), who = owner2;
     if (isGuest() || p.loading || p.saving) {
       paint4();
       return;
@@ -11242,8 +11303,8 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     p.loading = true;
     paint4();
     try {
-      const data3 = checked3(await get(day8), day8);
-      if (active5(who, day8, p)) {
+      const data3 = checked3(await get(day9), day9);
+      if (active5(who, day9, p)) {
         if (p.attempt && data3.title === p.attempt.title && data3.version >= p.attempt.version) {
           p.attempt = null;
           p.status = "已保存";
@@ -11255,12 +11316,12 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
         p.denied = false;
       }
     } catch (error2) {
-      if (active5(who, day8, p)) {
+      if (active5(who, day9, p)) {
         p.denied = [401, 403].includes(error2.status);
         p.status = p.denied ? "" : "小标题未读到，可切换日期后重试";
       }
     } finally {
-      if (active5(who, day8, p)) {
+      if (active5(who, day9, p)) {
         p.loading = false;
         paint4();
       }
@@ -11551,8 +11612,8 @@ async function saveContext(section, text) {
   }
 }
 function shown(data3) {
-  const current2 = data3?.current, last = data3?.last;
-  return current2 && !current2.empty ? current2 : last;
+  const current3 = data3?.current, last = data3?.last;
+  return current3 && !current3.empty ? current3 : last;
 }
 function stats(summary3) {
   const row = el2("div", "body-summary-stats"), compare3 = [];
@@ -11628,6 +11689,146 @@ function draw(section) {
   }
   parts2.push(el2("p", "body-summary-foot", "只整理你写下的记录，不是诊断。"));
   section.replaceChildren(...parts2);
+}
+
+// web/pages/label-backfill.mjs
+init_api();
+var current2 = null, repaint2 = () => {
+};
+function setLabelBackfillRepaint(callback) {
+  repaint2 = callback;
+}
+function labelBackfillState() {
+  return current2;
+}
+async function findOldNotes(label) {
+  const reading = { label, status: "reading", items: [], picked: [], done: [], message: "", busy: false };
+  current2 = reading;
+  repaint2();
+  try {
+    const data3 = await api("/note-entries/label-backfill", { method: "POST", body: { label } });
+    if (current2 !== reading) return;
+    reading.items = Array.isArray(data3.items) ? data3.items : [];
+    reading.picked = reading.items.map(() => true);
+    reading.status = data3.off ? "off" : reading.items.length ? "ready" : "empty";
+  } catch (error2) {
+    if (current2 !== reading) return;
+    reading.status = "error";
+    reading.message = error2?.message || "没能读完旧碎碎念，请稍后再试";
+  }
+  repaint2();
+}
+var short2 = (text) => {
+  const value = String(text || "").replace(/\s+/g, " ").trim();
+  return value.length > 80 ? value.slice(0, 80) + "…" : value;
+};
+var day5 = (date2) => `${Number(date2.slice(5, 7))}/${Number(date2.slice(8))}`;
+function paintLabelBackfill(root3) {
+  const box = root3.querySelector("#notes-label-backfill");
+  if (!box) return;
+  const reading = current2;
+  box.hidden = !reading;
+  if (!reading) {
+    box.replaceChildren();
+    return;
+  }
+  const key = JSON.stringify([reading.label, reading.status, reading.picked, reading.done, reading.busy, reading.message]);
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  const make = (tag2, className, text) => {
+    const node3 = document.createElement(tag2);
+    if (className) node3.className = className;
+    if (text) node3.textContent = text;
+    return node3;
+  };
+  const button2 = (className, text, action, extra = {}) => {
+    const node3 = make("button", className, text);
+    node3.type = "button";
+    node3.dataset.labelBackfill = action;
+    for (const [name, value] of Object.entries(extra)) node3.dataset[name] = value;
+    return node3;
+  };
+  const head = make("p", "notes-backfill-head");
+  const count3 = reading.picked.filter(Boolean).length, added = reading.done.filter(Boolean).length;
+  const title = {
+    reading: `AI 在翻以前的碎碎念，看哪些该贴「${reading.label}」…`,
+    empty: `最近半年的碎碎念里，没找到明显该贴「${reading.label}」的。`,
+    off: "AI 读碎碎念现在是关闭的（设置里的待办模型），没法帮忙找。",
+    error: reading.message,
+    ready: added ? `已给 ${added} 条贴上「${reading.label}」` : `这 ${reading.items.length} 条可能该贴「${reading.label}」，勾掉不要的再贴：`
+  }[reading.status];
+  head.append(make("span", "", title));
+  if (reading.status === "ready" && !added) {
+    const apply = button2("note-suggest-btn", count3 ? `贴上 ${count3} 条` : "先勾要哪几条", "apply");
+    apply.disabled = reading.busy || !count3;
+    head.append(apply);
+  }
+  if (reading.status !== "reading") {
+    const close = button2("note-suggest-close", "×", "close");
+    close.setAttribute("aria-label", "关闭");
+    head.append(close);
+  }
+  const parts2 = [head];
+  if (reading.status === "ready") {
+    const list3 = make("ul", "notes-backfill-list");
+    reading.items.forEach((item, index) => {
+      const line = make("li");
+      if (reading.done[index] === true) line.append(make("span", "note-suggest-done", "✓"));
+      else {
+        const on = reading.picked[index] !== false;
+        const pick = button2("note-suggest-check", on ? "☑" : "☐", "pick", { labelBackfillIndex: String(index) });
+        pick.disabled = reading.busy || added > 0;
+        pick.setAttribute("aria-pressed", String(on));
+        pick.setAttribute("aria-label", (on ? "不贴 " : "贴 ") + short2(item.text));
+        line.append(pick);
+      }
+      const body4 = make("span", "note-suggest-text", short2(item.text));
+      body4.prepend(make("small", "", `${day5(item.date)} · ${item.category === "work" ? "工作" : "生活"}`));
+      line.append(body4);
+      list3.append(line);
+    });
+    parts2.push(list3);
+  }
+  if (reading.status === "ready" && reading.message) parts2.push(make("p", "note-suggest-error", reading.message));
+  box.replaceChildren(...parts2);
+}
+async function actOnLabelBackfill(target, { addLabel }) {
+  const reading = current2, action = target.dataset.labelBackfill;
+  if (!reading) return;
+  if (action === "close") {
+    current2 = null;
+    repaint2();
+    return;
+  }
+  if (reading.busy || reading.status !== "ready") return;
+  if (action === "pick") {
+    const index = Number(target.dataset.labelBackfillIndex);
+    if (!Number.isInteger(index) || !reading.items[index] || reading.done.some(Boolean)) return;
+    reading.picked = reading.picked.map((on, at) => at === index ? !on : on);
+    repaint2();
+    return;
+  }
+  if (action !== "apply") return;
+  reading.busy = true;
+  reading.message = "";
+  repaint2();
+  let failed = 0;
+  for (const [index, item] of reading.items.entries()) {
+    if (reading.picked[index] === false || reading.done[index]) continue;
+    let ok = false;
+    try {
+      ok = await addLabel(item, reading.label);
+    } catch {
+      ok = false;
+    }
+    reading.done[index] = ok;
+    if (!ok) failed++;
+    if (current2 !== reading) return;
+    repaint2();
+  }
+  reading.busy = false;
+  if (failed) reading.message = `${failed} 条没贴上，可以去那天的碎碎念点「编辑」手动勾选。`;
+  repaint2();
 }
 
 // web/daily-notes-controller.mjs
@@ -11740,10 +11941,10 @@ async function hydrateNotesDrafts(legacy2, entries, category) {
   if (!active5()) return;
   for (const { raw, record } of entryDrafts) {
     if (!raw || raw.kind !== "note_entry" || raw.category !== category || seen.has(raw.id)) continue;
-    const current2 = entries.entries.get(raw.id);
-    if (current2 && originals.get(raw.id) !== current2) continue;
-    if (!unchangedEntrySinceSnapshot(epochs, raw.id, current2, revisions.get(raw.id), current2 && entryDraftRevision(current2))) continue;
-    if (current2 && (current2.pending || current2.composing || current2.dirty)) continue;
+    const current3 = entries.entries.get(raw.id);
+    if (current3 && originals.get(raw.id) !== current3) continue;
+    if (!unchangedEntrySinceSnapshot(epochs, raw.id, current3, revisions.get(raw.id), current3 && entryDraftRevision(current3))) continue;
+    if (current3 && (current3.pending || current3.composing || current3.dirty)) continue;
     const restored = entries.restoreDraft(raw);
     if (restored?.recoveredBaseline) entryRecoveryGuard.remember(restored, record);
     seen.add(raw.id);
@@ -12251,7 +12452,7 @@ function paintDailyNotesPage() {
   root3.querySelector("#notes-labels").hidden = notesView !== "labels";
   for (const button2 of root3.querySelectorAll("[data-notes-view]"))
     button2.setAttribute("aria-pressed", String(button2.dataset.notesView === notesView));
-  const date2 = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy2 = notesStore.page(date2), current2 = entryStore.page(date2);
+  const date2 = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy2 = notesStore.page(date2), current3 = entryStore.page(date2);
   root3.querySelector("#notes-label-status").textContent = notesLabelMessage;
   const archivedNames = new Set(notesArchivedLabels.map((row) => row.name));
   const activeLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archivedNames.has(name));
@@ -12267,27 +12468,40 @@ function paintDailyNotesPage() {
       button2.textContent = buttonText;
       button2.setAttribute("aria-label", buttonText + "标签 " + name);
       button2.disabled = notesLabelBusy || !notesLabelsVerified;
-      item.append(text, button2);
+      item.append(text);
+      if (name !== "生活" && name !== "工作") {
+        const find = document.createElement("button");
+        find.type = "button";
+        find.className = "btn text notes-label-find";
+        find.dataset.notesAction = "find-label";
+        find.dataset.labelName = name;
+        find.textContent = "找旧的";
+        find.setAttribute("aria-label", "让 AI 找以前该贴「" + name + "」的碎碎念");
+        find.disabled = !notesLabelsVerified;
+        item.append(find);
+      }
+      item.append(button2);
       return item;
     }));
   };
   paintLabels("#notes-label-list", activeLabels, "delete-label", "删除");
+  paintLabelBackfill(root3);
   root3.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === "life" ? "work" : "life";
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date2);
   const otherPage = otherStore?.page(date2);
   const mixedStore = { entry: (id2) => entryStore.entry(id2) || otherStore?.entry(id2) };
   const mixed = {
-    ...current2,
-    ids: [...current2.ids, ...otherPage?.ids || []],
+    ...current3,
+    ids: [...current3.ids, ...otherPage?.ids || []],
     error: joinNotesErrors([
-      current2.error,
+      current3.error,
       otherPage?.error && (otherCategory === "work" ? "工作：" : "生活：") + otherPage.error,
       legacy2.error && (category === "work" ? "工作原记录：" : "生活原记录：") + legacy2.error,
       otherLegacy?.error && (otherCategory === "work" ? "工作原记录：" : "生活原记录：") + otherLegacy.error
     ]),
-    loading: current2.loading || Boolean(otherPage?.loading) || legacy2.loading || Boolean(otherLegacy?.loading),
-    allLoaded: current2.loaded && Boolean(otherPage?.loaded) && legacy2.loaded && Boolean(otherLegacy?.loaded) && !current2.error && !otherPage?.error && !legacy2.error && !otherLegacy?.error
+    loading: current3.loading || Boolean(otherPage?.loading) || legacy2.loading || Boolean(otherLegacy?.loading),
+    allLoaded: current3.loaded && Boolean(otherPage?.loaded) && legacy2.loaded && Boolean(otherLegacy?.loaded) && !current3.error && !otherPage?.error && !legacy2.error && !otherLegacy?.error
   };
   mixed.ids.sort((a, b) => {
     const first = mixedStore.entry(a), second = mixedStore.entry(b);
@@ -12415,6 +12629,7 @@ async function createNoteLabel(root3) {
     notesLabelIntent = null;
     notesLabelMessage = "";
     input.value = "";
+    void findOldNotes(label);
   } catch (error2) {
     if (expected === notesIdentityNow()) notesLabelMessage = "添加失败，输入已保留，可重试：" + (error2.message || "请联网后重试。");
   } finally {
@@ -12426,7 +12641,7 @@ var scoreTrend = /* @__PURE__ */ new Map(), scoreTrendMonths = /* @__PURE__ */ n
 var scoreDayBefore = (date2, days) => new Date(Date.parse(date2 + "T00:00:00Z") - days * 864e5).toISOString().slice(0, 10);
 function scoreTrendSvg(date2) {
   const days = Array.from({ length: 7 }, (_, index) => scoreDayBefore(date2, 6 - index));
-  const points = days.map((day8, index) => scoreTrend.has(day8) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day8) - 1) * 2, day: day8 } : null);
+  const points = days.map((day9, index) => scoreTrend.has(day9) ? { x: 6 + index * 12, y: 21 - (scoreTrend.get(day9) - 1) * 2, day: day9 } : null);
   if (points.filter(Boolean).length < 2) return "";
   let lines = "";
   for (let index = 1; index < points.length; index++) {
@@ -12434,7 +12649,7 @@ function scoreTrendSvg(date2) {
     if (from && to) lines += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"/>';
   }
   const dots = points.filter(Boolean).map((point) => '<circle cx="' + point.x + '" cy="' + point.y + '" r="' + (point.day === date2 ? 3 : 2) + '"/>').join("");
-  const spoken = days.filter((day8) => scoreTrend.has(day8)).map((day8) => day8.slice(5) + " " + scoreTrend.get(day8) + " 分").join("，");
+  const spoken = days.filter((day9) => scoreTrend.has(day9)).map((day9) => day9.slice(5) + " " + scoreTrend.get(day9) + " 分").join("，");
   return '<svg width="84" height="24" viewBox="0 0 84 24" role="img" aria-label="近 7 天打分：' + spoken + '">' + lines + dots + "</svg>";
 }
 async function readScoreTrend(date2, expected = notesIdentityNow()) {
@@ -12494,13 +12709,13 @@ async function readDailyScore(date2, expected = notesIdentityNow()) {
 }
 async function saveDailyScore(date2, score) {
   if (!Number.isInteger(score) || score < 1 || score > 10 || scoreRecord.canEdit === false) return;
-  const current2 = scoreRecord.date === date2 ? scoreRecord : { date: date2, score: null, version: 0, saveId: "", canEdit: true };
-  const saveId = current2.pending === score && current2.saveId ? current2.saveId : crypto.randomUUID();
-  scoreRecord = { ...current2, date: date2, status: "保存中…", saveId, pending: score };
+  const current3 = scoreRecord.date === date2 ? scoreRecord : { date: date2, score: null, version: 0, saveId: "", canEdit: true };
+  const saveId = current3.pending === score && current3.saveId ? current3.saveId : crypto.randomUUID();
+  scoreRecord = { ...current3, date: date2, status: "保存中…", saveId, pending: score };
   paintDailyScore();
   const expected = notesIdentityNow();
   try {
-    const saved = await api("/daily-scores/" + date2, { method: "PUT", body: { score, version: current2.version || 0, save_id: saveId } });
+    const saved = await api("/daily-scores/" + date2, { method: "PUT", body: { score, version: current3.version || 0, save_id: saveId } });
     if (expected !== notesIdentityNow()) return;
     scoreRecord = { date: date2, score: saved.score, version: saved.version, status: "已保存", saveId: "", pending: null, canEdit: saved.can_edit !== false };
     scoreByDate.set(date2, saved.score);
@@ -12516,14 +12731,14 @@ async function saveDailyScore(date2, score) {
 function monthTime(value) {
   return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)) : "";
 }
-function monthOptions(select, values, current2, allLabel) {
+function monthOptions(select, values, current3, allLabel) {
   select.replaceChildren(...values.map((value) => {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = value || allLabel;
     return option;
   }));
-  select.value = values.includes(current2) ? current2 : "";
+  select.value = values.includes(current3) ? current3 : "";
 }
 var WEEKDAYS2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function dayTitle(date2) {
@@ -12824,6 +13039,7 @@ async function handleNotesClick(event) {
     const item = entries.start(date2);
     if (item) openEditor(item.id);
   } else if (action === "create-label") await createNoteLabel(root3);
+  else if (action === "find-label" && target.dataset.labelName) await findOldNotes(target.dataset.labelName);
   else if (action === "delete-label" && confirmLabelDeletion(target.dataset.labelName)) await deleteNoteLabel(target.dataset.labelName);
   else if (action === "edit-legacy") openEditor("legacy");
   else if (action === "collapse") {
@@ -12841,6 +13057,13 @@ function registerDailyNotesSurfaceEvents() {
     void handleNotesClick(event);
   });
   setNoteSuggestRepaint(() => paintDailyNotesPage());
+  setLabelBackfillRepaint(() => paintDailyNotesPage());
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-label-backfill]");
+    if (!target || !target.closest("#daily-notes")) return;
+    event.preventDefault();
+    void actOnLabelBackfill(target, { addLabel: addLabelToOldNote });
+  });
   document.addEventListener("click", (event) => {
     const more = event.target.closest("[data-note-more]");
     if (more && more.closest("#daily-notes")) {
@@ -12969,6 +13192,17 @@ function noteToTodo(id2) {
   const [, item] = findNote(id2);
   if (item) openNoteTodo(String(item.serverText ?? item.draft ?? ""));
 }
+async function addLabelToOldNote(row, label) {
+  const store = entryStores.get(row.category);
+  if (!store || !notesLabelsVerified) return false;
+  if (!store.entry(row.id)) await store.read(row.date);
+  const item = store.entry(row.id);
+  if (!item || item.deleted) return false;
+  if ((item.labels || []).includes(label)) return true;
+  if (!store.relabelDraft(row.id, [.../* @__PURE__ */ new Set([...item.labels || [], label])])) return false;
+  await store.save(row.id);
+  return !item.dirty && ["saved", "queued", "cached"].includes(item.phase);
+}
 async function putInIdeaPool(target) {
   const id2 = target.dataset.noteId || target.closest("[data-note-entry]")?.dataset.noteEntry;
   const [store, item] = [...entryStores.values()].map((source) => [source, source.entry(id2)]).find(([, row]) => row) || [];
@@ -13006,9 +13240,9 @@ function floatingNotesSnapshot() {
   const item = selectedFloatingEntry(store, floatingNoteId, floatingNoteDate);
   const entries = [], errors = [];
   for (const category of ["life", "work"]) {
-    const source = entryStores.get(category), current2 = source?.page(date2);
-    if (current2?.error) errors.push(current2.error);
-    for (const id2 of current2?.ids || []) {
+    const source = entryStores.get(category), current3 = source?.page(date2);
+    if (current3?.error) errors.push(current3.error);
+    for (const id2 of current3?.ids || []) {
       const value = source.entry(id2);
       if (value && !value.deleted && (value.version || value.localVersion || value.dirty || value.pending)) entries.push(value);
     }
@@ -13342,8 +13576,8 @@ function keySidebarResize(event) {
   if (!handle || handle.hidden || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
   event.preventDefault();
   event.stopPropagation();
-  const current2 = Number(handle.getAttribute("aria-valuenow")), step = event.shiftKey ? 32 : 16;
-  const next = event.key === "Home" ? Number(handle.getAttribute("aria-valuemin")) : event.key === "End" ? Number(handle.getAttribute("aria-valuemax")) : current2 + (event.key === "ArrowRight" ? step : -step);
+  const current3 = Number(handle.getAttribute("aria-valuenow")), step = event.shiftKey ? 32 : 16;
+  const next = event.key === "Home" ? Number(handle.getAttribute("aria-valuemin")) : event.key === "End" ? Number(handle.getAttribute("aria-valuemax")) : current3 + (event.key === "ArrowRight" ? step : -step);
   applySidebarWidth(next, true);
 }
 function setupSidebarResize() {
@@ -13562,9 +13796,9 @@ function decisionCards(items = []) {
 }
 var WEEK2 = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function decisionHistory(days = []) {
-  const rows = days.filter((day8) => visibleWorkReminders(day8.items).length).map((day8) => {
-    const count3 = decisionCount(day8.items), week = WEEK2[(/* @__PURE__ */ new Date(day8.date + "T00:00:00Z")).getUTCDay()];
-    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day8.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day8.items)}<span class="notes-tl-foot">${Number(day8.date.slice(5, 7))}月${Number(day8.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
+  const rows = days.filter((day9) => visibleWorkReminders(day9.items).length).map((day9) => {
+    const count3 = decisionCount(day9.items), week = WEEK2[(/* @__PURE__ */ new Date(day9.date + "T00:00:00Z")).getUTCDay()];
+    return `<div class="notes-tl-day ai-decision-day"><span class="notes-tl-date"><span class="notes-tl-num">${Number(day9.date.slice(8))}</span><span class="notes-tl-week">${week}</span></span><span class="notes-tl-dot"></span><div class="notes-tl-card">${dayBody(day9.items)}<span class="notes-tl-foot">${Number(day9.date.slice(5, 7))}月${Number(day9.date.slice(8))}日 · ${count3 ? `${count3} 件` : "无待拍板"}</span></div></div>`;
   });
   return rows.length ? `<div class="notes-tl">${rows.join("")}</div>` : '<p class="muted">前 7 天没有提醒。</p>';
 }
@@ -13633,8 +13867,8 @@ function reportDay(row) {
   return `${parts2.year}-${parts2.month}-${parts2.day}`;
 }
 function reportShownDay(row) {
-  const day8 = reportDay(row);
-  return day8 ? new Date(Date.parse(day8 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
+  const day9 = reportDay(row);
+  return day9 ? new Date(Date.parse(day9 + "T00:00:00Z") + 864e5).toISOString().slice(0, 10) : "";
 }
 var shortDay2 = (date2) => `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日`;
 function reportGroup(author) {
@@ -13656,9 +13890,9 @@ function paintAiCalendar(selectedDate2, visibleMonth2 = selectedDate2.slice(0, 7
   const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
   let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
   calendar += "<span></span>".repeat(first.getUTCDay());
-  for (let day8 = 1; day8 <= days; day8++) {
-    const date2 = `${visibleMonth2}-${String(day8).padStart(2, "0")}`;
-    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day8}</button>`;
+  for (let day9 = 1; day9 <= days; day9++) {
+    const date2 = `${visibleMonth2}-${String(day9).padStart(2, "0")}`;
+    calendar += `<button type="button" class="btn text" data-ai-report-select="${date2}" aria-label="${date2}" ${date2 === selectedDate2 ? 'aria-current="date"' : ""}>${day9}</button>`;
   }
   root3.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
 }
@@ -13692,7 +13926,7 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
   if (!root3) return;
   root3.querySelector("#ai-reminder-status").textContent = error2 || (loading ? "正在读取工作提醒…" : "");
   const items = visibleWorkReminders(data3?.items || []), count3 = items.length ? decisionCount(items) : 0;
-  const date2 = data3?.date || dailyNotesToday(), day8 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
+  const date2 = data3?.date || dailyNotesToday(), day9 = date2 === dailyNotesToday() ? `今天 · ${reportDayTitle(date2)}` : reportDayTitle(date2);
   const open = items.length ? openDecisionCount(items) : 0;
   const box = root3.querySelector("#ai-reminder-list");
   if (loading || error2) {
@@ -13700,10 +13934,10 @@ function paintAiDailyReminders(data3, error2 = "", loading = false) {
     return;
   }
   if (!open) {
-    box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板<span>${e(day8)}</span></h2><p class="ai-decision-done"><span aria-hidden="true">✓</span> ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
+    box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板<span>${e(day9)}</span></h2><p class="ai-decision-done"><span aria-hidden="true">✓</span> ${count3 ? "今天的都拍完了" : "今天没有要你拍板的事"}</p>`;
     return;
   }
-  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span>${e(day8)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
+  box.innerHTML = `<h2 class="ai-decision-head" id="ai-decision-title">待拍板 <b>${open}</b><span>${e(day9)}</span></h2><p class="ai-decision-how">看完去和 Grok 说就行；完整内容在下面的日报里。</p>` + decisionCards(items);
 }
 function paintDecisionHistory(days, { loading = false, error: error2 = "" } = {}) {
   const box = document.querySelector("#ai-decision-history");
@@ -13723,8 +13957,8 @@ function paintAiReportTimeline(items, month, { loading = false, error: error2 = 
   paintAiCalendar(`${month}-01`, month);
   const days = /* @__PURE__ */ new Map();
   for (const row of items) {
-    const day8 = reportShownDay(row);
-    if (day8.startsWith(month)) days.set(day8, [...days.get(day8) || [], row]);
+    const day9 = reportShownDay(row);
+    if (day9.startsWith(month)) days.set(day9, [...days.get(day9) || [], row]);
   }
   root3.querySelector("#ai-report-list-status").textContent = error2 || (loading ? "" : days.size ? "" : "这个月还没有汇报");
   const head = root3.querySelector("#ai-report-dayhead");
@@ -13794,7 +14028,7 @@ function parts(value) {
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? Object.fromEntries(clock.formatToParts(stamp4).map((part) => [part.type, part.value])) : null;
 }
-function day5(value) {
+function day6(value) {
   if (calendarDate(value)) return value;
   const p = parts(value);
   return p ? calendarDate(`${p.year.padStart(4, "0")}-${p.month}-${p.day}`) : "";
@@ -13802,10 +14036,10 @@ function day5(value) {
 function reviewDateTime(value) {
   if (calendarDate(value)) return value;
   const p = parts(value);
-  return p ? `${day5(value)} ${p.hour}:${p.minute}` : "";
+  return p ? `${day6(value)} ${p.hour}:${p.minute}` : "";
 }
 function shiftDay3(value, amount) {
-  const date2 = day5(value);
+  const date2 = day6(value);
   return date2 && Number.isInteger(amount) ? new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10) : "";
 }
 function median(values = []) {
@@ -13849,7 +14083,7 @@ function appliedRules(article, playbooks = []) {
 }
 function newestFirst(a, b, when) {
   const x = when(a), y = when(b);
-  const dateOrder = compare(day5(y), day5(x));
+  const dateOrder = compare(day6(y), day6(x));
   if (dateOrder) return dateOrder;
   const aTimed = Boolean(parts(x)), bTimed = Boolean(parts(y));
   return (aTimed && bTimed ? Date.parse(y) - Date.parse(x) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
@@ -13909,7 +14143,7 @@ function enrichArticle(article, snapshots = [], playbooks = [], reports = [], ar
   return enrichArticles({ articles: cohort, snapshots, playbooks, reports }).find((item) => id(item.id) === id(article.id));
 }
 function weekBounds(now = (/* @__PURE__ */ new Date()).toISOString(), week = "this") {
-  const today2 = day5(now instanceof Date ? now.toISOString() : now);
+  const today2 = day6(now instanceof Date ? now.toISOString() : now);
   if (!today2) throw new TypeError("now must be a valid date or explicit ISO timestamp");
   if (!["this", "last"].includes(week)) throw new TypeError("week must be this or last");
   const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
@@ -13937,10 +14171,10 @@ function summarizeArticles(rows = []) {
     rate_denominator: "Articles in this publication week with valid reads_24h and a computed verdict; includes provisional fixed-threshold judgments."
   };
 }
-function summarySentence(current2, week) {
+function summarySentence(current3, week) {
   const label = week === "last" ? "上周" : "本周";
-  const judged = current2.judged_count;
-  return `${label}发布 ${current2.count} 篇，${judged ? `可判定 ${judged} 篇，爆款 ${current2.hits} 篇、扑街 ${current2.flops} 篇` : "暂无有效 24h 阅读样本"}。`;
+  const judged = current3.judged_count;
+  return `${label}发布 ${current3.count} 篇，${judged ? `可判定 ${judged} 篇，爆款 ${current3.hits} 篇、扑街 ${current3.flops} 篇` : "暂无有效 24h 阅读样本"}。`;
 }
 function firstSentence(markdown) {
   if (typeof markdown !== "string") return "";
@@ -13949,7 +14183,7 @@ function firstSentence(markdown) {
   return ending ? text.slice(0, ending.index + ending[0].length) : text;
 }
 function weeklyConclusion(reports, account3, bounds, week) {
-  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day5(item.period_start) === bounds.start && day5(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
+  const report = array(reports).filter((item) => item?.account === account3 && item.period_type === "weekly" && day6(item.period_start) === bounds.start && day6(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
   return firstSentence(report?.summary_md) || `${week === "last" ? "上周" : "本周"}尚未生成周报`;
 }
 function buildOverview(data3 = {}, options3 = {}) {
@@ -13959,16 +14193,16 @@ function buildOverview(data3 = {}, options3 = {}) {
   const counted = (row) => reviewPublishState(row) === "published";
   const cohort = (start, end) => allRows.filter((row) => {
     if (!counted(row)) return false;
-    const published = day5(row.published_at);
+    const published = day6(row.published_at);
     return published && published >= start && published <= end;
   });
   const rows = cohort(bounds.start, bounds.end), previousRows = cohort(bounds.previousStart, bounds.previousEnd);
-  const current2 = summarizeArticles(rows), previous = summarizeArticles(previousRows), changes = {};
+  const current3 = summarizeArticles(rows), previous = summarizeArticles(previousRows), changes = {};
   for (const field2 of ["count", "published_count", "hits", "flops", "hit_rate", "flop_rate", "miss_rate", "median_ctr", "ctr_median"]) {
     changes[field2] = {
-      current: current2[field2],
+      current: current3[field2],
       previous: previous[field2],
-      delta: current2[field2] !== null && previous[field2] !== null ? current2[field2] - previous[field2] : null,
+      delta: current3[field2] !== null && previous[field2] !== null ? current3[field2] - previous[field2] : null,
       unit: ["hit_rate", "flop_rate", "miss_rate", "median_ctr", "ctr_median"].includes(field2) ? "percentage_points" : "count"
     };
   }
@@ -13983,15 +14217,15 @@ function buildOverview(data3 = {}, options3 = {}) {
     return { ...result, reads_median: result.reads_24h, ctr_median: result.ctr_24h, completion_median: result.completion_24h };
   });
   const alerts = [];
-  if (current2.missing_24h_count) alerts.push({
+  if (current3.missing_24h_count) alerts.push({
     code: "missing_24h",
-    count: current2.missing_24h_count,
+    count: current3.missing_24h_count,
     last_snapshot_date: null,
     days_since_snapshot: null,
-    message: `${current2.missing_24h_count} 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。`
+    message: `${current3.missing_24h_count} 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。`
   });
   const articleIds = new Set(allRows.filter(counted).map((row) => id(row.id)));
-  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day5(snapshot.snapshot_date)).filter(Boolean).sort();
+  const dates = array(data3.snapshots).filter((snapshot) => articleIds.has(id(snapshot.article_id))).map((snapshot) => day6(snapshot.snapshot_date)).filter(Boolean).sort();
   const latest2 = dates.at(-1) ?? null;
   const elapsed = latest2 ? Math.round((Date.parse(`${bounds.today}T00:00:00Z`) - Date.parse(`${latest2}T00:00:00Z`)) / 864e5) : null;
   const publishedRows = allRows.filter(counted);
@@ -14002,9 +14236,9 @@ function buildOverview(data3 = {}, options3 = {}) {
     days_since_snapshot: elapsed,
     message: latest2 ? `最近快照为 ${latest2}，距今 ${elapsed} 个上海日历日，已超过 2 日采集间隔。` : "已有文章但尚无有效日期的采集快照，无法确认采集连续性。"
   });
-  const summary3 = summarySentence(current2, week);
+  const summary3 = summarySentence(current3, week);
   const conclusion = weeklyConclusion(data3.reports, account3, bounds, week);
-  return { account: account3 ?? null, week, range: range2, ...bounds, rows, previousRows, current: current2, previous, changes, trend, alerts, summary: summary3, conclusion };
+  return { account: account3 ?? null, week, range: range2, ...bounds, rows, previousRows, current: current3, previous, changes, trend, alerts, summary: summary3, conclusion };
 }
 
 // shared/review-experiments.mjs
@@ -14017,9 +14251,9 @@ var mid = (values) => {
 };
 function experimentEvidence(ruleId, rows = []) {
   const using = rows.filter((row) => (row.applied_rule_ids || []).includes(ruleId));
-  const first = using.map((row) => day5(row.published_at)).filter(Boolean).sort()[0] || null;
+  const first = using.map((row) => day6(row.published_at)).filter(Boolean).sort()[0] || null;
   const withRows = using.filter(measured);
-  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day5(row.published_at) >= first) : [];
+  const others = first ? rows.filter((row) => !(row.applied_rule_ids || []).includes(ruleId) && measured(row) && day6(row.published_at) >= first) : [];
   return {
     rule_id: ruleId,
     first_day: first,
@@ -14449,17 +14683,17 @@ function resetReviewAi() {
 async function loadReviewAi(nextAccount = "V字", { force = false } = {}) {
   if (!force && account === nextAccount && ["ready", "loading"].includes(ai.status)) return;
   account = nextAccount;
-  const current2 = ++ticket, quiet = ai.status === "ready";
+  const current3 = ++ticket, quiet = ai.status === "ready";
   if (!quiet) {
     ai = { ...ai, status: "loading" };
     emit();
   }
   try {
     const data3 = await request("/review/ai?account=" + encodeURIComponent(nextAccount));
-    if (current2 !== ticket) return;
+    if (current3 !== ticket) return;
     ai = { ...ai, status: "ready", data: data3, error: "", ...ai.dirty ? {} : { draft: structuredClone(data3.settings) } };
   } catch (error2) {
-    if (current2 !== ticket) return;
+    if (current3 !== ticket) return;
     ai = quiet ? ai : { ...ai, status: "error", error: error2.message || "AI 结果读取失败" };
   }
   emit();
@@ -14623,9 +14857,9 @@ async function loadExperimentsPanel() {
   panelError = false;
   paint2();
   void loadReviewAi(account2());
-  const current2 = () => ticket2 === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
+  const current3 = () => ticket2 === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
   data = {};
-  if (current2()) paint2();
+  if (current3()) paint2();
 }
 
 // web/core/review-data.mjs
@@ -14676,7 +14910,7 @@ function shanghaiParts(value) {
   if (!Number.isFinite(stamp4)) return null;
   return Object.fromEntries(shanghaiClock.formatToParts(stamp4).map((part) => [part.type, part.value]));
 }
-function day6(value) {
+function day7(value) {
   if (typeof value !== "string") return "";
   if (calendarDate2(value)) return value;
   const parts2 = shanghaiParts(value);
@@ -14685,11 +14919,11 @@ function day6(value) {
 function reviewDateTime2(value) {
   if (typeof value !== "string") return "";
   if (calendarDate2(value)) return value;
-  const parts2 = shanghaiParts(value), date2 = day6(value);
+  const parts2 = shanghaiParts(value), date2 = day7(value);
   return parts2 && date2 ? `${date2} ${parts2.hour}:${parts2.minute}` : "";
 }
 function shiftDay4(value, amount) {
-  const date2 = day6(value);
+  const date2 = day7(value);
   if (!date2 || !Number.isFinite(amount)) return "";
   return new Date(Date.parse(`${date2}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
 }
@@ -14728,17 +14962,17 @@ function normalizeReviewData(input = {}) {
 function latestSnapshots(snapshots = [], cutoff = "9999-12-31") {
   const result = /* @__PURE__ */ new Map();
   for (const snapshot of list2(snapshots)) {
-    const date2 = day6(snapshot.snapshot_date);
+    const date2 = day7(snapshot.snapshot_date);
     if (!date2 || date2 > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
     const key = String(snapshot.article_id);
     const previous = result.get(key);
-    if (!previous || date2 > day6(previous.snapshot_date) || date2 === day6(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
+    if (!previous || date2 > day7(previous.snapshot_date) || date2 === day7(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
   }
   return result;
 }
 function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
   const result = /* @__PURE__ */ new Map();
-  const ordered2 = list2(reports).filter((report) => (!periodType || report.period_type === periodType) && day6(report.period_end) && day6(report.period_end) <= end).sort((a, b) => day6(a.period_end).localeCompare(day6(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
+  const ordered2 = list2(reports).filter((report) => (!periodType || report.period_type === periodType) && day7(report.period_end) && day7(report.period_end) <= end).sort((a, b) => day7(a.period_end).localeCompare(day7(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
   for (const report of ordered2) {
     for (const [id2, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
       const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
@@ -14752,7 +14986,7 @@ function articleRows(data3 = {}, { start = "", end = "9999-12-31", periodType } 
   const snapshots = latestSnapshots(data3.snapshots, end);
   const verdicts2 = verdictMap(data3.reports, { end, periodType });
   return list2(data3.articles).filter((article) => {
-    const published = day6(article.published_at);
+    const published = day7(article.published_at);
     return published && (!start || published >= start) && published <= end;
   }).map((article) => ({
     ...article,
@@ -14782,10 +15016,10 @@ function aggregate(rows = []) {
   result.partial.verdict = result.judged_count > 0 && result.judged_count < rows.length;
   return result;
 }
-function compareMetrics(current2 = {}, previous = {}) {
+function compareMetrics(current3 = {}, previous = {}) {
   const result = {};
   for (const field2 of ["count", ...SUM_FIELDS, ...AVG_FIELDS, "hits", "flops", "hit_rate", "published_count", "total_reads", "average_ctr", "recent_hits"]) {
-    const now = finiteNumber2(current2[field2]);
+    const now = finiteNumber2(current3[field2]);
     const before = finiteNumber2(previous[field2]);
     result[field2] = {
       current: now,
@@ -14797,13 +15031,13 @@ function compareMetrics(current2 = {}, previous = {}) {
   return result;
 }
 function periodSummary(data3, { start, end, periodType } = {}) {
-  const duration3 = day6(start) && day6(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
+  const duration3 = day7(start) && day7(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
   const previousEnd = duration3 > 0 ? shiftDay4(start, -1) : "";
   const previousStart = duration3 > 0 ? shiftDay4(start, -duration3) : "";
   const rows = articleRows(data3, { start, end, periodType });
   const previousRows = duration3 > 0 ? articleRows(data3, { start: previousStart, end: previousEnd, periodType }) : [];
-  const current2 = aggregate(rows), previous = aggregate(previousRows);
-  return { start, end, previousStart, previousEnd, rows, previousRows, current: current2, previous, changes: compareMetrics(current2, previous) };
+  const current3 = aggregate(rows), previous = aggregate(previousRows);
+  return { start, end, previousStart, previousEnd, rows, previousRows, current: current3, previous, changes: compareMetrics(current3, previous) };
 }
 function dailySummary(data3, date2) {
   const previousDate = shiftDay4(date2, -1);
@@ -14828,18 +15062,18 @@ function groupPerformance(rows = [], field2 = "topic_category") {
   }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 function dailySeries(data3 = {}, { start = "", end = "9999-12-31" } = {}) {
-  const dates = [...new Set(list2(data3.snapshots).map((snapshot) => day6(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
+  const dates = [...new Set(list2(data3.snapshots).map((snapshot) => day7(snapshot.snapshot_date)).filter((date2) => date2 && date2 >= start && date2 <= end))].sort();
   const articles = new Map(list2(data3.articles).map((article) => [String(article.id), article]));
   return dates.map((date2) => {
-    const sameDay = list2(data3.snapshots).filter((snapshot) => day6(snapshot.snapshot_date) === date2);
+    const sameDay = list2(data3.snapshots).filter((snapshot) => day7(snapshot.snapshot_date) === date2);
     const snapshots = latestSnapshots(sameDay, date2);
     const rows = [...snapshots.entries()].filter(([id2]) => articles.has(id2)).map(([id2, snapshot]) => ({ ...articles.get(id2), snapshot }));
     return { date: date2, ...aggregate(rows) };
   });
 }
-function diffRules(previous, current2) {
+function diffRules(previous, current3) {
   const before = new Map(rules(previous?.rules ?? previous).map((rule) => [rule.rule_id, rule]));
-  const after = new Map(rules(current2?.rules ?? current2).map((rule) => [rule.rule_id, rule]));
+  const after = new Map(rules(current3?.rules ?? current3).map((rule) => [rule.rule_id, rule]));
   const added = [], removed4 = [], unchanged2 = [], changed2 = [];
   for (const [id2, rule] of before) {
     const next = after.get(id2);
@@ -14887,12 +15121,12 @@ function periodsFor(data3 = {}, type = "daily") {
   const periods = /* @__PURE__ */ new Map();
   for (const report of list2(data3.reports)) {
     if (report.period_type !== type) continue;
-    const start = day6(report.period_start), end = day6(report.period_end);
+    const start = day7(report.period_start), end = day7(report.period_end);
     if (!start || !end || start > end) continue;
     periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
   }
   if (!periods.size) {
-    const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day6(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day6(article.published_at))].filter(Boolean))].sort().reverse();
+    const dates = [...new Set([...list2(data3.snapshots).map((snapshot) => day7(snapshot.snapshot_date)), ...list2(data3.articles).map((article) => day7(article.published_at))].filter(Boolean))].sort().reverse();
     const duration3 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
       const start = shiftDay4(end, -(duration3 - 1));
@@ -14904,10 +15138,10 @@ function periodsFor(data3 = {}, type = "daily") {
 
 // web/pages/review-weekly.mjs
 init_dom();
-var day7 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
-var range = (report) => `${day7(report.period_start)} 至 ${day7(report.period_end)}`;
+var day8 = (date2) => /^\d{4}-\d{2}-\d{2}$/.test(String(date2)) ? `${Number(date2.slice(5, 7))}月${Number(date2.slice(8))}日` : String(date2 ?? "");
+var range = (report) => `${day8(report.period_start)} 至 ${day8(report.period_end)}`;
 function currentWeekStart(now) {
-  const today2 = day6(now || (/* @__PURE__ */ new Date()).toISOString());
+  const today2 = day7(now || (/* @__PURE__ */ new Date()).toISOString());
   if (!today2) return "";
   const weekday2 = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
   const offset = weekday2 === 0 ? -6 : 1 - weekday2;
@@ -14954,11 +15188,11 @@ function selectDailyTab(name) {
   if (name === "weekly") void loadWeekly();
 }
 var weeklyRead = null;
-async function readAllReviewReports(current2) {
+async function readAllReviewReports(current3) {
   const items = [];
   for (let offset = 0; ; offset += 100) {
     const data3 = await api("/review/reports?offset=" + offset);
-    if (!current2()) return null;
+    if (!current3()) return null;
     if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean") throw new Error("周报读取不完整，请稍后重试。");
     items.push(...data3.items);
     if (!data3.has_more || !data3.items.length) return items;
@@ -14968,12 +15202,12 @@ async function loadWeekly() {
   const root3 = document.querySelector("#ai-reports");
   const box = root3?.querySelector("#ai-weekly-list"), status = root3?.querySelector("#ai-weekly-status");
   if (!box || weeklyRead?.session === runtime.sessionEpoch && weeklyRead.loaded) return;
-  const session = runtime.sessionEpoch, current2 = () => session === runtime.sessionEpoch && state.page === "ai-reports";
+  const session = runtime.sessionEpoch, current3 = () => session === runtime.sessionEpoch && state.page === "ai-reports";
   weeklyRead = { session, loaded: false };
   status.textContent = "正在读取周报…";
   try {
-    const reports = await readAllReviewReports(current2);
-    if (!reports || !current2()) return;
+    const reports = await readAllReviewReports(current3);
+    if (!reports || !current3()) return;
     const html = renderWeeklyReview({ reports }, { account: state.account || "V字", now: (/* @__PURE__ */ new Date()).toISOString() });
     const live3 = document.querySelector("#ai-reports #ai-weekly-list");
     if (!live3) return;
@@ -14982,7 +15216,7 @@ async function loadWeekly() {
     weeklyRead.loaded = true;
   } catch (error2) {
     weeklyRead = null;
-    if (current2()) document.querySelector("#ai-reports #ai-weekly-status").textContent = error2.message || "周报读取失败，请稍后重试。";
+    if (current3()) document.querySelector("#ai-reports #ai-weekly-status").textContent = error2.message || "周报读取失败，请稍后重试。";
   }
 }
 function aiReportsYesterday(today2 = dailyNotesToday()) {
@@ -15004,11 +15238,11 @@ function sortAiReports(items) {
 function reportsForDailyDate(items, date2) {
   return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date2)));
 }
-async function readAllAiReports(read2, current2 = () => true) {
+async function readAllAiReports(read2, current3 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; offset += 100) {
     const data3 = await read2("/ai-reports?offset=" + offset);
-    if (!current2()) return null;
+    if (!current3()) return null;
     if (!Array.isArray(data3?.items) || typeof data3.has_more !== "boolean" || data3.items.length > 100 || data3.has_more && data3.items.length !== 100)
       throw new Error("汇报读取不完整，请稍后重试。");
     for (const row of data3.items) if (!seen.has(row.id)) {
@@ -15032,22 +15266,22 @@ async function loadAiReports({ resetDate = false } = {}) {
   if (!selectedDate) selectedDate = dailyNotesToday();
   if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
   const ticket2 = ++sequence3, date2 = selectedDate;
-  const current2 = () => ticket2 === sequence3 && session === runtime.sessionEpoch && state.page === "ai-reports";
+  const current3 = () => ticket2 === sequence3 && session === runtime.sessionEpoch && state.page === "ai-reports";
   if (!allReports) paintAiReportTimeline([], visibleMonth, { loading: true });
   paintAiDailyReminders(null, "", true);
   selectDailyTab(state.aiDailyTab || "reports");
-  const report = readAllAiReports(api, current2).then((items) => {
-    if (current2() && items) {
+  const report = readAllAiReports(api, current3).then((items) => {
+    if (current3() && items) {
       allReports = items;
       paintReports();
     }
   }).catch((error2) => {
-    if (current2()) paintAiReportTimeline([], visibleMonth, { error: error2.message || "读取失败，请稍后重试。" });
+    if (current3()) paintAiReportTimeline([], visibleMonth, { error: error2.message || "读取失败，请稍后重试。" });
   });
   const reminders = api("/work-reminders?date=" + encodeURIComponent(date2)).then((data3) => {
-    if (current2()) paintAiDailyReminders(data3);
+    if (current3()) paintAiDailyReminders(data3);
   }).catch((error2) => {
-    if (current2()) paintAiDailyReminders(null, error2.message || "提醒读取失败，请稍后重试");
+    if (current3()) paintAiDailyReminders(null, error2.message || "提醒读取失败，请稍后重试");
   });
   void loadExperimentsPanel();
   await Promise.all([report, reminders]);
@@ -15109,11 +15343,11 @@ function registerAiReportEvents() {
       paintReports();
       document.querySelector("#ai-report-dayhead")?.scrollIntoView?.({ block: "nearest" });
     } else {
-      const day8 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-      if (day8 && validDailyNotesDate(day8)) {
-        selectedDate = day8;
-        visibleMonth = day8.slice(0, 7);
-        state.aiDailyDate = day8;
+      const day9 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+      if (day9 && validDailyNotesDate(day9)) {
+        selectedDate = day9;
+        visibleMonth = day9.slice(0, 7);
+        state.aiDailyDate = day9;
         updateRoute();
         void loadAiReports();
       }
@@ -15158,11 +15392,11 @@ function currentPlaybooks(books = [], account3) {
     const scope = scopeOf(book.account);
     if (!latest2.has(scope)) latest2.set(scope, book);
   }
-  const current2 = [...latest2.values()].map((book) => ({
+  const current3 = [...latest2.values()].map((book) => ({
     ...book,
     rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
   })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
-  return resolveRuleOverrides(current2, account3);
+  return resolveRuleOverrides(current3, account3);
 }
 function resolveRuleOverrides(books, account3) {
   const scopes = applicableScopes(account3), occurrences = /* @__PURE__ */ new Map();
@@ -15233,7 +15467,7 @@ function renderTrafficCard(snapshots, articleId) {
 var ROLLING_DAYS = 7;
 var ROLLING_MIN_SAMPLES = 3;
 var DAY_MS = 864e5, BEIJING_OFFSET_MS = 8 * 36e5;
-var instant = (value) => typeof value === "string" && value.includes("T") && day6(value) ? Date.parse(value) : null;
+var instant = (value) => typeof value === "string" && value.includes("T") && day7(value) ? Date.parse(value) : null;
 var stamp3 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
 var number = (value, max = Infinity) => {
   const n = finiteNumber2(value);
@@ -15244,12 +15478,12 @@ var unpublishedStatuses = ["draft", "drafting", "illustrated", "draft_saved", "s
 var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
 function trendBounds({ range: range2 = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
-  const today2 = day6(now);
+  const today2 = day7(now);
   if (!today2 || stamp3(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range2)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
   const start = range2 === "custom" ? from : shiftDay4(today2, range2 === "30d" ? -29 : -6);
   const end = range2 === "custom" ? to : today2;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day6(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day6(end) !== end)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day7(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day7(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
   const days = (Date.parse(end) - Date.parse(start)) / DAY_MS + 1;
   if (days < 1) throw new TypeError("结束日期不能早于开始日期。");
@@ -15264,7 +15498,7 @@ function summarize(rows) {
   const judged = rows.filter((row) => row.verdict), verdicts2 = (name) => judged.filter((row) => row.verdict === name).length;
   const hits = verdicts2("爆");
   const unknown = rows.filter((row) => !confirmed(row)).length;
-  const dates = rows.map((row) => day6(row.sample24h?.snapshot_date)).filter(Boolean).sort();
+  const dates = rows.map((row) => day7(row.sample24h?.snapshot_date)).filter(Boolean).sort();
   const ages = rows.map((row) => number(row.sample24h?.age_hours)).filter((value) => value !== null);
   return {
     record_count: rows.length,
@@ -15302,35 +15536,35 @@ function summarize(rows) {
     max_hours: ages.length ? Math.max(...ages) : null
   };
 }
-function headline(current2, previous) {
+function headline(current3, previous) {
   const comparable = previous.record_count > 0;
-  const both = (key) => comparable && current2[key] !== null && previous[key] !== null;
+  const both = (key) => comparable && current3[key] !== null && previous[key] !== null;
   const tile = (key, unit, extra = {}) => ({
     key,
     unit,
-    value: current2[key],
+    value: current3[key],
     previous: comparable ? previous[key] : null,
     // Reads span orders of magnitude, so their change is relative; rates change in percentage points.
-    delta: !both(key) ? null : unit === "relative" ? previous[key] ? (current2[key] - previous[key]) / previous[key] * 100 : null : current2[key] - previous[key],
+    delta: !both(key) ? null : unit === "relative" ? previous[key] ? (current3[key] - previous[key]) / previous[key] * 100 : null : current3[key] - previous[key],
     ...extra
   });
   return [
     tile("record_count", "count"),
-    tile("median_reads", "relative", { sample: current2.coverage.average_reads }),
-    tile("hit_rate", "points", { hits: current2.hits, sample: current2.coverage.hits }),
-    tile("median_ctr", "points", { sample: current2.coverage.average_ctr })
+    tile("median_reads", "relative", { sample: current3.coverage.average_reads }),
+    tile("hit_rate", "points", { hits: current3.hits, sample: current3.coverage.hits }),
+    tile("median_ctr", "points", { sample: current3.coverage.average_ctr })
   ];
 }
 function reviewTrends(data3 = {}, options3 = {}) {
   const { account: account3 = "V字", verdict = "", now = (/* @__PURE__ */ new Date()).toISOString() } = options3;
   const bounds = trendBounds({ ...options3, now }), nowMs = stamp3(now);
   const source = (data3.articles || []).filter((row) => row.account === account3);
-  const past = (row) => day6(row.published_at) && day6(row.published_at) <= bounds.today && (stamp3(row.published_at) === null || stamp3(row.published_at) <= nowMs);
+  const past = (row) => day7(row.published_at) && day7(row.published_at) <= bounds.today && (stamp3(row.published_at) === null || stamp3(row.published_at) <= nowMs);
   const articles = source.filter((row) => !unpublished(row) && past(row));
   const byId = new Map(articles.map((row) => [String(row.id), row]));
   const snapshots = (data3.snapshots || []).filter((snapshot) => {
-    const row = byId.get(String(snapshot.article_id)), date2 = day6(snapshot.snapshot_date);
-    if (!row || !date2 || date2 > bounds.today || date2 < day6(row.published_at)) return false;
+    const row = byId.get(String(snapshot.article_id)), date2 = day7(snapshot.snapshot_date);
+    if (!row || !date2 || date2 > bounds.today || date2 < day7(row.published_at)) return false;
     const published = stamp3(row.published_at), hours = number(snapshot.age_hours);
     return published === null || hours === null || hours <= (nowMs - published) / 36e5 + 1;
   });
@@ -15340,18 +15574,18 @@ function reviewTrends(data3 = {}, options3 = {}) {
     return {
       ...row,
       trend_provisional: elapsed !== null && elapsed < 24 || age !== null && age < 24,
-      trend_unknown_age: published === null && age === null && day6(row.published_at) >= shiftDay4(bounds.today, -1)
+      trend_unknown_age: published === null && age === null && day7(row.published_at) >= shiftDay4(bounds.today, -1)
     };
   });
   const pool = rows.filter((row) => !verdict || row.verdict === verdict);
-  const between = (start, end) => pool.filter((row) => day6(row.published_at) >= start && day6(row.published_at) <= end);
+  const between = (start, end) => pool.filter((row) => day7(row.published_at) >= start && day7(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
   const previous = { start: shiftDay4(bounds.start, -bounds.days), end: shiftDay4(bounds.start, -1) };
   const rolling = (date2, key) => {
     const values = between(shiftDay4(date2, 1 - ROLLING_DAYS), date2).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
-  const first = selected.map((row) => day6(row.published_at)).sort()[0];
+  const first = selected.map((row) => day7(row.published_at)).sort()[0];
   const plot = { start: first || bounds.start, end: bounds.end };
   const startMs = Date.parse(`${plot.start}T00:00:00Z`);
   plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
@@ -15366,7 +15600,7 @@ function reviewTrends(data3 = {}, options3 = {}) {
     };
   });
   const points = selected.map((row) => {
-    const date2 = day6(row.published_at), published = stamp3(row.published_at);
+    const date2 = day7(row.published_at), published = stamp3(row.published_at);
     const position = published === null ? ((Date.parse(`${date2}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days : (published + BEIJING_OFFSET_MS - startMs) / (plot.days * DAY_MS);
     return {
       id: row.id,
@@ -15401,8 +15635,8 @@ function reviewTrends(data3 = {}, options3 = {}) {
       unpublished: source.filter(unpublished).length,
       pending: source.filter((row) => statusOf(row) === "pending").length,
       unmatched: source.filter((row) => statusOf(row) === "unmatched").length,
-      undated: source.filter((row) => !unpublished(row) && !day6(row.published_at)).length,
-      future: source.filter((row) => !unpublished(row) && day6(row.published_at) && !past(row)).length
+      undated: source.filter((row) => !unpublished(row) && !day7(row.published_at)).length,
+      future: source.filter((row) => !unpublished(row) && day7(row.published_at) && !past(row)).length
     },
     loaded_at: data3.loadedAt || null,
     generated_at: now
@@ -15460,7 +15694,7 @@ function scale(values, kind, top, bottom) {
   return { y: (value) => bottom - value / max * height, ticks: [0, max / 2, max] };
 }
 function dateLabels(series) {
-  const plotted = series.filter((day8) => day8.position !== null), step = Math.ceil(plotted.length / 6);
+  const plotted = series.filter((day9) => day9.position !== null), step = Math.ceil(plotted.length / 6);
   return plotted.filter((_, index) => (plotted.length - 1 - index) % step === 0);
 }
 function readout(point) {
@@ -15469,17 +15703,17 @@ function readout(point) {
   return `${when}《${point.title || "未命名"}》阅读 ${reads2(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
 function figure(result, { key, rolling, kind, title, hint: hint2, format, tick, height, threshold, daily = true }) {
-  const plotted = result.series.filter((day8) => day8.position !== null);
-  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day8) => day8[rolling] !== null);
+  const plotted = result.series.filter((day9) => day9.position !== null);
+  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day9) => day9[rolling] !== null);
   const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint2)}</span></div>`;
   if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
     <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
   const top = 16, bottom = height - 30;
-  const values = [...points.map((point) => point[key]), ...curve.map((day8) => day8[rolling]), ...known2(threshold) ? [threshold] : []];
+  const values = [...points.map((point) => point[key]), ...curve.map((day9) => day9[rolling]), ...known2(threshold) ? [threshold] : []];
   const { y, ticks } = scale(values, kind, top, bottom), x = (position) => `${(position * 100).toFixed(2)}%`;
   const grid = ticks.map((mark) => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join("");
-  const days = dateLabels(result.series).map((day8) => `<text x="${x(day8.position)}" y="${height - 8}" text-anchor="middle">${e(day8.date.slice(5))}</text>`).join("");
+  const days = dateLabels(result.series).map((day9) => `<text x="${x(day9.position)}" y="${height - 8}" text-anchor="middle">${e(day9.date.slice(5))}</text>`).join("");
   const hitLine = known2(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" y2="${y(threshold).toFixed(2)}"/>` : "";
   const hitLabel = known2(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
     text-anchor="end">爆款线 ${e(format(threshold))}</text>` : "";
@@ -15487,12 +15721,12 @@ function figure(result, { key, rolling, kind, title, hint: hint2, format, tick, 
       cx="${x(point.position)}" cy="${y(point[key]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
       data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join("");
   let previous = null, lines = "";
-  for (const day8 of plotted) {
-    if (day8[rolling] === null) {
+  for (const day9 of plotted) {
+    if (day9[rolling] === null) {
       previous = null;
       continue;
     }
-    const now = { x: x(day8.position), y: y(day8[rolling]).toFixed(2) };
+    const now = { x: x(day9.position), y: y(day9[rolling]).toFixed(2) };
     if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${now.x}" y2="${now.y}"/>`;
     previous = now;
   }
@@ -15630,7 +15864,7 @@ function renderCockpitTrends(data3, vm2, window2) {
   const pending = result.points.filter((point) => point.provisional && (known2(point.reads) || known2(point.ctr))).length;
   const held = (result.excluded?.pending || 0) + (result.excluded?.unmatched || 0);
   const shortWindow = result.days <= 14;
-  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ""}${result.end === day6(now) ? "今天尚未结束。" : ""}${shortWindow ? "缺失不补零；切换到「近30天」可看中位数走势线。" : `缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`}`;
+  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${held ? `另有 ${held} 篇待发布或未能对上，不进入阅读和点击率。` : ""}${result.end === day7(now) ? "今天尚未结束。" : ""}${shortWindow ? "缺失不补零；切换到「近30天」可看中位数走势线。" : `缺失不补零；黑线为当天及此前共 7 天中位数，不足 ${result.rolling.min_samples} 篇时断开。`}`;
   if (shortWindow) {
     return `<section class="review-trends review-cockpit-trends" aria-label="本期文章表现分析">${legend(result, { showLine: false })}
       ${quadrantFigure(result)}
@@ -15664,7 +15898,7 @@ function renderCockpitTrends(data3, vm2, window2) {
     <p class="review-note review-trend-note">${e(note)}</p></section>`;
 }
 function renderReviewTrends(data3, vm2) {
-  const now = vm2.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day6(now), t = vm2.trends || {};
+  const now = vm2.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day7(now), t = vm2.trends || {};
   const range2 = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
   const from = range2 === "custom" ? t.from || "" : shiftDay4(today2, range2 === "30d" ? -29 : -6);
   const to = range2 === "custom" ? t.to || "" : today2;
@@ -15736,26 +15970,26 @@ function rulesIntroMarkdown(markdown) {
 function playbookPromptBlocks(markdown) {
   const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
   const blocks = [];
-  let current2 = null, fence = null;
+  let current3 = null, fence = null;
   const flush = () => {
-    const content2 = current2?.lines.join("\n").trim();
-    if (content2) blocks.push({ title: current2.title, content: content2 });
-    current2 = null;
+    const content2 = current3?.lines.join("\n").trim();
+    if (content2) blocks.push({ title: current3.title, content: content2 });
+    current3 = null;
   };
   for (const line of lines) {
     const wasInFence = fence !== null;
     fence = nextFence(fence, line);
     if (wasInFence || fence) {
-      if (current2) current2.lines.push(line);
+      if (current3) current3.lines.push(line);
       continue;
     }
     const heading = line.match(/^#{1,6}\s+(.+?)\s*$/);
     if (heading) {
       flush();
-      if (heading[1].includes("提示词")) current2 = { title: heading[1], lines: [] };
+      if (heading[1].includes("提示词")) current3 = { title: heading[1], lines: [] };
       continue;
     }
-    if (current2) current2.lines.push(line);
+    if (current3) current3.lines.push(line);
   }
   flush();
   return blocks;
@@ -15821,7 +16055,7 @@ function renderPromptPage(data3, vm2) {
 
 // web/core/review-overview-metrics.mjs
 function instant2(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day6(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day7(value)) return null;
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? stamp4 : null;
 }
@@ -15860,7 +16094,7 @@ function metricWindow(range2, today2) {
   return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay4(monday, -7), end: shiftDay4(monday, -1), closed: true } };
 }
 function publishedIn(row, bounds, nowMs) {
-  const publishedDay = day6(row.published_at);
+  const publishedDay = day7(row.published_at);
   const publishedMs = instant2(row.published_at);
   if (bounds.rolling) return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
   return Boolean(publishedDay && publishedDay >= bounds.start && publishedDay <= bounds.end && (bounds.closed || publishedMs === null || publishedMs <= nowMs));
@@ -15888,11 +16122,11 @@ function summarize2(rows) {
     samples: { judged: judged.sample, readsMedian: reads3.sample, ctrMedian: ctr.sample, avgReadSeconds: seconds.sample, completion: completion.sample }
   };
 }
-function metricDelta(current2, previous) {
-  if (current2 === null || previous === null || !Number.isFinite(current2) || !Number.isFinite(previous)) return null;
-  if (current2 === previous) return 0;
+function metricDelta(current3, previous) {
+  if (current3 === null || previous === null || !Number.isFinite(current3) || !Number.isFinite(previous)) return null;
+  if (current3 === previous) return 0;
   if (previous === 0) return null;
-  const rounded = Math.round((current2 - previous) / Math.abs(previous) * 100);
+  const rounded = Math.round((current3 - previous) / Math.abs(previous) * 100);
   return Number.isFinite(rounded) ? rounded : null;
 }
 function dailySeries2(rows, bounds, nowMs) {
@@ -15907,16 +16141,16 @@ function dailySeries2(rows, bounds, nowMs) {
 function reviewOverviewMetrics(data3, { account: account3, range: range2 = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const nowMs = instant2(now);
   if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
-  const bounds = metricWindow(range2, day6(now));
+  const bounds = metricWindow(range2, day7(now));
   const rows = enrichArticles(data3, { account: account3 });
   const published = rows.filter((row) => reviewPublishState(row) === "published");
   const pendingCount = rows.filter((row) => reviewPublishState(row) === "pending" && publishedIn({ published_at: row.draft_saved_at || row.created_at }, bounds, nowMs)).length;
   const unmatchedCount = rows.filter((row) => reviewPublishState(row) === "unmatched").length;
-  const current2 = summarize2(published.filter((row) => publishedIn(row, bounds, nowMs)));
-  if (!bounds.previous) return { ...current2, pendingCount, unmatchedCount };
+  const current3 = summarize2(published.filter((row) => publishedIn(row, bounds, nowMs)));
+  if (!bounds.previous) return { ...current3, pendingCount, unmatchedCount };
   const previous = summarize2(published.filter((row) => publishedIn(row, bounds.previous, nowMs)));
   return {
-    ...current2,
+    ...current3,
     pendingCount,
     unmatchedCount,
     previous,
@@ -15954,7 +16188,7 @@ function formatReviewListMetric(observation, key) {
 
 // web/core/review-list-observation.mjs
 function instant3(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day6(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day7(value)) return null;
   const stamp4 = Date.parse(value);
   return Number.isFinite(stamp4) ? stamp4 : null;
 }
@@ -16135,17 +16369,17 @@ function articlePatternGroups(rows, tags, dimension, observations) {
 }
 function articleWeekGroups(rows, observations) {
   return [...groupBy(rows, (row) => {
-    const date2 = day6(row.published_at);
+    const date2 = day7(row.published_at);
     return date2 ? shiftDay4(date2, -((weekday(date2) + 6) % 7)) : "";
   })].map(([start, rows2]) => ({ start, end: shiftDay4(start, 6), rows: rows2, ...summary2(rows2, observations) }));
 }
 function filterDate(value, from, today2) {
-  const date2 = day6(value);
+  const date2 = day7(value);
   return !from || Boolean(date2 && date2 >= from && date2 <= today2);
 }
 function filterArticles(rows, filters, tags, now) {
   const range2 = ["7d", "30d", "all"].includes(filters.range) ? filters.range : "30d";
-  const today2 = day6(now), from = range2 === "all" ? "" : shiftDay4(today2, range2 === "7d" ? -6 : -29);
+  const today2 = day7(now), from = range2 === "all" ? "" : shiftDay4(today2, range2 === "7d" ? -6 : -29);
   const query = (filters.query || "").trim().toLocaleLowerCase();
   const matchesTitle = (row) => !query || (row.title || "").toLocaleLowerCase().includes(query);
   const pattern = filters.pattern;
@@ -16167,7 +16401,7 @@ function sortReviewArticles(rows, observations, sort) {
   const direction = sort?.direction === "ascending" ? 1 : -1;
   const key = sort?.key || "published";
   if (key === "published") {
-    return [...rows].sort((a, b) => Number(!day6(a.published_at)) - Number(!day6(b.published_at)) || -direction * recentArticles(a, b));
+    return [...rows].sort((a, b) => Number(!day7(a.published_at)) - Number(!day7(b.published_at)) || -direction * recentArticles(a, b));
   }
   return [...rows].sort((a, b) => compareNullable(metricValue(observations.get(a.id), key), metricValue(observations.get(b.id), key), direction) || recentArticles(a, b));
 }
@@ -16661,8 +16895,8 @@ function archives(data3, vm2, rows, override, archive = "") {
   const groupsHtml = REVIEW_SECTION_GROUPS.flatMap(([, , ids]) => ids).map(tabHtml).join("");
   return `<section class="review-secondary"><div class="review-secondary-bar"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${groupsHtml}</div>${archive}</div>${updatedLine(data3, selected)}<div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body4}</div></section>`;
 }
-function metricChange(label, current2, previous, prefix = "") {
-  const delta2 = metricDelta(current2, previous);
+function metricChange(label, current3, previous, prefix = "") {
+  const delta2 = metricDelta(current3, previous);
   const head = prefix ? `${label} ${prefix}` : label;
   if (delta2 === null) return `<small class="review-stat-change">${e(head)} —</small>`;
   if (delta2 === 0) return `<small class="review-stat-change">${e(head)} 持平</small>`;
@@ -16674,29 +16908,29 @@ function statCard(label, body4, change3) {
 }
 function overview(data3, vm2) {
   const range2 = ["this", "last", "30d"].includes(vm2.filters?.metricsRange) ? vm2.filters.metricsRange : "this";
-  const current2 = reviewOverviewMetrics(data3, { account: vm2.account, range: range2, now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() });
-  const noSample = range2 !== "last" && current2.observedCount === 0;
+  const current3 = reviewOverviewMetrics(data3, { account: vm2.account, range: range2, now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() });
+  const noSample = range2 !== "last" && current3.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  const earlier = current2.previous || {};
-  const change3 = (left, right, prefix = "") => current2.comparisonLabel ? metricChange(current2.comparisonLabel, left, right, prefix) : "";
+  const earlier = current3.previous || {};
+  const change3 = (left, right, prefix = "") => current3.comparisonLabel ? metricChange(current3.comparisonLabel, left, right, prefix) : "";
   const publishSummary = `<div class="review-publish-summary" role="status" aria-label="发布状态">
-    <span class="review-publish review-publish-pending">待发布 <strong>${e(current2.pendingCount ?? 0)}</strong></span>
-    <span class="review-publish review-publish-published">已发布 <strong>${e(current2.count)}</strong></span>
-    ${current2.unmatchedCount || 0 ? `<span class="review-publish review-publish-unmatched">未能对上 <strong>${e(current2.unmatchedCount)}</strong></span>` : ""}
+    <span class="review-publish review-publish-pending">待发布 <strong>${e(current3.pendingCount ?? 0)}</strong></span>
+    <span class="review-publish review-publish-published">已发布 <strong>${e(current3.count)}</strong></span>
+    ${current3.unmatchedCount || 0 ? `<span class="review-publish review-publish-unmatched">未能对上 <strong>${e(current3.unmatchedCount)}</strong></span>` : ""}
     <span class="review-note">阅读、点击率、爆 / 中 / 扑只统计已发布。待发布在草稿箱里，不进入这些数字。</span></div>`;
   const cards = [
-    statCard("发文数", `<strong>${e(current2.count)}<small>篇</small></strong>`, change3(current2.count, earlier.count)),
+    statCard("发文数", `<strong>${e(current3.count)}<small>篇</small></strong>`, change3(current3.count, earlier.count)),
     statCard(
       "爆 / 中 / 扑",
-      `<strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong>`,
-      change3(current2.hits, earlier.hits, "爆")
+      `<strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong>`,
+      change3(current3.hits, earlier.hits, "爆")
     ),
-    statCard("阅读中位数", value(reviewNumber(current2.readsMedian)), change3(current2.readsMedian, earlier.readsMedian)),
-    statCard("CTR 中位数", value(reviewNumber(current2.ctrMedian, "ctr")), change3(current2.ctrMedian, earlier.ctrMedian)),
-    statCard("平均阅读时长", value(reviewDuration(current2.avgReadSeconds)), change3(current2.avgReadSeconds, earlier.avgReadSeconds)),
-    statCard("平均阅读完成率", value(reviewNumber(current2.completion, "completion_rate")), change3(current2.completion, earlier.completion))
+    statCard("阅读中位数", value(reviewNumber(current3.readsMedian)), change3(current3.readsMedian, earlier.readsMedian)),
+    statCard("CTR 中位数", value(reviewNumber(current3.ctrMedian, "ctr")), change3(current3.ctrMedian, earlier.ctrMedian)),
+    statCard("平均阅读时长", value(reviewDuration(current3.avgReadSeconds)), change3(current3.avgReadSeconds, earlier.avgReadSeconds)),
+    statCard("平均阅读完成率", value(reviewNumber(current3.completion, "completion_rate")), change3(current3.completion, earlier.completion))
   ].join("");
-  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range2)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data3, vm2, current2.window)}</section>` + weeklyLink(data3, vm2);
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range2)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div>${publishSummary}${renderCockpitTrends(data3, vm2, current3.window)}</section>` + weeklyLink(data3, vm2);
 }
 function weeklyLink(data3, vm2) {
   const [latest2] = weeklyReviews(data3.reports, vm2.account);
@@ -16794,7 +17028,7 @@ function renderRuleBook(book, scope) {
     ${chips}${intro}${groups}${other}</section>`;
 }
 function ruleBookTimes(book) {
-  const since = reviewDateTime2(book.created_at) || day6(book.published_on) || "—", updated = reviewDateTime2(book.updated_at || book.created_at);
+  const since = reviewDateTime2(book.created_at) || day7(book.published_on) || "—", updated = reviewDateTime2(book.updated_at || book.created_at);
   return `<span class="review-note review-rule-meta-pill">生效 ${e(since)}</span>` + (updated ? `<span class="review-note review-rule-meta-pill">最后更新 ${e(updated)}</span>` : "");
 }
 var byLastUpdate = (a, b) => Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0);
@@ -16926,7 +17160,7 @@ function staleRead(message = "复盘资料在读取时发生变化，请重新�
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
 }
 var REVIEW_PAGE_AHEAD = 3;
-async function readReviewCollection(read2, resource, selectedAccount, current2 = () => true) {
+async function readReviewCollection(read2, resource, selectedAccount, current3 = () => true) {
   if (!resources.includes(resource)) throw new Error("未知的复盘资料类型。");
   const items = [], seen = /* @__PURE__ */ new Set(), foreignIds = /* @__PURE__ */ new Set();
   const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
@@ -16951,17 +17185,17 @@ async function readReviewCollection(read2, resource, selectedAccount, current2 =
     return page.has_more;
   };
   const first = await fetchPage(0);
-  if (!current2()) return null;
+  if (!current3()) return null;
   for (let offset = 100, more = accept(first); more; offset += 100 * REVIEW_PAGE_AHEAD) {
     const pages = await Promise.all(Array.from({ length: REVIEW_PAGE_AHEAD }, (_, index) => fetchPage(offset + index * 100)));
-    if (!current2()) return null;
+    if (!current3()) return null;
     for (const page of pages) if (more) more = accept(page);
   }
   return { items, read_revision: revision2, foreignIds };
 }
-async function readContentReviewData(read2, selectedAccount, current2 = () => true) {
-  const results = await Promise.all(resources.map((name) => readReviewCollection(read2, name, selectedAccount, current2)));
-  if (!current2() || results.some((result2) => result2 === null)) return null;
+async function readContentReviewData(read2, selectedAccount, current3 = () => true) {
+  const results = await Promise.all(resources.map((name) => readReviewCollection(read2, name, selectedAccount, current3)));
+  if (!current3() || results.some((result2) => result2 === null)) return null;
   const revisions = results.map((result2) => result2.read_revision).filter((value) => value !== void 0);
   if (revisions.length && revisions.some((value) => value !== revisions[0])) throw staleRead();
   const result = normalizeReviewData(Object.fromEntries(resources.map((key, index) => [key, results[index].items])));
@@ -16975,12 +17209,12 @@ async function readContentReviewData(read2, selectedAccount, current2 = () => tr
   result.loadedAt = (/* @__PURE__ */ new Date()).toISOString();
   return result;
 }
-async function readContentReviewDataWithRetry(read2, selectedAccount, current2 = () => true) {
+async function readContentReviewDataWithRetry(read2, selectedAccount, current3 = () => true) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await readContentReviewData(read2, selectedAccount, current2);
+      return await readContentReviewData(read2, selectedAccount, current3);
     } catch (error2) {
-      if (!current2()) return null;
+      if (!current3()) return null;
       if (error2.code !== "READ_REVISION_CHANGED" || attempt) throw error2;
     }
   }
@@ -17102,32 +17336,32 @@ async function loadContentReview(context) {
   vm = { ...vm, ...requested, archiveAllowed: false, loading: true, error: "" };
   paintContentReviewPage();
   const ticket2 = ++sequence4, epoch = runtime2.sessionEpoch;
-  const current2 = () => ticket2 === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root2());
+  const current3 = () => ticket2 === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root2());
   const read2 = (path) => apiNetwork2(path, context ? { context } : {});
   try {
-    const result = await readContentReviewDataWithRetry(read2, requested.account, current2);
-    if (!current2() || !result) return;
+    const result = await readContentReviewDataWithRetry(read2, requested.account, current3);
+    if (!current3() || !result) return;
     data2 = result;
     syncViewFromRoute();
     paintContentReviewPage();
     focusBenchmark(vm.benchmark);
     void loadReviewAi(requested.account, { force: true });
-    void loadArticleTags(read2, requested.account, current2);
+    void loadArticleTags(read2, requested.account, current3);
   } catch (error2) {
-    if (!current2() || error2.name === "AbortError") return;
+    if (!current3() || error2.name === "AbortError") return;
     vm.loading = false;
     vm.error = error2.message || "读取失败，请稍后重试。";
     paintContentReviewPage();
   }
 }
-async function loadArticleTags(read2, account3, current2) {
+async function loadArticleTags(read2, account3, current3) {
   try {
     const tags = await read2("/review/ai/tags?account=" + encodeURIComponent(account3));
-    if (!current2()) return;
+    if (!current3()) return;
     vm.tags = tags && Array.isArray(tags.dimensions) ? tags : null;
     paintContentReviewPage();
   } catch {
-    if (current2()) {
+    if (current3()) {
       vm.tags = null;
       paintContentReviewPage();
     }
@@ -17144,7 +17378,7 @@ function closeArticle() {
 function changeTrend(target) {
   const key = target.dataset.reviewTrend;
   if (!["range", "from", "to"].includes(key)) return;
-  const today2 = day6((/* @__PURE__ */ new Date()).toISOString());
+  const today2 = day7((/* @__PURE__ */ new Date()).toISOString());
   vm.trends = { ...vm.trends, [key]: target.value };
   if (key === "range" && vm.trends.range === "custom") {
     vm.trends.from ||= shiftDay4(today2, -6);
@@ -17319,7 +17553,7 @@ function onReviewKeydown(event) {
   if (event.target.matches("[data-review-secondary]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
     event.preventDefault();
     const ids = REVIEW_SECTION_GROUPS.flatMap(([, , groupIds]) => groupIds);
-    const current2 = vm.secondary === "review" ? "rules" : vm.secondary, index = Math.max(0, ids.indexOf(current2));
+    const current3 = vm.secondary === "review" ? "rules" : vm.secondary, index = Math.max(0, ids.indexOf(current3));
     vm.secondary = event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length];
     vm.benchmark = "";
     writeRoute({ section: vm.secondary, benchmark: "" });
@@ -17416,8 +17650,8 @@ function changeArticleList(target) {
     return true;
   }
   if (reviewSortKeys.includes(reviewSort)) {
-    const current2 = vm.filters.sort;
-    const ascending = current2?.key === reviewSort && current2.direction === "descending";
+    const current3 = vm.filters.sort;
+    const ascending = current3?.key === reviewSort && current3.direction === "descending";
     const group = target.closest("[data-review-keep-open]")?.dataset.reviewKeepOpen;
     vm.filters.sort = { key: reviewSort, direction: ascending ? "ascending" : "descending" };
     paintContentReviewPage();
@@ -17485,9 +17719,9 @@ function reuseShell() {
   if (!main || shell?.dataset.session !== String(runtime.sessionEpoch) || shell.dataset.user !== state.me?.id) return false;
   setMenu(false);
   for (const link of $$(".nav-item,.mobile-nav-item", shell)) {
-    const current2 = link.dataset.nav === state.page;
-    link.classList.toggle("active", current2);
-    if (current2) link.setAttribute("aria-current", "page");
+    const current3 = link.dataset.nav === state.page;
+    link.classList.toggle("active", current3);
+    if (current3) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
   syncWorkbenchNavigation();
@@ -18169,25 +18403,25 @@ function makeView(pip) {
   };
 }
 function paintTodo(view3) {
-  const day8 = todoDay(bjtDate());
-  view3.head.querySelector("time").textContent = day8.date;
-  view3.todoMessage.textContent = day8.error || (!day8.loaded && day8.loading ? "正在读取待办…" : "");
+  const day9 = todoDay(bjtDate());
+  view3.head.querySelector("time").textContent = day9.date;
+  view3.todoMessage.textContent = day9.error || (!day9.loaded && day9.loading ? "正在读取待办…" : "");
   const fragment = view3.doc.createDocumentFragment();
-  for (const item of day8.items) {
-    const removal = day8.removals.get(item.id);
+  for (const item of day9.items) {
+    const removal = day9.removals.get(item.id);
     if (item.deleted_at || removal && removal.phase !== "restoring") continue;
     const li = node2(view3.doc, "li"), label = node2(view3.doc, "label"), check2 = node2(view3.doc, "input");
     check2.type = "checkbox";
     check2.dataset.todoId = item.id;
-    check2.dataset.date = day8.date;
-    check2.checked = day8.updates.has(item.id) ? day8.updates.get(item.id) : Boolean(item.completed);
-    check2.disabled = !day8.loaded || todoBusy(day8, item.id);
+    check2.dataset.date = day9.date;
+    check2.checked = day9.updates.has(item.id) ? day9.updates.get(item.id) : Boolean(item.completed);
+    check2.disabled = !day9.loaded || todoBusy(day9, item.id);
     label.append(check2, node2(view3.doc, "span", item.text));
     li.append(label);
     if (check2.checked) li.classList.add("is-complete");
     fragment.append(li);
   }
-  if (!day8.items.some((item) => !item.deleted_at) && day8.loaded) fragment.append(node2(view3.doc, "li", "今天还没有待办。", "floating-empty"));
+  if (!day9.items.some((item) => !item.deleted_at) && day9.loaded) fragment.append(node2(view3.doc, "li", "今天还没有待办。", "floating-empty"));
   view3.todoList.replaceChildren(fragment);
 }
 function paintNotes(view3) {
@@ -18222,9 +18456,9 @@ function paintNotes(view3) {
   view3.notesInput.disabled = !page?.loaded || !page.canEdit || item?.canEdit === false;
   view3.notesInput.readOnly = Boolean(view3.frozen);
   view3.labels.disabled = Boolean(view3.frozen) || !snap?.labelsVerified || !page?.canEdit || Boolean(item?.pending) || item?.labelComplete === false;
-  const current2 = [...view3.options.querySelectorAll("input")].map((input) => input.value);
+  const current3 = [...view3.options.querySelectorAll("input")].map((input) => input.value);
   const available = [.../* @__PURE__ */ new Set([...snap?.labels || [], ...item?.labels || []])];
-  if (JSON.stringify(current2) !== JSON.stringify(available)) {
+  if (JSON.stringify(current3) !== JSON.stringify(available)) {
     const fragment2 = view3.doc.createDocumentFragment();
     for (const name of available) {
       const label = node2(view3.doc, "label"), input = node2(view3.doc, "input");
@@ -18286,8 +18520,8 @@ function mountFloating(pip) {
       event.detail.waitUntil(Promise.reject(new Error("输入尚未完成，请结束输入后再刷新。")));
       return;
     }
-    const current2 = floatingNotesSnapshot()?.item;
-    if (tab === "notes" && view3.notesInput.value !== (current2?.draft || "")) editFloatingNote(view3.notesInput.value);
+    const current3 = floatingNotesSnapshot()?.item;
+    if (tab === "notes" && view3.notesInput.value !== (current3?.draft || "")) editFloatingNote(view3.notesInput.value);
     view3.frozen = true;
     paint4();
     event.detail.onFailure?.(() => {
@@ -18774,9 +19008,9 @@ function handleKeydown(event) {
   if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
-      const current2 = runtime.activePopover;
+      const current3 = runtime.activePopover;
       setTimeout(() => {
-        if (runtime.activePopover === current2 && !current2.node.contains(document.activeElement)) closePopover({ restoreFocus: false });
+        if (runtime.activePopover === current3 && !current3.node.contains(document.activeElement)) closePopover({ restoreFocus: false });
       }, 0);
     }
     if (event.key === "Escape") {

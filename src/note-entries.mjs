@@ -7,6 +7,7 @@ import {beijingDay} from './lib/time.mjs';
 import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory,noteEntryQuery,noteEntryInput,noteLabel} from './note-entry-validation.mjs';
 import {handleNoteLabels} from './note-labels.mjs';
 import {handleNoteMonth} from './note-month.mjs';
+import {handleLabelBackfill} from './label-backfill.mjs';
 
 const json=value=>Response.json({data:value});
 const fields='id,category,date,text,version,change_seq,created_at,updated_at,deleted_at';
@@ -180,6 +181,7 @@ export async function handleNoteEntries(db,request,route,env,origin,initialRevis
   const owner=dailyNotesOwner(env);
   if(route==='/note-entries/labels')return handleNoteLabels(db,request,owner,env,origin,initialRevision);
   if(route==='/note-entries/month')return handleNoteMonth(db,request,owner,initialRevision);
+  if(route==='/note-entries/label-backfill')return handleLabelBackfill(db,request,owner,env,origin);
   if(request.method==='GET')return readEntries(db,request,route,owner,env,origin,initialRevision);
   return writeEntry(db,request,route,owner,env,origin);
 }
