@@ -393,3 +393,7 @@ eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:ge
 eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:59
 eef7af7823ca9af8b09c8290308dfe1576116d68:tests/oct28-small-fix-projection.mjs:generic-api-key:69
 eef7af7823ca9af8b09c8290308dfe1576116d68:tests/todo-parse.test.mjs:generic-api-key:24
+# Synthetic placeholder OpenAI key in the 碎碎念 split/label-backfill test fixture (no real credential).
+7274bf36c7151118044594f196deffefc8749100:tests/note-split-and-label-backfill.test.mjs:generic-api-key:25
+# Synthetic placeholder OpenAI key in the 碎碎念 split/label-backfill test fixture (no real credential).
+7a5428772ba505364a4e378f502c4a396f21f8eb:tests/note-split-and-label-backfill.test.mjs:generic-api-key:25
