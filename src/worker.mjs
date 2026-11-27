@@ -350,8 +350,10 @@ async function handle(request,env,trace) {
   let decoded;try {decoded=decodeURIComponent(path);} catch {throw fail(400,'VALIDATION','地址格式无效');}
   if(decoded.includes('\0')||decoded.includes('\\')||decoded.split('/').some(p=>p.startsWith('.'))) throw fail(404,'NOT_FOUND','文件不存在');
   const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
-  if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
+  if(!asset||(name==='privacy'&&path!=='/privacy')) throw fail(404,'NOT_FOUND','文件不存在');
   const headers={'Content-Type':asset.type};
+  if(path==='/privacy') headers['Content-Security-Policy']=
+    "default-src 'none'; style-src 'sha256-8RZbiHNaP8XqLnrokddX8kl8VwvLDiyuu79NFXk6DzE='; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
   if(path==='/sw.js')headers['Service-Worker-Allowed']='/';
   if(revalidatedStatic.has(path)) {
     headers['Cache-Control']='no-cache';headers.ETag=asset.etag;

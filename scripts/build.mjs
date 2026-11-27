@@ -27,6 +27,7 @@ for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','g
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};
+assets.privacy={type:types.html,content:await readFile(resolve(publicRoot,'privacy.html'),'utf8')};
 const shell=buildServiceWorkerAssets({indexHtml:assets['index.html'].content,
   swSource:await readFile(resolve(publicRoot,'sw.js'),'utf8'),
   assets:Object.fromEntries(Object.entries(assets).filter(([name])=>name.endsWith('.css')||
