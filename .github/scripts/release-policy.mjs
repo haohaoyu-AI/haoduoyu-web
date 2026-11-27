@@ -730,7 +730,15 @@ export const todoDateShortcutsRelease=Object.freeze({
   baseline:'0a613d36-7366-4189-90a2-d1e44ee161a9',
   bytes:3324494,sha256:'799483d0c8a6e7254c52caafaf302d6ef752237bfbdec8440f45a8927e8b6bec',
   label:'production-todo-date-shortcuts'});
-const acceptedRelease=commit=>commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
+// Static public privacy policy. No data or authentication changes.
+export const privacyPolicyRelease=Object.freeze({
+  commit:'953689cea13cf4d74b2c18b211f8fe9972520f53',
+  tree:'5a7a9452dba22865c65aa33eaf13a3d46a14934c',
+  baseline:'0928b842-a009-4e0a-8795-4d2016aabc01',
+  bytes:3350193,sha256:'81b5285843a2a10207ef5b1b634008699259e6e7dd90f0715f289487e7f06cf8',
+  label:'production-public-privacy-policy'});
+const acceptedRelease=commit=>commit===privacyPolicyRelease.commit?privacyPolicyRelease:
+  commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
   commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
   commit===diaryTitleRelease.commit?diaryTitleRelease:
   commit===todoDateShortcutsRelease.commit?todoDateShortcutsRelease:
