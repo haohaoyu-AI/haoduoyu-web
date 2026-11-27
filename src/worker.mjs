@@ -4,7 +4,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 import { hashPassword,verifyPassword } from '../shared/auth.mjs';
 import { createRecords } from './records.mjs';
 import { ensureControl,storeFor,mutate,consistentRead,statement } from './storage.mjs';
-import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,recordLoginFailure,stable } from './security.mjs';
+import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,recordLoginFailure,stable,SESSION_MS } from './security.mjs';
 import { assets } from './assets.generated.mjs';
 import { exportBackupFromRead } from './backup.mjs';
 import { matchesIfNoneMatch } from './lib/http.mjs';
@@ -88,7 +88,7 @@ async function login(db,request,env,origin) {
     if(current?.password_hash!==user.password_hash) throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
     store.queue('UPDATE matrix_control SET auth_guard=CASE WHEN EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=?) THEN 1 ELSE 0 END WHERE id=1',user.id,user.password_hash);
     store.queue('DELETE FROM sessions WHERE expires_at<=?',now());
-    store.queue('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)',tokenHash,user.id,new Date(Date.now()+604800000).toISOString());
+    store.queue('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)',tokenHash,user.id,new Date(Date.now()+SESSION_MS).toISOString());
     store.queue('DELETE FROM login_attempts WHERE bucket=?',bucket);
     store.audit('user:'+user.id,'auth.login');
     return {response:json({username:user.username,csrfToken:csrfFor(token)},200,{'Set-Cookie':sessionCookie(token,origin)})};

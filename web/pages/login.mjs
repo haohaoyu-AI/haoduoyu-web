@@ -17,6 +17,18 @@ autocomplete="current-password" required></div><p class="form-message" role="ale
   "arrow", 15)}</button></form>\
 </section></main>`;
 }
+// A login that ran out: reload once, so a site that is open to everyone simply carries on as the public workspace
+// instead of showing the login box. Only if that does not work (the site requires a login) is the login box shown.
+const SESSION_RETRY = "haoduoyu.sessionEnded";
+function sessionEnded() {
+  let tried = false;
+  try { tried = sessionStorage.getItem(SESSION_RETRY) === "1"; sessionStorage.setItem(SESSION_RETRY, "1"); } catch {}
+  if (!tried && typeof location !== "undefined" && typeof location.reload === "function") { location.reload(); return; }
+  renderLogin();
+}
+function sessionStarted() {
+  try { sessionStorage.removeItem(SESSION_RETRY); } catch {}
+}
 // A failed network or initialization request does not mean that credentials
 // are required. Keep this distinct from the real 401 login flow and retry the
 // full identity check before showing any account data.
@@ -32,5 +44,5 @@ function renderInitializationError(message, onRetry, {status} = {}) {
   $("#init-retry")?.addEventListener("click", onRetry);
 }
 export {
-  renderLogin, renderInitializationError
+  renderLogin, renderInitializationError, sessionEnded, sessionStarted
 };

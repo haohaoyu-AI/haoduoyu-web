@@ -8,7 +8,7 @@ import { readRoute, updateRoute, mobilePage } from "./core/router.mjs";
 import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
-import { renderLogin, renderInitializationError } from "./pages/login.mjs";
+import { renderLogin, renderInitializationError, sessionStarted } from "./pages/login.mjs";
 import { renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
@@ -46,9 +46,8 @@ function renderPageHeader() {
   const name = state.account || "V字";
   const account = ["review", "ai-reports"].includes(state.page)
     ? `<span class="page-account-pill"><span aria-label="当前账号">${e(name)}</span></span>` : "";
-  const login = state.page === "settings" && state.me?.publicBusiness
-    ? '<a class="btn small" href="?page=login">管理员登录</a>' : "";
-  const actions = account || login ? `<div class="head-actions">${account}${login}</div>` : "";
+  // No login button anywhere: the owner signs in only by opening ?page=login directly.
+  const actions = account ? `<div class="head-actions">${account}</div>` : "";
   return `<div class="heading-left"><div class="page-head-titles"><h1>${e(title)}</h1><p class="page-head-sub">${e(subtitle)}</p></div></div>${actions}`;
 }
 function mainContent() {
@@ -231,6 +230,7 @@ async function init({ freshLogin = false } = {}) {
     const me = await api("/auth/me");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.me = me;
+    sessionStarted();
     if (me.publicBusiness && new URLSearchParams(location.search).get("page") === "login") {
       renderLogin();
       return;

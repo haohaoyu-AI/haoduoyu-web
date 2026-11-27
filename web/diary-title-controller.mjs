@@ -55,8 +55,10 @@ export function createDiaryTitleController({identity,date,visible,isGuest,root,o
     const node=root(); if(!node)return;
     const value=page(date()),guest=isGuest(),locked=guest||value.denied;
     const editor=node.querySelector('.diary-title-fields'),login=node.querySelector('[data-diary-title-login]');
+    // Not signed in: the whole 小标题 box stays out of sight rather than offering a login button.
+    node.hidden=guest;
     editor.hidden=locked;
-    login.hidden=!guest;
+    login.hidden=true;
     const field=node.querySelector('input'),button=node.querySelector('[type=submit]');
     if(field.value!==value.draft)field.value=value.draft;
     field.disabled=!value.loaded||value.saving||locked;

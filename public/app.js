@@ -562,6 +562,25 @@ function renderLogin() {
     15
   )}</button></form></section></main>`;
 }
+function sessionEnded() {
+  let tried = false;
+  try {
+    tried = sessionStorage.getItem(SESSION_RETRY) === "1";
+    sessionStorage.setItem(SESSION_RETRY, "1");
+  } catch {
+  }
+  if (!tried && typeof location !== "undefined" && typeof location.reload === "function") {
+    location.reload();
+    return;
+  }
+  renderLogin();
+}
+function sessionStarted() {
+  try {
+    sessionStorage.removeItem(SESSION_RETRY);
+  } catch {
+  }
+}
 function renderInitializationError(message, onRetry, { status } = {}) {
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -571,6 +590,7 @@ function renderInitializationError(message, onRetry, { status } = {}) {
   $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
   $("#init-retry")?.addEventListener("click", onRetry);
 }
+var SESSION_RETRY;
 var init_login = __esm({
   "web/pages/login.mjs"() {
     init_dom();
@@ -578,6 +598,7 @@ var init_login = __esm({
     init_state();
     init_entry();
     init_popover();
+    SESSION_RETRY = "haoduoyu.sessionEnded";
   }
 });
 
@@ -5645,12 +5666,13 @@ async function apiTransport(path, opts) {
 }
 function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect = false) {
   const current3 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current3 && !suppressAuthRedirect) {
+  const ownerOnly = response.status === 401 && state.me?.publicBusiness === true;
+  if (response.status === 401 && path !== "/auth/login" && current3 && !suppressAuthRedirect && !ownerOnly) {
     state.me = null;
     closeModal();
-    renderLogin();
+    sessionEnded();
   }
-  const message = payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
+  const message = ownerOnly ? "这个操作只有网站所有者能用。" : payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
   const error2 = new Error(message);
   error2.status = response.status;
   error2.code = payload.error?.code;
@@ -11275,8 +11297,9 @@ function createDiaryTitleController({ identity: identity5, date: date2, visible:
     if (!node3) return;
     const value = page(date2()), guest = isGuest(), locked = guest || value.denied;
     const editor = node3.querySelector(".diary-title-fields"), login = node3.querySelector("[data-diary-title-login]");
+    node3.hidden = guest;
     editor.hidden = locked;
-    login.hidden = !guest;
+    login.hidden = true;
     const field2 = node3.querySelector("input"), button2 = node3.querySelector("[type=submit]");
     if (field2.value !== value.draft) field2.value = value.draft;
     field2.disabled = !value.loaded || value.saving || locked;
@@ -17705,8 +17728,7 @@ function renderPageHeader() {
   const title = defaultTitle, subtitle = defaultSub;
   const name = state.account || "V字";
   const account3 = ["review", "ai-reports"].includes(state.page) ? `<span class="page-account-pill"><span aria-label="当前账号">${e(name)}</span></span>` : "";
-  const login = state.page === "settings" && state.me?.publicBusiness ? '<a class="btn small" href="?page=login">管理员登录</a>' : "";
-  const actions2 = account3 || login ? `<div class="head-actions">${account3}${login}</div>` : "";
+  const actions2 = account3 ? `<div class="head-actions">${account3}</div>` : "";
   return `<div class="heading-left"><div class="page-head-titles"><h1>${e(title)}</h1><p class="page-head-sub">${e(subtitle)}</p></div></div>${actions2}`;
 }
 function mainContent() {
@@ -17879,6 +17901,7 @@ async function init({ freshLogin = false } = {}) {
     const me = await api("/auth/me");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.me = me;
+    sessionStarted();
     if (me.publicBusiness && new URLSearchParams(location.search).get("page") === "login") {
       renderLogin();
       return;
