@@ -744,7 +744,15 @@ export const notesSplitBackfillRelease=Object.freeze({
   baseline:'2461f251-5972-4618-95bc-eed37cd00d8a',
   bytes:3367732,sha256:'48a326908eefd9312be1c31db5c210734032d233ff58d8966d86edff25726f0e',
   label:'production-notes-split-label-backfill'});
-const acceptedRelease=commit=>commit===notesSplitBackfillRelease.commit?notesSplitBackfillRelease:
+// Login lasts 400 days; an expired login carries on as the public workspace instead of showing the login box. No migrations.
+export const noLoginPopupRelease=Object.freeze({
+  commit:'c0ed7ef3d4dfb858cefb7bf33e1e10b7fb42602c',
+  tree:'612cd4d2eca98b3079282c55c47eebc0dfe92160',
+  baseline:'103686c2-c3ab-45c2-99d4-f6376baa873e',
+  bytes:3368367,sha256:'088db1550bca26adbfb724719b466f8cb2c2fbfaabb84cc79758793f67ded1b0',
+  label:'production-no-login-popup'});
+const acceptedRelease=commit=>commit===noLoginPopupRelease.commit?noLoginPopupRelease:
+  commit===notesSplitBackfillRelease.commit?notesSplitBackfillRelease:
   commit===privacyPolicyRelease.commit?privacyPolicyRelease:
   commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
   commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
