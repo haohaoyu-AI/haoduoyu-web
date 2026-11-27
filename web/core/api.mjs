@@ -1,6 +1,6 @@
 import { clearArticleIndexes, resetSessionIndexes } from "./session-index-state.mjs";
 import { runtime, state } from "./state.mjs";
-import { renderLogin } from "../pages/login.mjs";
+import { sessionEnded } from "../pages/login.mjs";
 import { closeModal } from "../ui/modal.mjs";
 import { assertRequestActive, backgroundRequests, isRequestAbort, pendingGet } from "./requests.mjs";
 import { offlineRequest, captureOfflineRateLimitContext, recordOfflineRateLimit } from "../offline/runtime.mjs";
@@ -43,12 +43,14 @@ async function apiTransport(path, opts) {
 }
 function apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect = false) {
   const current = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current && !suppressAuthRedirect) {
+  // The site is open to everyone: in that mode a 401 only means "owner-only", so the page stays as it is.
+  const ownerOnly = response.status === 401 && state.me?.publicBusiness === true;
+  if (response.status === 401 && path !== "/auth/login" && current && !suppressAuthRedirect && !ownerOnly) {
     state.me = null;
     closeModal();
-    renderLogin();
+    sessionEnded();
   }
-  const message = payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
+  const message = ownerOnly ? "这个操作只有网站所有者能用。" : payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
   const error = new Error(message);
   error.status = response.status;
   error.code = payload.error?.code;

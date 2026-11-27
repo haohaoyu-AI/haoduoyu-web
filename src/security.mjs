@@ -59,8 +59,10 @@ export async function authenticate(store,request,permission='read') {
   if(!actor.permissions.includes(permission)) throw fail(403,'FORBIDDEN','此凭证没有所需的读写权限');
   return actor;
 }
+// A login lasts 400 days (the longest browsers keep a cookie), so the owner is not asked to sign in again every week.
+export const SESSION_MS=400*86400000;
 export function sessionCookie(token,origin) {
-  return 'matrix_session='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+(token?'604800':'0')+(origin.startsWith('https:')?'; Secure':'');
+  return 'matrix_session='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+(token?String(SESSION_MS/1000):'0')+(origin.startsWith('https:')?'; Secure':'');
 }
 export async function throttleLogin(db,username,request,env) {
   // Sites dispatch's forwarding contract is not yet confirmed. Default to a
