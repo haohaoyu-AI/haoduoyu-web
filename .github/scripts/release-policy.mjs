@@ -737,7 +737,15 @@ export const privacyPolicyRelease=Object.freeze({
   baseline:'0928b842-a009-4e0a-8795-4d2016aabc01',
   bytes:3350193,sha256:'81b5285843a2a10207ef5b1b634008699259e6e7dd90f0715f289487e7f06cf8',
   label:'production-public-privacy-policy'});
-const acceptedRelease=commit=>commit===privacyPolicyRelease.commit?privacyPolicyRelease:
+// 碎碎念: split a long note into several to-dos; AI finds older notes for a new label. No migrations.
+export const notesSplitBackfillRelease=Object.freeze({
+  commit:'7a5428772ba505364a4e378f502c4a396f21f8eb',
+  tree:'a0c9e42f3e8e30a41012b62164d3319a60f216dc',
+  baseline:'2461f251-5972-4618-95bc-eed37cd00d8a',
+  bytes:3367732,sha256:'48a326908eefd9312be1c31db5c210734032d233ff58d8966d86edff25726f0e',
+  label:'production-notes-split-label-backfill'});
+const acceptedRelease=commit=>commit===notesSplitBackfillRelease.commit?notesSplitBackfillRelease:
+  commit===privacyPolicyRelease.commit?privacyPolicyRelease:
   commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
   commit===reviewPatternRosterRelease.commit?reviewPatternRosterRelease:
   commit===diaryTitleRelease.commit?diaryTitleRelease:
