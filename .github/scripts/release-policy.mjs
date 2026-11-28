@@ -753,8 +753,8 @@ export const noLoginPopupRelease=Object.freeze({
   label:'production-no-login-popup'});
 // Content review: funnel "卡在哪" column and detail retention/source/audience/revenue blocks. Frontend only, no migrations.
 export const reviewFunnelRelease=Object.freeze({
-  commit:'3c5d71b2a028abd72227ff9986539f03e480f9a2',
-  tree:'a031b7d70409fbeb98d8ce2ad2b74fc90a6df6fa',
+  commit:'25b8d9cacc85ad8b7257235f6c0d38f90d8ace75',
+  tree:'c66f3a383b346c94c8edc2736bf9c9abcb166350',
   baseline:'d3ee78ac-508e-41eb-8cf8-9547b9b2e93a',
   bytes:3378842,sha256:'7a00f565c1fd21b1ea272dc54a454a264b43780cd3a10f355fddd5ad2fc82d2c',
   label:'production-review-funnel'});
