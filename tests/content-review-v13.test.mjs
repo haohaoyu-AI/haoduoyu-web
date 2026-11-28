@@ -110,9 +110,9 @@ test('statistics range offers only weeks and falls back from old or invalid valu
 
 test('article list keeps a fixed metric set; details show references and full traffic', () => {
   const input=fixture(), html=htmlFor(input,{secondary:'articles'});
-  for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,5);
+  for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,6);
   const full=htmlFor(input,{secondary:'articles',filters:{group:'@table',range:'all',density:'full'}});
-  for (const id of ['own-a','own-b','unknown']) assert.equal((row(full,id).match(/<td\b/g)||[]).length,8);
+  for (const id of ['own-a','own-b','unknown']) assert.equal((row(full,id).match(/<td\b/g)||[]).length,9);
   assert.doesNotMatch(html,/review-reference|FOREIGN_/);
   assert.match(row(html,'own-b'),/data-label="24h 阅读"[^>]*><span title="发布后 23 小时">0<\/span>/);
   const detail=htmlFor(input,{article:'own-a'});

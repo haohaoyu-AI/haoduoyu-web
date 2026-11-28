@@ -33,10 +33,10 @@ const cell = (html,id,label) => row(html,id).match(new RegExp(`<td data-label="$
 test('fixed table renders published rows with all seven metrics, keeping pending and unmatched records outside', () => {
   const html = render();
   const headers = [...html.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(headers,['published','reads','ctr','completion_rate','avg_read_seconds']);
+  assert.deepEqual(headers,['published','funnel','reads','ctr','completion_rate','avg_read_seconds']);
   const fullHtml = render({}, {filters:{group:'@table',range:'all',density:'full'}});
   const fullHeaders = [...fullHtml.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(fullHeaders,['published','reads','ctr','completion_rate','avg_read_seconds','impressions','fan_reads','fan_impressions']);
+  assert.deepEqual(fullHeaders,['published','funnel','reads','ctr','completion_rate','avg_read_seconds','impressions','fan_reads','fan_impressions']);
   assert.match(html,/review-article-drafts" data-review-keep-open="drafts"><summary>草稿箱 1 篇/);
   assert.match(html,/<time>11-16 周一 14:00<\/time>.*data-review-article="draft"/);
   assert.match(html,/未能对上 1 篇/);
