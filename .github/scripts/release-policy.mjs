@@ -751,7 +751,15 @@ export const noLoginPopupRelease=Object.freeze({
   baseline:'103686c2-c3ab-45c2-99d4-f6376baa873e',
   bytes:3368367,sha256:'088db1550bca26adbfb724719b466f8cb2c2fbfaabb84cc79758793f67ded1b0',
   label:'production-no-login-popup'});
-const acceptedRelease=commit=>commit===noLoginPopupRelease.commit?noLoginPopupRelease:
+// Content review: funnel "卡在哪" column and detail retention/source/audience/revenue blocks. Frontend only, no migrations.
+export const reviewFunnelRelease=Object.freeze({
+  commit:'3c5d71b2a028abd72227ff9986539f03e480f9a2',
+  tree:'a031b7d70409fbeb98d8ce2ad2b74fc90a6df6fa',
+  baseline:'d3ee78ac-508e-41eb-8cf8-9547b9b2e93a',
+  bytes:3378842,sha256:'7a00f565c1fd21b1ea272dc54a454a264b43780cd3a10f355fddd5ad2fc82d2c',
+  label:'production-review-funnel'});
+const acceptedRelease=commit=>commit===reviewFunnelRelease.commit?reviewFunnelRelease:
+  commit===noLoginPopupRelease.commit?noLoginPopupRelease:
   commit===notesSplitBackfillRelease.commit?notesSplitBackfillRelease:
   commit===privacyPolicyRelease.commit?privacyPolicyRelease:
   commit===diaryTitleArchiveReadRelease.commit?diaryTitleArchiveReadRelease:
