@@ -1537,3 +1537,26 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 #content-review .review-updated-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:8px 2px 4px; font-size:13px; color:var(--muted, #6b7280); }
 #content-review .review-updated-line time { color:var(--ink, #1f2937); font-variant-numeric:tabular-nums; }
 #content-review .review-updated-line .review-section-updated { padding-left:14px; border-left:1px solid var(--line, rgba(0,0,0,.12)); }
+
+/* 漏斗诊断「卡在哪」与详情里的流失曲线、流量来源、读者画像（Claude 2026-11-28） */
+#content-review .review-cell-funnel { white-space:nowrap; }
+#content-review .review-funnel-tag { display:inline-block; margin:0 4px 2px 0; padding:1px 7px; border-radius:999px; font-size:var(--font-size-12); color:var(--review-verdict-flop); background:var(--review-verdict-flop-bg); }
+#content-review .review-funnel-tag.is-impressions { color:var(--color-text-secondary); background:var(--color-divider); }
+#content-review .review-funnel-ok { font-size:var(--font-size-12); color:var(--review-verdict-hit); }
+#content-review .review-funnel-none { color:var(--color-text-secondary); }
+#content-review .review-traffic-secondary.is-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+#content-review .review-traffic-extra { display:grid; gap:20px; border-top:1px solid var(--color-divider); margin-top:20px; padding-top:18px; }
+#content-review .review-traffic-block h4 { margin:0 0 10px; font-size:var(--font-size-12); font-weight:500; color:var(--color-text-secondary); }
+#content-review .review-retention { display:block; width:100%; height:90px; overflow:visible; }
+#content-review .review-retention-line { fill:none; stroke:var(--review-verdict-flop); stroke-width:2; vector-effect:non-scaling-stroke; }
+#content-review .review-retention-mid { stroke:var(--color-divider); stroke-width:1; stroke-dasharray:3 3; vector-effect:non-scaling-stroke; }
+#content-review .review-retention-axis { display:flex; justify-content:space-between; font-size:11px; color:var(--color-text-secondary); margin-top:4px; }
+#content-review .review-traffic-facts { margin:8px 0 0; font-size:13px; display:flex; flex-wrap:wrap; gap:6px; }
+#content-review .review-traffic-facts b { font-weight:600; }
+#content-review .review-source-list { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+#content-review .review-source-list li { display:grid; grid-template-columns:5em 1fr 3.6em; align-items:center; gap:10px; font-size:13px; }
+#content-review .review-source-bar { display:block; width:100%; height:6px; }
+#content-review .review-source-track { fill:var(--color-divider); }
+#content-review .review-source-fill { fill:var(--color-text-secondary); }
+#content-review .review-source-list b { text-align:right; font-weight:600; }
+@media (max-width:640px){ #content-review .review-traffic-secondary.is-4 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
