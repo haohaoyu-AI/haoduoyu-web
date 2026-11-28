@@ -13,8 +13,8 @@ const cell = (html,label) => html.match(new RegExp(`<td data-label="${label}"[^>
 
 test('compact shows four metrics; full adds the other three; unknown density falls back to compact', () => {
   const heads = html => [...html.matchAll(/<th scope="col" class="review-cell-([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(heads(renderArticleList([article],vm({}),snapshots,'')),['published','reads','ctr','completion_rate','avg_read_seconds']);
-  assert.equal(heads(renderArticleList([article],vm({density:'full'}),snapshots,'')).length,8);
+  assert.deepEqual(heads(renderArticleList([article],vm({}),snapshots,'')),['published','funnel','reads','ctr','completion_rate','avg_read_seconds']);
+  assert.equal(heads(renderArticleList([article],vm({density:'full'}),snapshots,'')).length,9);
   assert.equal(articleDensity('wide'),'compact');
 });
 

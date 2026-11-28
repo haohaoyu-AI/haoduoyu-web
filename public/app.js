@@ -15471,6 +15471,87 @@ var duration2 = (value) => {
   const seconds = Math.round(n);
   return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
 };
+var money = (value) => {
+  const n = valid2(value);
+  return n === null ? "—" : `¥${n.toFixed(2)}`;
+};
+var scaleOf = (values) => {
+  const numbers = values.map(finiteNumber2).filter((n) => n !== null && n >= 0);
+  return numbers.length && numbers.every((n) => n <= 1) ? 100 : 1;
+};
+var pct = (value, scale2) => {
+  const n = finiteNumber2(value);
+  if (n === null || n < 0) return null;
+  const scaled = n * scale2;
+  return scaled <= 100 ? scaled : null;
+};
+function trafficSourceList(value) {
+  if (!value || typeof value !== "object") return [];
+  const pairs = Array.isArray(value) ? value.map((item) => [item?.name, item?.rate ?? item?.value]) : Object.entries(value);
+  const scale2 = scaleOf(pairs.map(([, rate3]) => rate3));
+  return pairs.map(([name, rate3]) => [typeof name === "string" ? name.trim() : "", pct(rate3, scale2)]).filter(([name, rate3]) => name && rate3 !== null).sort((a, b) => b[1] - a[1]);
+}
+function completionCurvePoints(value) {
+  if (!Array.isArray(value)) return [];
+  const raw = value.map((item) => Array.isArray(item) ? [item[0], item[1]] : [item?.at ?? item?.read_rate ?? item?.x, item?.remain ?? item?.jump_rate ?? item?.y]);
+  const xScale = scaleOf(raw.map(([x]) => x)), yScale = scaleOf(raw.map(([, y]) => y));
+  const points = raw.map(([x, y]) => [pct(x, xScale), pct(y, yScale)]).filter(([x, y]) => x !== null && y !== null).sort((a, b) => a[0] - b[0]);
+  return points.length >= 2 ? points : [];
+}
+function remainAt(points, at) {
+  let best = null;
+  for (const point of points) if (!best || Math.abs(point[0] - at) < Math.abs(best[0] - at)) best = point;
+  return best ? best[1] : null;
+}
+function curveSection(points) {
+  if (!points.length) return "";
+  const path = points.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${(100 - y).toFixed(1)}`).join(" ");
+  const early = remainAt(points, 10), half = remainAt(points, 50), end = points[points.length - 1][1];
+  const facts = [
+    early !== null ? `读到 10% 已走 <b>${(100 - early).toFixed(0)}%</b>` : "",
+    half !== null ? `读到一半还剩 <b>${half.toFixed(0)}%</b>` : "",
+    `读到结尾还剩 <b>${end.toFixed(0)}%</b>`
+  ].filter(Boolean).join('<span aria-hidden="true">·</span>');
+  return `<div class="review-traffic-block"><h4>读者在哪里走的</h4><svg class="review-retention" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="读者流失曲线"><line x1="50" y1="0" x2="50" y2="100" class="review-retention-mid"/><path d="${path}" class="review-retention-line"/></svg><div class="review-retention-axis"><span>开头</span><span>一半</span><span>结尾</span></div><p class="review-traffic-facts">${facts}</p></div>`;
+}
+function sourcesSection(list3) {
+  if (!list3.length) return "";
+  const top = list3.slice(0, 4);
+  return `<div class="review-traffic-block"><h4>展现从哪来</h4><ul class="review-source-list">${top.map(([name, rate3]) => `<li><span class="review-source-name">${e(name)}</span><svg class="review-source-bar" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><rect class="review-source-track" width="100" height="6" rx="3"/><rect class="review-source-fill" width="${Math.max(1, rate3).toFixed(1)}" height="6" rx="3"/></svg><b>${rate3.toFixed(1)}%</b></li>`).join("")}</ul></div>`;
+}
+function shareOf(map, pick) {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return null;
+  const entries = Object.entries(map).map(([k, v]) => [k, finiteNumber2(v)]).filter(([, v]) => v !== null && v >= 0);
+  const total = entries.reduce((sum, [, v]) => sum + v, 0);
+  if (!total) return null;
+  return pick(entries, total);
+}
+function audienceFacts(value) {
+  if (!value || typeof value !== "object") return [];
+  const age = value.age ?? value.fansage, gender = value.gender ?? value.fansgender, province = value.province ?? value.fansprovince;
+  const facts = [];
+  const male = shareOf(gender, (entries, total) => {
+    const hit = entries.find(([k]) => k === "男" || k === "male");
+    return hit ? hit[1] / total * 100 : null;
+  });
+  if (male !== null) facts.push(`男性 ${male.toFixed(0)}%`);
+  const topAge = shareOf(age, (entries, total) => {
+    const [name, v] = [...entries].sort((a, b) => b[1] - a[1])[0];
+    return { name, share: v / total * 100 };
+  });
+  if (topAge) {
+    const raw = topAge.name.trim();
+    const label = raw.startsWith(">") ? `${raw.slice(1)} 岁以上` : raw.startsWith("<") ? `${raw.slice(1)} 岁以下` : `${raw} 岁`;
+    facts.push(`${label}最多（${topAge.share.toFixed(0)}%）`);
+  }
+  const provinces = shareOf(province, (entries) => [...entries].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k));
+  if (provinces?.length) facts.push(`${provinces.join("、")}读者最多`);
+  return facts;
+}
+function audienceSection(facts) {
+  if (!facts.length) return "";
+  return `<div class="review-traffic-block"><h4>谁在读</h4><p class="review-traffic-facts">${facts.map(e).join('<span aria-hidden="true">·</span>')}</p></div>`;
+}
 function renderTrafficCard(snapshots, articleId) {
   const matching = (Array.isArray(snapshots) ? snapshots : []).filter((s) => String(s?.article_id) === String(articleId));
   const snapshot = latestSnapshots(matching).get(String(articleId));
@@ -15483,7 +15564,9 @@ function renderTrafficCard(snapshots, articleId) {
     ["平均阅读完成率", percent(snapshot?.completion_rate)],
     ["平均阅读时长", duration2(snapshot?.avg_read_seconds)]
   ];
-  return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : ""}<dl class="review-traffic-primary">${primary.map(([label, value, subLabel, subValue]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd><div class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join("")}</dl><dl class="review-traffic-secondary">${secondary.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></section>`;
+  if (valid2(snapshot?.revenue) !== null) secondary.push(["收益", money(snapshot.revenue)]);
+  const extra = curveSection(completionCurvePoints(snapshot?.completion_curve)) + sourcesSection(trafficSourceList(snapshot?.traffic_sources)) + audienceSection(audienceFacts(snapshot?.audience));
+  return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : ""}<dl class="review-traffic-primary">${primary.map(([label, value, subLabel, subValue]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd><div class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join("")}</dl><dl class="review-traffic-secondary is-${secondary.length}">${secondary.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl>` + (extra ? `<div class="review-traffic-extra">${extra}</div>` : "") + `</section>`;
 }
 
 // web/core/review-trends.mjs
@@ -15839,13 +15922,13 @@ function rankedList(result) {
   const rows = items.map((item, index) => {
     const verdictKey = VERDICT_CLASS[item.verdict] || "unjudged";
     const verdictLabel = item.verdict || "未判";
-    const pct = known2(item.reads) && item.reads > 0 ? Math.max(4, Math.min(100, Math.round(Math.log10(Math.max(item.reads, 1)) / maxLog * 100))) : 0;
+    const pct2 = known2(item.reads) && item.reads > 0 ? Math.max(4, Math.min(100, Math.round(Math.log10(Math.max(item.reads, 1)) / maxLog * 100))) : 0;
     const when = item.timed ? reviewDateTime2(item.published_at).slice(5) : item.date.slice(5);
     return `<li class="review-rank-item" data-review-row="${e(item.id)}">
       <span class="review-rank-num">${index + 1}</span>
       <span class="review-rank-chip ${verdictKey}">${e(verdictLabel)}</span>
       <button type="button" class="review-rank-title" data-review-article="${e(item.id)}" title="${e(item.title || "未命名")}">${e(item.title || "未命名")}</button>
-      <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="8" rx="4"/><rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? " provisional" : ""}" width="${pct}" height="8" rx="4"/></svg>
+      <svg class="review-rank-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="8" rx="4"/><rect class="review-rank-bar-fill ${verdictKey}${item.provisional ? " provisional" : ""}" width="${pct2}" height="8" rx="4"/></svg>
       <span class="review-rank-reads"><small class="review-rank-metric-label">阅读 </small>${e(reads2(item.reads))}</span>
       <span class="review-rank-ctr"><small class="review-rank-metric-label">点击 </small>${e(percent2(item.ctr))}</span>
       <span class="review-rank-meta">${e(when)}${item.provisional ? " · 不满 24h 暂定" : ""}</span>
@@ -16260,7 +16343,7 @@ var metricColumns = [
   ["fan_impressions", "粉丝展现", false]
 ];
 var DENSITIES = ["compact", "full"];
-var columnsFor = (density) => [["published", "文章", true], ...metricColumns.filter(([, , core]) => density === "full" || core).map(([key, label]) => [key, label, true])];
+var columnsFor = (density) => [["published", "文章", true], ["funnel", "卡在哪", false], ...metricColumns.filter(([, , core]) => density === "full" || core).map(([key, label]) => [key, label, true])];
 var columns = columnsFor("full");
 var TABLE_VIEW = "@table";
 var reviewSortKeys = columns.filter(([, , sortable]) => sortable).map(([key]) => key);
@@ -16478,8 +16561,8 @@ function verdictChip(row, observation) {
 }
 function readsBar(readsValue, maxLog, verdictKey, provisional) {
   if (readsValue === null || readsValue <= 0 || maxLog <= 0) return "";
-  const pct = Math.max(6, Math.min(100, Math.round(Math.log10(Math.max(readsValue, 1)) / maxLog * 100)));
-  return `<svg class="review-rank-bar review-article-bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="4" rx="2"/><rect class="review-rank-bar-fill ${verdictKey}${provisional ? " provisional" : ""}" width="${pct}" height="4" rx="2"/></svg>`;
+  const pct2 = Math.max(6, Math.min(100, Math.round(Math.log10(Math.max(readsValue, 1)) / maxLog * 100)));
+  return `<svg class="review-rank-bar review-article-bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect class="review-rank-bar-track" width="100" height="4" rx="2"/><rect class="review-rank-bar-fill ${verdictKey}${provisional ? " provisional" : ""}" width="${pct2}" height="4" rx="2"/></svg>`;
 }
 function verdictMixBar(counts) {
   const total = counts.reduce((sum, n) => sum + n, 0);
@@ -16497,7 +16580,25 @@ function metricCell(observation, key) {
   const title = `24 小时数据里还没有，这是发布后 ${e(reviewObservationHours(hours))} 小时的采集`;
   return `<span class="review-latest-value" title="${title}">${text}</span>`;
 }
-function rowHtml(row, observation, tags, dimensions, maxLog, cols) {
+var FUNNEL_STEPS = [
+  ["ctr", "点击低", 0.7, "点击率不到中位数的七成：标题和封面没让人想点"],
+  ["completion_rate", "完读低", 0.8, "完读率不到中位数的八成：读者半路走了，看正文"],
+  ["impressions", "展现少", 0.5, "展现量不到中位数的一半：平台没怎么推"]
+];
+function funnelDiagnosis(observation, stats2) {
+  if (!observation || observation.kind === "immature") return null;
+  const checked4 = FUNNEL_STEPS.filter(([key]) => finiteNumber2(stats2?.[key]) !== null && metricValue(observation, key) !== null);
+  if (!checked4.length) return null;
+  const weak = checked4.filter(([key, , ratio]) => metricValue(observation, key) < stats2[key] * ratio);
+  return { weak: weak.map(([key, label, , reason]) => ({ key, label, reason })) };
+}
+function funnelCell(observation, stats2) {
+  const result = funnelDiagnosis(observation, stats2);
+  if (!result) return '<span class="review-funnel-none">—</span>';
+  if (!result.weak.length) return '<span class="review-funnel-ok" title="点击、完读、展现都不低于中位数的标准">正常</span>';
+  return result.weak.map((step) => `<span class="review-funnel-tag is-${e(step.key)}" title="${e(step.reason)}">${e(step.label)}</span>`).join("");
+}
+function rowHtml(row, observation, tags, dimensions, maxLog, cols, stats2) {
   const published = articleListDate(row.published_at);
   const patterns = [patternButton(tags, row, dimensions[0], "title"), patternButton(tags, row, dimensions[1], "article")].filter(Boolean);
   const identity5 = `<div class="review-article-identity">${verdictChip(row, observation)}<div class="review-article-main">${titleButton(row)}<div class="review-article-meta"><span class="review-article-date">${e(published)}</span>${patterns.map((item) => '<span aria-hidden="true">·</span>' + item).join("")}</div></div></div>`;
@@ -16506,7 +16607,7 @@ function rowHtml(row, observation, tags, dimensions, maxLog, cols) {
   const vKey = verdictClass[row.verdict] || "unjudged";
   const provisional = observation.hours !== null && observation.hours < 24;
   const readsCell = (observation.hours === null ? readsFormatted : `<span title="发布后 ${e(reviewObservationHours(observation.hours))} 小时">${readsFormatted}</span>`) + readsBar(readsVal, maxLog, vKey, provisional);
-  const cell = (key) => key === "published" ? identity5 : key === "reads" ? readsCell : metricCell(observation, key);
+  const cell = (key) => key === "published" ? identity5 : key === "reads" ? readsCell : key === "funnel" ? funnelCell(observation, stats2) : metricCell(observation, key);
   return `<tr data-review-row="${e(row.id)}">${cols.map(([key, label]) => `<td data-label="${label}" class="review-cell-${key}">${cell(key)}</td>`).join("")}</tr>`;
 }
 function table(headers, bodies, density) {
@@ -16573,9 +16674,9 @@ function renderArticleList(rows, vm2, snapshots, flagged, tag2) {
   const maxReads = Math.max(10, ...ordered2.map((row) => metricValue(observations.get(row.id), "reads") ?? 0));
   const maxLog = Math.log10(maxReads);
   const stats2 = summary2(ordered2, observations);
-  const lines = (list3) => list3.map((row) => rowHtml(row, observations.get(row.id), vm2.tags, dimensions, maxLog, cols)).join("");
+  const lines = (list3) => list3.map((row) => rowHtml(row, observations.get(row.id), vm2.tags, dimensions, maxLog, cols, stats2)).join("");
   const headers = columnHeaders(filters.sort, cols);
-  const note = '<p class="review-latest-note">* 头条 24 小时数据常常还没有完读率和阅读时长，缺的时候取最近一次采集（鼠标停在数字上看是发布后几小时）；其余指标都是发布后 24 小时。</p>';
+  const note = '<p class="review-latest-note">「卡在哪」和当前筛选里所有文章的中位数比：点击率不到七成标「点击低」（看标题封面），完读率不到八成标「完读低」（看正文），展现量不到一半标「展现少」（平台没怎么推）。鼠标停在标签上看原因。</p><p class="review-latest-note">* 头条 24 小时数据常常还没有完读率和阅读时长，缺的时候取最近一次采集（鼠标停在数字上看是发布后几小时）；其余指标都是发布后 24 小时。</p>';
   const head = summaryStrip(stats2, ordered2.length, density);
   if (group !== TABLE_VIEW) {
     const groups = articlePatternGroups(ordered2, vm2.tags, group, observations);

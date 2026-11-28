@@ -21,7 +21,7 @@ const metricColumns = [
   ['fan_impressions','粉丝展现',false],
 ];
 export const DENSITIES = ['compact','full'];
-const columnsFor = density => [['published','文章',true], ...metricColumns.filter(([, ,core]) => density === 'full' || core)
+const columnsFor = density => [['published','文章',true], ['funnel','卡在哪',false], ...metricColumns.filter(([, ,core]) => density === 'full' || core)
   .map(([key,label]) => [key,label,true])];
 const columns = columnsFor('full');
 export const TABLE_VIEW = '@table';
@@ -328,7 +328,28 @@ function metricCell(observation,key) {
   return `<span class="review-latest-value" title="${title}">${text}</span>`;
 }
 
-function rowHtml(row,observation,tags,dimensions,maxLog,cols) {
+// 漏斗诊断：和当前筛选里的中位数比，按「点击 → 完读 → 展现」列出偏低的环节。
+// 点击低多半是标题封面没人点；完读低是正文留不住人；展现少是平台没怎么推。
+export const FUNNEL_STEPS = [
+  ['ctr','点击低',0.7,'点击率不到中位数的七成：标题和封面没让人想点'],
+  ['completion_rate','完读低',0.8,'完读率不到中位数的八成：读者半路走了，看正文'],
+  ['impressions','展现少',0.5,'展现量不到中位数的一半：平台没怎么推'],
+];
+export function funnelDiagnosis(observation,stats) {
+  if (!observation || observation.kind === 'immature') return null;
+  const checked = FUNNEL_STEPS.filter(([key]) => finiteNumber(stats?.[key]) !== null && metricValue(observation,key) !== null);
+  if (!checked.length) return null;
+  const weak = checked.filter(([key, ,ratio]) => metricValue(observation,key) < stats[key] * ratio);
+  return {weak:weak.map(([key,label, ,reason]) => ({key,label,reason}))};
+}
+function funnelCell(observation,stats) {
+  const result = funnelDiagnosis(observation,stats);
+  if (!result) return '<span class="review-funnel-none">—</span>';
+  if (!result.weak.length) return '<span class="review-funnel-ok" title="点击、完读、展现都不低于中位数的标准">正常</span>';
+  return result.weak.map(step => `<span class="review-funnel-tag is-${e(step.key)}" title="${e(step.reason)}">${e(step.label)}</span>`).join('');
+}
+
+function rowHtml(row,observation,tags,dimensions,maxLog,cols,stats) {
   const published = articleListDate(row.published_at);
   const patterns = [patternButton(tags,row,dimensions[0],'title'),patternButton(tags,row,dimensions[1],'article')].filter(Boolean);
   const identity = `<div class="review-article-identity">${verdictChip(row,observation)}` +
@@ -342,7 +363,8 @@ function rowHtml(row,observation,tags,dimensions,maxLog,cols) {
   const readsCell = (observation.hours === null ? readsFormatted :
     `<span title="发布后 ${e(reviewObservationHours(observation.hours))} 小时">${readsFormatted}</span>`) +
     readsBar(readsVal,maxLog,vKey,provisional);
-  const cell = key => key === 'published' ? identity : key === 'reads' ? readsCell : metricCell(observation,key);
+  const cell = key => key === 'published' ? identity : key === 'reads' ? readsCell : key === 'funnel' ? funnelCell(observation,stats) :
+    metricCell(observation,key);
   return `<tr data-review-row="${e(row.id)}">${cols.map(([key,label]) =>
     `<td data-label="${label}" class="review-cell-${key}">${cell(key)}</td>`).join('')}</tr>`;
 }
@@ -430,9 +452,11 @@ export function renderArticleList(rows,vm,snapshots,flagged,tag) {
   const maxReads = Math.max(10, ...ordered.map(row => metricValue(observations.get(row.id),'reads') ?? 0));
   const maxLog = Math.log10(maxReads);
   const stats = summary(ordered,observations);
-  const lines = list => list.map(row => rowHtml(row,observations.get(row.id),vm.tags,dimensions,maxLog,cols)).join('');
+  const lines = list => list.map(row => rowHtml(row,observations.get(row.id),vm.tags,dimensions,maxLog,cols,stats)).join('');
   const headers = columnHeaders(filters.sort,cols);
-  const note = '<p class="review-latest-note">* 头条 24 小时数据常常还没有完读率和阅读时长，缺的时候取最近一次采集（鼠标停在数字上看是发布后几小时）；其余指标都是发布后 24 小时。</p>';
+  const note = '<p class="review-latest-note">「卡在哪」和当前筛选里所有文章的中位数比：点击率不到七成标「点击低」（看标题封面），' +
+    '完读率不到八成标「完读低」（看正文），展现量不到一半标「展现少」（平台没怎么推）。鼠标停在标签上看原因。</p>' +
+    '<p class="review-latest-note">* 头条 24 小时数据常常还没有完读率和阅读时长，缺的时候取最近一次采集（鼠标停在数字上看是发布后几小时）；其余指标都是发布后 24 小时。</p>';
   const head = summaryStrip(stats,ordered.length,density);
   if (group !== TABLE_VIEW) {
     const groups = articlePatternGroups(ordered,vm.tags,group,observations);
